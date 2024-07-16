@@ -55,14 +55,15 @@
 
         {{-- Add modal row --}}
         <div class="row">
-            <div id="addModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-                <div class="modal-dialog modal-lg  modal-dialog-centered">
+            <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center mt-2 mb-4">
-                                <h5>Add Unit</h5>
-                            </div>
-                            <form class="px-3" action="#">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add Unit</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="addAndEditForm" method="POST" action="">
+                            <div class="modal-body">
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="mb-3">
@@ -85,7 +86,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group local-forms days">
                                             <label>Allow decimal<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                                 <option>Yes</option>
                                                 <option>No</option>
@@ -94,44 +95,50 @@
                                     </div>
 
                                     <div class="col-md-12">
-                                        <div class="form-group local-forms days">
-                                            <input type="checkbox" id="allowLoginCheckbox" checked
+                                        <div class="mb-3 ms-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" checked 
                                                 onclick="toggleLoginFields()">
-                                            <p>Add as multiple of other unit</p>
-                                        </div>
-                                    </div>
-                                    <hr>
-
-                                    <div class="row">
-                                        <div class="col-md-2 hidingclass">
-                                            <b>1 Unit = </b>
-                                        </div>
-                                        <div class="col-md-5 hidingclass">
-                                            <div class="form-group local-forms">
-                                                <label>Time base unit<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Time base unit">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-5 hidingclass">
-                                            <div class="form-group local-forms days">
-                                                <label>Select base unit<span class="login-danger"></span></label>
-                                                <select class="form-control form-select">
-                                                    <option selected disabled>Select base unit</option>
-                                                    <option>Pieces (Pcs)</option>
-                                                    <option>Packets (Pck)</option>
-                                                    <option>Kilo Gram (Kg)</option>
-                                                </select>
+                                                <label class="form-check-label" for="allowLoginCheckbox">
+                                                    Add as multiple of other unit
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-2 mt-3 hidingclass">
+                                        <b>1 Unit = </b>
+                                    </div>
+                                    <div class="col-md-5 hidingclass">
+                                        <div class="form-group local-forms">
+                                            <label>Time base unit<span class="login-danger"></span></label>
+                                            <input class="form-control" type="text" placeholder="Time base unit">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5 hidingclass">
+                                        <div class="form-group local-forms days">
+                                            <label>Select base unit<span class="login-danger"></span></label>
+                                            <select class="form-control form-select select">
+                                                <option selected disabled>Select base unit</option>
+                                                <option>Pieces (Pcs)</option>
+                                                <option>Packets (Pck)</option>
+                                                <option>Kilo Gram (Kg)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
 
-
+                                <div class="row">
+                               
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-primary">Save</button>
-                                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                        <button type="submit" class="btn btn-primary">Save changes</button>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                     </div>
-                            </form>
-                        </div>
+                                </div>
+                            </div>
+    
+                        </form>
                     </div>
                 </div>
             </div>

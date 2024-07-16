@@ -53,7 +53,7 @@
         {{-- Add modal row --}}
         <div class="row">
             <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h1 class="modal-title fs-5" id="exampleModalLabel">Add Variation</h1>
@@ -62,8 +62,8 @@
                         {{-- <form id="addAndEditForm" method="POST" action="">  --}}
                             @csrf 
                             <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-12">
+                                <div class="row mt-4">
+                                    <div class="col col-md-12">
                                         <div class="mb-12">
                                             <div class="form-group local-forms">
                                                 <label>Variation Name <span class="login-danger">*</span></label>
@@ -72,28 +72,34 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-10">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Add variation values <span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" name="variation_values[]" placeholder=""> <!-- Add name attribute -->
+                                    <div class="row">
+                                        <div class="col-10 col-md-10">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <label>Add variation values <span class="login-danger">*</span></label>
+                                                    <input class="form-control" type="text" name="variation_values[]" placeholder=""> <!-- Add name attribute -->
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div class="col-md-2">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <button class="btn btn-primary" id="add-variation-btn"><i class="fas fa-plus"></i></button>
+                                        <div class="col-2 col-md-2">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <button class="btn btn-primary" id="add-variation-btn"><i class="fas fa-plus"></i></button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div id="variation-container"></div>
+                                        {{-- <div class="variation-container"> --}}
+                                            <div id="variation-container"></div>
+                                        </div>
+                                       
+                                    {{-- </div> --}}
+                                    
                                 </div>
                                 <div class="row">
                                     <div class="modal-footer">
                                         <button type="submit" class="btn btn-primary">Save changes</button>
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="reset" class="btn btn-secondary" id="close" data-bs-dismiss="modal">Close</button>
                                     </div>
                                 </div>
                             </div>
@@ -110,10 +116,11 @@
             event.preventDefault();
 
             const newRow = document.createElement('div');
-            newRow.classList.add('row', 'variation-group');
+            newRow.classList.add('variation-container', 'variation-group');
 
             newRow.innerHTML = `
-                <div class="col-md-10">
+             <div class="row">
+                   <div class="col-10 col-md-10">
                     <div class="mb-3">
                         <div class="form-group local-forms">
                             <label>Add variation values <span class="login-danger">*</span></label>
@@ -121,13 +128,14 @@
                         </div>
                     </div>
                 </div> 
-                <div class="col-md-2">
+                <div class="col-2 col-md-2">
                     <div class="mb-3">
                         <div class="form-group local-forms">
                             <button class="btn btn-danger remove-variation-btn"><i class="fas fa-minus"></i></button>
                         </div>
                     </div>
                 </div>
+            </div>
             `;
 
             document.getElementById('variation-container').appendChild(newRow);
