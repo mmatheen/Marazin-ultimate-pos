@@ -7,7 +7,7 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <p>fdafaf</p>
+           
                             <h3 class="page-title">Add new User</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="students.html">Users</a></li>
