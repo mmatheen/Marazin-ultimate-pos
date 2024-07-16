@@ -8275,7 +8275,8 @@ table.table-inbox tbody tr.checked {
 
 .new-comment .form-floating>.form-control,
 .form-floating>.form-select {
-    height: 50px
+    height: 50px;
+
 }
 
 .new-comment .form-floating>label {
