@@ -100,3 +100,4 @@ Route::get('/catergoriesList', [CatergoriesController::class, 'CatergoriesList']
 Route::get('/brandList', [BrandController::class, 'BrandList'])->name('brandList');
 //stop  brand route
 
+
