@@ -1,120 +1,121 @@
 @extends('layout.layout')
 @section('content')
+    <div class="content container-fluid">
 
-<div class="content container-fluid">
-
-    <div class="row">
-        <div class="page-header">
-            <div class="row align-items-center">
-                <div class="col-sm-12">
-                    <div class="page-sub-header">
-                        <h3 class="page-title">Add Students</h3>
-                        <ul class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="students.html">Student</a></li>
-                            <li class="breadcrumb-item active">Add Students</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- table row --}}
-    <div class="row">
-        <div class="col-sm-12">
-            <div class="card card-table">
-                <div class="card-body">
-                    <div class="page-header">
-                        <div class="row align-items-center">
-                            <div class="col-auto text-end float-end ms-auto download-grp">
-                                <!-- Button trigger modal -->
-                                <button type="button" class="btn btn-outline-info " data-bs-toggle="modal" data-bs-target="#addModal">
-                                    <i class="fas fa-plus px-2"> </i>
-                                </button>
-                            </div>
+        <div class="row">
+            <div class="page-header">
+                <div class="row align-items-center">
+                    <div class="col-sm-12">
+                        <div class="page-sub-header">
+                            <h3 class="page-title">Warranties</h3>
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="students.html">Warranties</a></li>
+                                <li class="breadcrumb-item active">List Warranties</li>
+                            </ul>
                         </div>
                     </div>
-
-                    <div class="table-responsive">
-                        <table  class="datatable table table-stripped" style="width:100%">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Course Name</th>
-                                    <th>Chapter Name</th>
-                                    <th>Description</th>
-                                    <th>Edit</th>
-                                    <th>Delete</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    {{-- Add modal row --}}
-    <div class="row">
-        <div id="addModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog  modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center mt-2 mb-4">
-                            <h5>Add Warranty</h5>
+        {{-- table row --}}
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="card card-table">
+                    <div class="card-body">
+                        <div class="page-header">
+                            <div class="row align-items-center">
+                                <div class="col-auto text-end float-end ms-auto download-grp">
+                                    <!-- Button trigger modal -->
+                                    <button type="button" class="btn btn-outline-info " data-bs-toggle="modal"
+                                        data-bs-target="#addModal">
+                                        <i class="fas fa-plus px-2"> </i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <form class="px-3" action="#">
-                            <div class="mb-3">
-                                <div class="form-group local-forms">
-                                    <label>Name <span class="login-danger">*</span></label>
-                                    <input class="form-control" type="text" placeholder="Enter Name">
-                                </div>
-                            </div>
 
-                            <div class="mb-3">
-                                <div class="row">
-                                    <div class="col">
-                                        <div class="form-group local-forms">
-                                            <label>Duration <span class="login-danger">*</span></label>
-                                            <input class="form-control" type="number" placeholder="Enter Duration">
-                                        </div>
-                                    </div>
-                                    <div class="col">
-                                        <div class="form-group local-forms days">
-                                            <label>Blood Group <span class="login-danger">*</span></label>
-                                            <select class="form-control form-select">
-                                                <option selected disabled>Please Select </option>
-                                                <option>Days</option>
-                                                <option>Months</option>
-                                                <option>Years</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                            </div>
-                            <div class="mb-3">
-                                <div class="form-group local-forms">
-                                    <label>Description <span class="login-danger">*</span></label>
-                                    <textarea class="form-control" type="text" placeholder="Enter Description"></textarea>
-                                </div>
-                            </div>
-
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-primary">Save changes</button>
-                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </form>
+                        <div class="table-responsive">
+                            <table class="datatable table table-stripped" style="width:100%">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Course Name</th>
+                                        <th>Chapter Name</th>
+                                        <th>Description</th>
+                                        <th>Edit</th>
+                                        <th>Delete</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        {{-- Add modal row --}}
+        <div class="row">
+            <div id="addModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog  modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body">
+                            <div class="text-center mt-2 mb-4">
+                                <h5>Add Warranty</h5>
+                            </div>
+                            <form class="px-3" action="#">
+                                <div class="mb-3">
+                                    <div class="form-group local-forms">
+                                        <label>Name <span class="login-danger">*</span></label>
+                                        <input class="form-control" type="text" placeholder="Enter Name">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-group local-forms">
+                                        <label>Description <span class="login-danger">*</span></label>
+                                        <textarea class="form-control" type="text" placeholder="Enter Description"></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="row">
+                                        <div class="col">
+                                            <div class="form-group local-forms">
+                                                <label>Duration <span class="login-danger">*</span></label>
+                                                <input class="form-control" type="number" placeholder="Enter Duration">
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <div class="form-group local-forms days">
+                                                <label>Blood Group <span class="login-danger">*</span></label>
+                                                <select class="form-control form-select">
+                                                    <option selected disabled>Please Select </option>
+                                                    <option>Days</option>
+                                                    <option>Months</option>
+                                                    <option>Years</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-primary">Save changes</button>
+                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{-- Edit modal row --}}
     </div>
-       {{-- Edit modal row --}}
-</div>
 @endsection
 
 

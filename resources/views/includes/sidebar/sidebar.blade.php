@@ -15,255 +15,149 @@
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-graduation-cap"></i> <span> Students</span> <span
+                    <a href="#"><i class="fas fa-graduation-cap"></i> <span> User Management</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="students.html">Student List</a></li>
-                        <li><a href="student-details.html">Student View</a></li>
-                        <li><a href="add-student.html">Student Add</a></li>
-                        <li><a href="edit-student.html">Student Edit</a></li>
+                        <li><a href={{ route('UserList') }}>Users</a></li>
+                        <li><a href={{ route('RoleList') }}>Roles</a></li>
+                        <li><a href={{ route('SalesCommissionList') }}>Sales Commissions</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-chalkboard-teacher"></i> <span> Teachers</span> <span
+                    <a href="#"><i class="fas fa-chalkboard-teacher"></i> <span> Contacts</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="teachers.html">Teacher List</a></li>
-                        <li><a href="teacher-details.html">Teacher View</a></li>
-                        <li><a href="add-teacher.html">Teacher Add</a></li>
-                        <li><a href="edit-teacher.html">Teacher Edit</a></li>
+                        <li><a href="teachers.html">Suppliers</a></li>
+                        <li><a href="teacher-details.html">Customers</a></li>
+                        <li><a href="add-teacher.html">Customer Groups</a></li>
+                        <li><a href="edit-teacher.html">Import Contacts</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-building"></i> <span> Departments</span> <span
+                    <a href="#"><i class="fas fa-building"></i> <span>Products</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="departments.html">Department List</a></li>
-                        <li><a href="add-department.html">Department Add</a></li>
-                        <li><a href="edit-department.html">Department Edit</a></li>
+                        <li><a href={{ route('product_list') }}>List Products</a></li>
+                        <li><a href={{ route('add-product') }}>Add Products</a></li>
+                        <li><a href={{ route('updatePrice') }}>Update Price</a></li>
+                        <li><a href={{ route('printLabel') }}>Print Label</a></li>
+                        <li><a href={{ route('variatiuonList') }}>Variations</a></li>
+                        <li><a href={{ route('import_products') }}>Import Products</a></li>
+                        <li><a href={{ route('importopeningstock') }}>Import Opening Stock</a></li>
+                        <li><a href={{ route('sellingpricelist') }}>Selling Price Group</a></li>
+                        <li><a href={{ route('unitlist') }}>Units</a></li>
+                        <li><a href={{ route('catergoriesList') }}>Catergories</a></li>
+                        <li><a href={{ route('brandList') }}>Brands</a></li>
+                        <li><a href={{ route('warrantyList') }}>Warranties</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-book-reader"></i> <span> Subjects</span> <span
+                    <a href="#"><i class="fas fa-book-reader"></i> <span>Purchases</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="subjects.html">Subject List</a></li>
-                        <li><a href="add-subject.html">Subject Add</a></li>
-                        <li><a href="edit-subject.html">Subject Edit</a></li>
+                        <li><a href="">List Purchases</a></li>
+                        <li><a href="add-subject.html">Add Purchases</a></li>
+                        <li><a href="edit-subject.html">List Purchases Return</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-clipboard"></i> <span> Invoices</span> <span
+                    <a href="#"><i class="fas fa-clipboard"></i> <span>Sell</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="invoices.html">Invoices List</a></li>
-                        <li><a href="invoice-grid.html">Invoices Grid</a></li>
-                        <li><a href="add-invoice.html">Add Invoices</a></li>
-                        <li><a href="edit-invoice.html">Edit Invoices</a></li>
-                        <li><a href="view-invoice.html">Invoices Details</a></li>
-                        <li><a href="invoices-settings.html">Invoices Settings</a></li>
+                        <li><a href="invoices.html">All Sales</a></li>
+                        <li><a href="invoice-grid.html">Add Sale</a></li>
+                        <li><a href="add-invoice.html">List POS</a></li>
+                        <li><a href="edit-invoice.html">POS</a></li>
+                        <li><a href="view-invoice.html">Add Draft</a></li>
+                        <li><a href="invoices-settings.html">List Draft</a></li>
+                        <li><a href="invoices-settings.html">Add Quatation</a></li>
+                        <li><a href="invoices-settings.html">List Quatations</a></li>
+                        <li><a href="invoices-settings.html">List Sell Return</a></li>
+                        <li><a href="invoices-settings.html">Shipments</a></li>
+                        <li><a href="invoices-settings.html">Discounts</a></li>
+                        <li><a href="invoices-settings.html">Import Sales</a></li>
                     </ul>
                 </li>
                 <li class="menu-title">
                     <span>Management</span>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span> Accounts</span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Transfers</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="fees-collections.html">Fees Collection</a></li>
-                        <li><a href="expenses.html">Expenses</a></li>
-                        <li><a href="salary.html">Salary</a></li>
-                        <li><a href="add-fees-collection.html">Add Fees</a></li>
-                        <li><a href="add-expenses.html">Add Expenses</a></li>
-                        <li><a href="add-salary.html">Add Salary</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a href="holiday.html"><i class="fas fa-holly-berry"></i> <span>Holiday</span></a>
-                </li>
-                <li>
-                    <a href="fees.html"><i class="fas fa-comment-dollar"></i> <span>Fees</span></a>
-                </li>
-                <li>
-                    <a href="exam.html"><i class="fas fa-clipboard-list"></i> <span>Exam list</span></a>
-                </li>
-                <li>
-                    <a href="event.html"><i class="fas fa-calendar-day"></i> <span>Events</span></a>
-                </li>
-                <li>
-                    <a href="time-table.html"><i class="fas fa-table"></i> <span>Time Table</span></a>
-                </li>
-                <li>
-                    <a href="library.html"><i class="fas fa-book"></i> <span>Library</span></a>
-                </li>
-                <li class="submenu">
-                    <a href="#"><i class="fa fa-newspaper"></i> <span> Blogs</span>
-                        <span class="menu-arrow"></span>
-                    </a>
-                    <ul>
-                        <li><a href="blog.html">All Blogs</a></li>
-                        <li><a href="add-blog.html">Add Blog</a></li>
-                        <li><a href="edit-blog.html">Edit Blog</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a href="settings.html"><i class="fas fa-cog"></i> <span>Settings</span></a>
-                </li>
-                <li class="menu-title">
-                    <span>Pages</span>
-                </li>
-                <li class="submenu">
-                    <a href="#"><i class="fas fa-shield-alt"></i> <span> Authentication </span> <span
-                            class="menu-arrow"></span></a>
-                    <ul>
-                        <li><a href="login.html">Login</a></li>
-                        <li><a href="register.html">Register</a></li>
-                        <li><a href="forgot-password.html">Forgot Password</a></li>
-                        <li><a href="error-404.html">Error Page</a></li>
-                    </ul>
-                </li>
-                <li>
-                    <a href="blank-page.html"><i class="fas fa-file"></i> <span>Blank Page</span></a>
-                </li>
-                <li class="menu-title">
-                    <span>Others</span>
-                </li>
-                <li>
-                    <a href="sports.html"><i class="fas fa-baseball-ball"></i> <span>Sports</span></a>
-                </li>
-                <li>
-                    <a href="hostel.html"><i class="fas fa-hotel"></i> <span>Hostel</span></a>
-                </li>
-                <li>
-                    <a href="transport.html"><i class="fas fa-bus"></i> <span>Transport</span></a>
-                </li>
-                <li class="menu-title">
-                    <span>UI Interface</span>
-                </li>
-                <li class="submenu">
-                    <a href="#"><i class="fab fa-get-pocket"></i> <span>Base UI </span> <span
-                            class="menu-arrow"></span></a>
-                    <ul>
-                        <li><a href="alerts.html">Alerts</a></li>
-                        <li><a href="accordions.html">Accordions</a></li>
-                        <li><a href="avatar.html">Avatar</a></li>
-                        <li><a href="badges.html">Badges</a></li>
-                        <li><a href="buttons.html">Buttons</a></li>
-                        <li><a href="buttongroup.html">Button Group</a></li>
-                        <li><a href="breadcrumbs.html">Breadcrumb</a></li>
-                        <li><a href="cards.html">Cards</a></li>
-                        <li><a href="carousel.html">Carousel</a></li>
-                        <li><a href="dropdowns.html">Dropdowns</a></li>
-                        <li><a href="grid.html">Grid</a></li>
-                        <li><a href="images.html">Images</a></li>
-                        <li><a href="lightbox.html">Lightbox</a></li>
-                        <li><a href="media.html">Media</a></li>
-                        <li><a href="modal.html">Modals</a></li>
-                        <li><a href="offcanvas.html">Offcanvas</a></li>
-                        <li><a href="pagination.html">Pagination</a></li>
-                        <li><a href="popover.html">Popover</a></li>
-                        <li><a href="progress.html">Progress Bars</a></li>
-                        <li><a href="placeholders.html">Placeholders</a></li>
-                        <li><a href="rangeslider.html">Range Slider</a></li>
-                        <li><a href="spinners.html">Spinner</a></li>
-                        <li><a href="sweetalerts.html">Sweet Alerts</a></li>
-                        <li><a href="tab.html">Tabs</a></li>
-                        <li><a href="toastr.html">Toasts</a></li>
-                        <li><a href="tooltip.html">Tooltip</a></li>
-                        <li><a href="typography.html">Typography</a></li>
-                        <li><a href="video.html">Video</a></li>
+                        <li><a href="fees-collections.html">List Stock Transfers</a></li>
+                        <li><a href="expenses.html">Add Stock Transfers</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i data-feather="box"></i> <span>Elements </span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Adjustment</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="ribbon.html">Ribbon</a></li>
-                        <li><a href="clipboard.html">Clipboard</a></li>
-                        <li><a href="drag-drop.html">Drag & Drop</a></li>
-                        <li><a href="rating.html">Rating</a></li>
-                        <li><a href="text-editor.html">Text Editor</a></li>
-                        <li><a href="counter.html">Counter</a></li>
-                        <li><a href="scrollbar.html">Scrollbar</a></li>
-                        <li><a href="notification.html">Notification</a></li>
-                        <li><a href="stickynote.html">Sticky Note</a></li>
-                        <li><a href="timeline.html">Timeline</a></li>
-                        <li><a href="horizontal-timeline.html">Horizontal Timeline</a></li>
-                        <li><a href="form-wizard.html">Form Wizard</a></li>
+                        <li><a href="fees-collections.html">List Stock Adjustments</a></li>
+                        <li><a href="expenses.html">Add Stock Adjustment</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
-                    <a href="#"><i data-feather="bar-chart-2"></i> <span> Charts </span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="chart-apex.html">Apex Charts</a></li>
-                        <li><a href="chart-js.html">Chart Js</a></li>
-                        <li><a href="chart-morris.html">Morris Charts</a></li>
-                        <li><a href="chart-flot.html">Flot Charts</a></li>
-                        <li><a href="chart-peity.html">Peity Charts</a></li>
-                        <li><a href="chart-c3.html">C3 Charts</a></li>
+                        <li><a href="fees-collections.html">List Expenses</a></li>
+                        <li><a href="expenses.html">Add Expense</a></li>
+                        <li><a href="expenses.html">Expense Catergories</a></li>
                     </ul>
                 </li>
+
                 <li class="submenu">
-                    <a href="#"><i data-feather="award"></i> <span> Icons </span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Payment Accounts</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="icon-fontawesome.html">Fontawesome Icons</a></li>
-                        <li><a href="icon-feather.html">Feather Icons</a></li>
-                        <li><a href="icon-ionic.html">Ionic Icons</a></li>
-                        <li><a href="icon-material.html">Material Icons</a></li>
-                        <li><a href="icon-pe7.html">Pe7 Icons</a></li>
-                        <li><a href="icon-simpleline.html">Simpleline Icons</a></li>
-                        <li><a href="icon-themify.html">Themify Icons</a></li>
-                        <li><a href="icon-weather.html">Weather Icons</a></li>
-                        <li><a href="icon-typicon.html">Typicon Icons</a></li>
-                        <li><a href="icon-flag.html">Flag Icons</a></li>
+                        <li><a href="fees-collections.html">List Accounts</a></li>
+                        <li><a href="expenses.html">Balance Sheets</a></li>
+                        <li><a href="expenses.html">Trial Balance</a></li>
+                        <li><a href="expenses.html">Cash Flow</a></li>
+                        <li><a href="expenses.html">Payment Account Report</a></li>
                     </ul>
                 </li>
+
                 <li class="submenu">
-                    <a href="#"><i class="fas fa-columns"></i> <span> Forms </span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Reports</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="form-basic-inputs.html">Basic Inputs </a></li>
-                        <li><a href="form-input-groups.html">Input Groups </a></li>
-                        <li><a href="form-horizontal.html">Horizontal Form </a></li>
-                        <li><a href="form-vertical.html"> Vertical Form </a></li>
-                        <li><a href="form-mask.html"> Form Mask </a></li>
-                        <li><a href="form-validation.html"> Form Validation </a></li>
+                        <li><a href="fees-collections.html">Profit / Loss Report</a></li>
+                        <li><a href="expenses.html">Purchase & Sale</a></li>
+                        <li><a href="expenses.html">Tax Report</a></li>
+                        <li><a href="expenses.html">Supplier & Customer Report</a></li>
+                        <li><a href="expenses.html">Customer Groups Report</a></li>
+                        <li><a href="expenses.html">Stock Report</a></li>
+                        <li><a href="expenses.html">Stock Adjustment Report</a></li>
+                        <li><a href="expenses.html">Trending Products</a></li>
+                        <li><a href="expenses.html">Item Report</a></li>
+                        <li><a href="expenses.html">Product Purchase Report</a></li>
+                        <li><a href="expenses.html">Product Sell Report</a></li>
+                        <li><a href="expenses.html">Purchase Payment Report</a></li>
+                        <li><a href="expenses.html">Sell Payment Report</a></li>
+                        <li><a href="expenses.html">Expense Report</a></li>
+                        <li><a href="expenses.html">Register Report</a></li>
+                        <li><a href="expenses.html">Sales Representative Report</a></li>
+                        <li><a href="expenses.html">Activity Log</a></li>
                     </ul>
                 </li>
-                <li class="submenu">
-                    <a href="#"><i class="fas fa-table"></i> <span> Tables </span> <span
-                            class="menu-arrow"></span></a>
-                    <ul>
-                        <li><a href="tables-basic.html">Basic Tables </a></li>
-                        <li><a href="data-tables.html">Data Table </a></li>
-                    </ul>
+
+                <li>
+                    <a href="holiday.html"><i class="fas fa-holly-berry"></i> <span>Notification Templates</span></a>
                 </li>
+
                 <li class="submenu">
-                    <a href="javascript:void(0);"><i class="fas fa-code"></i> <span>Multi Level</span> <span
+                    <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Settings</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li class="submenu">
-                            <a href="javascript:void(0);"> <span>Level 1</span> <span
-                                    class="menu-arrow"></span></a>
-                            <ul>
-                                <li><a href="javascript:void(0);"><span>Level 2</span></a></li>
-                                <li class="submenu">
-                                    <a href="javascript:void(0);"> <span> Level 2</span> <span
-                                            class="menu-arrow"></span></a>
-                                    <ul>
-                                        <li><a href="javascript:void(0);">Level 3</a></li>
-                                        <li><a href="javascript:void(0);">Level 3</a></li>
-                                    </ul>
-                                </li>
-                                <li><a href="javascript:void(0);"> <span>Level 2</span></a></li>
-                            </ul>
-                        </li>
-                        <li>
-                            <a href="javascript:void(0);"> <span>Level 1</span></a>
-                        </li>
+                        <li><a href="fees-collections.html">Business Settings</a></li>
+                        <li><a href="expenses.html">Business Locations</a></li>
+                        <li><a href="expenses.html">Invoice Settings</a></li>
+                        <li><a href="expenses.html">Barcode Settings</a></li>
+                        <li><a href="expenses.html">Receipt Printers</a></li>
+                        <li><a href="expenses.html">Tax Rates</a></li>
+                        <li><a href="expenses.html">Package Subscription</a></li>
                     </ul>
                 </li>
             </ul>
