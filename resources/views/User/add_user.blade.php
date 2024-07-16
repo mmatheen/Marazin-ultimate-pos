@@ -110,8 +110,8 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group">
-                                                    <input class="form-check-input" type="checkbox" value="" id="allowLoginCheckbox">
-                                                    <label class="form-check-label" for="allowLoginCheckbox" onclick="toggleLoginFields()">
+                                                    <input class="form-check-input" type="checkbox" value=""  onclick="toggleLoginFields()" id="allowLoginCheckbox">
+                                                    <label class="form-check-label" for="allowLoginCheckbox">
                                                         Allow login
                                                     </label>
 
