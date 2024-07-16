@@ -30,9 +30,13 @@
                                         <div class="col-md-2">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
-                                                    <label>Prefix<span class="login-danger"></span></label>
-                                                    <input class="form-control" type="text"
-                                                        placeholder="Mr / Mrs / Miss">
+                                                    <select class="form-control form-select select">
+                                                        <option selected disabled>Mr / Mrs / Miss</option>
+                                                        <option>Mr</option>
+                                                        <option>Mrs</option>
+                                                        <option>Ms</option>
+                                                        <option>Miss</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -66,39 +70,25 @@
 
                                         <div class="col-md-2">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="defaultCheck1">
-                                                    <p>Is active?</p>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="" id="isActive">
+                                                    <label class="form-check-label" for="isActive">
+                                                        Is active?
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="defaultCheck1">
-                                                    <p>Enable service staff pin</p>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="" id="enableServiceStaffPin">
+                                                    <label class="form-check-label" for="enableServiceStaffPin">
+                                                        Enable service staff pin
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
-
-
-                                        {{-- <div class="col-md-">
-                                            <div class="form-group local-forms days">
-                                                <label>Barcode Type<span class="login-danger">*</span></label>
-                                                <select class="form-control form-select">
-                                                    <option selected disabled>Please Select </option>
-                                                    <option>Code 128(C128)</option>
-                                                    <option>Code 39(C39)</option>
-                                                    <option>EAN -8</option>
-                                                    <option>EAN -A</option>
-                                                    <option>EAN -E</option>
-                                                </select>
-                                            </div>
-                                        </div> --}}
-
                                     </div>
                                     <!-- Add other elements if needed -->
                             </div>
@@ -116,13 +106,15 @@
                             <div class="row align-items-center">
                                 <div class="row">
                                     <div class="col-md-12">
-                                        <h5>Roles and Permissions</h5>
+                                        <h5 class="mb-4">Roles and Permissions</h5>
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="allowLoginCheckbox" onclick="toggleLoginFields()">
-                                                    <p>Allow login</p>
+                                                <div class="form-group">
+                                                    <input class="form-check-input" type="checkbox" value="" id="allowLoginCheckbox">
+                                                    <label class="form-check-label" for="allowLoginCheckbox" onclick="toggleLoginFields()">
+                                                        Allow login
+                                                    </label>
+
                                                 </div>
                                             </div>
                                         </div>
@@ -159,7 +151,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group local-forms days">
                                             <label>Role<span class="login-danger">*</span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                                 <option>Admin</option>
                                                 <option>Super User</option>
@@ -174,14 +166,21 @@
                                         Access locations
                                     </div>
                                     <div class="col-md-2">
-                                        <input class="form-check-input" type="checkbox" value=""
-                                            id="defaultCheck1">
-                                        <p>All Locations</p>
+                                        <div class="form-group">
+                                            <input class="form-check-input" type="checkbox" value="" id="allowLogin">
+                                            <label class="form-check-label" for="allowLogin">
+                                                All Locations
+                                            </label>
+                                        </div>
                                     </div>
+
                                     <div class="col-md-2">
-                                        <input class="form-check-input" type="checkbox" value=""
-                                            id="defaultCheck1">
-                                        <p>Awesome Shop</p>
+                                        <div class="form-group">
+                                            <input class="form-check-input" type="checkbox" value="" id="awesomeShop">
+                                            <label class="form-check-label" for="awesomeShop">
+                                                Awesome Shop
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -231,14 +230,21 @@
                                         Access locations
                                     </div>
                                     <div class="col-md-2">
-                                        <input class="form-check-input" type="checkbox" value=""
-                                            id="defaultCheck1">
-                                        <p>All Locations</p>
+                                        <div class="form-group">
+                                            <input class="form-check-input" type="checkbox" value="" id="allowLogin1">
+                                            <label class="form-check-label" for="allowLogin1">
+                                                All Locations
+                                            </label>
+                                        </div>
                                     </div>
+
                                     <div class="col-md-2">
-                                        <input class="form-check-input" type="checkbox" value=""
-                                            id="defaultCheck1">
-                                        <p>Awesome Shop</p>
+                                        <div class="form-group">
+                                            <input class="form-check-input" type="checkbox" value="" id="awesomeShop2">
+                                            <label class="form-check-label" for="awesomeShop2">
+                                                Awesome Shop
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -262,18 +268,18 @@
                                     </div>
 
                                     <div class="col-md-3">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Date of birth<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Date of birth">
-                                            </div>
+                                        <div class="form-group local-forms calendar-icon">
+                                            <label>Date Of Birth <span class="login-danger">*</span></label>
+                                            <input class="form-control datetimepicker" type="text"
+                                                placeholder="DD-MM-YYYY">
                                         </div>
                                     </div>
 
+
                                     <div class="col-md-3">
-                                        <div class="form-group local-forms days">
+                                        <div class="form-group local-forms">
                                             <label>Gender<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                                 <option>Male</option>
                                                 <option>Femal</option>
@@ -283,13 +289,12 @@
                                     </div>
 
                                     <div class="col-md-3">
-                                        <div class="form-group local-forms days">
-                                            <label>Gender<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                        <div class="form-group local-forms">
+                                            <label>Marital Status<span class="login-danger"></span></label>
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Marital Status</option>
                                                 <option>Married</option>
                                                 <option>Unmarried</option>
-                                                <option>Divorced</option>
                                             </select>
                                         </div>
                                     </div>
@@ -298,7 +303,17 @@
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Blood Group<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Marital Status">
+                                                <select class="form-control form-select select">
+                                                    <option selected disabled>A/B/O/AB</option>
+                                                    <option>A+</option>
+                                                    <option>A-</option>
+                                                    <option>B+</option>
+                                                    <option>B-</option>
+                                                    <option>O+</option>
+                                                    <option>O-</option>
+                                                    <option>AB+</option>
+                                                    <option>AB-</option>
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
@@ -534,7 +549,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group local-forms days">
                                             <label>Department<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                             </select>
                                         </div>
@@ -543,7 +558,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group local-forms days">
                                             <label>Designatio<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                             </select>
                                         </div>
@@ -572,7 +587,7 @@
                                     <div class="col-md-3">
                                         <div class="form-group local-forms days">
                                             <label>Primary work location<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                                 <option>Awesome Shop</option>
                                             </select>
@@ -594,7 +609,7 @@
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms days">
                                                         <label>Department<span class="login-danger"></span></label>
-                                                        <select class="form-control form-select">
+                                                        <select class="form-control form-select select">
                                                             <option selected disabled>Please Select</option>
                                                             <option>Per Month</option>
                                                             <option>Per Week</option>
@@ -609,7 +624,7 @@
                                     <div class="col-md-4">
                                         <div class="form-group local-forms days">
                                             <label>Primary work location<span class="login-danger"></span></label>
-                                            <select class="form-control form-select">
+                                            <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
                                                 <option>Awesome Shop</option>
                                             </select>
