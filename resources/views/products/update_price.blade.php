@@ -38,7 +38,7 @@
                                             <label>File To Import</label>
                                             <div class="form-group local-forms days">
                                                 <input type="file"/>
-                                                <button type="button" class="btn btn-primary mt-2">Save</button>
+                                                <button type="button" class="btn btn-primary mt-2">Submit</button>
                                             </div>
                                         </div>
                                         

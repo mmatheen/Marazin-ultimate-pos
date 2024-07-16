@@ -2,6 +2,7 @@
 @section('content')
 <div class="content container-fluid">
 
+
     <div class="row">
         <div class="page-header">
             <div class="row align-items-center">
@@ -62,7 +63,7 @@
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+                        <h1 class="modal-title fs-5" id="exampleModalLabel">Add sales commission agent</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <form id="addAndEditForm" method="POST" action="">

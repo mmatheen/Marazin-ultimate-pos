@@ -53,15 +53,17 @@
         </div>
 
         {{-- Add modal row --}}
+
         <div class="row">
-            <div id="addModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-                <div class="modal-dialog modal-lg  modal-dialog-centered">
+            <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center mt-2 mb-4">
-                                <h5>Add Selling Price Group</h5>
-                            </div>
-                            <form class="px-3" action="#">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add Selling Price Group</h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="addAndEditForm" method="POST" action="">
+                            <div class="modal-body">
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="mb-3">
@@ -71,20 +73,25 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                <div class="mb-3">
-                                    <div class="form-group local-forms">
-                                        <label>Description <span class="login-danger"></span></label>
-                                        <textarea class="form-control" type="text" placeholder="Address"></textarea>
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <div class="form-group local-forms">
+                                                <label>Description <span class="login-danger"></span></label>
+                                                <textarea class="form-control" type="text" placeholder="Description"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-primary">Save</button>
-                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                <div class="row">
+                               
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary">Save changes</button>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
                                 </div>
-                            </form>
-                        </div>
+                            </div>
+    
+                        </form>
                     </div>
                 </div>
             </div>
