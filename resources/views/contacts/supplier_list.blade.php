@@ -2,7 +2,21 @@
 @section('content')
     <div class="content container-fluid">
         <style>
-
+            .login-fields1{
+                display: none;
+            }
+            .login-fields2{
+                display: none;
+            }
+             .login-fields3{
+                display: none;
+            }
+            .hidden{
+                display: none;
+            }
+            .hiddenway_two_action{
+                display: none;
+            }
         </style>
         <div class="row">
             <div class="page-header">
@@ -199,12 +213,12 @@
                                     <div class="col-md-4 mt-xs-2px">
                                         <div class="form-check form-check-inline">
                                             <input class="form-check-input" type="radio" name="inlineRadioOptions"
-                                                id="inlineRadio1" value="option1">
+                                                id="inlineRadio1" value="option1" onclick="toggleLoginFields('inlineRadio1','.hidden')">
                                             <label class="form-check-label" for="inlineRadio1">Individual</label>
                                         </div>
                                         <div class="form-check form-check-inline">
                                             <input class="form-check-input" type="radio" name="inlineRadioOptions"
-                                                id="inlineRadio2" value="option2">
+                                                id="inlineRadio2" value="option2" onclick="toggleLoginFields2('inlineRadio2','.hidden','.hiddenway_two_action')">
                                             <label class="form-check-label" for="inlineRadio2">Business</label>
                                         </div>
                                         <div class="col"></div>
@@ -224,13 +238,7 @@
                                 </div>
 
                                 <div class="row mt-3">
-                                    <div class="col-md-3">
-                                        {{-- <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Prefix<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="Email">
-                                            </div>
-                                        </div> --}}
+                                    <div class="col-md-3 hidden">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Prefix<span class="login-danger">*</span></label>
@@ -244,7 +252,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 hidden">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>First Name<span class="login-danger">*</span></label>
@@ -252,7 +260,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 hidden">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Middle name<span class="login-danger"></span></label>
@@ -260,12 +268,24 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 hidden">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Last Name<span class="login-danger"></span></label>
                                                 <input class="form-control" type="text" placeholder="Last Name">
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-3 hiddenway_two_action">
+                                        <div class="input-group mb-3">
+                                            <span class="input-group-text" id="basic-addon1"><i
+                                                    class="fas fa-mobile-alt"></i></span>
+                                            <input type="text" class="form-control" placeholder="Bussiness Name"
+                                                aria-label="Example text with button addon"
+                                                aria-describedby="button-addon1">
                                         </div>
                                     </div>
                                 </div>
@@ -311,7 +331,7 @@
                                 </div>
 
                                 <div class="row mt-4">
-                                    <div class="col-md-4">
+                                    <div class="col-md-4 hidden">
                                         <div class="form-group local-forms calendar-icon">
                                             <label>Date Of Birth <span class="login-danger">*</span></label>
                                             <input class="form-control datetimepicker" type="text"
@@ -709,39 +729,50 @@
                                                                 <div class="col-md-6">
                                                                     <div class="mb-3">
                                                                         <div class="form-group">
-                                                                            <input class="form-check-input" type="checkbox" value=""  onclick="toggleLoginFields('allowLoginCheckbox1','.login-fields1')" id="allowLoginCheckbox1">
-                                                                            <label class="form-check-label" for="allowLoginCheckbox1">
+                                                                            {{-- style="display:block" --}}
+                                                                            <input class="form-check-input"
+                                                                                type="checkbox" value=""
+                                                                                onclick="toggleLoginFields('allowLoginCheckbox1','.login-fields1')"
+                                                                                id="allowLoginCheckbox1">
+                                                                            <label class="form-check-label"
+                                                                                for="allowLoginCheckbox1">
                                                                                 Allow login
                                                                             </label>
                                                                         </div>
                                                                     </div>
-                                                                </div> 
+                                                                </div>
                                                             </div>
 
                                                             <div class="row">
                                                                 <div class="col-md-6 login-fields1">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Username<span class="login-danger"></span></label>
-                                                                            <input class="form-control" type="text" placeholder="Username">
+                                                                            <label>Username<span
+                                                                                    class="login-danger"></span></label>
+                                                                            <input class="form-control" type="text"
+                                                                                placeholder="Username">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields1">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Password">
+                                                                            <label>Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields1">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Confirm Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Confirm Password">
+                                                                            <label>Confirm Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Confirm Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -749,9 +780,10 @@
                                                             <div class="row">
                                                                 <div class="col-lg-3 col-md-6">
                                                                     <div class="form-check">
-                                                                        <input class="form-check-input" type="checkbox" id="isactive2">
+                                                                        <input class="form-check-input" type="checkbox"
+                                                                            id="isactive2">
                                                                         <label class="form-check-label" for="isactive2">
-                                                                            Is active ? 
+                                                                            Is active ?
                                                                         </label>
                                                                     </div>
                                                                 </div>
@@ -895,39 +927,49 @@
                                                                 <div class="col-md-6">
                                                                     <div class="mb-3">
                                                                         <div class="form-group">
-                                                                            <input class="form-check-input" type="checkbox" value=""  onclick="toggleLoginFields('allowLoginCheckbox2','.login-fields2')" id="allowLoginCheckbox2">
-                                                                            <label class="form-check-label" for="allowLoginCheckbox2">
+                                                                            <input class="form-check-input"
+                                                                                type="checkbox" value=""
+                                                                                onclick="toggleLoginFields('allowLoginCheckbox2','.login-fields2')"
+                                                                                id="allowLoginCheckbox2">
+                                                                            <label class="form-check-label"
+                                                                                for="allowLoginCheckbox2">
                                                                                 Allow login
                                                                             </label>
                                                                         </div>
                                                                     </div>
-                                                                </div> 
+                                                                </div>
                                                             </div>
 
                                                             <div class="row">
                                                                 <div class="col-md-6 login-fields2">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Username<span class="login-danger"></span></label>
-                                                                            <input class="form-control" type="text" placeholder="Username">
+                                                                            <label>Username<span
+                                                                                    class="login-danger"></span></label>
+                                                                            <input class="form-control" type="text"
+                                                                                placeholder="Username">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields2">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Password">
+                                                                            <label>Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields2">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Confirm Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Confirm Password">
+                                                                            <label>Confirm Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Confirm Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -935,9 +977,10 @@
                                                             <div class="row">
                                                                 <div class="col-lg-3 col-md-6">
                                                                     <div class="form-check">
-                                                                        <input class="form-check-input" type="checkbox" id="isactive1">
+                                                                        <input class="form-check-input" type="checkbox"
+                                                                            id="isactive1">
                                                                         <label class="form-check-label" for="isactive1">
-                                                                            Is active ? 
+                                                                            Is active ?
                                                                         </label>
                                                                     </div>
                                                                 </div>
@@ -1081,39 +1124,49 @@
                                                                 <div class="col-md-6">
                                                                     <div class="mb-3">
                                                                         <div class="form-group">
-                                                                            <input class="form-check-input" type="checkbox" value="" onclick="toggleLoginFields('allowLoginCheckbox3','.login-fields3')"  id="allowLoginCheckbox3">
-                                                                            <label class="form-check-label" for="allowLoginCheckbox3">
+                                                                            <input class="form-check-input"
+                                                                                type="checkbox" value=""
+                                                                                onclick="toggleLoginFields('allowLoginCheckbox3','.login-fields3')"
+                                                                                id="allowLoginCheckbox3">
+                                                                            <label class="form-check-label"
+                                                                                for="allowLoginCheckbox3">
                                                                                 Allow login
                                                                             </label>
                                                                         </div>
                                                                     </div>
-                                                                </div> 
+                                                                </div>
                                                             </div>
 
                                                             <div class="row">
                                                                 <div class="col-md-6 login-fields3">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Username<span class="login-danger"></span></label>
-                                                                            <input class="form-control" type="text" placeholder="Username">
+                                                                            <label>Username<span
+                                                                                    class="login-danger"></span></label>
+                                                                            <input class="form-control" type="text"
+                                                                                placeholder="Username">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields3">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Password">
+                                                                            <label>Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                            
+
                                                                 <div class="col-md-6 login-fields3">
                                                                     <div class="mb-3">
                                                                         <div class="form-group local-forms">
-                                                                            <label>Confirm Password<span class="login-danger">*</span></label>
-                                                                            <input class="form-control" type="password" placeholder="Confirm Password">
+                                                                            <label>Confirm Password<span
+                                                                                    class="login-danger">*</span></label>
+                                                                            <input class="form-control" type="password"
+                                                                                placeholder="Confirm Password">
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -1121,9 +1174,10 @@
                                                             <div class="row">
                                                                 <div class="col-lg-3 col-md-6">
                                                                     <div class="form-check">
-                                                                        <input class="form-check-input" type="checkbox" id="isactive2">
+                                                                        <input class="form-check-input" type="checkbox"
+                                                                            id="isactive2">
                                                                         <label class="form-check-label" for="isactive2">
-                                                                            Is active ? 
+                                                                            Is active ?
                                                                         </label>
                                                                     </div>
                                                                 </div>
@@ -1153,17 +1207,27 @@
     </div>
 
     <script>
-        function toggleLoginFields(x,y) {
-            var checkBox = document.getElementById(x);
-            var loginFields = document.querySelectorAll(y);
+        function toggleLoginFields(propertyId, actionClass) {
+            var checkBox = document.getElementById(propertyId);
+            var loginFields = document.querySelectorAll(actionClass);
 
             loginFields.forEach(function(field) {
                 field.style.display = checkBox.checked ? "block" : "none";
-
-
-
-
             });
+        }
+
+        function toggleLoginFields2(propertyId, actionClass ,displayClass) {
+            var checkBox = document.getElementById(propertyId);
+            var loginFields = document.querySelectorAll(actionClass);
+            var specificFieldVisible = document.querySelectorAll(displayClass);
+
+            loginFields.forEach(function(field) {
+                field.style.display = checkBox.checked ? "none" : "block";
+            });
+
+            specificFieldVisible.forEach(function(field){
+                field.style.display = checkBox.checked ? "block" : "none";
+            })
         }
     </script>
 @endsection
