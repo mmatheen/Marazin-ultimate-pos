@@ -27,7 +27,7 @@
                     <a href="#"><i class="fas fa-chalkboard-teacher"></i> <span> Contacts</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="teachers.html">Suppliers</a></li>
+                        <li><a href={{ route('SupplierList') }}>Suppliers</a></li>
                         <li><a href="teacher-details.html">Customers</a></li>
                         <li><a href="add-teacher.html">Customer Groups</a></li>
                         <li><a href="edit-teacher.html">Import Contacts</a></li>

@@ -49,7 +49,7 @@
                                             <div class="col-md-4">
                                                 <div class="form-group local-forms days">
                                                     <label>Barcode Type<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select">
+                                                    <select class="form-control form-select select">
                                                         <option selected disabled>Please Select </option>
                                                         <option>Code 128(C128)</option>
                                                         <option>Code 39(C39)</option>
@@ -79,7 +79,7 @@
                                             <div class="col-md-4">
                                                 <div class="form-group local-forms days">
                                                     <label>Brand<span class="login-danger"></span></label>
-                                                    <select class="form-control form-select">
+                                                    <select class="form-control form-select select">
                                                         <option selected disabled>Please Select </option>
                                                         <option>Acer</option>
                                                         <option>Apple</option>
@@ -90,7 +90,7 @@
                                             <div class="col-md-4">
                                                 <div class="form-group local-forms days">
                                                     <label>Category<span class="login-danger"></span></label>
-                                                    <select class="form-control form-select">
+                                                    <select class="form-control form-select select">
                                                         <option selected disabled>Please Select </option>
                                                         <option>Books</option>
                                                         <option>Electronics</option>
@@ -101,7 +101,7 @@
                                             <div class="col-md-4">
                                                 <div class="form-group local-forms days">
                                                     <label>Sub category<span class="login-danger"></span></label>
-                                                    <select class="form-control form-select">
+                                                    <select class="form-control form-select select">
                                                         <option selected disabled>Please Select </option>
                                                         <option>...</option>
                                                         <option>...</option>
@@ -125,8 +125,12 @@
                                         <div class="row">
                                             <div class="col-md-4">
                                                 <div class="mb-3">
-                                                    <input type="checkbox">
-                                                    <p>Enable stock management at product level</p>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" value="" id="isActive">
+                                                        <label class="form-check-label" for="isActive">
+                                                            Enable stock management at product level
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
 

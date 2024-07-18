@@ -21,6 +21,21 @@
         <link rel="stylesheet" href="assets/plugins/datatables/datatables.min.css">
         <link rel="stylesheet" href="assets/plugins//toastr/toatr.css">
         <link rel="stylesheet" href="assets/css/style.css">
+        
+        <style>
+            @media (max-width: 575.98px) {
+                    .mt-xs-2px {
+                        margin-top: 14px !important;
+                    }
+                }
+
+                @media (min-width: 576px) {
+                    .mt-xs-2px {
+                        margin-top: 14px !important;
+                    }
+                }
+        </style>
+            
 
     </head>
 

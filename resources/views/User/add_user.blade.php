@@ -117,7 +117,6 @@
                                                     <label class="form-check-label" for="allowLoginCheckbox">
                                                         Allow login
                                                     </label>
-
                                                 </div>
                                             </div>
                                         </div>

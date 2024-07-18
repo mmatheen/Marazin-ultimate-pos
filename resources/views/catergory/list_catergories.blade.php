@@ -57,7 +57,7 @@
         {{-- Add modal row --}}
           <div class="row">
             <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
                             <h1 class="modal-title fs-5" id="exampleModalLabel">Add Catergory</h1>
@@ -98,7 +98,7 @@
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" checked
                                             onclick="toggleLoginFields()">
-                                            <label class="form-check-label" for="isActive">
+                                            <label class="form-check-label" for="allowLoginCheckbox">
                                                 Add as sub taxonomy
                                             </label>
                                         </div>

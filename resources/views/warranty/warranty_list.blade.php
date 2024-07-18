@@ -39,12 +39,10 @@
                             <table class="datatable table table-stripped" style="width:100%">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Course Name</th>
-                                        <th>Chapter Name</th>
+                                        <th>name</th>
                                         <th>Description</th>
-                                        <th>Edit</th>
-                                        <th>Delete</th>
+                                        <th>Duration</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -90,7 +88,7 @@
                                         </div>
                                         <div class="col">
                                             <div class="form-group local-forms days">
-                                                <label>Blood Group <span class="login-danger">*</span></label>
+                                                <label>Period<span class="login-danger">*</span></label>
                                                 <select class="form-control form-select">
                                                     <option selected disabled>Please Select </option>
                                                     <option>Days</option>

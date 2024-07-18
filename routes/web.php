@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CatergoriesController;
+use App\Http\Controllers\ContactsController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RolesController;
@@ -99,5 +100,9 @@ Route::get('/catergoriesList', [CatergoriesController::class, 'CatergoriesList']
 //start brand route
 Route::get('/brandList', [BrandController::class, 'BrandList'])->name('brandList');
 //stop  brand route
+
+//start contact route
+Route::get('/supplierList', [ContactsController::class, 'SupplierList'])->name('SupplierList');
+//stop  contact route
 
 
