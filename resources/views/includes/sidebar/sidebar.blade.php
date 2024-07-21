@@ -28,9 +28,9 @@
                             class="menu-arrow"></span></a>
                     <ul>
                         <li><a href={{ route('SupplierList') }}>Suppliers</a></li>
-                        <li><a href="teacher-details.html">Customers</a></li>
-                        <li><a href="add-teacher.html">Customer Groups</a></li>
-                        <li><a href="edit-teacher.html">Import Contacts</a></li>
+                        <li><a href={{ route('CustomerList') }}>Customers</a></li>
+                        {{-- <li><a href={{ route('CustomerGroupList') }}>Customer Groups</a></li> --}}
+                        <li><a href={{ route('ImportContacts') }}>Import Contacts</a></li>
                     </ul>
                 </li>
                 <li class="submenu">

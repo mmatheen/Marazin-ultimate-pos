@@ -4,12 +4,15 @@ use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CatergoriesController;
 use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SellingPriceController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
@@ -101,8 +104,19 @@ Route::get('/catergoriesList', [CatergoriesController::class, 'CatergoriesList']
 Route::get('/brandList', [BrandController::class, 'BrandList'])->name('brandList');
 //stop  brand route
 
-//start contact route
-Route::get('/supplierList', [ContactsController::class, 'SupplierList'])->name('SupplierList');
-//stop  contact route
+//start Supplier route
+Route::get('/supplierList', [SupplierController::class, 'SupplierList'])->name('SupplierList');
+//stop  Supplier route
 
+//start Customer route
+Route::get('/customerList', [CustomerController::class, 'CustomerList'])->name('CustomerList');
+//stop  Customer route
+
+//start CustomerGroup route
+Route::get('/customerGroupList', [CustomerGroupController::class, 'CustomerGroupList'])->name('CustomerGroupList');
+//stop  CustomerGroup route
+
+//start Import Contacts route
+Route::get('/importContacts', [ContactsController::class, 'ImportContacts'])->name('ImportContacts');
+//stop  Import Contacts route
 

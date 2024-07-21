@@ -6,10 +6,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Import Products</h3>
+                            <h3 class="page-title">Import Opening Stock</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">Import Products</li>
+                                <li class="breadcrumb-item active">Import Opening Stock</li>
                             </ul>
                         </div>
                     </div>

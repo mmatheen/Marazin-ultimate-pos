@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class ContactsController extends Controller
 {
-    public function SupplierList(){
-        return view('contacts.supplier_list');
+    public function ImportContacts(){
+        return view('contacts.import_contacts');
     }
 }

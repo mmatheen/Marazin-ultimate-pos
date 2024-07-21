@@ -20,6 +20,7 @@
         <link rel="stylesheet" href="assets/plugins/select2/css/select2.min.css">
         <link rel="stylesheet" href="assets/plugins/datatables/datatables.min.css">
         <link rel="stylesheet" href="assets/plugins//toastr/toatr.css">
+        <link rel="stylesheet" href="assets/plugins/summernote/summernote-bs4.min.css">
         <link rel="stylesheet" href="assets/css/style.css">
         
         <style>
@@ -53,6 +54,7 @@
     <script src="assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/feather.min.js"></script>
     <script src="assets/plugins/slimscroll/jquery.slimscroll.min.js"></script>
+    <script src="assets/plugins/summernote/summernote-bs4.min.js"></script>
     <script src="assets/plugins/select2/js/select2.min.js"></script>
     <script src="assets/plugins/moment/moment.min.js"></script>
     <script src="assets/js/bootstrap-datetimepicker.min.js"></script>
@@ -62,6 +64,7 @@
     <script src="assets/plugins/datatables/datatables.min.js"></script>
     <script src="assets/plugins/toastr/toastr.min.js"></script>
     <script src="assets/plugins/toastr/toastr.js"></script>
+     <script src="assets/js/jquery-ui.min.js"></script>
     <script src="assets/js/script.js"></script>
 <body>
 

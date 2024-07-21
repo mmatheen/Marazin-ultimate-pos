@@ -27,10 +27,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Suppliers </h3>
+                            <h3 class="page-title">Customers</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item">Contacts</li>
-                                <li class="breadcrumb-item active">List Suppliers </li>
+                                <li class="breadcrumb-item active">List Customers</li>
                             </ul>
                         </div>
                     </div>
@@ -51,17 +51,17 @@
                             <div class="row">
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="PurchaseDue">
-                                        <label class="form-check-label" for="PurchaseDue">
-                                            Purchase Due
+                                        <input class="form-check-input" type="checkbox" id="SellDue">
+                                        <label class="form-check-label" for="SellDue">
+                                            Sell Due
                                         </label>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="PurchaseReturn">
-                                        <label class="form-check-label" for="PurchaseReturn">
-                                            Purchase Return
+                                        <input class="form-check-input" type="checkbox" id="SellReturn">
+                                        <label class="form-check-label" for="SellReturn">
+                                            Sell Return
                                         </label>
                                     </div>
                                 </div>
@@ -85,28 +85,48 @@
                                 <div class="row mt-3">
                                     <div class="col-lg-3 col-md-6">
                                         <div class="form-group local-forms">
-                                            <label>Assigned to <span class="login-danger">*</span></label>
+                                            <label>Has no sell from<span class="login-danger"></span></label>
                                             <select class="form-control select">
-                                                <option disabled>None</option>
-                                                <option>Mr Admin</option>
-                                                <option>Mr Super Admin</option>
-                                                <option>Others</option>
+                                                <option disabled>Please Select</option>
+                                                <option>One Month</option>
+                                                <option>Three Month</option>
+                                                <option>Six Month</option>
+                                                <option>One Year</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="col-lg-3 col-md-6">
                                         <div class="form-group local-forms">
-                                            <label>Gender <span class="login-danger">*</span></label>
+                                            <label>Customer Group<span class="login-danger"></span></label>
+                                            <select class="form-control select">
+                                                <option disabled>None</option>
+                                                <option>A Coy</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="form-group local-forms">
+                                            <label>Assigned to<span class="login-danger"></span></label>
+                                            <select class="form-control select">
+                                                <option disabled>None</option>
+                                                <option>Mr Afshan</option>
+                                                <option>Mr Ahshan</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-3 col-md-6">
+                                        <div class="form-group local-forms">
+                                            <label>Status<span class="login-danger"></span></label>
                                             <select class="form-control select">
                                                 <option disabled>None</option>
                                                 <option>Active</option>
-                                                <option>In Active</option>
+                                                <option>Inactive</option>
                                             </select>
                                         </div>
                                     </div>
                                 </div>
-
-
                             </div>
                         </div>
                     </div>
@@ -134,7 +154,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="example1">
+                            <table class="datatable table table-stripped" style="width:100%">
                                 <thead>
                                     <tr>
                                         <th>Action</th>
@@ -142,15 +162,17 @@
                                         <th>Business Name</th>
                                         <th>Name</th>
                                         <th>Email</th>
+                                        <th>Credit Limit</th>
                                         <th>Tax Number</th>
                                         <th>Pay Term</th>
                                         <th>Opening Balance</th>
                                         <th>Advance Balance</th>
                                         <th>Added On</th>
+                                        <th>Customer Group</th>
                                         <th>Address</th>
                                         <th>Mobile</th>
-                                        <th>Total Purchase Due</th>
-                                        <th>Total Purchase Return Due</th>
+                                        <th>Total Sale Due</th>
+                                        <th>Total Sell Return Due</th>
                                         <th>Custom Field 1</th>
                                         <th>Custom Field 2</th>
                                         <th>Custom Field 3</th>
@@ -164,21 +186,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <td></td>
-                                        <th colspan="2">Total</th>
-                                        <th>$2500,000</th>
-                                        <th>$0</th>
-                                    </tr>
+                                    
                                 </tbody>
                             </table>
                         </div>
@@ -240,6 +248,22 @@
                                                 aria-describedby="button-addon1">
                                         </div>
                                         <span>Leave empty to autogenerate</span>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="input-group local-forms">
+                                            <span class="input-group-text" id="basic-addon1"><i
+                                                    class="fas fa-user"></i></span>
+                                            <select class="form-control form-select"
+                                                aria-label="Example text with button addon"
+                                                aria-describedby="button-addon1">
+                                                <option selected disabled>Customer Group</option>
+                                                <option>None</option>
+                                                <option>A Coy</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -364,14 +388,14 @@
                                 </div>
 
                                 <div class="row">
-                                        <div class="d-flex justify-content-center">
-                                            <button class="btn btn-primary mt-xs-2px" type="button"
+                                    <div class="d-flex justify-content-center">
+                                        <button class="btn btn-primary mt-xs-2px" type="button"
                                             data-bs-toggle="collapse" data-bs-target="#moreinformation1"
                                             aria-expanded="false" aria-controls="collapseExample">
                                             More Infomation <i class="fas fa-sort-down "></i>
                                         </button>
-                                        </div>
-        
+                                    </div>
+
                                     <div>
                                         <div class="collapse" id="moreinformation1">
                                             <div class="student-group-form">
@@ -421,6 +445,18 @@
                                                             </div>
                                                         </div>
                                                     </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text" id="basic-addon1"><i
+                                                                    class="fas fa-address-book"></i></span>
+                                                            <input type="text" class="form-control"
+                                                                placeholder="Credit Limit"
+                                                                aria-label="Example text with button addon"
+                                                                aria-describedby="button-addon1">
+                                                        </div>
+                                                    </div>
+
                                                 </div>
                                                 <hr />
                                                 <div class="row">
@@ -606,14 +642,14 @@
                                         </div>
                                     </div>
 
-                                        <div class="d-flex justify-content-center">
-                                            <button class="btn btn-primary mt-xs-2px" type="button"
+                                    <div class="d-flex justify-content-center">
+                                        <button class="btn btn-primary mt-xs-2px" type="button"
                                             data-bs-toggle="collapse" data-bs-target="#AddContactPersons"
                                             aria-expanded="false" aria-controls="collapseExample">
                                             Add Contact Persons <i class="fas fa-sort-down"></i>
                                         </button>
-                                        </div>
-                           
+                                    </div>
+
                                     <div>
                                         <div class="collapse" id="AddContactPersons">
                                             <div class="student-group-form">
