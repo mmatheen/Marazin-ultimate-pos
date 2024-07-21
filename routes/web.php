@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SellingPriceController;
@@ -119,4 +120,8 @@ Route::get('/customerGroupList', [CustomerGroupController::class, 'CustomerGroup
 //start Import Contacts route
 Route::get('/importContacts', [ContactsController::class, 'ImportContacts'])->name('ImportContacts');
 //stop  Import Contacts route
+
+//start Purchase route
+Route::get('/purchaselist', [PurchaseController::class, 'PurchaseList'])->name('PurchaseList');
+//stop  Purchase route
 

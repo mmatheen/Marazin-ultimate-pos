@@ -65,6 +65,7 @@
     <script src="assets/plugins/toastr/toastr.min.js"></script>
     <script src="assets/plugins/toastr/toastr.js"></script>
      <script src="assets/js/jquery-ui.min.js"></script>
+     <script src="assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js"></script>
     <script src="assets/js/script.js"></script>
 <body>
 

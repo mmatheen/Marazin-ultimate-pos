@@ -29,7 +29,7 @@
                     <ul>
                         <li><a href={{ route('SupplierList') }}>Suppliers</a></li>
                         <li><a href={{ route('CustomerList') }}>Customers</a></li>
-                        {{-- <li><a href={{ route('CustomerGroupList') }}>Customer Groups</a></li> --}}
+                        <li><a href={{ route('CustomerGroupList') }}>Customer Groups</a></li>
                         <li><a href={{ route('ImportContacts') }}>Import Contacts</a></li>
                     </ul>
                 </li>
@@ -55,7 +55,7 @@
                     <a href="#"><i class="fas fa-book-reader"></i> <span>Purchases</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="">List Purchases</a></li>
+                        <li><a href="{{ route('PurchaseList') }}">List Purchases</a></li>
                         <li><a href="add-subject.html">Add Purchases</a></li>
                         <li><a href="edit-subject.html">List Purchases Return</a></li>
                     </ul>
