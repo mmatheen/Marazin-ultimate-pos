@@ -1,7 +1,27 @@
 @extends('layout.layout')
 @section('content')
     <div class="content container-fluid">
+        <style>
+            .login-fields1 {
+                display: none;
+            }
 
+            .login-fields2 {
+                display: none;
+            }
+
+            .login-fields3 {
+                display: none;
+            }
+
+            .hidden {
+                display: none;
+            }
+
+            .hiddenway_two_action {
+                display: none;
+            }
+        </style>
         <div class="row">
             <div class="page-header">
                 <div class="row align-items-center">
@@ -83,7 +103,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
 
         {{-- table row --}}
@@ -95,10 +114,9 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <button type="button" class="btn btn-outline-info " data-bs-toggle="modal"
-                                        data-bs-target="#addModal">
+                                    <a href="{{ route('AddPurchase') }}"><button type="button" class="btn btn-outline-info">
                                         <i class="fas fa-plus px-2"> </i>Add
-                                    </button>
+                                    </button></a>
 
                                 </div>
                             </div>
@@ -169,7 +187,6 @@
                             <h1 class="modal-title fs-5" id="exampleModalLabel">Add sales commission agent</h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="addAndEditForm" method="POST" action="">
                             <div class="modal-body">
                                 <div class="row">
 
@@ -183,12 +200,36 @@
                                     </div>
                                 </div>
                             </div>
-
-                        </form>
                     </div>
                 </div>
             </div>
         </div>
         {{-- Edit modal row --}}
     </div>
+
+    <script>
+        function toggleLoginFields(propertyId, actionClass) {
+            var checkBox = document.getElementById(propertyId);
+            var loginFields = document.querySelectorAll(actionClass);
+
+            loginFields.forEach(function(field) {
+                field.style.display = checkBox.checked ? "block" : "none";
+            });
+        }
+
+        function toggleLoginFields2(propertyId, actionClass, displayClass) {
+            var checkBox = document.getElementById(propertyId);
+            var loginFields = document.querySelectorAll(actionClass);
+            var specificFieldVisible = document.querySelectorAll(displayClass);
+
+            loginFields.forEach(function(field) {
+                field.style.display = checkBox.checked ? "none" : "block";
+            });
+
+            specificFieldVisible.forEach(function(field) {
+                field.style.display = checkBox.checked ? "block" : "none";
+            })
+        }
+    </script>
+
 @endsection

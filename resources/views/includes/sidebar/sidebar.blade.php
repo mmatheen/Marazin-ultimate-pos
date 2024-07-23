@@ -37,7 +37,8 @@
                     <a href="#"><i class="fas fa-building"></i> <span>Products</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('product_list') }}>List Products</a></li>
+                        <li><a href={{ route('product_list') }}>List Products</a></li> 
+                        {{-- {{ activeSegment('product_list') }} --}}
                         <li><a href={{ route('add-product') }}>Add Products</a></li>
                         <li><a href={{ route('updatePrice') }}>Update Price</a></li>
                         <li><a href={{ route('printLabel') }}>Print Label</a></li>
@@ -56,8 +57,8 @@
                             class="menu-arrow"></span></a>
                     <ul>
                         <li><a href="{{ route('PurchaseList') }}">List Purchases</a></li>
-                        <li><a href="add-subject.html">Add Purchases</a></li>
-                        <li><a href="edit-subject.html">List Purchases Return</a></li>
+                        <li><a href={{ route('AddPurchase') }}>Add Purchases</a></li>
+                        <li><a href={{ route('PurchaseReturnList') }}>List Purchases Return</a></li>
                     </ul>
                 </li>
                 <li class="submenu">

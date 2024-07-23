@@ -2,6 +2,11 @@
     @section('content')
         <div class="content container-fluid">
 
+            <style>
+                .hidden{
+                    display: block;
+                }
+            </style>
             <div class="row">
                 <div class="page-header">
                     <div class="row align-items-center">
@@ -152,8 +157,8 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-check ms-3">
-                                                        <input class="form-check-input" type="checkbox" value=""
-                                                            id="isActive">
+                                                        <input class="form-check-input" type="checkbox" id="isActive" checked
+                                                        onclick="toggleLoginFields(id,'.hidden')">
                                                         <label class="form-check-label" for="isActive">
                                                             Enable stock management at product level
                                                         </label>
@@ -163,7 +168,7 @@
 
                                             <div class="col-md-4">
                                                 <div class="mb-3">
-                                                    <div class="form-group local-forms">
+                                                    <div class="form-group local-forms hidden">
                                                         <label>Alert Quantity<span class="login-danger">*</span></label>
                                                         <input class="form-control" type="text" placeholder="0">
                                                     </div>
@@ -542,4 +547,16 @@
                     </div>
                 </div>     
             </div>
+
+            <script>
+                function toggleLoginFields(propertyId, actionClass) {
+                    var checkBox = document.getElementById(propertyId);
+                    var loginFields = document.querySelectorAll(actionClass);
+
+                    loginFields.forEach(function(field) {
+                        field.style.display = checkBox.checked ? "block" : "none";
+                    });
+                }
+            </script>
+
         @endsection

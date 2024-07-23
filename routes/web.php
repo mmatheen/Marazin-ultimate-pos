@@ -9,6 +9,7 @@ use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SellingPriceController;
@@ -123,5 +124,10 @@ Route::get('/importContacts', [ContactsController::class, 'ImportContacts'])->na
 
 //start Purchase route
 Route::get('/purchaselist', [PurchaseController::class, 'PurchaseList'])->name('PurchaseList');
+Route::get('/addpurchase', [PurchaseController::class, 'AddPurchase'])->name('AddPurchase');
 //stop  Purchase route
 
+//start PurchaseReturn route
+Route::get('/purchasereturnlist', [PurchaseReturnController::class, 'PurchaseReturnList'])->name('PurchaseReturnList');
+Route::get('/addpurchasereturn', [PurchaseReturnController::class, 'AddPurchaseReturn'])->name('AddPurchaseReturn');
+//stop  PurchaseReturn route

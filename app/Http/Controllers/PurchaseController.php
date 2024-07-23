@@ -9,4 +9,8 @@ class PurchaseController extends Controller
     public function PurchaseList(){
         return view('purchase.purchase_lists');
     }
+
+    public function AddPurchase(){
+        return view('purchase.add_purchase');
+    }
 }
