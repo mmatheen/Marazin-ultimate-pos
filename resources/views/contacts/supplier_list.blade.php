@@ -82,7 +82,7 @@
                                     </div>
                                 </div>
 
-                                <div class="row mt-3">
+                                <div class="row mt-4">
                                     <div class="col-lg-3 col-md-6">
                                         <div class="form-group local-forms">
                                             <label>Assigned to <span class="login-danger">*</span></label>
@@ -627,7 +627,7 @@
                                                         </button>
                                                     </p>
 
-                                                    <div class="collapse" id="Persons1">
+                                                    <div class="collapse show" id="Persons1">
                                                         <div class="student-group-form">
                                                             <hr>
                                                             <div class="row mt-4">
@@ -804,7 +804,7 @@
                                                                 <div class="col-lg-3 col-md-6">
                                                                     <div class="form-check">
                                                                         <input class="form-check-input" type="checkbox"
-                                                                            id="isactive2">
+                                                                            id="isactive2" checked>
                                                                         <label class="form-check-label" for="isactive2">
                                                                             Is active ?
                                                                         </label>
@@ -1001,7 +1001,7 @@
                                                                 <div class="col-lg-3 col-md-6">
                                                                     <div class="form-check">
                                                                         <input class="form-check-input" type="checkbox"
-                                                                            id="isactive1">
+                                                                            id="isactive1" checked>
                                                                         <label class="form-check-label" for="isactive1">
                                                                             Is active ?
                                                                         </label>
@@ -1191,17 +1191,6 @@
                                                                             <input class="form-control" type="password"
                                                                                 placeholder="Confirm Password">
                                                                         </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="row">
-                                                                <div class="col-lg-3 col-md-6">
-                                                                    <div class="form-check">
-                                                                        <input class="form-check-input" type="checkbox"
-                                                                            id="isactive2">
-                                                                        <label class="form-check-label" for="isactive2">
-                                                                            Is active ?
-                                                                        </label>
                                                                     </div>
                                                                 </div>
                                                             </div>

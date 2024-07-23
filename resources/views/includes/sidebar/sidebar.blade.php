@@ -56,7 +56,7 @@
                     <a href="#"><i class="fas fa-book-reader"></i> <span>Purchases</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="{{ route('PurchaseList') }}">List Purchases</a></li>
+                        <li><a href={{ route('PurchaseList') }}>List Purchases</a></li>
                         <li><a href={{ route('AddPurchase') }}>Add Purchases</a></li>
                         <li><a href={{ route('PurchaseReturnList') }}>List Purchases Return</a></li>
                     </ul>

@@ -141,7 +141,7 @@
                             <table class="datatable table table-stripped" style="width:100%" id="example1">
                                 <thead>
                                     <tr>
-                                        <th><input type="checkbox" name="" value=""/></th>
+                                        <th><input type="checkbox" name="" value="" id="allchecked" onclick="toggleLoginFields(id,'.checked')"/></th>
                                         <th>Product Image</th>
                                         <th>Action</th>
                                         <th>Product</th>
@@ -157,8 +157,8 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><input type="checkbox" name="" value=""/></td>
-                                        <td><img src="https://via.placeholder.com/50" alt="Product 1"/></td>
+                                        <td><input type="checkbox" name="" value="" class="checked" /></td>
+                                        <td><img src="https://via.placeholder.com/50" alt="Product 1" /></td>
                                         <td>
                                             <button class="btn btn-primary">Edit</button>
                                             <button class="btn btn-danger">Delete</button>
@@ -175,8 +175,8 @@
                                     </tr>
 
                                     <tr>
-                                        <td><input type="checkbox" name="" value=""/></td>
-                                        <td><img src="https://via.placeholder.com/50" alt="Product 2"/></td>
+                                        <td><input type="checkbox" name="" value="" class="checked" /></td>
+                                        <td><img src="https://via.placeholder.com/50" alt="Product 2" /></td>
                                         <td>
                                             <button class="btn btn-primary">Edit</button>
                                             <button class="btn btn-danger">Delete</button>
@@ -269,17 +269,18 @@
                         <form id="addAndEditForm" method="POST" action="">
                             <div class="modal-body">
                                 <div class="row">
-                                    
+
                                 </div>
                                 <div class="row">
-                               
+
                                     <div class="modal-footer">
                                         <button type="submit" class="btn btn-primary">Save changes</button>
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Close</button>
                                     </div>
                                 </div>
                             </div>
-    
+
                         </form>
                     </div>
                 </div>
@@ -288,6 +289,16 @@
         {{-- Edit modal row --}}
     </div>
 
+    <script>
+        function toggleLoginFields(propertyId, actionClass) {
+            var checkBox = document.getElementById(propertyId);
+            var loginFields = document.querySelectorAll(actionClass);
+            loginFields.forEach(function(field) {
+                // console.log(checkBox.checked);
+                field.checked = checkBox.checked; // field.checked --> All checkbox fields are currently which state 
+                                                    //then it attache the value from which selected box was checked 
+            });
+        }
+    </script>
     
 @endsection
-

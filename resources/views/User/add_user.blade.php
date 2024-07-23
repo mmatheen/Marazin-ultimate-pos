@@ -228,23 +228,11 @@
                                 </div>
 
                                 <div class="row">
-                                    <div class="col-md-3">
-                                        Access locations
-                                    </div>
-                                    <div class="col-md-2">
-                                        <div class="form-group">
-                                            <input class="form-check-input" type="checkbox" value="" id="allowLogin1">
-                                            <label class="form-check-label" for="allowLogin1">
-                                                All Locations
-                                            </label>
-                                        </div>
-                                    </div>
-
                                     <div class="col-md-2">
                                         <div class="form-group">
                                             <input class="form-check-input" type="checkbox" value="" id="awesomeShop2">
                                             <label class="form-check-label" for="awesomeShop2">
-                                                Awesome Shop
+                                                Allow Selected Contacts
                                             </label>
                                         </div>
                                     </div>
