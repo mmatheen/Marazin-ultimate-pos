@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class SellingPriceController extends Controller
 {
-    public function SellingPriceList(){
-        return view('sellingPriceGroup.list_sellingPriceGroup');
+    public function sellingPrice(){
+        return view('selling_price_group.selling_price_group');
     }
 }

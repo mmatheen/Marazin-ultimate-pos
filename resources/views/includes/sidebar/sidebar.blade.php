@@ -14,51 +14,51 @@
                         <li><a href="student-dashboard.html">Student Dashboard</a></li>
                     </ul>
                 </li>
-                <li class="submenu">
+                <li class="submenu {{ set_active(['user'])}}">
                     <a href="#"><i class="fas fa-graduation-cap"></i> <span> User Management</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('UserList') }}>Users</a></li>
-                        <li><a href={{ route('RoleList') }}>Roles</a></li>
-                        <li><a href={{ route('SalesCommissionList') }}>Sales Commissions</a></li>
+                        <li><a href={{ route('user') }} class="{{ set_active(['user'])}}">Users</a></li>
+                        <li><a href={{ route('role') }} class="{{ set_active(['role'])}}">Roles</a></li>
+                        <li><a href={{ route('sales-commission') }} class="{{ set_active(['sales-commission'])}}">Sales Commissions</a></li>
                     </ul>
                 </li>
-                <li class="submenu">
+                <li class="submenu {{ set_active(['supplier']) }}">
                     <a href="#"><i class="fas fa-chalkboard-teacher"></i> <span> Contacts</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('SupplierList') }}>Suppliers</a></li>
-                        <li><a href={{ route('CustomerList') }}>Customers</a></li>
-                        <li><a href={{ route('CustomerGroupList') }}>Customer Groups</a></li>
-                        <li><a href={{ route('ImportContacts') }}>Import Contacts</a></li>
+                        <li><a href={{ route('supplier') }} class="{{ set_active(['supplier'])}}">Supplier</a></li>
+                        <li><a href={{ route('customer') }} class="{{ set_active(['customer'])}}">Customer</a></li>
+                        <li><a href={{ route('customer-group') }} class="{{ set_active(['customer-group'])}}">Customer Groups</a></li>
+                        <li><a href={{ route('import-contact') }} class="{{ set_active(['import-contact'])}}">Import Contacts</a></li>
                     </ul>
                 </li>
-                <li class="submenu">
+                <li class="submenu {{ set_active(['warranty'])}}">
                     <a href="#"><i class="fas fa-building"></i> <span>Products</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('product_list') }}>List Products</a></li> 
+                        <li><a href={{ route('list-product') }} class="{{ set_active(['list-product'])}}">List Products</a></li>
                         {{-- {{ activeSegment('product_list') }} --}}
-                        <li><a href={{ route('add-product') }}>Add Products</a></li>
-                        <li><a href={{ route('updatePrice') }}>Update Price</a></li>
-                        <li><a href={{ route('printLabel') }}>Print Label</a></li>
-                        <li><a href={{ route('variatiuonList') }}>Variations</a></li>
-                        <li><a href={{ route('import_products') }}>Import Products</a></li>
-                        <li><a href={{ route('importopeningstock') }}>Import Opening Stock</a></li>
-                        <li><a href={{ route('sellingpricelist') }}>Selling Price Group</a></li>
-                        <li><a href={{ route('unitlist') }}>Units</a></li>
-                        <li><a href={{ route('catergoriesList') }}>Catergories</a></li>
-                        <li><a href={{ route('brandList') }}>Brands</a></li>
-                        <li><a href={{ route('warrantyList') }}>Warranties</a></li>
+                        <li><a href={{ route('add-product')}} class="{{ set_active(['add-product'])}}">Add Product</a></li>
+                        <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
+                        <li><a href={{ route('print-label')}} class="{{ set_active(['print-label'])}}">Print Label</a></li>
+                        <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>
+                        <li><a href={{ route('import-product')}} class="{{ set_active(['import-product'])}}">Import Products</a></li>
+                        <li><a href={{ route('import-opening-stock')}} class="{{ set_active(['import-opening-stock'])}}">Import Opening Stock</a></li>
+                        <li><a href={{ route('selling-price-group') }} class="{{ set_active(['selling-price-group'])}}">Selling Price Group</a></li>
+                        <li><a href={{ route('unit') }} class="{{ set_active(['unit'])}}">Unit</a></li>
+                        <li><a href={{ route('category') }} class="{{ set_active(['category'])}}">Category</a></li>
+                        <li><a href={{ route('brand')}} class="{{ set_active(['brand'])}}">Brands</a></li>
+                        <li><a href={{ route('warranty') }} class="{{ set_active(['warranty'])}}">Warranty</a></li>
                     </ul>
                 </li>
-                <li class="submenu">
+                <li class="submenu {{ set_active(['list-purchase'])}}">
                     <a href="#"><i class="fas fa-book-reader"></i> <span>Purchases</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('PurchaseList') }}>List Purchases</a></li>
-                        <li><a href={{ route('AddPurchase') }}>Add Purchases</a></li>
-                        <li><a href={{ route('PurchaseReturnList') }}>List Purchases Return</a></li>
+                        <li><a href={{ route('list-purchase') }} class="{{ set_active(['list-purchase'])}}">List Purchases</a></li>
+                        <li><a href={{ route('add-purchase') }} class="{{ set_active(['add-purchase'])}}">Add Purchases</a></li>
+                        <li><a href={{ route('purchase-return') }} class="{{ set_active(['purchase-return'])}}">List Purchases Return</a></li>
                     </ul>
                 </li>
                 <li class="submenu">

@@ -2,16 +2,16 @@
 
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CatergoriesController;
-use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\CatergoryController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseReturnController;
-use App\Http\Controllers\RolesController;
-use App\Http\Controllers\SalesCommissionAgentsController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalesCommissionAgentController;
 use App\Http\Controllers\SellingPriceController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\SupplierController;
@@ -20,7 +20,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
-
+use Illuminate\Support\Facades\Request;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -32,16 +32,25 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+function set_active($route)
+{
+
+    if (is_array($route)) {
+        return in_array(Request::path(), $route) ? 'active' : '';
+    }
+
+    return Request::path() == $route ? 'active' : '';
+}
+
 Route::get('/', function () {
     return view('welcome');
 });
 
 
 Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
-Route::get('/warrantyList', [WarrantyController::class, 'warrantyList'])->name('warrantyList');
 
 //start warranty route
-Route::get('/add-warranty', [WarrantyController::class, 'warranty'])->name('add-warranty');
+Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
 Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
 Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
 Route::post('/warranty-store', [WarrantyController::class, 'store']);
@@ -50,10 +59,10 @@ Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 //stop warranty route
 
 //start product route
-Route::get('/productList', [ProductController::class, 'warrantyList'])->name('product_list');
-Route::get('/add-product', [ProductController::class, 'product'])->name('add-product');
-Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('updatePrice');
-Route::get('/importproduct', [ProductController::class, 'importProduct'])->name('import_products');
+Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
+Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
+Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
+Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 
 Route::get('/product-edit/{id}', [ProductController::class, 'edit']);
 Route::get('/product-get-all', [ProductController::class, 'index']);
@@ -64,70 +73,70 @@ Route::delete('/product-delete/{id}', [ProductController::class, 'destroy']);
 
 
 //start user route
-Route::get('/userList', [UserController::class, 'UserList'])->name('UserList');
-Route::get('/add-user', [UserController::class, 'AddUser'])->name('add-user');
+Route::get('/user', [UserController::class, 'user'])->name('user');
+Route::get('/add-user', [UserController::class, 'addUser'])->name('add-user');
 //stop product route
 
 //start user route
-Route::get('/rolesList', [RolesController::class, 'RoleList'])->name('RoleList');
-Route::get('/add-roles', [RolesController::class, 'AddRole'])->name('add-role');
+Route::get('/role', [RoleController::class, 'role'])->name('role');
+Route::get('/add-role', [RoleController::class, 'addRole'])->name('add-role');
 //stop product route
 
 //start SalesCommissionAgents route
-Route::get('/SalesCommissionList', [SalesCommissionAgentsController::class, 'SalesCommissionList'])->name('SalesCommissionList');
+Route::get('/sales-commission', [SalesCommissionAgentController::class, 'salesCommission'])->name('sales-commission');
 //stop  SalesCommissionAgents route
 
 //start Print Label route
-Route::get('/printlabel', [PrintLabelController::class, 'printLabel'])->name('printLabel');
+Route::get('/print-label', [PrintLabelController::class, 'printLabel'])->name('print-label');
 //stop  Print Label route
 
 //start variation route
-Route::get('/variatiuonlist', [VariationController::class, 'variatiuonList'])->name('variatiuonList');
+Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
 //stop  variation route
 
 //start import opening route
-Route::get('/importopeningstock', [StockController::class, 'importOpeningStock'])->name('importopeningstock');
+Route::get('/import-opening-stock', [StockController::class, 'importOpeningStock'])->name('import-opening-stock');
 //stop  import opening route
 
 //start selling price route
-Route::get('/sellingpricelist', [SellingPriceController::class, 'SellingPriceList'])->name('sellingpricelist');
+Route::get('/selling-price-group', [SellingPriceController::class, 'sellingPrice'])->name('selling-price-group');
 //stop  selling price route
 
 
 //start unit route
-Route::get('/unitlist', [UnitController::class, 'UnitList'])->name('unitlist');
+Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
 //stop  unit route
 
 //start catergories route
-Route::get('/catergoriesList', [CatergoriesController::class, 'CatergoriesList'])->name('catergoriesList');
+Route::get('/category', [CatergoryController::class, 'category'])->name('category');
 //stop  catergories route
 
 //start brand route
-Route::get('/brandList', [BrandController::class, 'BrandList'])->name('brandList');
+Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
 //stop  brand route
 
 //start Supplier route
-Route::get('/supplierList', [SupplierController::class, 'SupplierList'])->name('SupplierList');
+Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');
 //stop  Supplier route
 
 //start Customer route
-Route::get('/customerList', [CustomerController::class, 'CustomerList'])->name('CustomerList');
+Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
 //stop  Customer route
 
 //start CustomerGroup route
-Route::get('/customerGroupList', [CustomerGroupController::class, 'CustomerGroupList'])->name('CustomerGroupList');
+Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
 //stop  CustomerGroup route
 
 //start Import Contacts route
-Route::get('/importContacts', [ContactsController::class, 'ImportContacts'])->name('ImportContacts');
+Route::get('/import-contact', [ContactController::class, 'importContact'])->name('import-contact');
 //stop  Import Contacts route
 
 //start Purchase route
-Route::get('/purchaselist', [PurchaseController::class, 'PurchaseList'])->name('PurchaseList');
-Route::get('/addpurchase', [PurchaseController::class, 'AddPurchase'])->name('AddPurchase');
+Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
+Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
 //stop  Purchase route
 
 //start PurchaseReturn route
-Route::get('/purchasereturnlist', [PurchaseReturnController::class, 'PurchaseReturnList'])->name('PurchaseReturnList');
-Route::get('/addpurchasereturn', [PurchaseReturnController::class, 'AddPurchaseReturn'])->name('AddPurchaseReturn');
+Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');
+Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchaseReturn'])->name('add-purchase-return');
 //stop  PurchaseReturn route

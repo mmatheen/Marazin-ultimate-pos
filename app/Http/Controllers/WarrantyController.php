@@ -12,10 +12,6 @@ class WarrantyController extends Controller
     {
         return view('warranty.warranty');
     }
-    public function warrantyList()
-    {
-        return view('warranty.warranty_list');
-    }
 
     public function index()
     {

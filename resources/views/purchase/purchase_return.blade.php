@@ -62,7 +62,7 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <a href="{{ route('AddPurchaseReturn') }}"><button type="button" class="btn btn-outline-info">
+                                    <a href="{{ route('add-purchase-return') }}"><button type="button" class="btn btn-outline-info">
                                         <i class="fas fa-plus px-2"> </i>Add
                                     </button></a>
                                 </div>

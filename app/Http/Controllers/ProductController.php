@@ -6,19 +6,21 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function warrantyList(){
-        return view('products.product_list');
-    }
 
     public function product(){
-        return view('products.add_product');
+        return view('product.product');
     }
 
+    public function addProduct(){
+        return view('product.add_product');
+    }
+
+
    public function updatePrice(){
-    return view('products.update_price');
+    return view('product.update_price');
    }
 
    public function importProduct(){
-    return view('products.importProduct');
+    return view('product.import_product');
    }
 }

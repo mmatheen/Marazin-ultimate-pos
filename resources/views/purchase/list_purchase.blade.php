@@ -89,7 +89,7 @@
                                         </select>
                                     </div>
                                 </div>
-                         
+
                                 <div class="col-lg-3 col-md-6">
                                     <div class="mb-3">
                                         <div class="form-group local-forms">
@@ -114,7 +114,7 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <a href="{{ route('AddPurchase') }}"><button type="button" class="btn btn-outline-info">
+                                    <a href="{{ route('add-purchase') }}"><button type="button" class="btn btn-outline-info">
                                         <i class="fas fa-plus px-2"> </i>Add
                                     </button></a>
 

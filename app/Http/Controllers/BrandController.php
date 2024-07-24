@@ -8,7 +8,7 @@ use function PHPUnit\Framework\returnSelf;
 
 class BrandController extends Controller
 {
-    public function BrandList(){
-        return view('brand.list_brands');
+    public function Brand(){
+        return view('brand.brand');
     }
 }

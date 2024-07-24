@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class UnitController extends Controller
 {
-    public function UnitList(){
-        return view('unit.list_unit');
+    public function unit(){
+        return view('unit.unit');
     }
 }

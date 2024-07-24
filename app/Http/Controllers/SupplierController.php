@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
-    public function SupplierList(){
-        return view('contacts.supplier_list');
+    public function Supplier(){
+        return view('contact.supplier');
     }
 }

@@ -7,10 +7,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
         <title>Preskool - Students</title>
         <link rel="shortcut icon" href="assets/img/favicon.png">
-        <link
-            href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
-            rel="stylesheet">
-
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="assets/plugins/bootstrap/css/bootstrap.min.css">
         <link rel="stylesheet" href="assets/plugins/feather/feather.css">
         <link rel="stylesheet" href="assets/plugins/icons/flags/flags.css">
@@ -40,6 +38,7 @@
 
     </head>
 
+<body>
     <div class="main-wrapper">
 
         <div class="page-wrapper">
@@ -67,7 +66,16 @@
      <script src="assets/js/jquery-ui.min.js"></script>
      <script src="assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js"></script>
     <script src="assets/js/script.js"></script>
-<body>
+
+    <script>
+        $( function() {
+
+          $('.datetime').datetimepicker({
+            format: 'hh:mm:ss a'
+        });
+        } );
+
+        </script>
 
 </body>
 </html>

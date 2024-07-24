@@ -7,6 +7,6 @@ use Illuminate\Http\Request;
 class PrintLabelController extends Controller
 {
     public function printLabel(){
-        return view('printlabel.print_Label');
+        return view('print_label.print_label');
     }
 }
