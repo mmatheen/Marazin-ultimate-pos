@@ -610,16 +610,19 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="col-md-4">
-                                        <div class="form-group local-forms days">
-                                            <label>Pay Components<span class="login-danger"></span></label>
-                                            <select class="form-control form-select select">
-                                                <option selected disabled>Please Select</option>
-                                            </select>
-                                        </div>
+                                    <div class="col-md-4">                         
+                                            <div class="form-group local-forms">
+                                                <label>Pay Components<span class="login-danger">*</span></label>
+                                                <select class="select2Box form-control form-select ">
+                                                    <option selected disabled>Please Select </option>
+                                                    <option>Code 128(C128)</option>
+                                                    <option>Code 39(C39)</option>
+                                                    <option>EAN -8</option>
+                                                    <option>EAN -A</option>
+                                                    <option>EAN -E</option>
+                                                </select>
+                                            </div>
                                     </div>
-
                                 </div>
 
                             </div>

@@ -82,6 +82,7 @@
                                     </div>
                                 </div>
 
+                                
                                 <div class="row mt-4">
                                     <div class="col-lg-3 col-md-6">
                                         <div class="form-group local-forms">
@@ -349,7 +350,7 @@
                                         <div class="input-group local-forms">
                                             <span class="input-group-text" id="basic-addon1"><i
                                                     class="fas fa-user"></i></span>
-                                            <select class="form-control form-select"
+                                            <select class="form-control  form-select"
                                                 aria-label="Example text with button addon"
                                                 aria-describedby="basic-addon1">
                                                 <option selected disabled>Assigned to</option>
@@ -359,8 +360,8 @@
                                             </select>
                                         </div>
                                     </div>
-
-
+                                
+                               
                                 </div>
 
                                 <div class="row">
