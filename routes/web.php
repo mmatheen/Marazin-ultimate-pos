@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CatergoryController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
@@ -108,7 +108,7 @@ Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
 //stop  unit route
 
 //start catergories route
-Route::get('/category', [CatergoryController::class, 'category'])->name('category');
+Route::get('/category', [CategoryController::class, 'category'])->name('category');
 //stop  catergories route
 
 //start brand route

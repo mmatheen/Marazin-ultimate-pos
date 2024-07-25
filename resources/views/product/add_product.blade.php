@@ -53,7 +53,7 @@
 
 
                                         <div class="col-md-4">
-                                            <div class="mb-3">
+                                            <div class="mb-5">
                                                 <div class="form-group local-forms">
                                                     <label>Barcode Type<span class="login-danger">*</span></label>
                                                     <select class="form-control select2Box form-select select">
@@ -69,40 +69,41 @@
 
                                     <div class="row">
                                         <div class="col-md-4">
-                                            <div class="mb-3">
+                                            <div class="mb-5">
                                                 <div class="input-group local-forms">
                                                     <select class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
                                                         <option selected disabled>Unit</option>
                                                         <option>Pieces(Pcs)</option>
                                                         <option>Packets(pck)</option>
                                                     </select>
-                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addUnitModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3">
+                                            <div class="mb-5">
                                                 <div class="input-group local-forms">
                                                     <select class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
                                                         <option selected disabled>Brand</option>
                                                         <option>Acer</option>
                                                         <option>Apple</option>
                                                     </select>
-                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addModal2" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addBrandModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                                                 </div>
                                             </div>
                                         </div>
 
+
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <label>Category<span class="login-danger"></span></label>
-                                                    <select class="form-control select2Box form-select select">
-                                                        <option selected disabled>Please Select </option>
+                                            <div class="mb-5">
+                                                <div class="input-group local-forms">
+                                                    <select class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                        <option selected disabled>Category</option>
                                                         <option>Books</option>
                                                         <option>Electronics</option>
                                                     </select>
+                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addCategoryModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                                                 </div>
                                             </div>
                                         </div>
@@ -365,10 +366,7 @@
                                             </div>
                                         </div>
                                     </div>
-
-
                                 </form>
-                                <!-- Add other elements if needed -->
                             </div>
                         </div>
                     </div>
@@ -376,124 +374,6 @@
             </div>
         </div>
 
-        {{-- modal Start --}}
-        <div class="row">
-            <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add Unit</h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form id="addAndEditForm" method="POST" action="">
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Name<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="Awesome shop">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Short name<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="Awesome shop">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <div class="form-group local-forms">
-                                            <label>Allow decimal<span class="login-danger"></span></label>
-                                            <select class="form-control form-select select">
-                                                <option selected disabled>Please Select </option>
-                                                <option>Yes</option>
-                                                <option>No</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="modal-footer">
-                                        <button type="submit" class="btn btn-primary">Save changes</button>
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="modal fade" id="addModal2" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add brand</h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form id="addAndEditForm" method="POST" action="">
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Brand name<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="Brand name">
-                                            </div>
-                                        </div>
-                                        {{-- <div class="mb-3">
-                                                <div class="form-group row">
-                                                    <label for="" class="col-sm-2 form-control-label">Country</label>
-                                                    <div class="col-sm-10">
-                                                        <select class="form-control selectpicker" data-live-search="true">
-                                                            <option data-tokens="china">China</option>
-                                                            <option data-tokens="malayasia">Malayasia</option>
-                                                            <option data-tokens="singapore">Singapore</option>
-                                                        </select>
-
-                                                    </div>
-                                                </div>
-                                            </div> --}}
-                                    </div>
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Short description<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Awesome shop">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-12">
-                                        <div class="mb-3">
-                                            <div class="form-check ms-3">
-                                                <input class="form-check-input" type="checkbox" value="" id="Use_for_repair?">
-                                                <label class="form-check-label" for="Use_for_repair?">
-                                                    Use for repair?
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row">
-
-                                    <div class="modal-footer">
-                                        <button type="submit" class="btn btn-primary">Save changes</button>
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <div class="row mb-4">
             <div class="gap-4 d-flex justify-content-center">
@@ -509,6 +389,13 @@
             </div>
         </div>
 
+        {{-- modal Start --}}
+        @include('unit.unit_modal')
+        @include('brand.brand_modal')
+        @include('category.category_modal')
+        {{-- this is modal --}}
+
+
         <script>
             function toggleLoginFields(propertyId, actionClass) {
                 var checkBox = document.getElementById(propertyId);
@@ -521,4 +408,5 @@
 
         </script>
 
-        @endsection
+    </div>
+    @endsection
