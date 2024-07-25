@@ -96,7 +96,7 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms days">
+                                                <div class="form-group local-forms">
                                                     <label>Category<span class="login-danger"></span></label>
                                                     <select class="form-control select2Box form-select select">
                                                         <option selected disabled>Please Select </option>
