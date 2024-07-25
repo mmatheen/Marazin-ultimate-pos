@@ -73,7 +73,7 @@
                                         <div class="col-md-2">
                                             <div class="mb-3">
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value="" id="isActive">
+                                                    <input class="form-check-input" type="checkbox" value="" id="isActive" checked>
                                                     <label class="form-check-label" for="isActive">
                                                         Is active?
                                                     </label>
@@ -113,7 +113,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group">
-                                                    <input class="form-check-input" type="checkbox" value=""  onclick="toggleLoginFields()" id="allowLoginCheckbox">
+                                                    <input class="form-check-input" type="checkbox" value=""  onclick="toggleLoginFields()" id="allowLoginCheckbox" checked>
                                                     <label class="form-check-label" for="allowLoginCheckbox">
                                                         Allow login
                                                     </label>
@@ -165,11 +165,11 @@
 
                                 <div class="row">
                                     <div class="col-md-3">
-                                        Access locations
+                                        <b>Access locations</b>
                                     </div>
                                     <div class="col-md-2">
                                         <div class="form-group">
-                                            <input class="form-check-input" type="checkbox" value="" id="allowLogin">
+                                            <input class="form-check-input" type="checkbox" value="" id="allowLogin" checked>
                                             <label class="form-check-label" for="allowLogin">
                                                 All Locations
                                             </label>
@@ -613,10 +613,9 @@
 
                                     <div class="col-md-4">
                                         <div class="form-group local-forms days">
-                                            <label>Primary work location<span class="login-danger"></span></label>
+                                            <label>Pay Components<span class="login-danger"></span></label>
                                             <select class="form-control form-select select">
                                                 <option selected disabled>Please Select</option>
-                                                <option>Awesome Shop</option>
                                             </select>
                                         </div>
                                     </div>
@@ -643,7 +642,7 @@
             var loginFields = document.querySelectorAll(".login-fields");
 
             loginFields.forEach(function(field) {
-                field.style.display = checkBox.checked ? "none" : "block";
+                field.style.display = checkBox.checked ? "block" : "none";
             });
         }
     </script>
