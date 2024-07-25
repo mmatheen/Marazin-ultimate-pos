@@ -405,7 +405,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-12">
-                                        <div class="form-group local-forms days">
+                                        <div class="form-group local-forms">
                                             <label>Allow decimal<span class="login-danger"></span></label>
                                             <select class="form-control form-select select">
                                                 <option selected disabled>Please Select </option>
@@ -456,7 +456,7 @@
                                                             <option data-tokens="malayasia">Malayasia</option>
                                                             <option data-tokens="singapore">Singapore</option>
                                                         </select>
-                    
+
                                                     </div>
                                                 </div>
                                             </div> --}}
