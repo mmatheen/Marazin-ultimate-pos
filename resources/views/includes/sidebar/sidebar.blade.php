@@ -86,16 +86,16 @@
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Transfers</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="fees-collections.html">List Stock Transfers</a></li>
-                        <li><a href="expenses.html">Add Stock Transfers</a></li>
+                        <li><a href="{{ route('list-stock-transfer') }}">List Stock Transfers</a></li>
+                        <li><a href={{ route('add-stock-transfer') }}>Add Stock Transfers</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Adjustment</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="fees-collections.html">List Stock Adjustments</a></li>
-                        <li><a href="expenses.html">Add Stock Adjustment</a></li>
+                        <li><a href="">List Stock Adjustments</a></li>
+                        <li><a href="">Add Stock Adjustment</a></li>
                     </ul>
                 </li>
                 <li class="submenu">

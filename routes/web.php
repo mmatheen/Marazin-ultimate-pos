@@ -14,6 +14,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesCommissionAgentController;
 use App\Http\Controllers\SellingPriceController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
@@ -140,3 +141,8 @@ Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('a
 Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');
 Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchaseReturn'])->name('add-purchase-return');
 //stop  PurchaseReturn route
+
+//start Stock transfer route
+Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTranfer'])->name('list-stock-transfer');
+Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
+//stop  Stock transfer route

@@ -36,15 +36,15 @@
                     </div>
                 </div>
             </div>
-
-            <p>
-
-                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExample"
-                    aria-expanded="false" aria-controls="collapseExample">
-                    Filters
-                </button>
-            </p>
             <div>
+                <div class="card card-body mb-4">
+                    <div class="student-group-form">
+                        <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+                            <i class="fas fa-filter"></i> &nbsp; Filters
+                        </button>
+                    </div>
+                </div>
                 <div class="collapse" id="collapseExample">
                     <div class="card card-body mb-4">
                         <div class="student-group-form">

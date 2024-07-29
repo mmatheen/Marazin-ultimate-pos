@@ -20,7 +20,6 @@
 
                 <div class="card card-body mb-4">
                     <div class="student-group-form">
-
                         <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
                             <i class="fas fa-filter"></i> &nbsp; Filters
@@ -143,16 +142,17 @@
                                             <div class="row align-items-center">
                                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                                     <!-- Button trigger modal -->
-                                                    <button type="button" class="btn btn-outline-info "
-                                                        data-bs-toggle="modal" data-bs-target="#addModal">
-                                                        <i class="fas fa-plus px-2"> </i>Add
-                                                    </button>
+                                                    <a href="{{ route('add-product') }}"><button type="button"
+                                                            class="btn btn-outline-info">
+                                                            <i class="fas fa-plus px-2"> </i>Add
+                                                        </button></a>
 
                                                     <button type="button" class="btn btn-outline-info "
                                                         data-bs-toggle="modal" data-bs-target="#addModal">
                                                         <i class="fas fa-download"></i>&nbsp;&nbsp;Download
                                                     </button>
 
+                                      
                                                 </div>
                                             </div>
                                         </div>
@@ -184,8 +184,20 @@
                                                         <td><img src="https://via.placeholder.com/50" alt="Product 1" />
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-primary">Edit</button>
-                                                            <button class="btn btn-danger">Delete</button>
+                                                            <div class="dropdown dropdown-action">
+                                                                <a href="#" class="action-icon dropdown-toggle"
+                                                                    data-bs-toggle="dropdown" aria-expanded="false"><button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button></a>
+                                                                <div class="dropdown-menu dropdown-menu-end">
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
+                                                                    
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
+                                                                </div>
+                                                            </div>
                                                         </td>
                                                         <td>Product 1</td>
                                                         <td>Location 1</td>
@@ -204,8 +216,20 @@
                                                         <td><img src="https://via.placeholder.com/50" alt="Product 2" />
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-primary">Edit</button>
-                                                            <button class="btn btn-danger">Delete</button>
+                                                            <div class="dropdown dropdown-action">
+                                                                <a href="#" class="action-icon dropdown-toggle"
+                                                                    data-bs-toggle="dropdown" aria-expanded="false"><button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button></a>
+                                                                <div class="dropdown-menu dropdown-menu-end">
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
+                                                                    
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
+                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
+                                                                </div>
+                                                            </div>
                                                         </td>
                                                         <td>Product 2</td>
                                                         <td>Location 2</td>
@@ -255,38 +279,28 @@
             </div>
         </div>
 
-        <div class="row">
-            <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-                aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add sales commission agent</h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                        </div>
-                        <form id="addAndEditForm" method="POST" action="">
-                            <div class="modal-body">
-                                <div class="row">
-
-                                </div>
-                                <div class="row">
-
-                                    <div class="modal-footer">
-                                        <button type="submit" class="btn btn-primary">Save changes</button>
-                                        <button type="button" class="btn btn-secondary"
-                                            data-bs-dismiss="modal">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
         <div>
         </div>
+
+        <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  ...
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="button" class="btn btn-primary">Save changes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
     </div>
 
 

@@ -27,18 +27,26 @@
                                 <form action="#" method="">
                                     <div class="row">
                                         <div class="col-md-6">
+                                            <label>File To Import</label>
+                                            <div class="invoices-upload-btn">
+                                                <input type="file" accept="image/*" name="image" id="file" class="hide-input">
+                                                <label for="file" class="upload"><i class="far fa-folder-open"> &nbsp;</i> Browse..</label>
+                                            </div>
+                                            <button type="button" class="btn btn-primary mt-3">Submit</button>
+                                        </div>
+                                        {{-- <div class="col-md-6">
                                             <div class="mb-3">
                                                 <p>File To Import</p>
                                                 <input type="file" />
                                                 <button type="button" class="btn btn-primary mt-2">Submit</button>
                                             </div>
-                                        </div>
+                                        </div> --}}
 
                                     </div>
 
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <div class="mb-3">
+                                            <div class="mb-3 mt-3">
                                                 <button type="button" class="btn btn-outline-success mt-2"><i
                                                         class="fas fa-download"></i> &nbsp; Download template file</button>
                                             </div>
