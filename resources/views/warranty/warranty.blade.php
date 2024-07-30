@@ -97,8 +97,7 @@
                                     <div class="col">
                                         <div class="form-group local-forms">
                                             <label>Period<span class="login-danger">*</span></label>
-
-                                            <select class="form-control" id="edit_duration_type" name="duration_type">
+                                            <select class="form-control select" id="edit_duration_type" name="duration_type">
                                                 <option selected disabled>Please Select </option>
                                                 <option>days</option>
                                                 <option>months</option>

@@ -1,7 +1,77 @@
 <script type="text/javascript">
     $(document).ready(function () {
+    var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
-        var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
+
+    // add form and update validation rules code start
+              var addAndUpdateValidationOptions = {
+        rules: {
+            name: {
+                required: true,
+
+            },
+            description: {
+                required: true,
+
+            },
+            duration: {
+                required: true,
+
+            },
+            duration_type: {
+                required: true,
+
+            },
+
+        },
+        messages: {
+
+            name: {
+                required: "name is required",
+            },
+            description: {
+                required: "description is required",
+            },
+            duration: {
+                required: "duration is required",
+            },
+            duration_type: {
+                required: "duration type  is required",
+            },
+
+        },
+        errorElement: 'span',
+        errorPlacement: function (error, element) {
+            error.addClass('text-danger');
+            error.insertAfter(element);
+        },
+        highlight: function (element, errorClass, validClass) {
+            $(element).addClass('is-invalid').removeClass('is-valid');
+        },
+        unhighlight: function (element, errorClass, validClass) {
+            $(element).removeClass('is-invalid').addClass('is-valid');
+        }
+    };
+
+    // Apply validation to both forms
+    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+
+  // add form and update validation rules code end
+
+  // Function to reset form and validation errors
+        function resetFormAndValidation() {
+            // Reset the form fields
+            $('#addAndUpdateForm')[0].reset();
+            // Reset the validation messages and states
+            $('#addAndUpdateForm').validate().resetForm();
+            $('#addAndUpdateForm').find('.is-invalid').removeClass('is-invalid');
+            $('#addAndUpdateForm').find('.is-valid').removeClass('is-valid');
+        }
+
+        // Clear form and validation errors when the modal is hidden
+            $('#addAndEditModal').on('hidden.bs.modal', function () {
+                resetFormAndValidation();
+            });
 
         // Show Add Warranty Modal
         $('#addWarrantyButton').click(function() {
@@ -84,6 +154,12 @@
         // Submit Add/Update Form
         $('#addAndUpdateForm').submit(function(e) {
             e.preventDefault();
+
+             // Validate the form before submitting
+            if (!$('#addAndUpdateForm').valid()) {
+                return; // Return if form is not valid
+            }
+
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'warranty-update/' + id : 'warranty-store';
@@ -103,12 +179,13 @@
                             $('#' + key + '_error').html(err_value);
                         });
                     } else {
-                        $('#addAndUpdateForm')[0].reset();
                         $('#addAndEditModal').modal('hide');
+                           // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, id ? 'Updated' : 'Added');
+                        resetFormAndValidation();
                     }
                 }
             });

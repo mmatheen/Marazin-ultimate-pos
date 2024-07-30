@@ -32,6 +32,7 @@
             }
         }
 
+
     </style>
 
 
@@ -74,6 +75,9 @@
     <script src="assets/js/jquery-ui.min.js"></script>
     <script src="assets/plugins/bootstrap-tagsinput/js/bootstrap-tagsinput.js"></script>
     <script src="assets/js/script.js"></script>
+
+    <!-- jQuery Validation Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
 
     <script>
         $(function() {
