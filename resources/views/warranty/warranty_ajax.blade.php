@@ -51,6 +51,7 @@
         unhighlight: function (element, errorClass, validClass) {
             $(element).removeClass('is-invalid').addClass('is-valid');
         }
+        
     };
 
     // Apply validation to both forms
