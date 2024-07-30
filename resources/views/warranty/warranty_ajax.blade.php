@@ -10,10 +10,7 @@
                 required: true,
 
             },
-            description: {
-                required: true,
-
-            },
+          
             duration: {
                 required: true,
 
@@ -27,16 +24,14 @@
         messages: {
 
             name: {
-                required: "name is required",
+                required: "Name is required",
             },
-            description: {
-                required: "description is required",
-            },
+           
             duration: {
-                required: "duration is required",
+                required: "Duration is required",
             },
             duration_type: {
-                required: "duration type  is required",
+                required: "Duration type  is required",
             },
 
         },
@@ -46,12 +41,12 @@
             error.insertAfter(element);
         },
         highlight: function (element, errorClass, validClass) {
-            $(element).addClass('is-invalid').removeClass('is-valid');
+            $(element).addClass('is-invalidRed').removeClass('is-validGreen');
         },
         unhighlight: function (element, errorClass, validClass) {
-            $(element).removeClass('is-invalid').addClass('is-valid');
+            $(element).removeClass('is-invalidRed').addClass('is-validGreen');
         }
-        
+
     };
 
     // Apply validation to both forms
@@ -65,8 +60,8 @@
             $('#addAndUpdateForm')[0].reset();
             // Reset the validation messages and states
             $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalid').removeClass('is-invalid');
-            $('#addAndUpdateForm').find('.is-valid').removeClass('is-valid');
+            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -76,8 +71,8 @@
 
         // Show Add Warranty Modal
         $('#addWarrantyButton').click(function() {
-            $('#modalTitle').text('Add Warranty');
-            $('#modalButton').text('Save changes');
+            $('#modalTitle').text('New Warranty');
+            $('#modalButton').text('Save');
             $('#deleteName').text('Delete Warranty');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
@@ -93,9 +88,10 @@
                 success: function(response) {
                     var table = $('#warranty').DataTable();
                     table.clear().draw();
+                    var counter = 1;
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
-                        row.append('<td>' + item.id + '</td>');
+                        row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' + item.description + '</td>');
                         row.append('<td>' + item.duration + '</td>');
@@ -116,9 +112,10 @@
                         //     </td>`;
                         // row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-rounded"><i class="feather-edit"></i></button></td>');
                         // row.append('<td><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-rounded"> <i class="feather-trash-2 me-1"></i></button></td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-rounded"><i class="feather-edit"></i></button> <button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-rounded"><i class="feather-trash-2 me-1"></i></button></td>');
+                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
+                        counter++;
                     });
                 },
             });
@@ -128,7 +125,7 @@
             $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
             $('#modalTitle').text('Edit Warranty');
-            $('#modalButton').text('Edit');
+            $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);

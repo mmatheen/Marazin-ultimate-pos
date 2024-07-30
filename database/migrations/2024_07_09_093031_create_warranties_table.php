@@ -16,8 +16,8 @@ return new class extends Migration
             // $table->integer('business_id')->unsigned();
             $table->string('name');
             $table->integer('duration');
-            $table->enum('duration_type', ['days', 'months','years']);
-            $table->text('description');
+            $table->string('duration_type');
+            $table->text('description')->nullable();
             $table->timestamps();
 
             // ForeignKey

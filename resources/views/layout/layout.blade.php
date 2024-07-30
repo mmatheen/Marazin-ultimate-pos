@@ -32,6 +32,13 @@
             }
         }
 
+        .is-invalidRed {
+            border-color: #e61414 !important;
+        }
+
+        .is-validGreen {
+            border-color: rgb(3, 105, 54) !important;
+        }
 
     </style>
 

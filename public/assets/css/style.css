@@ -1140,7 +1140,9 @@ button.bg-danger:hover {
 
 .text-danger,
 .dropdown-menu>li>a.text-danger {
-    color: #e84646 !important
+    color: #e61414 !important;
+    font-weight: bold;
+
 }
 
 .text-info,

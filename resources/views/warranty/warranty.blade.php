@@ -27,7 +27,7 @@
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
                                 <button type="button" class="btn btn-outline-info " id="addWarrantyButton">
-                                    <i class="fas fa-plus px-2"> </i>
+                                  New  <i class="fas fa-plus px-2"> </i>
                                 </button>
                             </div>
                         </div>
@@ -79,7 +79,7 @@
 
                             <div class="mb-3">
                                 <div class="form-group local-forms">
-                                    <label>Description <span class="login-danger">*</span></label>
+                                    <label>Description <span class="login-danger"></span></label>
                                     <textarea class="form-control" id="edit_description" name="description" placeholder="Enter Description"></textarea>
                                     <span class="text-danger" id="description_error"></span>
                                 </div>
@@ -97,7 +97,7 @@
                                     <div class="col">
                                         <div class="form-group local-forms">
                                             <label>Period<span class="login-danger">*</span></label>
-                                            <select class="form-control select" id="edit_duration_type" name="duration_type">
+                                            <select class="form-control" id="edit_duration_type" name="duration_type">
                                                 <option selected disabled>Please Select </option>
                                                 <option>days</option>
                                                 <option>months</option>
@@ -112,8 +112,8 @@
                             </div>
 
                             <div class="modal-footer">
-                                <button type="submit" id="modalButton" class="btn btn-primary">Save changes</button>
-                                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
+                                <button type="button" class="btn btn-outline-danger"" data-bs-dismiss="modal">Close</button>
                             </div>
                         </form>
                     </div>

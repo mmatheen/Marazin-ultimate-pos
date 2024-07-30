@@ -70,7 +70,7 @@ class WarrantyController extends Controller
                 'name' => $request->name,
                 'duration' => $request->duration,
                 'duration_type' => $request->duration_type,
-                'description' => $request->description,
+                'description' => $request->description ?? '',
             ]);
 
 
