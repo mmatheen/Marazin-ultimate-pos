@@ -54,7 +54,7 @@ Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('
 Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
 Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
 Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
-Route::post('/warranty-store', [WarrantyController::class, 'store']);
+Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
 Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
 Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 //stop warranty route
