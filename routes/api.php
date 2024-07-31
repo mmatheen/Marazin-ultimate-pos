@@ -1,7 +1,8 @@
 <?php
 
+use App\Http\Controllers\BrandController;
 use App\Http\Controllers\WarrantyController;
-use App\Http\Controllers\CurrencyController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,8 +29,13 @@ Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
 Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 
 
-Route::post('/currecy-store', [CurrencyController::class, 'store']);
-Route::get('/currecy-get-all', [CurrencyController::class, 'index']);
-Route::get('/currecy-edit/{id}', [CurrencyController::class, 'edit']);
-Route::post('/currecy-update/{id}', [CurrencyController::class, 'update']);
-Route::delete('/currecy-delete/{id}', [CurrencyController::class, 'destroy']);
+//start brand route
+Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
+Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
+Route::get('/brand-get-all', [BrandController::class, 'index']);
+Route::post('/brand-store', [BrandController::class, 'store'])->name('brand-store');
+Route::post('/brand-update/{id}', [BrandController::class, 'update']);
+Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
+//stop  brand route
+
+Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

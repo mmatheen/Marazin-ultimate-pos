@@ -2,36 +2,19 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        populateBrandDropdown();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
         rules: {
             name: {
                 required: true,
-
             },
-
-            duration: {
-                required: true,
-
-            },
-            duration_type: {
-                required: true,
-
-            },
-
         },
         messages: {
 
             name: {
-                required: "Name is required",
-            },
-
-            duration: {
-                required: "Duration is required",
-            },
-            duration_type: {
-                required: "Duration type  is required",
+                required: "Brand Name is required",
             },
 
         },
@@ -65,27 +48,27 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditWarrantyModal').on('hidden.bs.modal', function () {
+            $('#addEditBrandModal').on('hidden.bs.modal', function () {
                 resetFormAndValidation();
             });
 
         // Show Add Warranty Modal
-        $('#addWarrantyButton').click(function() {
-            $('#modalTitle').text('New Warranty');
+        $('#addBrandButton').click(function() {
+            $('#modalTitle').text('New Brand');
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
-            $('#addAndEditWarrantyModal').modal('show');
+            $('#addEditBrandModal').modal('show');
         });
 
         // Fetch and Display Data
         function showFetchData() {
             $.ajax({
-                url: '/warranty-get-all',
+                url: '/brand-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    var table = $('#warranty').DataTable();
+                    var table = $('#brand').DataTable();
                     table.clear().draw();
                     var counter = 1;
                     response.message.forEach(function(item) {
@@ -93,24 +76,6 @@
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' + item.duration + '</td>');
-                        row.append('<td>' + item.duration_type + '</td>');
-                        // let actionDropdown = `
-                        //     <td class="text-center">
-                        //       <div class="dropdown dropdown-action">
-                        //             <button type="button" data-bs-toggle="dropdown" aria-expanded="false" class="btn btn-outline-info"><i class="fas fa-ellipsis-v"></i></button>
-                        //         <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                        //             <li><a class="dropdown-item edit_btn"  data-id="${item.id}">
-                        //             <i class="far fa-edit me-2"></i>Edit
-                        //             </a></li>
-                        //             <li><a class="dropdown-item delete_btn" data-id="${item.id}">
-                        //             <i class="far fa-trash-alt me-2"></i>Delete
-                        //             </a></li>
-                        //         </ul>
-                        //      </div>
-                        //     </td>`;
-                        // row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-rounded"><i class="feather-edit"></i></button></td>');
-                        // row.append('<td><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-rounded"> <i class="feather-trash-2 me-1"></i></button></td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
@@ -123,14 +88,14 @@
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
-            $('#modalTitle').text('Edit Warranty');
+            $('#modalTitle').text('Edit Brand');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
             $.ajax({
-                url: 'warranty-edit/' + id,
+                url: 'brand-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
@@ -139,9 +104,7 @@
                     } else if (response.status == 200) {
                         $('#edit_name').val(response.message.name);
                         $('#edit_description').val(response.message.description);
-                        $('#edit_duration').val(response.message.duration);
-                        $('#edit_duration_type').val(response.message.duration_type);
-                        $('#addAndEditWarrantyModal').modal('show');
+                        $('#addEditBrandModal').modal('show');
                     }
                 }
             });
@@ -162,7 +125,7 @@
 
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
-            let url = id ? 'warranty-update/' + id : 'warranty-store';
+            let url = id ? 'brand-update/' + id : 'brand-store';
             let type = id ? 'post' : 'post';
 
             $.ajax({
@@ -180,7 +143,8 @@
                         });
 
                     } else {
-                        $('#addAndEditWarrantyModal').modal('hide');
+                        populateBrandDropdown();
+                        $('#addEditBrandModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
@@ -198,13 +162,13 @@
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);
-            $('#deleteName').text('Delete Warranty');
+            $('#deleteName').text('Delete Brand');
         });
 
         $(document).on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
             $.ajax({
-                url: 'warranty-delete/' + id,
+                url: 'brand-delete/' + id,
                 type: 'delete',
                 headers: {'X-CSRF-TOKEN': csrfToken},
                 success: function(response) {
@@ -221,5 +185,26 @@
                 }
             });
         });
+
+        function populateBrandDropdown() {
+            $.ajax({
+                url: '/get-brand',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    let brandSelect = $('#brandSelect');
+                    brandSelect.empty(); // Clear existing options
+                    brandSelect.append('<option selected disabled>Brand</option>'); // Add default option
+                    $.each(data, function(key, value) {
+                        brandSelect.append('<option value="'+value.name+'">'+value.name+'</option>');
+                    });
+                },
+                error: function(xhr, status, error) {
+                    console.error('Failed to fetch brand data:', error); // Log any errors
+                }
+            });
+        }
+
     });
+
 </script>

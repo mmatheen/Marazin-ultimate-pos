@@ -59,6 +59,16 @@ Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
 Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 //stop warranty route
 
+//start brand route
+Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
+Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
+Route::get('/brand-get-all', [BrandController::class, 'index']);
+Route::post('/brand-store', [BrandController::class, 'store']);
+Route::post('/brand-update/{id}', [BrandController::class, 'update']);
+Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
+//stop  brand route
+
+
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
@@ -72,6 +82,7 @@ Route::post('/product-update/{id}', [ProductController::class, 'update']);
 Route::delete('/product-delete/{id}', [ProductController::class, 'destroy']);
 //stop product route
 
+Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 
 //start user route
 Route::get('/user', [UserController::class, 'user'])->name('user');
@@ -112,9 +123,6 @@ Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
 Route::get('/category', [CategoryController::class, 'category'])->name('category');
 //stop  catergories route
 
-//start brand route
-Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
-//stop  brand route
 
 //start Supplier route
 Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');

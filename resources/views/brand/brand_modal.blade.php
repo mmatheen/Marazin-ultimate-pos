@@ -1,55 +1,42 @@
-  {{-- Add modal row --}}
+
+  {{-- Add/Edit modal row --}}
   <div class="row">
-    <div class="modal fade" id="addBrandModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div id="addEditBrandModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="exampleModalLabel">Add brand</h1>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="addAndEditForm" method="POST" action="">
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="mb-3">
-                                    <div class="form-group local-forms">
-                                        <label>Brand name<span class="login-danger">*</span></label>
-                                        <input class="form-control" type="text" placeholder="Brand name">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-12">
-                                <div>
-                                    <div class="form-group local-forms">
-                                        <label>Short description<span class="login-danger"></span></label>
-                                        <input class="form-control" type="text" placeholder="Short description">
-                                        <span>Category code is same as HSN code</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-12 ms-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="allowLoginCheckbox">
-                                    <label class="form-check-label" for="allowLoginCheckbox">
-                                        Add as sub taxonomy
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-
-                            <div class="modal-footer">
-                                <button type="submit" class="btn btn-primary">Save changes</button>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </div>
+                <div class="modal-body">
+                    <div class="text-center mt-2 mb-4">
+                        <h5 id="modalTitle"></h5>
                     </div>
+                    <form id="addAndUpdateForm">
 
-                </form>
+                        <input type="hidden" name="edit_id" id="edit_id">
+
+                        <div class="mb-3">
+                            <div class="form-group local-forms">
+                                <label>Name <span class="login-danger">*</span></label>
+                                <input class="form-control" id="edit_name" name="name" type="text" placeholder="Enter Name">
+                                <span class="text-danger" id="name_error"></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-group local-forms">
+                                <label>Description <span class="login-danger"></span></label>
+                                <textarea class="form-control" id="edit_description" name="description" placeholder="Enter Description"></textarea>
+                                <span class="text-danger" id="description_error"></span>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
+                            <button type="button" class="btn btn-outline-danger"" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
 </div>
-{{-- Edit modal row --}}
+
+

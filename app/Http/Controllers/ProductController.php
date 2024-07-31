@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
+use App\Models\Brand;
 class ProductController extends Controller
 {
 
@@ -12,7 +11,9 @@ class ProductController extends Controller
     }
 
     public function addProduct(){
-        return view('product.add_product');
+
+        $brands=Brand::all();
+        return view('product.add_product', compact('brands'));
     }
 
 

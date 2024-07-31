@@ -84,15 +84,15 @@
                                         <div class="col-md-4">
                                             <div class="mb-5">
                                                 <div class="input-group local-forms">
-                                                    <select class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                    <select id="brandSelect" class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
                                                         <option selected disabled>Brand</option>
-                                                        <option>Acer</option>
-                                                        <option>Apple</option>
                                                     </select>
-                                                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addBrandModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+
+                                                    <button class="btn btn-outline-primary" type="button" id="addBrandButton"><i class="fas fa-plus-circle"></i></button>
                                                 </div>
                                             </div>
                                         </div>
+
 
 
                                         <div class="col-md-4">
@@ -409,4 +409,7 @@
         </script>
 
     </div>
+
+    @include('brand.brand_ajax')
+    @include('product.add_product_ajax')
     @endsection

@@ -152,7 +152,7 @@
                                                         <i class="fas fa-download"></i>&nbsp;&nbsp;Download
                                                     </button>
 
-                                      
+
                                                 </div>
                                             </div>
                                         </div>
@@ -192,7 +192,7 @@
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-                                                                    
+
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
@@ -224,7 +224,7 @@
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-                                                                    
+
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
                                                                     <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
@@ -314,8 +314,8 @@
             loginFields.forEach(function(field) {
                 // console.log(checkBox.checked);
                 field.checked = checkBox
-                    .checked; // field.checked --> All checkbox fields are currently which state 
-                //then it attache the value from which selected box was checked 
+                    .checked; // field.checked --> All checkbox fields are currently which state
+                //then it attache the value from which selected box was checked
             });
         }
     </script>
