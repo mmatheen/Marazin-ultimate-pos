@@ -10,7 +10,7 @@
                 required: true,
 
             },
-          
+
             duration: {
                 required: true,
 
@@ -26,7 +26,7 @@
             name: {
                 required: "Name is required",
             },
-           
+
             duration: {
                 required: "Duration is required",
             },
@@ -155,6 +155,9 @@
 
              // Validate the form before submitting
             if (!$('#addAndUpdateForm').valid()) {
+                   document.getElementsByClassName('warningSound')[0].play(); //for sound
+                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                   toastr.warning('Please fill in all the required fields.','Warning');
                 return; // Return if form is not valid
             }
 
@@ -176,6 +179,7 @@
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
+
                     } else {
                         $('#addAndEditModal').modal('hide');
                            // Clear validation error messages
