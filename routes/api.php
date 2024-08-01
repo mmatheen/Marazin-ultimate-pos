@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SellingPriceGroupController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MainCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,5 +48,14 @@ Route::post('/selling-price-group-store', [SellingPriceGroupController::class, '
 Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
 Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
 //stop  selling price route
+
+//start main catergories route
+Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');
+Route::get('/main-category-edit/{id}', [MainCategoryController::class, 'edit']);
+Route::get('/main-category-get-all', [MainCategoryController::class, 'index']);
+Route::post('/main-category-store', [MainCategoryController::class, 'store'])->name('main-category-store');
+Route::post('/main-category-update/{id}', [MainCategoryController::class, 'update']);
+Route::delete('/main-category-delete/{id}', [MainCategoryController::class, 'destroy']);
+//stop  main catergories route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

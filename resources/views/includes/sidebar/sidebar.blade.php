@@ -47,7 +47,7 @@
                         <li><a href={{ route('import-opening-stock')}} class="{{ set_active(['import-opening-stock'])}}">Import Opening Stock</a></li>
                         <li><a href={{ route('selling-price-group') }} class="{{ set_active(['selling-price-group'])}}">Selling Price Group</a></li>
                         <li><a href={{ route('unit') }} class="{{ set_active(['unit'])}}">Unit</a></li>
-                        <li><a href={{ route('category') }} class="{{ set_active(['category'])}}">Category</a></li>
+                        <li><a href={{ route('main-category') }} class="{{ set_active(['category'])}}">Category</a></li>
                         <li><a href={{ route('brand')}} class="{{ set_active(['brand'])}}">Brands</a></li>
                         <li><a href={{ route('warranty') }} class="{{ set_active(['warranty'])}}">Warranty</a></li>
                     </ul>

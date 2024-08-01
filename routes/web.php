@@ -21,8 +21,11 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
+use App\Http\Controllers\MainCategoryController;
+
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -139,9 +142,15 @@ Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::
 Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
 //stop  unit route
 
-//start catergories route
-Route::get('/category', [CategoryController::class, 'category'])->name('category');
-//stop  catergories route
+//start main catergories route
+Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');
+Route::get('/main-category-edit/{id}', [MainCategoryController::class, 'edit']);
+Route::get('/main-category-get-all', [MainCategoryController::class, 'index']);
+Route::post('/main-category-store', [MainCategoryController::class, 'store'])->name('main-category-store');
+Route::post('/main-category-update/{id}', [MainCategoryController::class, 'update']);
+Route::delete('/main-category-delete/{id}', [MainCategoryController::class, 'destroy']);
+//stop  main catergories route
+
 
 
 //start Supplier route
