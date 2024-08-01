@@ -407,5 +407,4 @@
 
 @include('unit.unit_ajax')
 @include('brand.brand_ajax')
-@include('product.add_product_ajax')
 @endsection

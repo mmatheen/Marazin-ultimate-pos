@@ -3,6 +3,7 @@
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SellingPriceGroupController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,5 +38,14 @@ Route::post('/brand-store', [BrandController::class, 'store'])->name('brand-stor
 Route::post('/brand-update/{id}', [BrandController::class, 'update']);
 Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
 //stop  brand route
+
+//start selling price route
+Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
+Route::get('/selling-price-group-edit/{id}', [SellingPriceGroupController::class, 'edit']);
+Route::get('/selling-price-group-get-all', [SellingPriceGroupController::class, 'index']);
+Route::post('/selling-price-group-store', [SellingPriceGroupController::class, 'store'])->name('selling-price-group-store');
+Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
+Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
+//stop  selling price route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

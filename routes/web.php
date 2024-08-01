@@ -13,6 +13,7 @@ use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesCommissionAgentController;
 use App\Http\Controllers\SellingPriceController;
+use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
@@ -121,8 +122,17 @@ Route::get('/import-opening-stock', [StockController::class, 'importOpeningStock
 //stop  import opening route
 
 //start selling price route
-Route::get('/selling-price-group', [SellingPriceController::class, 'sellingPrice'])->name('selling-price-group');
+Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
+Route::get('/selling-price-group-edit/{id}', [SellingPriceGroupController::class, 'edit']);
+Route::get('/selling-price-group-get-all', [SellingPriceGroupController::class, 'index']);
+Route::post('/selling-price-group-store', [SellingPriceGroupController::class, 'store'])->name('selling-price-group-store');
+Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
+Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
 //stop  selling price route
+
+//start warranty route
+
+//stop warranty route
 
 
 //start unit route
