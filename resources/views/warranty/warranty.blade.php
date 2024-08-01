@@ -66,9 +66,7 @@
                             <h5 id="modalTitle"></h5>
                         </div>
                         <form id="addAndUpdateForm">
-
                             <input type="hidden" name="edit_id" id="edit_id">
-
                             <div class="mb-3">
                                 <div class="form-group local-forms">
                                     <label>Name <span class="login-danger">*</span></label>
@@ -99,9 +97,9 @@
                                             <label>Period<span class="login-danger">*</span></label>
                                             <select class="form-control" id="edit_duration_type" name="duration_type">
                                                 <option selected disabled>Please Select </option>
-                                                <option>days</option>
-                                                <option>months</option>
-                                                <option>years</option>
+                                                <option value="days">days</option>
+                                                <option value="months">months</option>
+                                                <option value="years">years</option>
                                             </select>
                                             <span class="text-danger" id="duration_type_error"></span>
                                         </div>

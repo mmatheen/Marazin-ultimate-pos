@@ -38,6 +38,7 @@
                         <table id="brand" class="datatable table table-stripped" style="width:100%">
                             <thead>
                                 <tr>
+                                    <th>ID </th>
                                     <th>Brands </th>
                                     <th>Note</th>
                                     <th>Action</th>

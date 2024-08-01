@@ -26,18 +26,18 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <button type="button" class="btn btn-outline-info " data-bs-toggle="modal"
-                                        data-bs-target="#addUnitModal">
-                                        <i class="fas fa-plus px-2"> </i>Add
-                                    </button>
+                                    <button type="button" class="btn btn-outline-info " id="addUnitButton">
+                                        New  <i class="fas fa-plus px-2"> </i>
+                                      </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%">
+                            <table id="unit" class="datatable table table-stripped" style="width:100%">
                                 <thead>
                                     <tr>
+                                        <th>ID</th>
                                         <th>Name</th>
                                         <th>Short name</th>
                                         <th>Allow decimal</th>
@@ -55,6 +55,34 @@
     </div>
 
     @include('unit.unit_modal')
+        {{-- Delete modal --}}
+        <div id="deleteModal" class="modal custom-modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="form-header">
+                            <h3 id="deleteName"></h3>
+                            <p>Are you sure want to delete?</p>
+                        </div>
+                        <div class="modal-btn delete-action">
+                            <div class="row">
+                                <input type="hidden" id="deleting_id">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                    </div>
+                                    <div class="col-6">
+                                        <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel
+                                        </a>
+                                    </div>
+                                </div>
+    
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     
     <script>
         function toggleLoginFields() {
@@ -66,4 +94,5 @@
             });
         }
     </script>
+    @include('unit.unit_ajax')
 @endsection

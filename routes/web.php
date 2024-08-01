@@ -68,6 +68,14 @@ Route::post('/brand-update/{id}', [BrandController::class, 'update']);
 Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
 //stop  brand route
 
+//start unit route
+Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
+Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
+Route::get('/unit-get-all', [UnitController::class, 'index']);
+Route::post('/unit-store', [UnitController::class, 'store']);
+Route::post('/unit-update/{id}', [UnitController::class, 'update']);
+Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
+//stop  brand route
 
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
@@ -83,6 +91,7 @@ Route::delete('/product-delete/{id}', [ProductController::class, 'destroy']);
 //stop product route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
+Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
 
 //start user route
 Route::get('/user', [UserController::class, 'user'])->name('user');
