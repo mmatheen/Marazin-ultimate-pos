@@ -39,13 +39,13 @@
 
                         <div class="col-md-12">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" checked onclick="toggleLoginFields()">
+                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" onclick="toggleLoginFields()">
                                 <label class="form-check-label" for="allowLoginCheckbox">
                                     Add as sub taxonomy
                                 </label>
                             </div>
                         </div>
-                        <div class="row mt-4">
+                        <div class="row mt-4 hidden">
                             <div class="col-md-12 hidingclass">
                                 <div class="form-group local-forms days">
                                     <label>Select parent category<span class="login-danger"></span></label>

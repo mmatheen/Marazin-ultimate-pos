@@ -1,5 +1,11 @@
 @extends('layout.layout')
 @section('content')
+
+    <style>
+         .hidden {
+                display: none;
+            }
+    </style>
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
@@ -54,7 +60,7 @@
             </div>
         </div>
 
-        @include('category.category_modal')
+        @include('category.main_category_modal')
 
     </div>
 

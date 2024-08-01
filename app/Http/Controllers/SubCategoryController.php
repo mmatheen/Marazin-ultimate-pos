@@ -3,18 +3,18 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\MainCategory;
+use App\Models\SubCategory;
 use Illuminate\Support\Facades\Validator;
 
-class MainCategoryController extends Controller
+class SubCategoryController extends Controller
 {
-    public function mainCategory(){
-        return view('category.main_category');
+    public function SubCategory(){
+        return view('category.sub_category');
     }
 
     public function index()
     {
-        $getValue = MainCategory::all();
+        $getValue = SubCategory::all();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -52,6 +52,8 @@ class MainCategoryController extends Controller
             $request->all(),
             [
                 'name' => 'required|string',
+                'sub_category_id' => 'required|integer',
+                
             ]
         );
 
@@ -62,8 +64,9 @@ class MainCategoryController extends Controller
             ]);
         } else {
 
-            $getValue = MainCategory::create([
+            $getValue = SubCategory::create([
                 'name' => $request->name,
+                'sub_category_id' => $request->sub_category_id,
                 'description' => $request->description ?? '',
                 
             ]);
@@ -72,7 +75,7 @@ class MainCategoryController extends Controller
             if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Main Category Details Created Successfully!"
+                    'message' => "New Sub Category Details Created Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -91,7 +94,7 @@ class MainCategoryController extends Controller
      */
     public function show(int $id)
     {
-        $getValue = MainCategory::find($id);
+        $getValue = SubCategory::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -100,7 +103,7 @@ class MainCategoryController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Main Category Found!"
+                'message' => "No Such Sub Category Found!"
             ]);
         }
     }
@@ -113,7 +116,7 @@ class MainCategoryController extends Controller
      */
     public function edit(int $id)
     {
-        $getValue = MainCategory::find($id);
+        $getValue = SubCategory::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -122,7 +125,7 @@ class MainCategoryController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Main Category Found!"
+                'message' => "No Such Sub Category Found!"
             ]);
         }
     }
@@ -140,6 +143,7 @@ class MainCategoryController extends Controller
             $request->all(),
             [
                 'name' => 'required|string',
+                'sub_category_id' => 'required|integer',
             ]
         );
 
@@ -150,23 +154,24 @@ class MainCategoryController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-            $getValue = MainCategory::find($id);
+            $getValue = SubCategory::find($id);
 
             if ($getValue) {
                 $getValue->update([
 
                 'name' => $request->name,
+                'sub_category_id' => $request->sub_category_id,
                 'description' => $request->description ?? '',
 
                 ]);
                 return response()->json([
                     'status' => 200,
-                    'message' => "Old Main Category Details Updated Successfully!"
+                    'message' => "Old Sub Category Details Updated Successfully!"
                 ]);
             } else {
                 return response()->json([
                     'status' => 404,
-                    'message' => "No Such Main Category Found!"
+                    'message' => "No Such Sub Category Found!"
                 ]);
             }
         }
@@ -180,19 +185,19 @@ class MainCategoryController extends Controller
      */
     public function destroy(int $id)
     {
-        $getValue = MainCategory::find($id);
+        $getValue = SubCategory::find($id);
         if ($getValue) {
 
             $getValue->delete();
             return response()->json([
                 'status' => 200,
-                'message' => "Main Category Deleted Successfully!"
+                'message' => "Sub Category Deleted Successfully!"
             ]);
         } else {
 
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Main Category Found!"
+                'message' => "No Such Sub Category Found!"
             ]);
         }
     }
