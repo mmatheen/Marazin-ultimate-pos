@@ -68,6 +68,7 @@
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
+            $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditUnitModal').modal('show');
         });
 
@@ -87,7 +88,7 @@
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' + item.short_name + '</td>');
                         row.append('<td>' + item.allow_decimal + '</td>');
-                        row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');                     
+                        row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         table.row.add(row).draw(false);
                         counter++;
                     });
@@ -196,7 +197,7 @@
                 }
             });
         });
-        
+
         function populateBrandDropdown() {
             $.ajax({
                 url: '/get-unit',

@@ -1,17 +1,17 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\Unit;
-use Illuminate\Support\Facades\Validator;
 
 use Illuminate\Http\Request;
+use App\Models\Unit;
+use Illuminate\Support\Facades\Validator;
 
 class UnitController extends Controller
 {
     public function unit(){
         return view('unit.unit');
     }
-    
+
     public function index()
     {
         $getValue = Unit::all();
@@ -31,10 +31,12 @@ class UnitController extends Controller
 
     public function UnitDropdown()
     {
-        $unit = Unit::all();  // Fetch all Units
-        return response()->json($unit);  // Return the Units directly
+        $unit = Unit::all();  // Fetch all brands
+        $unit = Unit::orderBy('created_at', 'desc')->get();  // Fetch all brands in last-in-first-out order
+        return response()->json($unit);  // Return the brands directly
+
     }
-    
+
     /**
      * Show the form for creating a new resource.
      *
@@ -206,4 +208,6 @@ class UnitController extends Controller
             ]);
         }
     }
+
+
 }

@@ -77,6 +77,7 @@ Route::post('/unit-update/{id}', [UnitController::class, 'update']);
 Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
+
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');

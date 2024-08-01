@@ -76,14 +76,14 @@
                                         </a>
                                     </div>
                                 </div>
-    
+
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    
+
     <script>
         function toggleLoginFields() {
             var checkBox = document.getElementById("allowLoginCheckbox");

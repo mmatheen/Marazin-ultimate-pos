@@ -5,7 +5,6 @@ use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UnitController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,15 +36,6 @@ Route::get('/brand-get-all', [BrandController::class, 'index']);
 Route::post('/brand-store', [BrandController::class, 'store'])->name('brand-store');
 Route::post('/brand-update/{id}', [BrandController::class, 'update']);
 Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
-//stop  brand route
-
-//start unit route
-Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
-Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
-Route::get('/unit-get-all', [UnitController::class, 'index']);
-Route::post('/unit-store', [UnitController::class, 'store']);
-Route::post('/unit-update/{id}', [UnitController::class, 'update']);
-Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

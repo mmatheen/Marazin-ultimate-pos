@@ -33,9 +33,9 @@ class BrandController extends Controller
     public function brandDropdown()
     {
         $brand = Brand::all();  // Fetch all brands
+        $brand = Brand::orderBy('created_at', 'desc')->get();  // Fetch all brands in last-in-first-out order
         return response()->json($brand);  // Return the brands directly
     }
-    
     /**
      * Show the form for creating a new resource.
      *

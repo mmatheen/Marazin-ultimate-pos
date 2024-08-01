@@ -40,7 +40,7 @@
                                 </select>
                                 <span class="text-danger" id="allow_decimal_error"></span>
                             </div>
-                       
+
                         </div>
 
                         <div class="modal-footer">
@@ -53,5 +53,3 @@
         </div>
     </div>
 </div>
-
-
