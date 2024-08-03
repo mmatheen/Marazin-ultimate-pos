@@ -9,6 +9,38 @@
             <div class="modal-body">
                 <div class="row">
                     <form id="addAndEditForm" method="POST" action="">
+                        <div class="col-md-12 mb-3 ms-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox"
+                                data-bs-target="#moreinformation1" data-bs-toggle="collapse"
+                                aria-expanded="false" aria-controls="collapseExample">
+                                <label class="form-check-label" for="allowLoginCheckbox">
+                                   Add Parent Category
+                                </label>
+                            </div>
+
+                        </div>
+
+                        <div class="collapse" id="moreinformation1">
+                            <div class="student-group-form">
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div>
+                                            <div class="form-group local-forms">
+                                                <label>Parent Category Name<span class="login-danger">*</span></label>
+                                                <input class="form-control" type="text" placeholder="Parent Category Name">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col mb-4">
+                                        <button type="button" class="btn btn-outline-primary" onclick="toggleLoginFields()">Save changes</button>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-target="#moreinformation1" data-bs-toggle="collapse"
+                                        aria-expanded="false" aria-controls="collapseExample">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <div class="form-group local-forms">
@@ -23,7 +55,6 @@
                                 <div class="form-group local-forms">
                                     <label>Category Code<span class="login-danger"></span></label>
                                     <input class="form-control" type="text" placeholder="Category Code">
-                                    <span>Category code is same as HSN code</span>
                                 </div>
                             </div>
                         </div>
@@ -37,14 +68,6 @@
                             </div>
                         </div>
 
-                        <div class="col-md-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" onclick="toggleLoginFields()">
-                                <label class="form-check-label" for="allowLoginCheckbox">
-                                    Add as sub taxonomy
-                                </label>
-                            </div>
-                        </div>
                         <div class="row mt-4 hidden">
                             <div class="col-md-12 hidingclass">
                                 <div class="form-group local-forms days">
@@ -67,4 +90,13 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
+        
     </div>
+    <script>
+        function toggleLoginFields() {
+            alert('hi')
+            var checkBox = document.getElementById("allowLoginCheckbox");
+            checkBox.checked = false;
+          
+        }
+    </script>

@@ -15,7 +15,7 @@
                             <h3 class="page-title">Categories</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item">Products</li>
-                                <li class="breadcrumb-item active">Main Categories</li>
+                                <li class="breadcrumb-item active">Sub Categories</li>
                             </ul>
                         </div>
                     </div>

@@ -367,10 +367,10 @@
                                 <div class="row">
                                         <div class="d-flex justify-content-center">
                                             <button class="btn btn-primary mt-xs-2px" type="button"
-                                            data-bs-toggle="collapse" data-bs-target="#moreinformation1"
-                                            aria-expanded="false" aria-controls="collapseExample">
-                                            More Infomation <i class="fas fa-sort-down "></i>
-                                        </button>
+                                                data-bs-toggle="collapse" data-bs-target="#moreinformation1"
+                                                aria-expanded="false" aria-controls="collapseExample">
+                                                More Infomation <i class="fas fa-sort-down "></i>
+                                            </button>
                                         </div>
         
                                     <div>
