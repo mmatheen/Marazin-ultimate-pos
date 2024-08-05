@@ -11,13 +11,13 @@ class SubCategory extends Model
     protected $table='sub_categories';
     protected $fillable=[
               'subCategoryname',
-              'minCategory_id',
+              'main_category_id',
               'subCategoryCode',
               'description',
     ];
 
-    public function mainCategories()
+    public function mainCategory()
     {
         return $this->belongsTo(MainCategory::class); // MainCategory is MainCategory modal name
     }
-}    
+}

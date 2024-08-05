@@ -11,19 +11,20 @@ class SubCategoryController extends Controller
 {
     public function SubCategory(){
 
-        $MainCategories = MainCategory::with('subCategories')->get(); // this course come from modal
+        $MainCategories = MainCategory::all(); // this course come from modal
         return view('category.sub_category', compact('MainCategories'));
 
     }
 
     public function index()
     {
-        $MainCategories = SubCategory::all();
-        if ($MainCategories->count() > 0) {
+
+        $getValue = SubCategory::with('mainCategory')->get(); // this course come from modal
+        if ($getValue->count() > 0) {
 
             return response()->json([
                 'status' => 200,
-                'message' => $MainCategories
+                'message' => $getValue
             ]);
         } else {
             return response()->json([
@@ -56,7 +57,7 @@ class SubCategoryController extends Controller
             $request->all(),
             [
                 'subCategoryname' => 'required|string',
-                'minCategory_id' => 'required|integer',
+                'main_category_id' => 'required|integer',
 
             ]
         );
@@ -70,7 +71,7 @@ class SubCategoryController extends Controller
 
             $getValue = SubCategory::create([
                 'subCategoryname' => $request->subCategoryname,
-                'minCategory_id' => $request->minCategory_id,
+                'main_category_id' => $request->main_category_id,
                 'subCategoryCode' => $request->subCategoryCode,
                 'description' => $request->description ?? '',
 
@@ -148,7 +149,7 @@ class SubCategoryController extends Controller
             $request->all(),
             [
                 'subCategoryname' => 'required|string',
-                'minCategory_id' => 'required|integer',
+                'main_category_id' => 'required|integer',
             ]
         );
 
@@ -165,7 +166,7 @@ class SubCategoryController extends Controller
                 $getValue->update([
 
                     'subCategoryname' => $request->subCategoryname,
-                    'minCategory_id' => $request->minCategory_id,
+                    'main_category_id' => $request->main_category_id,
                     'subCategoryCode' => $request->subCategoryCode,
                     'description' => $request->description ?? '',
 

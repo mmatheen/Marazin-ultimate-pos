@@ -14,7 +14,7 @@ class MainCategory extends Model
               'description',
     ];
 
-    public function subCategories()
+    public function subCategory()
     {
         return $this->hasMany(SubCategory::class); // SubCategory is SubCategory modal name
     }

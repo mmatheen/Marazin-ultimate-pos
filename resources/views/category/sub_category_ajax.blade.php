@@ -9,20 +9,20 @@
             subCategoryname: {
                 required: true,
             },
-            category_id: {
+            main_category_id: {
                 required: true,
             },
-           
+
         },
         messages: {
 
             subCategoryname: {
                 required: "Sub Category Name is required",
             },
-            category_id: {
+            main_category_id: {
                 required: "Main Category is required",
             },
-          
+
         },
         errorElement: 'span',
         errorPlacement: function (error, element) {
@@ -81,7 +81,7 @@
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
-                        row.append('<td>' + item.minCategory_id + '</td>');
+                        row.append('<td>' + item.main_category.mainCategoryName + '</td>');
                         row.append('<td>' + item.subCategoryname + '</td>');
                         row.append('<td>' + item.subCategoryCode + '</td>');
                         row.append('<td>' + item.description + '</td>');
@@ -111,13 +111,13 @@
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
                         $('#edit_subCategoryname').val(response.message.subCategoryname);
-                        $('#edit_minCategory_id').val(response.message.minCategory_id);
+                        $('#edit_main_category_id').val(response.message.main_category_id);
                         $('#edit_subCategoryCode').val(response.message.subCategoryCode);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditMainCategoryModal').modal('show');
                     }
                 }
-            }); 
+            });
         });
 
 
