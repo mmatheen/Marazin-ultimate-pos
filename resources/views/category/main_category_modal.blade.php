@@ -3,7 +3,7 @@
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Category</h1>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -12,33 +12,47 @@
                         <div class="col-md-12 mb-3 ms-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="allowLoginCheckbox"
-                                data-bs-target="#moreinformation1" data-bs-toggle="collapse"
-                                aria-expanded="false" aria-controls="collapseExample">
+                                    data-bs-target="#moreinformation1" data-bs-toggle="collapse" aria-expanded="false"
+                                    aria-controls="collapseExample">
                                 <label class="form-check-label" for="allowLoginCheckbox">
-                                   Add Parent Category
+                                    Add Parent Category
                                 </label>
                             </div>
 
                         </div>
 
                         <div class="collapse" id="moreinformation1">
-                            <div class="student-group-form">
-                                <div class="row mt-4">
-                                    <div class="col-md-12">
-                                        <div>
-                                            <div class="form-group local-forms">
-                                                <label>Parent Category Name<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="Parent Category Name">
-                                            </div>
+                            <div class="col-sm-12">
+                                <div class="card">
+                                    <div class="card-body" style="background: rgb(209, 228, 243); border-radius: 5px">
+                                        <div class="page-header">
+                                          
+                                                <div class="student-group-form">
+                                                    <div class="row mt-4">
+                                                        <div class="col-md-12">
+                                                            <div>
+                                                                <div class="form-group local-forms">
+                                                                    <label  style="background: rgb(209, 228, 243); ">Parent Category Name<span class="login-danger">*</span></label>
+                                                                    <input class="form-control" type="text"
+                                                                        placeholder="Parent Category Name">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col">
+                                                            <button type="button" class="btn btn-outline-primary me-3"
+                                                                onclick="toggleLoginFields()">Save</button>
+                                                            <button type="button" class="btn btn-outline-secondary"
+                                                                data-bs-target="#moreinformation1" data-bs-toggle="collapse"
+                                                                aria-expanded="false" aria-controls="collapseExample">Close</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                        
                                         </div>
-                                    </div>
-                                    <div class="col mb-4">
-                                        <button type="button" class="btn btn-outline-primary" onclick="toggleLoginFields()">Save changes</button>
-                                        <button type="button" class="btn btn-outline-secondary" data-bs-target="#moreinformation1" data-bs-toggle="collapse"
-                                        aria-expanded="false" aria-controls="collapseExample">Close</button>
                                     </div>
                                 </div>
                             </div>
+                            
                         </div>
 
                         <div class="col-md-12">
@@ -84,19 +98,19 @@
                     </form>
                 </div>
             </div>
-            
+
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary">Save changes</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-primary">Save</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
-        
+
     </div>
     <script>
         function toggleLoginFields() {
             alert('hi')
             var checkBox = document.getElementById("allowLoginCheckbox");
             checkBox.checked = false;
-          
+
         }
     </script>
