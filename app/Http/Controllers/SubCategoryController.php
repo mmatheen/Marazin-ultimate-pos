@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SubCategory;
+use App\Models\MainCategory;
 use Illuminate\Support\Facades\Validator;
 
 class SubCategoryController extends Controller
 {
     public function SubCategory(){
-        return view('category.sub_category');
+
+        $MainCategories = MainCategory::with('subCategories')->get(); // this course come from modal
+        return view('category.sub_category', compact('MainCategories'));
+
     }
 
     public function index()
     {
-        $getValue = SubCategory::all();
-        if ($getValue->count() > 0) {
+        $MainCategories = SubCategory::all();
+        if ($MainCategories->count() > 0) {
 
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => $MainCategories
             ]);
         } else {
             return response()->json([
@@ -51,9 +55,9 @@ class SubCategoryController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name' => 'required|string',
-                'sub_category_id' => 'required|integer',
-                
+                'subCategoryname' => 'required|string',
+                'minCategory_id' => 'required|integer',
+
             ]
         );
 
@@ -65,10 +69,11 @@ class SubCategoryController extends Controller
         } else {
 
             $getValue = SubCategory::create([
-                'name' => $request->name,
-                'sub_category_id' => $request->sub_category_id,
+                'subCategoryname' => $request->subCategoryname,
+                'minCategory_id' => $request->minCategory_id,
+                'subCategoryCode' => $request->subCategoryCode,
                 'description' => $request->description ?? '',
-                
+
             ]);
 
 
@@ -142,8 +147,8 @@ class SubCategoryController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name' => 'required|string',
-                'sub_category_id' => 'required|integer',
+                'subCategoryname' => 'required|string',
+                'minCategory_id' => 'required|integer',
             ]
         );
 
@@ -159,9 +164,10 @@ class SubCategoryController extends Controller
             if ($getValue) {
                 $getValue->update([
 
-                'name' => $request->name,
-                'sub_category_id' => $request->sub_category_id,
-                'description' => $request->description ?? '',
+                    'subCategoryname' => $request->subCategoryname,
+                    'minCategory_id' => $request->minCategory_id,
+                    'subCategoryCode' => $request->subCategoryCode,
+                    'description' => $request->description ?? '',
 
                 ]);
                 return response()->json([

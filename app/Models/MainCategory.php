@@ -10,7 +10,12 @@ class MainCategory extends Model
     use HasFactory;
     protected $table='main_categories';
     protected $fillable=[
-              'name',
+              'mainCategoryName',
               'description',
     ];
+
+    public function subCategories()
+    {
+        return $this->hasMany(SubCategory::class); // SubCategory is SubCategory modal name
+    }
 }

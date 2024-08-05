@@ -6,15 +6,15 @@
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
         rules: {
-            name: {
+            mainCategoryName: {
                 required: true,
             },
 
         },
         messages: {
 
-            name: {
-                required: "Name is required",
+            mainCategoryName: {
+                required: "Main Category Name is required",
             },
         },
         errorElement: 'span',
@@ -74,7 +74,7 @@
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
-                        row.append('<td>' + item.name + '</td>');
+                        row.append('<td>' + item.mainCategoryName + '</td>');
                         row.append('<td>' + item.description + '</td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
@@ -102,7 +102,7 @@
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_name').val(response.message.name);
+                        $('#edit_mainCategoryName').val(response.message.mainCategoryName);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditMainCategoryModal').modal('show');
                     }

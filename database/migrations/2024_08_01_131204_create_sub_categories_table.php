@@ -13,13 +13,14 @@ return new class extends Migration
     {
         Schema::create('sub_categories', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('name');
-            $table->integer('sub_category_id')->unsigned();
+            $table->string('subCategoryname');
+            $table->integer('minCategory_id')->unsigned();
+            $table->string('subCategoryCode')->nullable();
             $table->text('description');
             $table->timestamps();
 
               // ForeignKey
-              $table->foreign('sub_category_id')->references('id')->on('main_categories')->onDelete('cascade');
+              $table->foreign('minCategory_id')->references('id')->on('main_categories')->onDelete('cascade');
         });
     }
 

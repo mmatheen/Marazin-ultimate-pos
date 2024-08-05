@@ -23,6 +23,7 @@ use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SubCategoryController;
+use App\Models\MainCategory;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 
@@ -48,7 +49,9 @@ function set_active($route)
 }
 
 Route::get('/', function () {
-    return view('welcome');
+    // return view('welcome');
+         $MainCategory=MainCategory::find(1);
+     dd($MainCategory->subCategories);
 });
 
 

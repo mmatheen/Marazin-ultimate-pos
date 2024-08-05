@@ -67,9 +67,9 @@
     
                                 <div class="mb-3">
                                     <div class="form-group local-forms">
-                                        <label>Name <span class="login-danger">*</span></label>
-                                        <input class="form-control" id="edit_name" name="name" type="text" placeholder="Name">
-                                        <span class="text-danger" id="name_error"></span>
+                                        <label>main category name <span class="login-danger">*</span></label>
+                                        <input class="form-control" id="edit_mainCategoryName" name="mainCategoryName" type="text" placeholder="main category">
+                                        <span class="text-danger" id="mainCategoryName_error"></span>
                                     </div>
                                 </div>
     

@@ -14,7 +14,8 @@ class MainCategoryController extends Controller
 
     public function index()
     {
-        $getValue = MainCategory::all();
+
+         $getValue = MainCategory::all();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -51,7 +52,7 @@ class MainCategoryController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name' => 'required|string',
+                'mainCategoryName' => 'required|string',
             ]
         );
 
@@ -63,9 +64,9 @@ class MainCategoryController extends Controller
         } else {
 
             $getValue = MainCategory::create([
-                'name' => $request->name,
+                'mainCategoryName' => $request->mainCategoryName,
                 'description' => $request->description ?? '',
-                
+
             ]);
 
 
@@ -139,7 +140,7 @@ class MainCategoryController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name' => 'required|string',
+                'mainCategoryName' => 'required|string',
             ]
         );
 
@@ -155,7 +156,7 @@ class MainCategoryController extends Controller
             if ($getValue) {
                 $getValue->update([
 
-                'name' => $request->name,
+                'mainCategoryName' => $request->mainCategoryName,
                 'description' => $request->description ?? '',
 
                 ]);

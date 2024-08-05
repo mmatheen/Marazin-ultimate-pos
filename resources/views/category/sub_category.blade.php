@@ -32,21 +32,21 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <button type="button" class="btn btn-outline-info " data-bs-toggle="modal"
-                                        data-bs-target="#addCategoryModal">
-                                        <i class="fas fa-plus px-2"> </i>Add
-                                    </button>
+                                    <button type="button" class="btn btn-outline-info " id="addSubCategoryButton">
+                                        New  <i class="fas fa-plus px-2"> </i>
+                                      </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%">
+                            <table  id="SubCategory" class="datatable table table-stripped" style="width:100%">
                                 <thead>
                                     <tr>
-                                        <th>Catergory</th>
+                                        <th>ID</th>
+                                        <th>Main Catergory</th>
+                                        <th>Sub Catergory</th>
                                         <th>Catergory Code</th>
-                                        <th>Allow decimal</th>
                                         <th>Description</th>
                                         <th>Action</th>
                                     </tr>
@@ -74,4 +74,5 @@
             });
         }
     </script>
+     @include('category.sub_category_ajax')
 @endsection
