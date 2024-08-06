@@ -71,7 +71,7 @@
                                     <div class="col-md-4">
                                         <div class="mb-5">
                                             <div class="input-group local-forms">
-                                                <select id="unitSelect" class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                <select id="unitSelect" class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="addUnitButton">
                                                     <option selected disabled>Unit</option>
                                                 </select>
                                                 <button class="btn btn-outline-primary" type="button" id="addUnitButton"><i class="fas fa-plus-circle"></i></button>
@@ -82,7 +82,7 @@
                                     <div class="col-md-4">
                                         <div class="mb-5">
                                             <div class="input-group local-forms">
-                                                <select id="brandSelect" class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                <select id="brandSelect" class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="addBrandButton">
                                                     <option selected disabled>Brand</option>
                                                 </select>
                                                 <button class="btn btn-outline-primary" type="button" id="addBrandButton"><i class="fas fa-plus-circle"></i></button>
@@ -95,10 +95,11 @@
                                             <div class="input-group local-forms">
                                                 <select class="form-control select2Box form-select" aria-label="Example text with button addon" aria-describedby="button-addon1">
                                                     <option selected disabled>Category</option>
-                                                    <option>Books</option>
-                                                    <option>Electronics</option>
+                                                    @foreach($SubCategories as $SubCategory)
+                                                    <option value="{{ $SubCategory->id }}">{{ $SubCategory->subCategoryname }}</option>
+                                                    @endforeach
                                                 </select>
-                                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addCategoryModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addAndEditMainCategoryModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                                             </div>
                                         </div>
                                     </div>
@@ -387,7 +388,7 @@
     {{-- modal Start --}}
     @include('unit.unit_modal')
     @include('brand.brand_modal')
-    {{-- @include('category.main_category_modal') --}}
+    @include('category.main_category_modal')
     {{-- this is modal --}}
 
 

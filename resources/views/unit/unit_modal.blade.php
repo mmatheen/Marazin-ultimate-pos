@@ -33,7 +33,7 @@
                         <div class="col-md-12">
                             <div class="form-group local-forms">
                                 <label>Allow decimal<span class="login-danger"></span></label>
-                                <select id="edit_allow_decimal" name="allow_decimal" class="form-control form-select ">
+                                <select id="edit_allow_decimal" name="allow_decimal" class="form-control form-select select">
                                     <option selected disabled>Please Select </option>
                                     <option value="yes">yes</option>
                                     <option value="no">no</option>

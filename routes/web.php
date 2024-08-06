@@ -22,6 +22,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SubCategoryController;
 use App\Models\MainCategory;
 use App\Models\SubCategory;
@@ -137,10 +138,6 @@ Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::cl
 Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
 //stop  selling price route
 
-//start warranty route
-
-//stop warranty route
-
 
 //start unit route
 Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
@@ -196,3 +193,7 @@ Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchas
 Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTranfer'])->name('list-stock-transfer');
 Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
 //stop  Stock transfer route
+
+//start Sale transfer route
+Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
+//stop  Sale transfer route

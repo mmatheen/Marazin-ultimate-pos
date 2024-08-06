@@ -66,7 +66,7 @@
                     <a href="#"><i class="fas fa-clipboard"></i> <span>Sell</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="invoices.html">All Sales</a></li>
+                        <li><a href={{ route('list-sale') }}>All Sales</a></li>
                         <li><a href="invoice-grid.html">Add Sale</a></li>
                         <li><a href="add-invoice.html">List POS</a></li>
                         <li><a href="edit-invoice.html">POS</a></li>
