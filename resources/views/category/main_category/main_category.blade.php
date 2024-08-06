@@ -62,9 +62,9 @@
                                 <h5 id="modalTitle"></h5>
                             </div>
                             <form id="addAndUpdateForm">
-    
+
                                 <input type="hidden" name="edit_id" id="edit_id">
-    
+
                                 <div class="mb-3">
                                     <div class="form-group local-forms">
                                         <label>main category name <span class="login-danger">*</span></label>
@@ -72,7 +72,7 @@
                                         <span class="text-danger" id="mainCategoryName_error"></span>
                                     </div>
                                 </div>
-    
+
                                 <div class="mb-3">
                                     <div class="form-group local-forms">
                                         <label>Description <span class="login-danger"></span></label>
@@ -81,7 +81,7 @@
                                     </div>
                                 </div>
 
-    
+
                                 <div class="modal-footer">
                                     <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
                                     <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
@@ -122,7 +122,7 @@
             </div>
         </div>
     </div>
-  
-    @include('category.main_category_ajax')
-     
+
+    @include('category.main_category.main_category_ajax')
+
 @endsection

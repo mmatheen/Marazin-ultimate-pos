@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Validator;
 class MainCategoryController extends Controller
 {
     public function mainCategory(){
-        return view('category.main_category');
+        return view('category.main_category.main_category');
     }
 
     public function index()

@@ -387,7 +387,7 @@
     {{-- modal Start --}}
     @include('unit.unit_modal')
     @include('brand.brand_modal')
-    @include('category.main_category_modal')
+    {{-- @include('category.main_category_modal') --}}
     {{-- this is modal --}}
 
 

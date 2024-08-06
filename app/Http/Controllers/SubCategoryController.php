@@ -12,7 +12,7 @@ class SubCategoryController extends Controller
     public function SubCategory(){
 
         $MainCategories = MainCategory::all(); // this course come from modal
-        return view('category.sub_category', compact('MainCategories'));
+        return view('category.sub_category.sub_category', compact('MainCategories'));
 
     }
 
