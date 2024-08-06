@@ -8,9 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class SellingPriceGroup extends Model
 {
     use HasFactory;
-    protected $table='main_categories';
+    protected $table='selling_price_groups';
     protected $fillable=[
               'name',
               'description',
+              'is_active',
     ];
 }

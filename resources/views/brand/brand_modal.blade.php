@@ -14,8 +14,8 @@
 
                         <div class="mb-3">
                             <div class="form-group local-forms">
-                                <label>Name <span class="login-danger">*</span></label>
-                                <input class="form-control" id="edit_name" name="name" type="text" placeholder="Enter Name">
+                                <label>Brand Name <span class="login-danger">*</span></label>
+                                <input class="form-control" id="edit_name" name="name" type="text" placeholder="Brand Name">
                                 <span class="text-danger" id="name_error"></span>
                             </div>
                         </div>

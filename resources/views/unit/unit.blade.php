@@ -38,7 +38,7 @@
                                 <thead>
                                     <tr>
                                         <th>ID</th>
-                                        <th>Name</th>
+                                        <th>Unit Name</th>
                                         <th>Short name</th>
                                         <th>Allow decimal</th>
                                         <th>Action</th>

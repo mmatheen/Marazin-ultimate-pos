@@ -15,8 +15,8 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <div class="form-group local-forms">
-                                    <label>Course Name<span class="login-danger">*</span></label>
-                                    <input id="edit_name"  name="name" class="form-control" type="text" placeholder="Course Name">
+                                    <label>Unit Name<span class="login-danger">*</span></label>
+                                    <input id="edit_name"  name="name" class="form-control" type="text" placeholder="unit Name">
                                     <span class="text-danger" id="name_error"></span>
                                 </div>
                             </div>
