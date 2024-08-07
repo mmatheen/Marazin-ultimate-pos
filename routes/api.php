@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\CustomerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,5 +68,14 @@ Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->nam
 Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update']);
 Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
 //stop  sub catergories route
+
+//start Customer route
+Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
+Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::post('/customer-store', [CustomerController::class, 'store'])->name('customer-store');
+Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+//stop  Customer route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
