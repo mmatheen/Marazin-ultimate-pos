@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CustomerGroupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,13 +70,13 @@ Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update'
 Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
 //stop  sub catergories route
 
-//start Customer route
-Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
-Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
-Route::get('/customer-get-all', [CustomerController::class, 'index']);
-Route::post('/customer-store', [CustomerController::class, 'store'])->name('customer-store');
-Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
-Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
-//stop  Customer route
+//start CustomerGroup route
+Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
+Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);
+Route::get('/customer-group-get-all', [CustomerGroupController::class, 'index']);
+Route::post('/customer-group-store', [CustomerGroupController::class, 'store'])->name('customer-group-store');
+Route::post('/customer-group-update/{id}', [CustomerGroupController::class, 'update']);
+Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'destroy']);
+//stop  CustomerGroup route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

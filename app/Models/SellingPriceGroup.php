@@ -14,7 +14,7 @@ class SellingPriceGroup extends Model
               'description',
               'is_active',
     ];
-    public function CustomerGroup()
+    public function customerGroup()
     {
         return $this->belongsTo(CustomerGroup::class); // MainCategory is MainCategory modal name
     }

@@ -8,13 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 class CustomerGroup extends Model
 {
     use HasFactory;
-    protected $table='customers';
+    protected $table='customer_groups';
     protected $fillable=[
               'customerGroupName',
               'priceCalculationType',
+              'customer_group_id',
+              'calculationPercentage'
     ];
 
-    public function SellingPriceGroup()
+    public function sellingPriceGroup()
     {
         return $this->hasMany(SellingPriceGroup::class); // SubCategory is SubCategory modal name
     }

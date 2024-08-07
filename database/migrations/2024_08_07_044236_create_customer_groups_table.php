@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customer_groups', function (Blueprint $table) {
-            $table->id();
+            $table->increments('id');
             $table->string('customerGroupName');
             $table->string('priceCalculationType');
-            $table->unsignedBigInteger('selling_price_group')->unsigned();
-            $table->string('calculationPercentage');
+            $table->unsignedBigInteger('customer_group_id')->unsigned();
+            $table->string('calculationPercentage')->nullable();
             $table->timestamps();
 
             // ForeignKey
-            $table->foreign('selling_price_group')->references('id')->on('selling_price_groups');
+            $table->foreign('customer_group_id')->references('id')->on('selling_price_groups');
         });
     }
 

@@ -62,7 +62,7 @@
                         <h1 class="modal-title fs-5" id="exampleModalLabel">Add Category</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <form id="addAndEditForm" method="POST" action="">
+                    <form id="addAndEditForm">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-12">
@@ -104,7 +104,7 @@
                                     <div class="mb-3">
                                         <div class="form-group local-forms">
                                             <label>Calculation Percentage (%)<span class="login-danger"></span></label>
-                                            <input class="form-control" id="calculationPercentage" name="calculation" type="number" placeholder="Calculation Percentage (%)">
+                                            <input class="form-control" id="calculationPercentage" name="calculationPercentage" type="number" placeholder="Calculation Percentage (%)">
                                         </div>
                                     </div>
                                 </div>
