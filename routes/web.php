@@ -24,8 +24,6 @@ use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SubCategoryController;
-use App\Models\CustomerGroup;
-use App\Models\MainCategory;
 use App\Models\SellingPriceGroup;
 use App\Models\SubCategory;
 use Illuminate\Support\Facades\Route;
@@ -54,8 +52,8 @@ function set_active($route)
 
 Route::get('/', function () {
     //  return view('welcome');
-         $SubCategory=CustomerGroup::find(1);
-     dd($SubCategory->sellingPriceGroup);
+         $SubCategory=SellingPriceGroup::find(1);
+     dd($SubCategory->customerGroup);
 });
 
 

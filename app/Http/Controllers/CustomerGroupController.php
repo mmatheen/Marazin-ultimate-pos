@@ -54,7 +54,7 @@ class CustomerGroupController extends Controller
             [
                 'customerGroupName' => 'required',
                 'priceCalculationType' => 'required',
-                
+
             ]
         );
 
@@ -68,7 +68,7 @@ class CustomerGroupController extends Controller
             $getValue = CustomerGroup::create([
                 'customerGroupName' => $request->customerGroupName,
                 'priceCalculationType' => $request->priceCalculationType,
-                'customer_group_id' => $request->customer_group_id,
+                'selling_price_group_id' => $request->selling_price_group_id,
                 'calculationPercentage' => $request->calculationPercentage ?? '-',
             ]);
 
@@ -161,7 +161,7 @@ class CustomerGroupController extends Controller
                 $getValue->update([
                     'customerGroupName' => $request->customerGroupName,
                     'priceCalculationType' => $request->priceCalculationType,
-                    'customer_group_id' => $request->customer_group_id,
+                    'selling_price_group_id' => $request->selling_price_group_id,
                     'calculationPercentage' => $request->calculationPercentage,
                 ]);
                 return response()->json([

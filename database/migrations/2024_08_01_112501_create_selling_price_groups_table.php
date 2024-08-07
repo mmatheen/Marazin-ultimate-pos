@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('selling_price_groups', function (Blueprint $table) {
-            $table->id();
+            
+            $table->increments('id');
             $table->string('name');
             $table->text('description');
             $table->integer('is_active');
