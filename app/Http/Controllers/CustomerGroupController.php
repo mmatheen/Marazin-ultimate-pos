@@ -11,11 +11,11 @@ class CustomerGroupController extends Controller
 {
     public function customerGroup(){
         $SellingPriceGroups = SellingPriceGroup::all(); // this course come from modal
-        return view('contact.customer_group',compact('SellingPriceGroups'));
+        return view('contact.customer_group.customer_group',compact('SellingPriceGroups'));
     }
     public function index()
     {
-        $getValue = CustomerGroup::all();
+        $getValue = CustomerGroup::with('sellingPriceGroup')->get();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -69,7 +69,7 @@ class CustomerGroupController extends Controller
                 'customerGroupName' => $request->customerGroupName,
                 'priceCalculationType' => $request->priceCalculationType,
                 'selling_price_group_id' => $request->selling_price_group_id,
-                'calculationPercentage' => $request->calculationPercentage ?? '-',
+                'calculationPercentage' => $request->calculationPercentage,
             ]);
 
 
@@ -162,7 +162,7 @@ class CustomerGroupController extends Controller
                     'customerGroupName' => $request->customerGroupName,
                     'priceCalculationType' => $request->priceCalculationType,
                     'selling_price_group_id' => $request->selling_price_group_id,
-                    'calculationPercentage' => $request->calculationPercentage,
+                   'calculationPercentage' => $request->calculationPercentage,
                 ]);
                 return response()->json([
                     'status' => 200,

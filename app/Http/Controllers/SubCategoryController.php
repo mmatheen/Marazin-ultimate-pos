@@ -11,7 +11,7 @@ class SubCategoryController extends Controller
 {
     public function SubCategory(){
 
-        $MainCategories = MainCategory::all(); // this course come from modal
+        $MainCategories = MainCategory::all();
         return view('category.sub_category.sub_category', compact('MainCategories'));
 
     }
@@ -19,7 +19,7 @@ class SubCategoryController extends Controller
     public function index()
     {
 
-        $getValue = SubCategory::with('mainCategory')->get(); // this course come from modal
+        $getValue = SubCategory::with('mainCategory')->get();
         if ($getValue->count() > 0) {
 
             return response()->json([

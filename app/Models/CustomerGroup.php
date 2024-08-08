@@ -10,7 +10,7 @@ class CustomerGroup extends Model
     use HasFactory;
     protected $table='customer_groups';
     protected $fillable=[
-        
+
               'customerGroupName',
               'priceCalculationType',
               'selling_price_group_id',
@@ -19,6 +19,6 @@ class CustomerGroup extends Model
 
     public function sellingPriceGroup()
     {
-        return $this->belongsTo(SellingPriceGroup::class); // SubCategory is SubCategory modal name
+        return $this->belongsTo(SellingPriceGroup::class); // SellingPriceGroup is SellingPriceGroup modal name
     }
 }

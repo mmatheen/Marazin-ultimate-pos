@@ -25,7 +25,7 @@ use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SubCategoryController;
 use App\Models\SellingPriceGroup;
-use App\Models\SubCategory;
+use App\Models\CustomerGroup;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 
@@ -52,10 +52,9 @@ function set_active($route)
 
 Route::get('/', function () {
     //  return view('welcome');
-         $SubCategory=SellingPriceGroup::find(1);
-     dd($SubCategory->customerGroup);
+         $SubCategory=CustomerGroup::find(1);
+     dd($SubCategory->SellingPriceGroup);
 });
-
 
 Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
 
@@ -138,7 +137,6 @@ Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::cl
 Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
 //stop  selling price route
 
-
 //start unit route
 Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
 //stop  unit route
@@ -160,8 +158,6 @@ Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->nam
 Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update']);
 Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
 //stop  sub catergories route
-
-
 
 //start Supplier route
 Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');

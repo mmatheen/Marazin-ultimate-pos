@@ -16,7 +16,7 @@ return new class extends Migration
             $table->increments('id');
             $table->string('customerGroupName');
             $table->string('priceCalculationType');
-            $table->integer('selling_price_group_id')->unsigned();
+            $table->integer('selling_price_group_id')->unsigned()->nullable();
             $table->string('calculationPercentage')->nullable();
             $table->timestamps();
 
