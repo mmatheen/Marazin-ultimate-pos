@@ -27,11 +27,14 @@
                                 <form action="#" method="">
                                     <div class="row">
                                         <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <p>File To Import</p>
-                                                <input type="file" />
-                                                <button type="button" class="btn btn-primary mt-2">Submit</button>
+                                            <label>File To Import</label>
+                                            <div class="invoices-upload-btn">
+                                                <input type="file" accept="image/*" name="image" id="file"
+                                                    class="hide-input">
+                                                <label for="file" class="upload"><i class="far fa-folder-open">
+                                                        &nbsp;</i> Browse..</label>
                                             </div>
+                                            <button type="button" class="btn btn-primary mt-3">Submit</button>
                                         </div>
 
                                     </div>

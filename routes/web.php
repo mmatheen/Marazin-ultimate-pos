@@ -52,8 +52,8 @@ function set_active($route)
 
 Route::get('/', function () {
     //  return view('welcome');
-         $SubCategory=CustomerGroup::find(1);
-     dd($SubCategory->SellingPriceGroup);
+    //      $SubCategory=CustomerGroup::find(1);
+    //  dd($SubCategory->SellingPriceGroup);
 });
 
 Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');

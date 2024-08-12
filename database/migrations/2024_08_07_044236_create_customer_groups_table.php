@@ -22,7 +22,6 @@ return new class extends Migration
 
             // ForeignKey
             $table->foreign('selling_price_group_id')->references('id')->on('selling_price_groups');
-
         });
     }
 
