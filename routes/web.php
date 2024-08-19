@@ -26,6 +26,7 @@ use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\VariationTitleController;
 use App\Models\SellingPriceGroup;
 use App\Models\CustomerGroup;
 use Illuminate\Support\Facades\Route;
@@ -229,3 +230,12 @@ Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class,
 Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
 Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
 //stop  sub Expense Category route
+
+//start variation title  route
+Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');
+Route::get('/variation-title-edit/{id}', [VariationTitleController::class, 'edit']);
+Route::get('/variation-title-get-all', [VariationTitleController::class, 'index']);
+Route::post('/variation-title-store', [VariationTitleController::class, 'store'])->name('variation-title-store');
+Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'update']);
+Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
+//stop  variation title  route

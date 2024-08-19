@@ -6,10 +6,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Main Category</h3>
+                            <h3 class="page-title">Variation</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item">Products</li>
-                                <li class="breadcrumb-item active">Main Category</li>
+                                <li class="breadcrumb-item active">Variation Title</li>
                             </ul>
                         </div>
                     </div>
@@ -35,12 +35,11 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" id="mainCategory" style="width:100%">
+                            <table class="datatable table table-stripped" id="variation_title" style="width:100%">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Name</th>
-                                        <th>Description</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -67,20 +66,11 @@
 
                                 <div class="mb-3">
                                     <div class="form-group local-forms">
-                                        <label>main category name <span class="login-danger">*</span></label>
-                                        <input class="form-control" id="edit_mainCategoryName" name="mainCategoryName" type="text" placeholder="main category">
-                                        <span class="text-danger" id="mainCategoryName_error"></span>
+                                        <label>Variation Title <span class="login-danger">*</span></label>
+                                        <input class="form-control" id="edit_variationTitle" name="variationTitle" type="text" placeholder="Variation Title">
+                                        <span class="text-danger" id="variationTitle_error"></span>
                                     </div>
                                 </div>
-
-                                <div class="mb-3">
-                                    <div class="form-group local-forms">
-                                        <label>Description <span class="login-danger"></span></label>
-                                        <textarea class="form-control" id="edit_description" name="description" placeholder="Enter Description"></textarea>
-                                        <span class="text-danger" id="description_error"></span>
-                                    </div>
-                                </div>
-
 
                                 <div class="modal-footer">
                                     <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
@@ -122,6 +112,6 @@
         </div>
     </div>
 
-    @include('category.main_category.main_category_ajax')
+    @include('variation.variation_title_ajax')
 
 @endsection
