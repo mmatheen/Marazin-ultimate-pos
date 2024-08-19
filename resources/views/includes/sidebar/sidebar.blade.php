@@ -66,8 +66,8 @@
                     <a href="#"><i class="fas fa-clipboard"></i> <span>Sell</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href={{ route('list-sale') }}>All Sales</a></li>
-                        <li><a href="invoice-grid.html">Add Sale</a></li>
+                        <li><a href={{ route('list-sale') }} class="{{ set_active(['list-sale'])}}">All Sales</a></li>
+                        <li><a href={{ route('add-sale') }} class="{{ set_active(['add-sale'])}}">Add Sale</a></li>
                         <li><a href="add-invoice.html">List POS</a></li>
                         <li><a href="edit-invoice.html">POS</a></li>
                         <li><a href="view-invoice.html">Add Draft</a></li>
@@ -87,8 +87,8 @@
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Transfers</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="{{ route('list-stock-transfer') }}">List Stock Transfers</a></li>
-                        <li><a href={{ route('add-stock-transfer') }}>Add Stock Transfers</a></li>
+                        <li><a href="{{ route('list-stock-transfer') }}" class="{{ set_active(['list-stock-transfer'])}}">List Stock Transfers</a></li>
+                        <li><a href={{ route('add-stock-transfer') }} class="{{ set_active(['add-stock-transfer'])}}">Add Stock Transfers</a></li>
                     </ul>
                 </li>
                 <li class="submenu">
@@ -105,7 +105,8 @@
                     <ul>
                         <li><a href="fees-collections.html">List Expenses</a></li>
                         <li><a href="expenses.html">Add Expense</a></li>
-                        <li><a href="expenses.html">Expense Catergories</a></li>
+                        <li><a href={{ route('expense-parent-catergory') }} class="{{ set_active(['expense-parent-catergory'])}}">Parent Expense Catergories</a></li>
+                        <li><a href={{ route('sub-expense-category') }} class="{{ set_active(['sub-expense-category'])}}">Child Expense Catergories</a></li>
                     </ul>
                 </li>
 

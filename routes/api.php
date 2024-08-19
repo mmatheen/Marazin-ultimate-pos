@@ -10,6 +10,8 @@ use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\ExpenseParentCategoryController;
+use App\Http\Controllers\ExpenseSubCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +32,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/warranty-store', [WarrantyController::class, 'store']);
 Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
 Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
-Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
+Route::put('/warranty-update/{id}', [WarrantyController::class, 'update']);
 Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 
 
@@ -78,5 +80,23 @@ Route::post('/customer-group-store', [CustomerGroupController::class, 'store'])-
 Route::post('/customer-group-update/{id}', [CustomerGroupController::class, 'update']);
 Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'destroy']);
 //stop  CustomerGroup route
+
+//start expense-parent route
+Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
+Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
+Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
+Route::post('/expense-parent-catergory-store', [ExpenseParentCategoryController::class, 'store'])->name('expense-parent-catergory-store');
+Route::post('/expense-parent-catergory-update/{id}', [ExpenseParentCategoryController::class, 'update']);
+Route::delete('/expense-parent-catergory-delete/{id}', [ExpenseParentCategoryController::class, 'destroy']);
+//stop  expense-parent route
+
+//start sub Expense Category route
+Route::get('/sub-expense-category', [ExpenseSubCategoryController::class, 'SubCategory'])->name('sub-expense-category');
+Route::get('/sub-expense-category-edit/{id}', [ExpenseSubCategoryController::class, 'edit']);
+Route::get('/sub-expense-category-get-all', [ExpenseSubCategoryController::class, 'index']);
+Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class, 'store'])->name('sub-expense-category-store');
+Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
+Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
+//stop  sub Expense Category route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
