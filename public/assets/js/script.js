@@ -130,22 +130,9 @@
                 console.error(err.stack);
             });
     }
-    $(".settings-form").on("click", ".trash", function () {
-        $(this).closest(".links-cont").remove();
-        return false;
-    });
-    $(document).on("click", ".add-links", function () {
-        var experiencecontent =
-            '<div class="row form-row links-cont">' +
-            '<div class="form-group d-flex">' +
-            // '<button class="btn social-icon"><i class="feather-github"></i></button>' +
-            '<input type="text" class="form-control" placeholder="">' +
-            '<div><a href="#" class="btn trash"><i class="feather-trash-2"></i></a></div>' +
-            "</div>" +
-            "</div>";
-        $(".settings-form").append(experiencecontent);
-        return false;
-    });
+    
+    //
+
     if ($(".datetimepicker").length > 0) {
         $(".datetimepicker").datetimepicker({
             format: "DD-MM-YYYY",
