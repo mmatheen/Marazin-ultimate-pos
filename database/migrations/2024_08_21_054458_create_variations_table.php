@@ -12,14 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('variations', function (Blueprint $table) {
-            $table->id();
-            // $table->string('variation_name');
+           $table->increments('id');
             $table->string('variation_value');
-            // $table->integer('main_category_id')->unsigned();
+            $table->integer('variation_title_id')->unsigned();
             $table->timestamps();
 
              // ForeignKey
-            //  $table->foreign('main_category_id')->references('id')->on('main_categories');
+             $table->foreign('variation_title_id')->references('id')->on('variation_titles');
         });
     }
 

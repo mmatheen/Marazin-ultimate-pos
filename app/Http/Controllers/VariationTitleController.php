@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 class VariationTitleController extends Controller
 {
     public function variationTitle(){
+        
         return  view('variation.variation_title');
     }
     public function index()

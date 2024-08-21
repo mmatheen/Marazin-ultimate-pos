@@ -27,8 +27,6 @@ use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\VariationTitleController;
-use App\Models\SellingPriceGroup;
-use App\Models\CustomerGroup;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 
@@ -87,7 +85,6 @@ Route::post('/unit-store', [UnitController::class, 'store']);
 Route::post('/unit-update/{id}', [UnitController::class, 'update']);
 Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
-
 
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');

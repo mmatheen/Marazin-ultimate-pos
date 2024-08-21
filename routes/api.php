@@ -111,4 +111,13 @@ Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'u
 Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
 //stop  variation title  route
 
+//start variation title  route
+Route::get('/variation', [VariationController::class, 'variationTitle'])->name('variation-title');
+Route::get('/variation-edit/{id}', [VariationController::class, 'edit']);
+Route::get('/variation-get-all', [VariationController::class, 'index']);
+Route::post('/variation-store', [VariationController::class, 'store'])->name('variation-title-store');
+Route::post('/variation-update/{id}', [VariationController::class, 'update']);
+Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
+//stop  variation title  route
+
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

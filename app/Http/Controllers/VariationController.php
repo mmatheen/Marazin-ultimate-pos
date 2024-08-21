@@ -3,14 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Variation;
+use App\Models\VariationTitle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class VariationController extends Controller
 {
     public function variation(){
-        $VariationTitles = Variation::all(); // this course come from modal
-        return view('variation.variation',compact('VariationTitles'));
+        $variationTitles = VariationTitle::all(); // this course come from modal
+        return view('variation.variation',compact('variationTitles'));
     }
 
     public function index()
@@ -48,51 +49,58 @@ class VariationController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request->all());
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'rows' => 'required|array',
-                'rows.*.variation_value' => 'required|string|max:255',
 
-            ]
-        );
+        $validator = Validator::make($request->all(),
+        [
+            'variation_title_id' => 'required',
+            'variation_value' => 'required',
+        ],
+
+        //when you add custom validate
+         [
+            'variation_title_id.*required' => 'Please select the variation.',
+            'variation_value.*required' => 'Please select the variable value.',
+        ]);
+
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
+        }
 
-            $data = $request->input('rows');
+        $variation_title_ids = $request->variation_title_id;
+        $variation_values = $request->variation_value;
 
-            // Validate each row
-            $validatedData = [];
-            foreach ($data as $row) {
-                $validatedData[] = [
-                    'variation_value' => $row['variation_value'],
+        $variations = [];
 
+        foreach ($variation_title_ids as $variation_title_id) {
+            foreach ($variation_values as $variation_value) {
+                $variations[] = [
+                    'variation_title_id' => $variation_title_id,
+                    'variation_value' => $variation_value,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ];
             }
+        }
 
-              // Insert data into the database
-              $getValue = Variation::insert($validatedData);
+        $getValue = Variation::insert($variations);
 
-
-            if ($getValue) {
-                return response()->json([
-                    'status' => 200,
-                    'message' => "New Variation Details Created Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Something went wrong!"
-                ]);
-            }
+        if ($getValue) {
+            return response()->json([
+                'status' => 200,
+                'message' => "New Variation Details Created Successfully!"
+            ]);
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => "Something went wrong!"
+            ]);
         }
     }
+
 
     /**
      * Display the specified resource.

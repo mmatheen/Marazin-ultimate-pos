@@ -11,5 +11,6 @@ class Variation extends Model
     protected $table='variations';
     protected $fillable=[
               'variation_value',
+              'variation_title_id',
     ];
 }
