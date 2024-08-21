@@ -115,7 +115,7 @@
     </div>
 
     <script>
-
+        // Latest Updated
         $(".settings-form").on("click", ".trash", function () {
                 $(this).closest(".links-cont").remove();
                 return false;
