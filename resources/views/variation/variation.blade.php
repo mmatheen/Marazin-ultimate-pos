@@ -60,78 +60,78 @@
                             <h1 class="modal-title fs-5" id="exampleModalLabel">Add Variation</h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <form id="addAndEditForm"> 
-                        @csrf
-                        <div class="modal-body">
-                            <div class="row mt-4">
-                                <div class="col-md-12">
-                                    <div class="form-group local-forms">
-                                        <label>Variation Title<span class="login-danger">*</span></label>
-                                        <select id="edit_main_category_id" name="main_category_id" class="form-control select2Box form-select select">
-                                            <option selected disabled>Please Select </option>
-                                            @foreach($VariationTitles as $VariationTitle)
-                                            <option value="{{ $VariationTitle->id }}">{{ $VariationTitle->variationTitle }}</option>
-                                            @endforeach
-                                        </select>
+                        <form id="addAndEditForm">
+                            @csrf
+                            <div class="modal-body">
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="form-group local-forms">
+                                            <label>Variation Title<span class="login-danger">*</span></label>
+                                            <select id="edit_main_category_id" name="main_category_id" class="form-control select2Box form-select select">
+                                                <option selected disabled>Please Select</option>
+                                                @foreach($VariationTitles as $VariationTitle)
+                                                    <option value="{{ $VariationTitle->id }}">{{ $VariationTitle->variationTitle }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="row">
-                                <div class="col-md-12">
+                                <div class="row">
+                                    <div class="col-md-12">
                                         <div class="settings-form">
-                                            <div class="links-info">
-                                                <div class="row">
-                                                    <div class="col-8 col-md-8">
-                                                        <div class="form-group local-forms">
-                                                            <label>Variation Name <span class="login-danger">*</span></label>
-                                                            <input class="form-control" type="text" name="variation_name"
-                                                                placeholder="Variation Name"> <!-- Add name attribute -->
-                                                        </div>
-                                                    </div>
-                                                    <div class="col col-md-2">
-                                                        <button type="button" class="btn add-links"><i
-                                                                class="fas fa-plus px-2"></i></button>
+                                            <div id="variation-rows">
+                                                <!-- Initial Row -->
+                                                <div class="row form-row links-cont" id="row-0">
+                                                    <div class="form-group d-flex">
+                                                        <input class="form-control" type="text" name="variation_name[]" placeholder="Variation Name" required>
+                                                        <button type="button" class="btn trash" data-row="row-0"><i class="feather-trash-2"></i></button>
                                                     </div>
                                                 </div>
                                             </div>
+                                            <button type="button" id="add-row" class="btn add-links"><i class="fas fa-plus px-2"></i> Add Another Row</button>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="modal-footer">
+                                        <button type="submit" class="btn btn-primary">Save changes</button>
+                                        <button type="reset" class="btn btn-secondary" id="close" data-bs-dismiss="modal">Close</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="row">
-                                <div class="modal-footer">
-                                    <button type="submit" class="btn btn-primary">Save changes</button>
-                                    <button type="reset" class="btn btn-secondary" id="close"
-                                        data-bs-dismiss="modal">Close</button>
-                                </div>
-                            </div>
-                        </div>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
-        {{-- Edit modal row --}}
-    </div>
 
-    <script>
-        // Latest Updated
-        $(".settings-form").on("click", ".trash", function () {
-                $(this).closest(".links-cont").remove();
-                return false;
-            });
-            $(document).on("click", ".add-links", function () {
-                var experiencecontent =
-                    '<div class="row form-row links-cont">' +
-                    '<div class="form-group d-flex">' +
-                    // '<button class="btn social-icon"><i class="feather-github"></i></button>' +
-                    '<input type="text" name="variation_value" class="form-control" placeholder="">' +
-                    '<div><a href="#" class="btn trash"><i class="feather-trash-2"></i></a></div>' +
-                    "</div>" +
-                    "</div>";
-                $(".settings-form").append(experiencecontent);
-                return false;
+        <script>
+
+            let rowIndex = 1;
+
+            // Add new row
+            document.getElementById('add-row').addEventListener('click', function() {
+                const rowHtml = `
+                    <div class="row form-row links-cont" id="row-${rowIndex}">
+                        <div class="form-group d-flex">
+                            <input class="form-control" type="text" name="variation_name[]" placeholder="Variation Name" required>
+                            <button type="button" class="btn trash" data-row="row-${rowIndex}"><i class="feather-trash-2"></i></button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('variation-rows').insertAdjacentHTML('beforeend', rowHtml);
+                rowIndex++;
             });
 
-    </script>
+            // Remove row
+            document.getElementById('variation-rows').addEventListener('click', function(event) {
+                if (event.target.classList.contains('trash')) {
+                    const rowId = event.target.getAttribute('data-row');
+                    document.getElementById(rowId).remove();
+                }
+            });
+        </script>
+
 @endsection

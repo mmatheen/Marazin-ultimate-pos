@@ -52,7 +52,9 @@ class VariationController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'variation_value' => 'required',
+                'rows' => 'required|array',
+                'rows.*.variation_value' => 'required|string|max:255',
+
             ]
         );
 
@@ -63,9 +65,19 @@ class VariationController extends Controller
             ]);
         } else {
 
-            $getValue = Variation::create([
-                'variation_value' => $request->variation_value,
-            ]);
+            $data = $request->input('rows');
+
+            // Validate each row
+            $validatedData = [];
+            foreach ($data as $row) {
+                $validatedData[] = [
+                    'variation_value' => $row['variation_value'],
+
+                ];
+            }
+
+              // Insert data into the database
+              $getValue = Variation::insert($validatedData);
 
 
             if ($getValue) {

@@ -45,7 +45,7 @@
 
 </head>
 
-<body>
+<body >  {{-- oncontextmenu will prevent the inspact element --  [oncontextmenu="return false"]}}
 
     {{-- for jquery --}}
     <script src="assets/js/jquery-3.6.0.min.js"></script>
@@ -131,6 +131,38 @@
         });
 
     </script>
+
+
+{{-- it will prevent inspact element using key --}}
+<script>
+    document.addEventListener('keydown', function(event) {
+        // Prevent F12 (which opens the developer tools)
+        if (event.keyCode === 123) {
+            event.preventDefault();
+        }
+
+        // Prevent Ctrl+Shift+I (or Cmd+Shift+I on macOS)
+        if (event.ctrlKey && event.shiftKey && event.keyCode === 73) {
+            event.preventDefault();
+        }
+
+        // Prevent Ctrl+Shift+J (or Cmd+Shift+J on macOS)
+        if (event.ctrlKey && event.shiftKey && event.keyCode === 74) {
+            event.preventDefault();
+        }
+
+        // Prevent Ctrl+U (or Cmd+U on macOS) which opens the source code viewer
+        if (event.ctrlKey && event.keyCode === 85) {
+            event.preventDefault();
+        }
+
+        // Prevent Ctrl+Shift+C (or Cmd+Shift+C on macOS) which opens the inspect element tool
+        if (event.ctrlKey && event.shiftKey && event.keyCode === 67) {
+            event.preventDefault();
+        }
+    });
+</script>
+
 
 </body>
 </html>
