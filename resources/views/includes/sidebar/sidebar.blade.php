@@ -20,7 +20,7 @@
                     <ul>
                         <li><a href={{ route('user') }} class="{{ set_active(['user'])}}">Users</a></li>
                         <li><a href={{ route('role') }} class="{{ set_active(['role'])}}">Roles</a></li>
-                        <li><a href={{ route('sales-commission') }} class="{{ set_active(['sales-commission'])}}">Sales Commissions</a></li>
+                        <li><a href={{ route('sales-commission-agent') }} class="{{ set_active(['sales-commission-agent'])}}">Sales Commissions</a></li>
                     </ul>
                 </li>
                 <li class="submenu {{ set_active(['supplier']) }}">

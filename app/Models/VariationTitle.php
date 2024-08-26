@@ -9,8 +9,13 @@ class VariationTitle extends Model
 {
     use HasFactory;
     protected $table='variation_titles';
-    
+
     protected $fillable=[
-        'variationTitle',
+        'variation_title',
     ];
+
+    public function variations()
+    {
+        return $this->hasMany(Variation::class);
+    }
 }

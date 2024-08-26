@@ -9,14 +9,15 @@ use Illuminate\Support\Facades\Validator;
 
 class VariationController extends Controller
 {
-    public function variation(){
+    public function variation()
+    {
         $variationTitles = VariationTitle::all(); // this course come from modal
-        return view('variation.variation',compact('variationTitles'));
+        return view('variation.variation.variation', compact('variationTitles'));
     }
 
     public function index()
     {
-        $getValue = Variation::all();
+        $getValue = Variation::with('variationTitle')->get();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -49,19 +50,13 @@ class VariationController extends Controller
      */
     public function store(Request $request)
     {
-
-        $validator = Validator::make($request->all(),
-        [
-            'variation_title_id' => 'required',
-            'variation_value' => 'required',
-        ],
-
-        //when you add custom validate
-         [
-            'variation_title_id.*required' => 'Please select the variation.',
-            'variation_value.*required' => 'Please select the variable value.',
+        $validator = Validator::make($request->all(), [
+            'variation_title_id' => 'required|array',
+            'variation_value' => 'required|array',
+        ], [
+            'variation_title_id.required' => 'Please select the variation.',
+            'variation_value.required' => 'Please select the variable value.',
         ]);
-
 
         if ($validator->fails()) {
             return response()->json([
@@ -132,7 +127,11 @@ class VariationController extends Controller
      */
     public function edit(int $id)
     {
-        $getValue = Variation::find($id);
+        // Find all records with the matching variation_title_id
+        // $getValue = Variation::where('variation_title_id', $id)->get();
+        $getValue = Variation::with('variationTitle')->where('variation_title_id', $id)->get();
+        // $getValue = Variation::find($id);
+
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -153,41 +152,43 @@ class VariationController extends Controller
      * @param  \App\Models\Lecturer  $lecturer
      * @return \Illuminate\Http\Response
      */
+
+
     public function update(Request $request, int $id)
     {
-        $validator = Validator::make(
-            $request->all(),
-            [
-
-                'variation_value' => 'required',
-            ]
-        );
-
+        $validator = Validator::make($request->all(), [
+            'variation_title_id' => 'required|array',
+            'variation_value' => 'required|array',
+        ], [
+            'variation_title_id.required' => 'Please select the variation title.',
+            'variation_value.required' => 'Please select variation_value.',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
-            $getValue = Variation::find($id);
+        }
 
-            if ($getValue) {
-                $getValue->update([
+        $variation_title_ids = $request->variation_title_id;
+        $variation_values = $request->variation_value;
 
-                  'variation_value' => $request->variation_value,
-                ]);
-                return response()->json([
-                    'status' => 200,
-                    'message' => "Old Variation  Details Updated Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "No Such Variation Found!"
-                ]);
+        foreach ($variation_title_ids as $variation_title_id) {
+            foreach ($variation_values as $variation_value) {
+                // Update the variation_title_id and variation_value
+                Variation::where('variation_title_id', $id)->update([
+                        'variation_value' => $variation_value,
+                        'variation_title_id' => $variation_title_id,
+                        'updated_at' => now(),
+                    ]);
             }
         }
+
+        return response()->json([
+            'status' => 200,
+            'message' => "Old Variation  Details Updated Successfully!"
+        ]);
     }
 
     /**
@@ -198,16 +199,20 @@ class VariationController extends Controller
      */
     public function destroy(int $id)
     {
-        $getValue = Variation::find($id);
-        if ($getValue) {
+        // Find all records with the matching variation_title_id
+        $records = Variation::where('variation_title_id', $id)->get();
 
-            $getValue->delete();
+        if ($records->isNotEmpty()) {
+            // Loop through and delete each record
+            foreach ($records as $record) {
+                $record->delete();
+            }
+
             return response()->json([
                 'status' => 200,
                 'message' => "Variation Details Deleted Successfully!"
             ]);
         } else {
-
             return response()->json([
                 'status' => 404,
                 'message' => "No Such Variation Found!"

@@ -25,8 +25,10 @@ use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\VariationTitleController;
+use App\Models\Variation;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
 
@@ -52,9 +54,9 @@ function set_active($route)
 }
 
 Route::get('/', function () {
-    //  return view('welcome');
-    //      $SubCategory=CustomerGroup::find(1);
-    //  dd($SubCategory->SellingPriceGroup);
+      return view('welcome');
+    //     $variationValue=Variation::find(1);
+    //   dd($variationValue->variationTitle);
 });
 
 Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
@@ -86,6 +88,7 @@ Route::post('/unit-update/{id}', [UnitController::class, 'update']);
 Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
+
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
@@ -113,7 +116,12 @@ Route::get('/add-role', [RoleController::class, 'addRole'])->name('add-role');
 //stop product route
 
 //start SalesCommissionAgents route
-Route::get('/sales-commission', [SalesCommissionAgentController::class, 'salesCommission'])->name('sales-commission');
+Route::get('/sales-commission-agent', [SalesCommissionAgentsController::class, 'SalesCommissionAgents'])->name('sales-commission-agent');
+Route::get('/sales-commission-agent-edit/{id}', [SalesCommissionAgentsController::class, 'edit']);
+Route::get('/sales-commission-agent-get-all', [SalesCommissionAgentsController::class, 'index']);
+Route::post('/sales-commission-agent-store', [SalesCommissionAgentsController::class, 'store'])->name('sales-commission-agent-store');
+Route::post('/sales-commission-agent-update/{id}', [SalesCommissionAgentsController::class, 'update']);
+Route::delete('/sales-commission-agent-delete/{id}', [SalesCommissionAgentsController::class, 'destroy']);
 //stop  SalesCommissionAgents route
 
 //start Print Label route
@@ -236,3 +244,12 @@ Route::post('/variation-title-store', [VariationTitleController::class, 'store']
 Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'update']);
 Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
 //stop  variation title  route
+
+//start variation route
+Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
+Route::get('/variation-edit/{id}', [VariationController::class, 'edit']);
+Route::get('/variation-get-all', [VariationController::class, 'index']);
+Route::post('/variation-store', [VariationController::class, 'store'])->name('variation-title-store');
+Route::post('/variation-update/{id}', [VariationController::class, 'update']);
+Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
+//stop  variation route

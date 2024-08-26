@@ -53,7 +53,7 @@
         </div>
 
         <div class="row">
-            <div id="addAndEditMainCategoryModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+            <div id="addAndEditVariationTitleModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-body">
@@ -67,8 +67,8 @@
                                 <div class="mb-3">
                                     <div class="form-group local-forms">
                                         <label>Variation Title <span class="login-danger">*</span></label>
-                                        <input class="form-control" id="edit_variationTitle" name="variationTitle" type="text" placeholder="Variation Title">
-                                        <span class="text-danger" id="variationTitle_error"></span>
+                                        <input class="form-control" id="edit_variation_title" name="variation_title" type="text" placeholder="Variation Title">
+                                        <span class="text-danger" id="variation_title_error"></span>
                                     </div>
                                 </div>
 
@@ -112,6 +112,6 @@
         </div>
     </div>
 
-    @include('variation.variation_title_ajax')
+    @include('variation.variation_title.variation_title_ajax')
 
 @endsection

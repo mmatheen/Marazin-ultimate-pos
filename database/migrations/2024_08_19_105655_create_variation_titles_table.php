@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('variation_titles', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('variationTitle');
+            $table->string('variation_title');
             $table->timestamps();
         });
     }

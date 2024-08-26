@@ -10,7 +10,14 @@ class Variation extends Model
     use HasFactory;
     protected $table='variations';
     protected $fillable=[
+
               'variation_value',
               'variation_title_id',
     ];
+
+     public function variationTitle()
+    {
+        return $this->belongsTo(VariationTitle::class);
+    }
+
 }

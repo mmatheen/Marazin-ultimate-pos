@@ -31,12 +31,3 @@ return new class extends Migration
     }
 };
 
-$table->increments('id');
-            $table->string('subCategoryname');
-            $table->integer('main_category_id')->unsigned();
-            $table->string('subCategoryCode')->nullable();
-            $table->text('description')->nullable();
-            $table->timestamps();
-
-              // ForeignKey
-              $table->foreign('main_category_id')->references('id')->on('main_categories');

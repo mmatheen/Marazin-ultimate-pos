@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\VariationTitle;
+use App\Models\SalesCommissionAgents;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class VariationTitleController extends Controller
+class SalesCommissionAgentsController extends Controller
 {
-    public function variationTitle(){
+    public function SalesCommissionAgents(){
 
-        return  view('variation.variation_title.variation_title');
+        return view('sales_commission.sales_commission');
     }
     public function index()
     {
-
-         $getValue = VariationTitle::all();
+         $getValue = SalesCommissionAgents::all();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -52,9 +51,11 @@ class VariationTitleController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'variation_title' => 'required|string|unique:variation_titles',
+                'sales_commission_percentage' => 'required|numeric|between:0,99.99',
+                'first_name' => 'required|string',
             ]
         );
+
 
         if ($validator->fails()) {
             return response()->json([
@@ -63,15 +64,21 @@ class VariationTitleController extends Controller
             ]);
         } else {
 
-            $getValue = VariationTitle::create([
-                'variation_title' => $request->variation_title,
+            $getValue = SalesCommissionAgents::create([
+                'prefix' => $request->prefix ?? "",
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name ?? "",
+                'email' => $request->email ?? "",
+                'contact_number' => $request->contact_number ?? "",
+                'sales_commission_percentage' => $request->sales_commission_percentage,
+                'description' => $request->description ?? "",
             ]);
 
 
             if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Variation Title Created Successfully!"
+                    'message' => "New Sales Commission Agent Created Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -90,7 +97,7 @@ class VariationTitleController extends Controller
      */
     public function show(int $id)
     {
-        $getValue = VariationTitle::find($id);
+        $getValue = SalesCommissionAgents::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -99,7 +106,7 @@ class VariationTitleController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Variation Title Found!"
+                'message' => "No Such Sales Comision Agents Found!"
             ]);
         }
     }
@@ -112,7 +119,7 @@ class VariationTitleController extends Controller
      */
     public function edit(int $id)
     {
-        $getValue = VariationTitle::find($id);
+        $getValue = SalesCommissionAgents::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -121,7 +128,7 @@ class VariationTitleController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Variation Title Found!"
+                'message' => "No Such Sales Commission Agents Found!"
             ]);
         }
     }
@@ -138,7 +145,8 @@ class VariationTitleController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'variation_title' => 'required|string',
+                'sales_commission_percentage' => 'required|numeric|between:0,99.99',
+                'first_name' => 'required|string',
             ]
         );
 
@@ -149,16 +157,22 @@ class VariationTitleController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-            $getValue = VariationTitle::find($id);
+            $getValue = SalesCommissionAgents::find($id);
 
             if ($getValue) {
                 $getValue->update([
 
-                'variation_title' => $request->variation_title,
+                    'prefix' => $request->prefix ?? "",
+                    'first_name' => $request->first_name,
+                    'last_name' => $request->last_name ?? "",
+                    'email' => $request->email ?? "",
+                    'contact_number' => $request->contact_number ?? "",
+                    'sales_commission_percentage' => $request->sales_commission_percentage,
+                    'description' => $request->description ?? "",
                 ]);
                 return response()->json([
                     'status' => 200,
-                    'message' => "Old Variation Title Updated Successfully!"
+                    'message' => "Old Sales Commission Agents Updated Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -177,19 +191,19 @@ class VariationTitleController extends Controller
      */
     public function destroy(int $id)
     {
-        $getValue = VariationTitle::find($id);
+        $getValue = SalesCommissionAgents::find($id);
         if ($getValue) {
 
             $getValue->delete();
             return response()->json([
                 'status' => 200,
-                'message' => "Variation Title Deleted Successfully!"
+                'message' => "Sales Commission Agents Deleted Successfully!"
             ]);
         } else {
 
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Variation Title Found!"
+                'message' => "No Such Sales Commission Agents Found!"
             ]);
         }
     }
