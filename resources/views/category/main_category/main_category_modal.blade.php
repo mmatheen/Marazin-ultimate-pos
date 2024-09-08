@@ -9,34 +9,6 @@
                     </div>
 
                     <input type="hidden" name="edit_id" id="edit_id">
-                    <form id="addAndUpdateForm">
-                        <div class="col-md-12 mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="allowLoginCheckbox" data-bs-target="#moreinformation1" data-bs-toggle="collapse" aria-expanded="false" aria-controls="collapseExample">
-                                <label class="form-check-label" for="allowLoginCheckbox">
-                                    Add Main Category
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="collapse" id="moreinformation1">
-                            <div class="col-md-12">
-                                <div class="form-group local-forms">
-                                    <label>Parent Category Name<span class="login-danger">*</span></label>
-                                    <input class="form-control" type="text" placeholder="Parent Category Name">
-                                </div>
-                            </div>
-                            <div class="col-sm-12 mb-5">
-                                <div class="card-body" style="background: rgba(223, 221, 221, 0.651); border-radius: 5px">
-                                    <div class="col">
-                                        <button type="button" class="btn btn-outline-primary me-3" onclick="toggleLoginFields()">Save</button>
-                                        <button type="button" class="btn btn-outline-secondary" data-bs-target="#moreinformation1" data-bs-toggle="collapse" aria-expanded="false" aria-controls="collapseExample">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-
                     <div class="col-md-12">
                         <div class="form-group local-forms">
                             <label>main category<span class="login-danger">*</span></label>
