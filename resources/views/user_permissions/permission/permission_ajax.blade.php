@@ -10,15 +10,11 @@
                 required: true,
 
             },
-
-            duration: {
+            group_name: {
                 required: true,
 
             },
-            duration_type: {
-                required: true,
 
-            },
 
         },
         messages: {
@@ -26,12 +22,8 @@
             name: {
                 required: "Name is required",
             },
-
-            duration: {
-                required: "Duration is required",
-            },
-            duration_type: {
-                required: "Duration type  is required",
+            group_name: {
+                required: "Group Name is required",
             },
 
         },
@@ -65,37 +57,35 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditWarrantyModal').on('hidden.bs.modal', function () {
+            $('#addAndEditPermissionModal').on('hidden.bs.modal', function () {
                 resetFormAndValidation();
             });
 
         // Show Add Warranty Modal
-        $('#addWarrantyButton').click(function() {
-            $('#modalTitle').text('New Warranty');
+        $('#addPermissionButton').click(function() {
+            $('#modalTitle').text('New Permission');
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
-            $('#addAndEditWarrantyModal').modal('show');
+            $('#addAndEditPermissionModal').modal('show');
         });
 
         // Fetch and Display Data
         function showFetchData() {
             $.ajax({
-                url: '/warranty-get-all',
+                url: '/role-permission-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    var table = $('#warranty').DataTable();
+                    var table = $('#permission').DataTable();
                     table.clear().draw();
                     var counter = 1;
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name + '</td>');
-                        row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' + item.duration + '</td>');
-                        row.append('<td>' + item.duration_type + '</td>');
+                        row.append('<td>' + item.group_name + '</td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
@@ -108,14 +98,14 @@
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
-            $('#modalTitle').text('Edit Warranty');
+            $('#modalTitle').text('Edit Role');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
             $.ajax({
-                url: 'warranty-edit/' + id,
+                url: 'role-permission-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
@@ -123,10 +113,8 @@
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
                         $('#edit_name').val(response.message.name);
-                        $('#edit_description').val(response.message.description);
-                        $('#edit_duration').val(response.message.duration);
-                        $('#edit_duration_type').val(response.message.duration_type);
-                        $('#addAndEditWarrantyModal').modal('show');
+                        $('#edit_group_name').val(response.message.group_name);
+                        $('#addAndEditPermissionModal').modal('show');
                     }
                 }
             });
@@ -141,13 +129,13 @@
             if (!$('#addAndUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                        toastr.error('Invalid inputs, Check & try again!!','Warning');
+                    toastr.error('Invalid inputs, Check & try again!!','Error');
                 return; // Return if form is not valid
             }
 
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
-            let url = id ? 'warranty-update/' + id : 'warranty-store';
+            let url = id ? 'role-permission-update/' + id : 'role-permission-store';
             let type = id ? 'post' : 'post';
 
             $.ajax({
@@ -165,7 +153,7 @@
                         });
 
                     } else {
-                        $('#addAndEditWarrantyModal').modal('hide');
+                        $('#addAndEditPermissionModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
@@ -178,18 +166,18 @@
         });
 
 
-        // Delete Warranty
+        // Delete Role
         $(document).on('click', '.delete_btn', function() {
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);
-            $('#deleteName').text('Delete Warranty');
+            $('#deleteName').text('Delete Permission');
         });
 
         $(document).on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
             $.ajax({
-                url: 'warranty-delete/' + id,
+                url: 'role-permission-delete/' + id,
                 type: 'delete',
                 headers: {'X-CSRF-TOKEN': csrfToken},
                 success: function(response) {

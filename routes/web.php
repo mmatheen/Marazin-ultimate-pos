@@ -24,6 +24,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SubCategoryController;
@@ -253,3 +254,21 @@ Route::post('/variation-store', [VariationController::class, 'store'])->name('va
 Route::post('/variation-update/{id}', [VariationController::class, 'update']);
 Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
 //stop  variation route
+
+//start role route
+Route::get('/role', [RoleController::class, 'role'])->name('role');
+Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
+Route::get('/role-get-all', [RoleController::class, 'index']);
+Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
+Route::post('/role-update/{id}', [RoleController::class, 'update']);
+Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
+//stop  role route
+
+//start role-permission route
+Route::get('/role-permission', [PermissionController::class, 'permission'])->name('role-permission');
+Route::get('/role-permission-edit/{id}', [PermissionController::class, 'edit']);
+Route::get('/role-permission-get-all', [PermissionController::class, 'index']);
+Route::post('/role-permission-store', [PermissionController::class, 'store'])->name('role-permission-store');
+Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
+Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
+//stop  role-permission route

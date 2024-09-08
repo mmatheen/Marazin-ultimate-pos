@@ -2,25 +2,21 @@
 
 namespace App\Http\Controllers;
 
+
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Permission;
 
-class RoleController extends Controller
+class PermissionController extends Controller
 {
-
-    public function addRole(){
-
-        return view('user_permissions.add_role');
-    }
-
-    public function role(){
-        return view('user_permissions.role.role');
+    public function permission()
+    {
+        return view('user_permissions.permission.permission');
     }
 
     public function index()
     {
-        $getValue = Role::all();
+        $getValue = Permission::all();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -58,6 +54,8 @@ class RoleController extends Controller
             $request->all(),
             [
                 'name' => 'required|string',
+                'group_name' => 'required|string',
+
             ]
         );
 
@@ -68,8 +66,9 @@ class RoleController extends Controller
             ]);
         } else {
 
-            $getValue = Role::create([
+            $getValue = Permission::create([
                 'name' => $request->name,
+                'group_name' => $request->group_name,
 
             ]);
 
@@ -77,7 +76,7 @@ class RoleController extends Controller
             if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Role Details Created Successfully!"
+                    'message' => "New Permission Details Created Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -96,7 +95,7 @@ class RoleController extends Controller
      */
     public function show(int $id)
     {
-        $getValue = Role::find($id);
+        $getValue = Permission::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -105,7 +104,7 @@ class RoleController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Role Found!"
+                'message' => "No Such Permission Found!"
             ]);
         }
     }
@@ -118,7 +117,7 @@ class RoleController extends Controller
      */
     public function edit(int $id)
     {
-        $getValue = Role::find($id);
+        $getValue = Permission::find($id);
         if ($getValue) {
             return response()->json([
                 'status' => 200,
@@ -127,7 +126,7 @@ class RoleController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Role Found!"
+                'message' => "No Such Permission Found!"
             ]);
         }
     }
@@ -146,6 +145,7 @@ class RoleController extends Controller
             [
 
                 'name' => 'required|string',
+                'group_name' => 'required|string',
             ]
         );
 
@@ -156,22 +156,23 @@ class RoleController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-            $getValue = Role::find($id);
+            $getValue = Permission::find($id);
 
             if ($getValue) {
                 $getValue->update([
 
                     'name' => $request->name,
+                    'group_name' => $request->group_name,
 
                 ]);
                 return response()->json([
                     'status' => 200,
-                    'message' => "Old Role  Details Updated Successfully!"
+                    'message' => "Old Permission  Details Updated Successfully!"
                 ]);
             } else {
                 return response()->json([
                     'status' => 404,
-                    'message' => "No Such Role Found!"
+                    'message' => "No Such Permission Found!"
                 ]);
             }
         }
@@ -185,19 +186,19 @@ class RoleController extends Controller
      */
     public function destroy(int $id)
     {
-        $getValue = Role::find($id);
+        $getValue = Permission::find($id);
         if ($getValue) {
 
             $getValue->delete();
             return response()->json([
                 'status' => 200,
-                'message' => "Role Details Deleted Successfully!"
+                'message' => "Permission Details Deleted Successfully!"
             ]);
         } else {
 
             return response()->json([
                 'status' => 404,
-                'message' => "No Such Role Found!"
+                'message' => "No Such Permission Found!"
             ]);
         }
     }

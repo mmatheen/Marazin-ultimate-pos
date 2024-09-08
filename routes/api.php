@@ -1,20 +1,24 @@
 <?php
 
 use App\Http\Controllers\BrandController;
-use App\Http\Controllers\WarrantyController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\SellingPriceGroupController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\ExpenseParentCategoryController;
 use App\Http\Controllers\ExpenseSubCategoryController;
+use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SellingPriceGroupController;
+use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\WarrantyController;
 use App\Models\VariationTitle;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -121,3 +125,21 @@ Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy'])
 //stop  variation route
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
+
+//start role route
+Route::get('/role', [RoleController::class, 'role'])->name('role');
+Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
+Route::get('/role-get-all', [RoleController::class, 'index']);
+Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
+Route::post('/role-update/{id}', [RoleController::class, 'update']);
+Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
+//stop  role route
+
+//start role-permission route
+Route::get('/role-permission', [PermissionController::class, 'permission'])->name('role-permission');
+Route::get('/role-permission-edit/{id}', [PermissionController::class, 'edit']);
+Route::get('/role-permission-get-all', [PermissionController::class, 'index']);
+Route::post('/role-permission-store', [PermissionController::class, 'store'])->name('role-permission-store');
+Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
+Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
+//stop  role-permission route

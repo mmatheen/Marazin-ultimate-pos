@@ -129,7 +129,7 @@
             if (!$('#addAndUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                   toastr.warning('Please fill in all the required fields.','Warning');
+                       toastr.warning('Invalid inputs, Check & try again!!','Warning');
                 return; // Return if form is not valid
             }
 

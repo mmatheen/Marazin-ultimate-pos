@@ -164,7 +164,7 @@
                     "closeButton": true,
                     "positionClass": "toast-top-right"
                 };
-                toastr.warning('Please fill in all the required fields.', 'Warning');
+                toastr.error('Invalid inputs, Check & try again!!','Error');
                 return; // Return if form is not valid
             }
 
