@@ -1,330 +1,395 @@
 @extends('layout.layout')
 @section('content')
-    <div class="content container-fluid">
+<div class="content container-fluid">
 
-        <style>
-            .hidden {
-                display: block;
-            }
-        </style>
-        <div class="row">
-            <div class="page-header">
-                <div class="row align-items-center">
-                    <div class="col-sm-12">
-                        <div class="page-sub-header">
-                            <h3 class="page-title">Add new product</h3>
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">Add new product</li>
-                            </ul>
-                        </div>
+    <style>
+        .hidden {
+            display: block;
+        }
+
+    </style>
+    <div class="row">
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col-sm-12">
+                    <div class="page-sub-header">
+                        <h3 class="page-title">Add new product</h3>
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="students.html">Product</a></li>
+                            <li class="breadcrumb-item active">Add new product</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        {{-- table row --}}
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <form class="px-3" action="#">
+    <div class="container">
+        <form id="addForm">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card card-table">
+                        <div class="card-body">
+                            <div class="page-header">
+                                <div class="row align-items-center">
+
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product Name <span class="login-danger">*</span></label>
-                                                    <input class="form-control" type="text" placeholder="Product Name">
+                                                    <input class="form-control" id="edit_product_name" name="product_name" type="text" placeholder="Product Name">
+                                                    <span class="text-danger" id="product_name_error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <label>Product SKU <span class="login-danger">*</span></label>
+                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU">
+                                                    <span class="text-danger" id="sku_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <label>SKU <span class="login-danger">*</span></label>
-                                                    <input class="form-control" type="text" placeholder="SKU">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-5">
                                                 <div class="input-group local-forms">
-                                                    <select id="unitSelect" class="form-control select2Box form-select">
-                                                        <option selected disabled>Unit</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </div>
-
-                                    <div class="row">
-
-
-                                        <div class="col-md-4">
-                                            <div class="mb-5">
-                                                <div class="input-group local-forms">
-                                                    <select id="brandSelect" class="form-control select2Box form-select">
-                                                        <option selected disabled>Brand</option>
-                                                    </select>
-
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="mb-5">
-                                                <div class="input-group local-forms">
-                                                    <select class="form-control select2Box form-select">
-                                                        <option selected disabled>Category</option>
-                                                        @foreach ($MainCategories as $MainCategory)
-                                                            <option value="{{ $MainCategory->id }}">
-                                                                {{ $MainCategory->mainCategoryName }}</option>
+                                                    <label>Product Unit <span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select" id="edit_unit_id" name="unit_id">
+                                                        <option selected disabled>Product Unit</option>
+                                                        @foreach ($units as $unit)
+                                                        <option value="{{ $unit->id }}">
+                                                            {{ $unit->name }}</option>
                                                         @endforeach
                                                     </select>
+                                                    <span class="text-danger" id="unit_id_error"></span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <label>Sub category<span class="login-danger"></span></label>
-                                                    <select class="form-control form-select select2Box">
+                                                <div class="input-group local-forms">
+                                                    <label>Product Brand <span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select" id="edit_brand_id" name="brand_id">
+                                                        <option selected disabled>Product Brand</option>
+                                                        @foreach ($brands as $brand)
+                                                        <option value="{{ $brand->id }}">
+                                                            {{ $brand->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <span class="text-danger" id="brand_id_error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <div class="input-group local-forms">
+                                                    <label>Main Category <span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select" id="edit_main_category_id" name="main_category_id">
+                                                        <option selected disabled>Main Catgory</option>
+                                                        @foreach ($MainCategories as $MainCategory)
+                                                        <option value="{{ $MainCategory->id }}">
+                                                            {{ $MainCategory->mainCategoryName }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <span class="text-danger" id="main_category_id_error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <div class="input-group local-forms">
+                                                    <label>Sub Category <span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
+                                                        <option selected disabled>Sub Catgory</option>
                                                         @foreach ($SubCategories as $SubCategory)
                                                         <option value="{{ $SubCategory->id }}">
                                                             {{ $SubCategory->subCategoryname }}</option>
-                                                    @endforeach
+                                                        @endforeach
                                                     </select>
+                                                    <span class="text-danger" id="sub_category_id_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
+                                        <div class="col-md-4">
+                                            <div class="mb-3 mt-4">
+                                                <div class="input-group local-forms">
+                                                    <label>Business Locations<span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select" id="edit_business_location_id" name="business_location_id">
+                                                        <option selected disabled>Business Location</option>
+                                                        @foreach ($locations as $location)
+                                                        <option value="{{ $location->id }}">
+                                                            {{ $location->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <span class="text-danger" id="business_location_id_error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div class="row">
+                                    <div class="row mt-3">
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <label>Business Locations</label>
-                                                    <select class="form-control form-select select" multiple="multiple">
-                                                        <option>Kalmunai</option>
-                                                        <option>Colombo</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-check ms-3">
-                                                    <input class="form-check-input" type="checkbox" id="isActive" checked
-                                                        onclick="toggleLoginFields(id,'.hidden')">
-                                                    <label class="form-check-label" for="isActive">
-                                                        Hide  Alert Stock
+                                            <div class="mb-5">
+                                                <div class="form-check">
+                                                    <input type="hidden" name="stock_alert" value="0">
+                                                    <input class="form-check-input" name="stock_alert" type="checkbox" id="edit_stock_alert" checked value="1">
+                                                    <label class="form-check-label" for="edit_stock_alert" id="stock_alert_label">
+                                                        Hide Alert Stock
                                                     </label>
+                                                    <span class="text-danger" id="stock_alert_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms hidden">
-                                                    <label>Alert Quantity<span class="login-danger">*</span></label>
-                                                    <input class="form-control" type="text" placeholder="0">
+                                        <div class="col-md-4" id="alert_quantity_container">
+                                            <div class="mb-5">
+                                                <div class="form-group local-forms">
+                                                    <label>Alert Quantity<span class="login-danger"></span></label>
+                                                    <input class="form-control" type="number" id="edit_alert_quantity" name="alert_quantity" placeholder="0">
+                                                    <span class="text-danger" id="alert_quantity_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
+                                        <script>
+                                            $(document).ready(function() {
+                                                // Set initial state when the page loads
+                                                toggleAlertQuantity();
+
+                                                // Event listener for the checkbox change
+                                                $('#edit_stock_alert').change(function() {
+                                                    toggleAlertQuantity();
+                                                });
+
+                                                // Function to toggle the alert quantity field based on checkbox status
+                                                function toggleAlertQuantity() {
+                                                    if ($('#edit_stock_alert').is(':checked')) {
+                                                        $('#alert_quantity_container').show(); // Show the alert quantity field when checkbox is checked
+                                                        $('#stock_alert_label').text('Show Alert Stock'); // Change label to "Hide Alert Stock"
+                                                    } else {
+                                                        $('#alert_quantity_container').hide(); // Hide the alert quantity field when unchecked
+                                                        $('#stock_alert_label').text('Hide Alert Stock'); // Change label to "Show Alert Stock"
+                                                    }
+                                                }
+                                            });
+
+                                        </script>
                                     </div>
-
                                     <div class="row">
 
                                         <div class="col-md-8">
-                                            <div id="summernote" value></div>
+                                            <div id="summernote" ></div>
                                         </div>
                                         <div class="col-md-4">
-                                            <label>Product image</label>
-                                            <div class="invoices-upload-btn">
-                                                <input type="file" accept="image/*" name="image" id="file"
-                                                    class="hide-input">
-                                                <label for="file" class="upload"><i class="far fa-folder-open">
-                                                        &nbsp;</i> Browse..</label>
-                                            </div>
-                                            <span>Max File size: 5MB
-                                                Aspect ratio should be 1:1</span>
-                                        </div>
-                                    </div>
-                                </form>
-                                <!-- Add other elements if needed -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <form class="px-3" action="#">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <div class="form-check ms-3">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="Enable_Product_description?">
-                                                    <label class="form-check-label" for="Enable_Product_description?">
-                                                        Enable Product description, IMEI or Serial Number
-                                                    </label>
+                                            <div class="row">
+                                                <div class="col-md-12">
+                                                    <label>Product image</label>
+                                                    <div class="invoices-upload-btn">
+                                                        <input type="file" accept="image/*" name="product_image" id="file" class="hide-input show-picture">
+                                                        <label for="file" class="upload"><i class="far fa-folder-open">
+                                                                &nbsp;</i> Browse..</label>
+                                                    </div>
+                                                    <span>Max File size: 5MB </span>
                                                 </div>
-                                            </div>
-                                        </div>
 
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <div class="form-check ms-3">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="Not_for_selling?">
-                                                    <label class="form-check-label" for="Not_for_selling?">
-                                                        Not for selling
-                                                    </label>
+                                                <div class="col-md-12 my-4 d-flex justify-content-center">
+                                                    <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                </form>
-                                <!-- Add other elements if needed -->
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <form class="px-3" action="#">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
-                                                    <select class="form-control form-select select"
-                                                        aria-label="Example text with button addon"
-                                                        aria-describedby="button-addon1">
-                                                        <option selected disabled>Product Type</option>
-                                                        <option>Box</option>
-                                                        <option>Bundle</option>
-                                                        <option>Case</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card card-table">
+                            <div class="card-body">
+                                <div class="page-header">
+                                    <div class="row align-items-center">
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
                                                 <div class="mb-3">
-                                                    <div class="form-group local-forms">
-                                                        <label>Pax<span class="login-danger"></span></label>
-                                                        <input class="form-control" type="text" placeholder="0">
+                                                    <div class="form-check ms-3">
+                                                        <input type="hidden" name="is_imei_or_serial_no" value="0">
+                                                        <input class="form-check-input" name="is_imei_or_serial_no" type="checkbox" value="1" id="Enable_Product_description">
+                                                        <label class="form-check-label" for="Enable_Product_description">
+                                                            Enable Product description, IMEI or Serial Number
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <div class="form-check ms-3">
+                                                        <input type="hidden" name="is_for_selling" value="0">
+                                                        <input class="form-check-input" name="is_for_selling" type="checkbox" value="1" id="Not_for_selling">
+                                                        <label class="form-check-label" for="Not_for_selling">
+                                                            Not for selling
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-4">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <div class="input-group local-forms">
+                                                        <select class="form-control form-select select" name="product_type" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                            <option selected disabled>Product Type</option>
+                                                            <option value="Box">Box</option>
+                                                            <option value="Bundle">Bundle</option>
+                                                            <option value="Case">Case</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <div class="mb-3">
+                                                        <div class="form-group local-forms">
+                                                            <label>Pax<span class="login-danger"></span></label>
+                                                            <input class="form-control" name="pax" type="number" placeholder="0">
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="table-responsive">
-                                                <table class="table table-bordered">
-                                                    <thead class="table-success">
-                                                        <tr>
-                                                            <th scope="col">Retail Price</th>
-                                                            <th scope="col">Whole Sale Price</th>
-                                                            <th scope="col">Special Price</th>
-                                                            <th scope="col">Original Price</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>
-                                                                <div class="form-group">
-                                                                    <input type="text" class="form-control" placeholder="Rs .00">
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-group">
-                                                                    <input type="text" class="form-control" placeholder="Rs .00">
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-group">
-                                                                    <input type="text" class="form-control" placeholder="Rs .00">
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div class="row">
-                                                                    <div class="col-md-12">
-                                                                        <input type="text" class="form-control" placeholder="Rs .00">
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card card-table">
+                            <div class="card-body">
+                                <div class="page-header">
+                                    <div class="row align-items-center">
 
-        <div class="row mb-4">
-            <div class="gap-4 d-flex justify-content-center">
-                <div>
-                    <button class="btn btn-primary">Save & Add</button>
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered">
+                                                        <thead class="table-success">
+                                                            <tr>
+                                                                <th scope="col">Cost Price</th>
+                                                                <th scope="col">Retail Price</th>
+                                                                <th scope="col">Whole Sale Price</th>
+                                                                <th scope="col">Special Price</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="row">
+                                                                        <div class="col-md-12">
+                                                                            <input type="number" id="edit_original_price" name="original_price" class="form-control" placeholder="Rs .00">
+                                                                            <span class="text-danger" id="original_price_error"></span>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <input type="number" id="edit_retail_price" name="retail_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="retail_price_error"></span>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <input type="number" id="edit_whole_sale_price" name="whole_sale_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="whole_sale_price_error"></span>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <input type="text" id="edit_special_price" name="special_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="special_price_error"></span>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <button class="btn btn-danger">Save And Add Another</button>
+
+
+                <div class="row mb-4">
+                    <div class="gap-4 d-flex justify-content-center">
+                        <div>
+                            <button type="submit" class="btn btn-outline-primary" id="openingStockAndProduct">Save & Add Opening Stock</button>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-outline-danger" id="SaveProductButtonAndAnother">Save And Add Another</button>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-outline-primary" id="onlySaveProductButton">Save</button>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <button class="btn btn-primary">Save</button>
+
+                <!-- Button trigger modal -->
+
+                {{-- Add/Edit modal row --}}
+                <div class="row">
+                    <div id="addOpeningStockModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-body">
+                                    <div class="text-center mt-2 mb-4">
+                                        <h5 id="modalTitle"></h5>
+                                    </div>
+
+                                    <div class="row">
+                                        <input type="hidden" name="edit_id" id="edit_id">
+
+                                        <div class="col-md-6">
+                                            <div class="form-group local-forms">
+                                                <label>Location Name<span class="login-danger">*</span></label>
+                                                <select id="edit_location_id" name="location_id" class="form-control">
+                                                    <option selected disabled>Please Select Location</option>
+                                                    @foreach($locations as $location)
+                                                    <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+
+
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
+                                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        {{-- modal Start --}}
-        @include('unit.unit_modal')
-        @include('brand.brand_modal')
-        @include('category.main_category_modal')
-        {{-- this is modal --}}
-
-
-        <script>
-            function toggleLoginFields(propertyId, actionClass) {
-                var checkBox = document.getElementById(propertyId);
-                var loginFields = document.querySelectorAll(actionClass);
-
-                loginFields.forEach(function(field) {
-                    field.style.display = checkBox.checked ? "block" : "none";
-                });
-            }
-        </script>
-
+        </form>
     </div>
 
-    @include('unit.unit_ajax')
-    @include('brand.brand_ajax')
+</div>
+
+@include('product.add_product_ajax')
+@include('stock.import_opening_stock_ajax')
 @endsection

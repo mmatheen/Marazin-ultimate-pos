@@ -11,11 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('units', function (Blueprint $table) {
+        Schema::create('locations', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name');
-            $table->text('short_name');
-            $table->text('allow_decimal')->nullable();
+            $table->string('location_id');
+            $table->string('address');
+            $table->string('province');
+            $table->string('district');
+            $table->string('city');
+            $table->string('email');
+            $table->integer('mobile');
+            $table->string('telephone_no');
             $table->timestamps();
         });
     }
@@ -25,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('units');
+        Schema::dropIfExists('locations');
     }
 };

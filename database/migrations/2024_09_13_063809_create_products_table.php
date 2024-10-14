@@ -1,0 +1,52 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('products', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('product_name');
+            $table->string('sku');
+            $table->integer('unit_id')->unsigned();
+            $table->integer('brand_id')->unsigned();
+            $table->integer('main_category_id')->unsigned();
+            $table->integer('sub_category_id')->unsigned();
+            $table->integer('business_location_id')->unsigned();
+            $table->boolean('stock_alert')->nullable();
+            $table->integer('alert_quantity')->nullable();
+            $table->string('product_image')->nullable();
+            $table->string('description')->nullable();
+            $table->boolean('is_imei_or_serial_no')->nullable();
+            $table->string('is_for_selling');
+            $table->string('product_type');
+            $table->string('pax')->nullable();
+            $table->double('retail_price');
+            $table->double('whole_sale_price');
+            $table->double('special_price');
+            $table->double('original_price');
+            $table->timestamps();
+            // ForeignKeys
+            $table->foreign('unit_id')->references('id')->on('units');
+            $table->foreign('brand_id')->references('id')->on('brands');
+            $table->foreign('main_category_id')->references('id')->on('main_categories');
+            $table->foreign('sub_category_id')->references('id')->on('sub_categories');
+            $table->foreign('business_location_id')->references('id')->on('locations');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
+};

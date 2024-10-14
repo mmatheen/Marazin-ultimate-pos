@@ -8,30 +8,34 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\ExpenseParentCategoryController;
 use App\Http\Controllers\ExpenseSubCategoryController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\OpeningStockController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PrintLabelController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SalesCommissionAgentController;
+use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SellingPriceController;
 use App\Http\Controllers\SellingPriceGroupController;
-use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VariationController;
-use App\Http\Controllers\WarrantyController;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\SalesCommissionAgentsController;
-use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\WarrantyController;
+use App\Models\Location;
+use App\Models\OpeningStock;
 use App\Models\Variation;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Facades\Route;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -55,9 +59,15 @@ function set_active($route)
 }
 
 Route::get('/', function () {
-      return view('welcome');
-    //     $variationValue=Variation::find(1);
-    //   dd($variationValue->variationTitle);
+    // Fetch OpeningStock with its related Location
+    $openingStock = OpeningStock::with('product')->find(1);
+
+    if ($openingStock) {
+        // Output the OpeningStock record along with the Location record
+        dd($openingStock);
+    } else {
+        dd('OpeningStock not found.');
+    }
 });
 
 Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
@@ -89,19 +99,16 @@ Route::post('/unit-update/{id}', [UnitController::class, 'update']);
 Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
-
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
 Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
-
-Route::get('/product-edit/{id}', [ProductController::class, 'edit']);
 Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
-Route::post('/product-update/{id}', [ProductController::class, 'update']);
-Route::delete('/product-delete/{id}', [ProductController::class, 'destroy']);
 //stop product route
+Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
+
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
@@ -132,10 +139,6 @@ Route::get('/print-label', [PrintLabelController::class, 'printLabel'])->name('p
 //start variation route
 Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
 //stop  variation route
-
-//start import opening route
-Route::get('/import-opening-stock', [StockController::class, 'importOpeningStock'])->name('import-opening-stock');
-//stop  import opening route
 
 //start selling price route
 Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
@@ -170,10 +173,20 @@ Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destr
 
 //start Supplier route
 Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');
+Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
+Route::get('/supplier-get-all', [SupplierController::class, 'index']);
+Route::post('/supplier-store', [SupplierController::class, 'store']);
+Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
+Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
 //stop  Supplier route
 
 //start Customer route
 Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
+Route::get('/customer-edit/{id}', [SupplierController::class, 'edit']);
+Route::get('/customer-get-all', [SupplierController::class, 'index']);
+Route::post('/customer-store', [SupplierController::class, 'store']);
+Route::post('/customer-update/{id}', [SupplierController::class, 'update']);
+Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
 //stop  Customer route
 
 //start sub catergories route
@@ -217,7 +230,6 @@ Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTran
 Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
 Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
 //stop  Sale transfer route
-
 
 //start expense-parent route
 Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
@@ -272,3 +284,26 @@ Route::post('/role-permission-store', [PermissionController::class, 'store'])->n
 Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
 Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
 //stop  role-permission route
+
+//start location route
+Route::get('/location', [LocationController::class, 'location'])->name('location');
+Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
+Route::get('/location-get-all', [LocationController::class, 'index']);
+Route::post('/location-store', [LocationController::class, 'store']);
+Route::post('/location-update/{id}', [LocationController::class, 'update']);
+Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+//stop  location route
+
+//start import-opening-stock route
+Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
+Route::get('/import-opening-stock-edit/{id}', [OpeningStockController::class, 'edit']);
+Route::get('/import-opening-stock-get-all', [OpeningStockController::class, 'index']);
+Route::post('/import-opening-stock-store', [OpeningStockController::class, 'store']);
+Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class, 'update']);
+Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
+//stop  import-opening-stock route
+
+// Excel import/export routes
+Route::get('/excel-export-student', [OpeningStockController::class, 'export'])->name('excel-export-student');
+Route::get('/excel-blank-template-export', [OpeningStockController::class, 'exportBlankTemplate'])->name('excel-blank-template-export');
+Route::post('/import-opening-stck-excel-store', [OpeningStockController::class, 'importOpeningStockStore']);

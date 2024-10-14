@@ -1,22 +1,27 @@
 <?php
 
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\CustomerGroupController;
-use App\Http\Controllers\ExpenseParentCategoryController;
-use App\Http\Controllers\ExpenseSubCategoryController;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SellingPriceGroupController;
-use App\Http\Controllers\SubCategoryController;
-use App\Http\Controllers\VariationController;
-use App\Http\Controllers\VariationTitleController;
-use App\Http\Controllers\WarrantyController;
-use App\Models\VariationTitle;
 use Illuminate\Http\Request;
+use App\Models\VariationTitle;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\WarrantyController;
+use App\Http\Controllers\VariationController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\OpeningStockController;
+use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\SellingPriceGroupController;
+use App\Http\Controllers\ExpenseSubCategoryController;
+use App\Http\Controllers\ExpenseParentCategoryController;
+
+
 
 
 
@@ -44,7 +49,6 @@ Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 
 
 //start brand route
-Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
 Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
 Route::get('/brand-get-all', [BrandController::class, 'index']);
 Route::post('/brand-store', [BrandController::class, 'store'])->name('brand-store');
@@ -53,7 +57,6 @@ Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
 //stop  brand route
 
 //start selling price route
-Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
 Route::get('/selling-price-group-edit/{id}', [SellingPriceGroupController::class, 'edit']);
 Route::get('/selling-price-group-get-all', [SellingPriceGroupController::class, 'index']);
 Route::post('/selling-price-group-store', [SellingPriceGroupController::class, 'store'])->name('selling-price-group-store');
@@ -62,7 +65,6 @@ Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::
 //stop  selling price route
 
 //start main catergories route
-Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');
 Route::get('/main-category-edit/{id}', [MainCategoryController::class, 'edit']);
 Route::get('/main-category-get-all', [MainCategoryController::class, 'index']);
 Route::post('/main-category-store', [MainCategoryController::class, 'store'])->name('main-category-store');
@@ -71,7 +73,6 @@ Route::delete('/main-category-delete/{id}', [MainCategoryController::class, 'des
 //stop  main catergories route
 
 //start sub catergories route
-Route::get('/sub-category', [SubCategoryController::class, 'SubCategory'])->name('sub-category');
 Route::get('/sub-category-edit/{id}', [SubCategoryController::class, 'edit']);
 Route::get('/sub-category-get-all', [SubCategoryController::class, 'index']);
 Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->name('sub-category-store');
@@ -80,7 +81,6 @@ Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destr
 //stop  sub catergories route
 
 //start CustomerGroup route
-Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
 Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);
 Route::get('/customer-group-get-all', [CustomerGroupController::class, 'index']);
 Route::post('/customer-group-store', [CustomerGroupController::class, 'store'])->name('customer-group-store');
@@ -89,7 +89,6 @@ Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'd
 //stop  CustomerGroup route
 
 //start expense-parent route
-Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
 Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
 Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
 Route::post('/expense-parent-catergory-store', [ExpenseParentCategoryController::class, 'store'])->name('expense-parent-catergory-store');
@@ -98,7 +97,6 @@ Route::delete('/expense-parent-catergory-delete/{id}', [ExpenseParentCategoryCon
 //stop  expense-parent route
 
 //start sub Expense Category route
-Route::get('/sub-expense-category', [ExpenseSubCategoryController::class, 'SubCategory'])->name('sub-expense-category');
 Route::get('/sub-expense-category-edit/{id}', [ExpenseSubCategoryController::class, 'edit']);
 Route::get('/sub-expense-category-get-all', [ExpenseSubCategoryController::class, 'index']);
 Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class, 'store'])->name('sub-expense-category-store');
@@ -107,7 +105,6 @@ Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController
 //stop  sub Expense Category route
 
 //start variation title  route
-Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');
 Route::get('/variation-title-edit/{id}', [VariationTitleController::class, 'edit']);
 Route::get('/variation-title-get-all', [VariationTitleController::class, 'index']);
 Route::post('/variation-title-store', [VariationTitleController::class, 'store'])->name('variation-title-store');
@@ -116,7 +113,6 @@ Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 
 //stop  variation title  route
 
 //start variation route
-Route::get('/variation', [VariationController::class, 'variationTitle'])->name('variation-title');
 Route::get('/variation-edit/{id}', [VariationController::class, 'edit']);
 Route::get('/variation-get-all', [VariationController::class, 'index']);
 Route::post('/variation-store', [VariationController::class, 'store'])->name('variation-title-store');
@@ -127,7 +123,6 @@ Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy'])
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 
 //start role route
-Route::get('/role', [RoleController::class, 'role'])->name('role');
 Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
 Route::get('/role-get-all', [RoleController::class, 'index']);
 Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
@@ -136,10 +131,60 @@ Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
 //stop  role route
 
 //start role-permission route
-Route::get('/role-permission', [PermissionController::class, 'permission'])->name('role-permission');
 Route::get('/role-permission-edit/{id}', [PermissionController::class, 'edit']);
 Route::get('/role-permission-get-all', [PermissionController::class, 'index']);
 Route::post('/role-permission-store', [PermissionController::class, 'store'])->name('role-permission-store');
 Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
 Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
 //stop  role-permission route
+
+//start Supplier route
+Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
+Route::get('/supplier-get-all', [SupplierController::class, 'index']);
+Route::post('/supplier-store', [SupplierController::class, 'store']);
+Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
+Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
+//stop  Supplier route
+
+//start Customer route
+Route::get('/customer-edit/{id}', [SupplierController::class, 'edit']);
+Route::get('/customer-get-all', [SupplierController::class, 'index']);
+Route::post('/customer-store', [SupplierController::class, 'store']);
+Route::post('/customer-update/{id}', [SupplierController::class, 'update']);
+Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
+//stop  Customer route
+
+//start Customer route
+Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::post('/customer-store', [CustomerController::class, 'store']);
+Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+//stop  Customer route
+
+//start location route
+Route::get('/location', [LocationController::class, 'location']);
+Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
+Route::get('/location-get-all', [LocationController::class, 'index']);
+Route::post('/location-store', [LocationController::class, 'store']);
+Route::post('/location-update/{id}', [LocationController::class, 'update']);
+Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+//stop  location route
+
+//start import-opening-stock route
+Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('importOpeningStock');
+Route::get('/import-opening-stock-edit/{id}', [OpeningStockController::class, 'edit']);
+Route::get('/import-opening-stock-get-all', [OpeningStockController::class, 'index']);
+Route::post('/import-opening-stock-store', [OpeningStockController::class, 'store']);
+Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class, 'update']);
+Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
+//stop  import-opening-stock route
+
+//start product route
+Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
+Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
+Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
+Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
+Route::get('/product-get-all', [ProductController::class, 'index']);
+Route::post('/product-store', [ProductController::class, 'store']);
+//stop product route

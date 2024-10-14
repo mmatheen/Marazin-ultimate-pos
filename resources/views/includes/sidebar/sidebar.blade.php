@@ -152,12 +152,13 @@
                     <a href="holiday.html"><i class="fas fa-holly-berry"></i> <span>Notification Templates</span></a>
                 </li>
 
+
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Settings</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
                         <li><a href="fees-collections.html">Business Settings</a></li>
-                        <li><a href="expenses.html">Business Locations</a></li>
+                        <li><a href="{{ route('location') }}" class="{{ set_active(['location'])}}">Business Locations</a></li>
                         <li><a href="expenses.html">Invoice Settings</a></li>
                         <li><a href="expenses.html">Barcode Settings</a></li>
                         <li><a href="expenses.html">Receipt Printers</a></li>
