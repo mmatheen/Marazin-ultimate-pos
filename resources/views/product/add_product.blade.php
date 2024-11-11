@@ -43,6 +43,8 @@
                                                 </div>
                                             </div>
                                         </div>
+
+
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
@@ -119,17 +121,28 @@
                                             <div class="mb-3 mt-4">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_business_location_id" name="business_location_id">
-                                                        <option selected disabled>Business Location</option>
+                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id"  multiple="multiple">
                                                         @foreach ($locations as $location)
                                                         <option value="{{ $location->id }}">
                                                             {{ $location->name }}</option>
                                                         @endforeach
                                                     </select>
-                                                    <span class="text-danger" id="business_location_id_error"></span>
+                                                    <span class="text-danger" id="location_id_error"></span>
                                                 </div>
                                             </div>
                                         </div>
+
+
+                                        <script>
+                                            $(document).ready(function () {
+                                                $('.multiple-location').select2({
+                                                    placeholder: "  Business Location",
+                                                    allowClear: true
+                                                });
+                                            });
+                                        </script>
+
+
                                     </div>
 
                                     <div class="row mt-3">
@@ -374,6 +387,7 @@
                                                 </select>
                                             </div>
                                         </div>
+
 
                                         <div class="col-md-6">
                                             <div class="form-group local-forms">

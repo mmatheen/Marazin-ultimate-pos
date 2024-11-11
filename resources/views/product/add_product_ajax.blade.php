@@ -21,7 +21,7 @@
                 , sub_category_id: {
                     required: true
                 , }
-                , business_location_id: {
+                , location_id: {
                     required: true
                 , }
 
@@ -56,7 +56,7 @@
                 , sub_category_id: {
                     required: "Sub Category  is required"
                 , }
-                , business_location_id: {
+                , location_id: {
                     required: "Business Location  is required"
                 , }
 
@@ -110,7 +110,7 @@
         $('#addForm').validate(addAndUpdateValidationOptions);
 
         // add form and update validation rules code end
-        
+
 
         // show the image when add and edit
         $(".show-picture").on("change", function() {
