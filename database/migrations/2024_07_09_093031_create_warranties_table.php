@@ -12,16 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('warranties', function (Blueprint $table) {
-            $table->increments('id');
-            // $table->integer('business_id')->unsigned();
+            $table->id();
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->string('name');
             $table->integer('duration');
             $table->string('duration_type');
             $table->text('description')->nullable();
+            $table->softDeletes();
             $table->timestamps();
 
             // ForeignKey
-            // $table->foreign('business_id')->references('id')->on('businesses')->onDelete('cascade');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

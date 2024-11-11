@@ -12,13 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('variations', function (Blueprint $table) {
-           $table->increments('id');
+            $table->id();
             $table->string('variation_value');
-            $table->integer('variation_title_id')->unsigned();
+            $table->unsignedBigInteger('variation_title_id');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
 
              // ForeignKey
              $table->foreign('variation_title_id')->references('id')->on('variation_titles');
+             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 
@@ -28,6 +30,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('variations');
+
     }
 };
 

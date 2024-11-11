@@ -24,15 +24,29 @@ return new class extends Migration
             throw new \Exception('Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.');
         }
 
+            // Create permission_group table
+            // Schema::create('permission_groups', function (Blueprint $table) {
+            //     $table->bigIncrements('id'); // permission group id
+            //     $table->string('name');       // group name
+            //     $table->timestamps();
+            //     $table->unique('name');       // Ensure group names are unique
+            // });
+
+
         Schema::create($tableNames['permissions'], function (Blueprint $table) {
             //$table->engine('InnoDB');
             $table->bigIncrements('id'); // permission id
+            // $table->unsignedBigInteger('permission_group_id')->nullable(); // permission group id (foreign key)
             $table->string('name');       // For MyISAM use string('name', 225); // (or 166 for InnoDB with Redundant/Compact row format)
+            $table->string('group_name');
             $table->string('guard_name'); // For MyISAM use string('guard_name', 25);
-            $table->string('group_name'); // For MyISAM use string('group_name', 25);
             $table->timestamps();
 
             $table->unique(['name', 'guard_name']);
+
+             // Foreign key relation to permission_groups
+            //  $table->foreign('permission_group_id')->references('id')->on('permission_groups')->onDelete('cascade');
+
         });
 
         Schema::create($tableNames['roles'], function (Blueprint $table) use ($teams, $columnNames) {
@@ -132,6 +146,7 @@ return new class extends Migration
             throw new \Exception('Error: config/permission.php not found and defaults could not be merged. Please publish the package configuration before proceeding, or drop the tables manually.');
         }
 
+        // Schema::drop('permission_groups'); //additional table
         Schema::drop($tableNames['role_has_permissions']);
         Schema::drop($tableNames['model_has_roles']);
         Schema::drop($tableNames['model_has_permissions']);

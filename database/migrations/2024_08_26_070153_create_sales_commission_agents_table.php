@@ -20,7 +20,11 @@ return new class extends Migration
             $table->string('contact_number')->nullable();
             $table->double('sales_commission_percentage');
             $table->string('description')->nullable();
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
+
+            // ForeignKey
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

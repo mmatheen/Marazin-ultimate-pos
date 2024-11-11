@@ -12,12 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('selling_price_groups', function (Blueprint $table) {
-            
-            $table->increments('id');
+            $table->id();
             $table->string('name');
             $table->text('description');
             $table->integer('is_active');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
+
+             // ForeignKey
+             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

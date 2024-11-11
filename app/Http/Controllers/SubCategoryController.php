@@ -18,7 +18,6 @@ class SubCategoryController extends Controller
 
     public function index()
     {
-
         $getValue = SubCategory::with('mainCategory')->get();
         if ($getValue->count() > 0) {
 

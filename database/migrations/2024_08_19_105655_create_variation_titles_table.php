@@ -12,9 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('variation_titles', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('variation_title');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
+
+             // ForeignKey
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

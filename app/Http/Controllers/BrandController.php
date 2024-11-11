@@ -2,22 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Helpers\Common;
 use App\Models\Brand;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class BrandController extends Controller
 {
-    public function Brand(){
+    public function Brand()
+    {
         return view('brand.brand');
     }
 
 
     public function index()
     {
-        $getValue = Brand::all();
+        $getValue = Brand::where('location_id', Common::getLocationId())->get();
         if ($getValue->count() > 0) {
-
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -73,6 +75,7 @@ class BrandController extends Controller
             $getValue = Brand::create([
                 'name' => $request->name,
                 'description' => $request->description ?? '',
+                'location_id'
             ]);
 
 
@@ -163,8 +166,8 @@ class BrandController extends Controller
             if ($getValue) {
                 $getValue->update([
 
-                  'name' => $request->name,
-                  'description' => $request->description,
+                    'name' => $request->name,
+                    'description' => $request->description,
 
                 ]);
                 return response()->json([

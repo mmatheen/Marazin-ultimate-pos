@@ -12,18 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-         
-            $table->increments('id');
-            $table->string('surname');
-            $table->string('first_name');
-            $table->string('last_name')->nullable();
-            $table->string('username')->unique();
-            $table->string('email')->nullable();
+
+            $table->id();
+            $table->string('name_title')->nullable();
+            $table->string('name');
+            $table->string('user_name')->nullable();
+            $table->string('role_name')->nullable();
+            $table->unsignedBigInteger('location_id')->nullable();
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->char('language', 7)->default('en');
             $table->rememberToken();
-            $table->softDeletes();
             $table->timestamps();
+
+             // ForeignKey
+             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

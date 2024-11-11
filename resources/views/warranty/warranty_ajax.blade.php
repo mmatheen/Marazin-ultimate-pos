@@ -8,16 +8,12 @@
         rules: {
             name: {
                 required: true,
-
             },
-
             duration: {
                 required: true,
-
             },
             duration_type: {
                 required: true,
-
             },
 
         },
@@ -46,7 +42,6 @@
         unhighlight: function (element, errorClass, validClass) {
             $(element).removeClass('is-invalidRed').addClass('is-validGreen');
         }
-
     };
 
     // Apply validation to both forms
@@ -91,19 +86,35 @@
                     var counter = 1;
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
-                        row.append('<td>' + counter  + '</td>');
+                        row.append('<td>' + counter + '</td>');
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' + item.description + '</td>');
                         row.append('<td>' + item.duration + '</td>');
                         row.append('<td>' + item.duration_type + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
-                        // row.append(actionDropdown);
+
+                        let actions = '<td>';
+                        if (response.permissions.includes('Edit/Update Warranty')) {
+                            actions += `
+                                <button type="button" value="${item.id}" class="edit_btn btn btn-outline-info btn-sm me-2">
+                                    <i class="feather-edit text-info"></i> Edit
+                                </button>`;
+                        }
+
+                        if (response.permissions.includes('Delete Warranty')) {
+                            actions += `
+                                <button type="button" value="${item.id}" class="delete_btn btn btn-outline-danger btn-sm">
+                                    <i class="feather-trash-2 text-danger me-1"></i> Delete
+                                </button>`;
+                        }
+                        actions += '</td>';
+
+                        row.append(actions);
                         table.row.add(row).draw(false);
                         counter++;
                     });
                 },
             });
-        }
+          }
 
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {

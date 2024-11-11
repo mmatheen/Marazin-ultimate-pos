@@ -23,7 +23,11 @@ return new class extends Migration
             $table->string('date');
             $table->string('assign_to');
             $table->double('opening_balance');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
+
+             // ForeignKey
+             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

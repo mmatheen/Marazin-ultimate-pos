@@ -27,11 +27,9 @@
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
                                 <button type="button" class="btn btn-outline-info " id="addRoleButton">
-                                  New Role  <i class="fas fa-plus px-2"> </i>
+                                  Role  <i class="fas fa-plus px-2"> </i>
                                 </button>
-                                <a href="{{ route('add-role') }}" class="btn btn-outline-info">
-                                    <i class="fas fa-plus px-2"></i>Add
-                            </a>
+
                             </div>
                         </div>
                     </div>
@@ -41,7 +39,7 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Name</th>
+                                    <th>Role Name</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -71,8 +69,8 @@
 
                             <div class="mb-3">
                                 <div class="form-group local-forms">
-                                    <label>Name <span class="login-danger">*</span></label>
-                                    <input class="form-control" id="edit_name" name="name" type="text" placeholder="Enter Name">
+                                    <label>Role Name <span class="login-danger">*</span></label>
+                                    <input class="form-control" id="edit_name" name="name" type="text" placeholder="Enter Role Name">
                                     <span class="text-danger" id="name_error"></span>
                                 </div>
                             </div>

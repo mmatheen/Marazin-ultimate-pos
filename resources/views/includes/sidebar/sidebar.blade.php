@@ -20,7 +20,7 @@
                     <ul>
                         <li><a href={{ route('user') }} class="{{ set_active(['user'])}}">Users</a></li>
                         <li><a href={{ route('role') }} class="{{ set_active(['role'])}}">Roles</a></li>
-                        <li><a href={{ route('role-permission') }} class="{{ set_active(['role-permission'])}}">Role Permission</a></li>
+                        <li><a href={{ route('group-role-and-permission-view') }} class="{{ set_active(['group-role-and-permission-view'])}}">Role And Permission</a></li>
                         <li><a href={{ route('sales-commission-agent') }} class="{{ set_active(['sales-commission-agent'])}}">Sales Commissions</a></li>
                     </ul>
                 </li>
@@ -52,7 +52,9 @@
                         <li><a href={{ route('main-category') }} class="{{ set_active(['main-category'])}}">Main Category</a></li>
                         <li><a href={{ route('sub-category') }} class="{{ set_active(['sub-category'])}}">Sub Category</a></li>
                         <li><a href={{ route('brand')}} class="{{ set_active(['brand'])}}">Brands</a></li>
+                        @can('View Warranty')
                         <li><a href={{ route('warranty') }} class="{{ set_active(['warranty'])}}">Warranty</a></li>
+                         @endcan
                     </ul>
                 </li>
                 <li class="submenu {{ set_active(['list-purchase'])}}">
@@ -151,7 +153,6 @@
                 <li>
                     <a href="holiday.html"><i class="fas fa-holly-berry"></i> <span>Notification Templates</span></a>
                 </li>
-
 
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Settings</span> <span

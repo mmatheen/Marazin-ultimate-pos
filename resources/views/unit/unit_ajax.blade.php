@@ -9,7 +9,6 @@
         rules: {
             name: {
                 required: true,
-
             },
 
             short_name: {

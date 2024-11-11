@@ -3,16 +3,11 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Role; //it will use the from permission modal
 use Illuminate\Support\Facades\Validator;
 
 class RoleController extends Controller
 {
-
-    public function addRole(){
-
-        return view('user_permissions.add_role');
-    }
 
     public function role(){
         return view('user_permissions.role.role');
@@ -57,7 +52,7 @@ class RoleController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'name' => 'required|string',
+                'name' => 'required|string|max:50|unique:roles,name',
             ]
         );
 
@@ -141,11 +136,22 @@ class RoleController extends Controller
      */
     public function update(Request $request, int $id)
     {
+
+           // Fetch the user by ID
+           $roleDetails = Role::find($id);
+
+           // Check if the user exists
+           if (!$roleDetails) {
+               return response()->json([
+                   'status' => 404,
+                   'message' => "No Such Role Found!"
+               ]);
+           }
+
         $validator = Validator::make(
             $request->all(),
             [
-
-                'name' => 'required|string',
+                'name' => 'required|string|max:50|unique:roles,name,'. $roleDetails->id, // Unique name except for current role,
             ]
         );
 

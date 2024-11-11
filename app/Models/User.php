@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\LocationTrait;
+
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
@@ -11,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens,LocationTrait, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -19,7 +21,11 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'name_title',
         'name',
+        'user_name',
+        'role_name',
+        'location_id',
         'email',
         'password',
     ];
@@ -42,4 +48,11 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+
 }

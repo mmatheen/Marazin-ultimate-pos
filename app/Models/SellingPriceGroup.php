@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class SellingPriceGroup extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
     protected $table='selling_price_groups';
     protected $fillable=[
               'name',

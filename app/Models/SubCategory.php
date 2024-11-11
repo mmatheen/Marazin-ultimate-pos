@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class SubCategory extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
     protected $table='sub_categories';
     protected $fillable=[
               'subCategoryname',

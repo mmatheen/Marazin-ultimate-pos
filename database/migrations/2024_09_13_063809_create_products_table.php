@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('products', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('product_name');
             $table->string('sku');
-            $table->integer('unit_id')->unsigned();
-            $table->integer('brand_id')->unsigned();
-            $table->integer('main_category_id')->unsigned();
-            $table->integer('sub_category_id')->unsigned();
-            $table->integer('business_location_id')->unsigned();
+            $table->unsignedBigInteger('unit_id');
+            $table->unsignedBigInteger('brand_id');
+            $table->unsignedBigInteger('main_category_id');
+            $table->unsignedBigInteger('sub_category_id');
+            $table->unsignedBigInteger('location_id');
             $table->boolean('stock_alert')->nullable();
             $table->integer('alert_quantity')->nullable();
             $table->string('product_image')->nullable();
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->foreign('brand_id')->references('id')->on('brands');
             $table->foreign('main_category_id')->references('id')->on('main_categories');
             $table->foreign('sub_category_id')->references('id')->on('sub_categories');
-            $table->foreign('business_location_id')->references('id')->on('locations');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

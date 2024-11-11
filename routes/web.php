@@ -1,41 +1,39 @@
 <?php
 
-use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\ContactController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\CustomerGroupController;
-use App\Http\Controllers\ExpenseParentCategoryController;
-use App\Http\Controllers\ExpenseSubCategoryController;
-use App\Http\Controllers\LocationController;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\OpeningStockController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\PrintLabelController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\PurchaseReturnController;
-use App\Http\Controllers\RoleController;
+use App\Models\User;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Request;
 use App\Http\Controllers\SaleController;
-use App\Http\Controllers\SalesCommissionAgentController;
-use App\Http\Controllers\SalesCommissionAgentsController;
-use App\Http\Controllers\SellingPriceController;
-use App\Http\Controllers\SellingPriceGroupController;
-use App\Http\Controllers\StockTransferController;
-use App\Http\Controllers\SubCategoryController;
-use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\VariationController;
-use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\WarrantyController;
-use App\Models\Location;
-use App\Models\OpeningStock;
-use App\Models\Variation;
-use Illuminate\Support\Facades\Request;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\VariationController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PrintLabelController;
+use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\MainCategoryController;
+use App\Http\Controllers\OpeningStockController;
+use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\AuthenticationController;
+use App\Http\Controllers\PurchaseReturnController;
+use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\SellingPriceGroupController;
 
+
+use App\Http\Controllers\ExpenseSubCategoryController;
+use App\Http\Controllers\ExpenseParentCategoryController;
+use App\Http\Controllers\SalesCommissionAgentsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,36 +48,75 @@ use Illuminate\Support\Facades\Route;
 
 function set_active($route)
 {
-
     if (is_array($route)) {
         return in_array(Request::path(), $route) ? 'active' : '';
     }
-
     return Request::path() == $route ? 'active' : '';
 }
 
-Route::get('/', function () {
-    // Fetch OpeningStock with its related Location
-    $openingStock = OpeningStock::with('product')->find(1);
-
-    if ($openingStock) {
-        // Output the OpeningStock record along with the Location record
-        dd($openingStock);
-    } else {
-        dd('OpeningStock not found.');
-    }
+Route::get('/testing', function () {
+    //     return view('welcome');
+    // $adminRole = Role::findByName('Admin'); // Or 'Super Admin', 'Manager', 'Cashier' as appropriate
+    // dd($adminRole->permissions->pluck('name'));
+    $role = Auth::user()->location_id;
+    dd($role);
 });
 
-Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
 
-//start warranty route
-Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
-Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
-Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
-Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
-Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
-Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
-//stop warranty route
+Route::get('/dashboard', function () {
+    return view('includes.dashboards.dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+require __DIR__ . '/auth.php';
+
+// without login you can't go to the any page and auth middleware will manage this task
+
+//    Route::group(['middleware' => ['role:Super Admin']], function () {
+
+//});
+
+Route::group(['middleware' => function ($request, $next) {
+
+    // Define your routes with a dynamic role
+    $role = Auth::user()->role_name ?? null;
+    if ($role) {
+        $request->route()->middleware("role:$role");
+    }
+    return $next($request);
+}], function () {
+
+
+    require __DIR__ . '/role_permission.php';
+
+    //start user route
+    Route::get('/user', [UserController::class, 'user'])->name('user');
+    Route::get('/user-edit/{id}', [UserController::class, 'edit']);
+    Route::get('/user-get-all', [UserController::class, 'index']);
+    Route::post('/user-store', [UserController::class, 'store']);
+    Route::post('/user-update/{id}', [UserController::class, 'update']);
+    Route::delete('/user-delete/{id}', [UserController::class, 'destroy']);
+    //stop user route
+
+    //start warranty route
+    Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
+    Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
+    Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
+    Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
+    Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
+    Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
+    //stop warranty route
+
+});
+
+//start Guard route start
+Route::get('/get-all-details-using-guard', [AuthenticationController::class, 'getDetailsFromGuardDetailsUsingLoginUer']);
+Route::get('/update-location', [AuthenticationController::class, 'updateLocation']);
+Route::get('/user-location-get-all', [AuthenticationController::class, 'getAlluserDetails']);
+//start Guard route end
+
+Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
 //start brand route
 Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
@@ -100,28 +137,19 @@ Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
 //start product route
-Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
+Route::get('/list-product', [ProductController::class, 'product'])->name('list-product')->middleware('Add Product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
 Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 Route::get('/product-get-all', [ProductController::class, 'index']);
-Route::post('/product-store', [ProductController::class, 'store']);
+Route::post('/product-store', [ProductController::class, 'store'])->middleware('Add Product');
 //stop product route
 Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
-
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
 
-//start user route
-Route::get('/user', [UserController::class, 'user'])->name('user');
-Route::get('/add-user', [UserController::class, 'addUser'])->name('add-user');
-//stop product route
 
-//start user route
-Route::get('/role', [RoleController::class, 'role'])->name('role');
-Route::get('/add-role', [RoleController::class, 'addRole'])->name('add-role');
-//stop product route
 
 //start SalesCommissionAgents route
 Route::get('/sales-commission-agent', [SalesCommissionAgentsController::class, 'SalesCommissionAgents'])->name('sales-commission-agent');
@@ -266,24 +294,6 @@ Route::post('/variation-store', [VariationController::class, 'store'])->name('va
 Route::post('/variation-update/{id}', [VariationController::class, 'update']);
 Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
 //stop  variation route
-
-//start role route
-Route::get('/role', [RoleController::class, 'role'])->name('role');
-Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
-Route::get('/role-get-all', [RoleController::class, 'index']);
-Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
-Route::post('/role-update/{id}', [RoleController::class, 'update']);
-Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
-//stop  role route
-
-//start role-permission route
-Route::get('/role-permission', [PermissionController::class, 'permission'])->name('role-permission');
-Route::get('/role-permission-edit/{id}', [PermissionController::class, 'edit']);
-Route::get('/role-permission-get-all', [PermissionController::class, 'index']);
-Route::post('/role-permission-store', [PermissionController::class, 'store'])->name('role-permission-store');
-Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
-Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
-//stop  role-permission route
 
 //start location route
 Route::get('/location', [LocationController::class, 'location'])->name('location');

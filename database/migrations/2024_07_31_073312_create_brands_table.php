@@ -13,14 +13,14 @@ return new class extends Migration
     {
         Schema::create('brands', function (Blueprint $table) {
 
-            $table->increments('id');
-            // $table->integer('business_id')->unsigned();
+            $table->id();
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->string('name');
             $table->text('description')->nullable();
             $table->timestamps();
 
-            // ForeignKey
-            // $table->foreign('business_id')->references('id')->on('businesses')->onDelete('cascade');
+           // ForeignKey
+           $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

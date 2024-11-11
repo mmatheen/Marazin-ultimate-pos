@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('locations', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id('id');
             $table->string('name');
-            $table->string('location_id');
+            $table->string('location_id')->nullable();
             $table->string('address');
             $table->string('province');
             $table->string('district');

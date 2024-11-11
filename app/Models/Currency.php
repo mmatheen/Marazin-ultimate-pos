@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Currency extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
     protected $table='currencies';
     protected $fillable=[
               'country',

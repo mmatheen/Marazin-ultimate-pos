@@ -36,10 +36,11 @@
         $("html").addClass("menu-opened");
         return false;
     });
-    if ($(".toggle-password").length > 0) {
-        $(document).on("click", ".toggle-password", function () {
+    // .toggle-password1
+    if ($(".toggle-password1").length > 0) {
+        $(document).on("click", ".toggle-password1", function () {
             $(this).toggleClass("feather-eye feather-eye-off");
-            var input = $(".pass-input");
+            var input = $(".pass-input1");
             if (input.attr("type") == "password") {
                 input.attr("type", "text");
             } else {
@@ -47,6 +48,20 @@
             }
         });
     }
+    
+// .toggle-password2
+    if ($(".toggle-password2").length > 0) {
+        $(document).on("click", ".toggle-password2", function () {
+            $(this).toggleClass("feather-eye feather-eye-off");
+            var input = $(".pass-input2");
+            if (input.attr("type") == "password") {
+                input.attr("type", "text");
+            } else {
+                input.attr("type", "password");
+            }
+        });
+    }
+
     if ($(".reg-toggle-password").length > 0) {
         $(document).on("click", ".reg-toggle-password", function () {
             $(this).toggleClass("feather-eye feather-eye-off");
@@ -130,7 +145,7 @@
                 console.error(err.stack);
             });
     }
-    
+
     //
 
     if ($(".datetimepicker").length > 0) {

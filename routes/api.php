@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use App\Models\VariationTitle;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CustomerController;
@@ -17,9 +18,11 @@ use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\CustomerGroupController;
 use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\RoleInPermissionController;
 use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
+
 
 
 
@@ -130,13 +133,6 @@ Route::post('/role-update/{id}', [RoleController::class, 'update']);
 Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
 //stop  role route
 
-//start role-permission route
-Route::get('/role-permission-edit/{id}', [PermissionController::class, 'edit']);
-Route::get('/role-permission-get-all', [PermissionController::class, 'index']);
-Route::post('/role-permission-store', [PermissionController::class, 'store'])->name('role-permission-store');
-Route::post('/role-permission-update/{id}', [PermissionController::class, 'update']);
-Route::delete('/role-permission-delete/{id}', [PermissionController::class, 'destroy']);
-//stop  role-permission route
 
 //start Supplier route
 Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
@@ -188,3 +184,21 @@ Route::get('/import-product', [ProductController::class, 'importProduct'])->name
 Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
 //stop product route
+
+Route::get('/group-role-and-permission-view', [RoleInPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
+Route::get('/group-role-and-permission', [RoleInPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
+Route::get('/role-and-permission-edit/{role_id}', [RoleInPermissionController::class, 'edit']);
+Route::post('/role-and-permission-store', [RoleInPermissionController::class, 'store'])->name('role-and-permission-store');
+Route::get('/group-and-permission-all', [RoleInPermissionController::class, 'index'])->name('group-and-permission-all');
+Route::get('/role-and-permission-all', [RoleInPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
+Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionController::class, 'destroy']);
+//stop role route
+
+  //start unit route
+  Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
+  Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
+  Route::get('/unit-get-all', [UnitController::class, 'index']);
+  Route::post('/unit-store', [UnitController::class, 'store']);
+  Route::post('/unit-update/{id}', [UnitController::class, 'update']);
+  Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
+  //stop  brand route

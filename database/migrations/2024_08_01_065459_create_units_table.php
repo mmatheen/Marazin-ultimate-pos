@@ -12,11 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('units', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('name');
             $table->text('short_name');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->text('allow_decimal')->nullable();
             $table->timestamps();
+
+            // ForeignKey
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

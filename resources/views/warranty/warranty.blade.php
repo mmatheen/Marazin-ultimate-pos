@@ -26,9 +26,12 @@
                         <div class="row align-items-center">
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
+
+                              @if(Auth::user()->can('Add Product'))
                                 <button type="button" class="btn btn-outline-info " id="addWarrantyButton">
-                                  New  <i class="fas fa-plus px-2"> </i>
-                                </button>
+                                    New  <i class="fas fa-plus px-2"> </i>
+                                  </button>
+                              @endif
                             </div>
                         </div>
                     </div>

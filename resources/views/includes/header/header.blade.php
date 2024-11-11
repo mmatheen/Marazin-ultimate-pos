@@ -26,21 +26,19 @@
         </a>
 
         <ul class="nav user-menu">
-            <li class="nav-item dropdown noti-dropdown language-drop me-2">
-                <a href="#" class="dropdown-toggle nav-link header-nav-list" data-bs-toggle="dropdown">
-                    <img src="assets/img/icons/header-icon-01.svg" alt="">
-                </a>
-                <div class="dropdown-menu ">
-                    <div class="noti-content">
-                        <div>
-                            <a class="dropdown-item" href="javascript:;"><i
-                                    class="flag flag-lr me-2"></i>English</a>
-                            <a class="dropdown-item" href="javascript:;"><i
-                                    class="flag flag-bl me-2"></i>Francais</a>
-                            <a class="dropdown-item" href="javascript:;"><i class="flag flag-cn me-2"></i>Turkce</a>
-                        </div>
-                    </div>
-                </div>
+
+            <li class="nav-item dropdown noti-dropdown me-4">
+
+                {{-- dynamically change the location and only show owner --}}
+                @if(Auth::check() && is_null(Auth::user()->role_name))
+                <select class="form-control form-select" id="location_dropdown">
+                    {{-- dynamicly location name getting --}}
+                </select>
+                @endif
+            </li>
+            <li class="nav-item dropdown noti-dropdown me-2 mt-4">
+                {{-- dynamically change the location --}}
+                <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
             </li>
 
             <li class="nav-item dropdown noti-dropdown me-2">
@@ -58,8 +56,7 @@
                                 <a href="#">
                                     <div class="media d-flex">
                                         <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image"
-                                                src="assets/img/profiles/avatar-02.jpg">
+                                            <img class="avatar-img rounded-circle" alt="User Image" src="assets/img/profiles/avatar-02.jpg">
                                         </span>
                                         <div class="media-body flex-grow-1">
                                             <p class="noti-details"><span class="noti-title">Carlson Tech</span> has
@@ -74,13 +71,11 @@
                                 <a href="#">
                                     <div class="media d-flex">
                                         <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image"
-                                                src="assets/img/profiles/avatar-11.jpg">
+                                            <img class="avatar-img rounded-circle" alt="User Image" src="assets/img/profiles/avatar-11.jpg">
                                         </span>
                                         <div class="media-body flex-grow-1">
                                             <p class="noti-details"><span class="noti-title">International Software
-                                                    Inc</span> has sent you a invoice in the amount of <span
-                                                    class="noti-title">$218</span></p>
+                                                    Inc</span> has sent you a invoice in the amount of <span class="noti-title">$218</span></p>
                                             <p class="noti-time"><span class="notification-time">6 mins ago</span>
                                             </p>
                                         </div>
@@ -91,8 +86,7 @@
                                 <a href="#">
                                     <div class="media d-flex">
                                         <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image"
-                                                src="assets/img/profiles/avatar-17.jpg">
+                                            <img class="avatar-img rounded-circle" alt="User Image" src="assets/img/profiles/avatar-17.jpg">
                                         </span>
                                         <div class="media-body flex-grow-1">
                                             <p class="noti-details"><span class="noti-title">John Hendry</span> sent
@@ -108,8 +102,7 @@
                                 <a href="#">
                                     <div class="media d-flex">
                                         <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image"
-                                                src="assets/img/profiles/avatar-13.jpg">
+                                            <img class="avatar-img rounded-circle" alt="User Image" src="assets/img/profiles/avatar-13.jpg">
                                         </span>
                                         <div class="media-body flex-grow-1">
                                             <p class="noti-details"><span class="noti-title">Mercury Software
@@ -138,33 +131,133 @@
             <li class="nav-item dropdown has-arrow new-user-menus">
                 <a href="#" class="dropdown-toggle nav-link" data-bs-toggle="dropdown">
                     <span class="user-img">
-                        <img class="rounded-circle" src="assets/img/profiles/avatar-01.jpg" width="31"
-                            alt="Soeng Souy">
+                        <img class="rounded-circle" src="assets/img/profiles/avatar-01.jpg" width="31" alt="Soeng Souy">
                         <div class="user-text">
-                            <h6>Soeng Souy</h6>
-                            <p class="text-muted mb-0">Administrator</p>
+                            <h6>{{ Auth::user()->user_name }}</h6>
+                            <p class="text-muted mb-0">{{ Auth::user()->role_name }}</p>
                         </div>
                     </span>
                 </a>
                 <div class="dropdown-menu">
                     <div class="user-header">
                         <div class="avatar avatar-sm">
-                            <img src="assets/img/profiles/avatar-01.jpg" alt="User Image"
-                                class="avatar-img rounded-circle">
+                            <img src="assets/img/profiles/avatar-01.jpg" alt="User Image" class="avatar-img rounded-circle">
                         </div>
                         <div class="user-text">
-                            <h6>Soeng Souy</h6>
-                            <p class="text-muted mb-0">Administrator</p>
+                            <h6>{{ Auth::user()->user_name }}</h6>
+                            <p class="text-muted mb-0">{{ Auth::user()->role_name }}</p>
                         </div>
                     </div>
-                    <a class="dropdown-item" href="profile.html">My Profile</a>
-                    <a class="dropdown-item" href="inbox.html">Inbox</a>
-                    <a class="dropdown-item" href="login.html">Logout</a>
+                    <a class="dropdown-item" href="{{route('profile.edit')}}">My Profile</a>
+                    {{-- <a class="dropdown-item" href="{{ route('logout') }}">Logout</a> --}}
+                    <form method="POST" action="{{ route('logout') }}" id="logout-form">
+                        @csrf
+                        <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            Logout
+                        </a>
+                    </form>
                 </div>
             </li>
-
         </ul>
-
     </div>
-
 </div>
+
+
+{{-- it will get the location details code start --}}
+<script>
+    $(document).ready(function() {
+
+        // Fetch the user details from the server
+        $.ajax({
+            url: '/get-all-details-using-guard',
+             type: 'GET',
+             success: function(response) {
+                if (response.status === 200) {
+                    $('#location_name').text(response.message.location.name);
+                } else {
+                    $('#location_name').text('No Location Found');
+                }
+            },
+             error: function() {
+                $('#location').text('Error retrieving details');
+            }
+        });
+
+        const locationSelect = $('#location_dropdown');
+        const locationNameDisplay = $('#location_name');
+
+        // Fetch user and location details
+        $.ajax({
+            url: 'user-location-get-all', // Replace with your endpoint URL
+            type: 'GET',
+             success: function(response) {
+                if (response.status === 200) {
+                    // Clear any existing options
+                    locationSelect.empty();
+                    locationSelect.append('<option value="">Select Location</option>');
+
+                    // Loop through each message object
+                    response.message.forEach(item => {
+                        if (item.location) {
+                            locationSelect.append(
+                                `<option value="${item.location.id}">${item.location.name}</option>`
+                            );
+                        }
+                    });
+
+                    // Restore the selected location from localStorage if available
+                    const savedLocationId = localStorage.getItem('selectedLocationId');
+                    const savedLocationName = localStorage.getItem('selectedLocationName');
+
+                    if (savedLocationId && savedLocationName) {
+                        locationSelect.val(savedLocationId); // Set the dropdown value
+                        locationNameDisplay.text(savedLocationName); // Display the saved location name
+                    } 
+                }
+            },
+             error: function(error) {
+                console.log("Error:", error);
+            }
+        });
+
+        // Update location text and save selection to localStorage on change
+        locationSelect.on('change', function() {
+            const selectedText = $(this).find("option:selected").text(); // Get selected text
+            const selectedValue = $(this).val(); // Get selected value
+
+            // Update the location name display
+            locationNameDisplay.text(selectedText);
+
+            // Save to localStorage
+            if (selectedValue) {
+                localStorage.setItem('selectedLocationId', selectedValue);
+                localStorage.setItem('selectedLocationName', selectedText);
+
+                // Redirect to the dashboard if a valid option is selected
+                window.location.href = '{{ route("brand") }}';
+            } else {
+                // Clear localStorage if no valid selection
+                localStorage.removeItem('selectedLocationId');
+                localStorage.removeItem('selectedLocationName');
+            }
+        });
+
+        //uptate the location in session using select box
+        $(document).on('change', '#location_dropdown', function() {
+            $.ajax({
+                url: '/update-location',
+                 type: 'GET',
+                 data: {
+                    id: $(this).val()
+                },
+                 success: function(response) {},
+                 error: function() {
+                    $('#location').text('Error retrieving details');
+
+                }
+            });
+        })
+    });
+
+</script>
+{{-- it will get the location details code end --}}

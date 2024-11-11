@@ -14,7 +14,7 @@
         messages: {
 
             name: {
-                required: "Name is required",
+                required: "Role Name is required",
             },
 
         },
@@ -51,6 +51,13 @@
             $('#addAndEditRoleModal').on('hidden.bs.modal', function () {
                 resetFormAndValidation();
             });
+
+        // it will Clear the serverside validation errors on input change
+        // Clear validation error for specific fields on input change based on 'name' attribute
+        $('#addAndUpdateForm').on('input change', 'input', function() {
+            var fieldName = $(this).attr('name');
+            $('#' + fieldName + '_error').html(''); // Clear specific field error message
+        });
 
         // Show Add Warranty Modal
         $('#addRoleButton').click(function() {
@@ -139,6 +146,8 @@
                     if (response.status == 400) {
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
+                            toastr.error(err_value, 'Validation Error');
+                            document.getElementsByClassName('errorSound')[0].play(); //for sound
                         });
 
                     } else {

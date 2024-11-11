@@ -76,6 +76,7 @@
             }
             , errorElement: 'span'
             , errorPlacement: function(error, element) {
+
                 // error message show after selectbox
                 if (element.is("select")) {
                     error.addClass('text-danger');
@@ -83,6 +84,7 @@
                     error.insertAfter(element.closest('div'));
                 }
                 // error message show after checkbox
+
                 else if (element.is(":checkbox")) {
                     error.addClass('text-danger');
                     // For checkboxes, place the error after the checkbox's parent container
@@ -108,6 +110,7 @@
         $('#addForm').validate(addAndUpdateValidationOptions);
 
         // add form and update validation rules code end
+        
 
         // show the image when add and edit
         $(".show-picture").on("change", function() {

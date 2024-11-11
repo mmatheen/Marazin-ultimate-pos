@@ -12,10 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('expense_parent_categories', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('expenseParentCatergoryName');
             $table->text('description');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
+
+            // ForeignKey
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

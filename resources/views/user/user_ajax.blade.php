@@ -6,31 +6,88 @@
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
         rules: {
+            name_title: {
+                required: true,
+            },
             name: {
                 required: true,
-
             },
-            group_name: {
+            user_name: {
                 required: true,
-
             },
+            roles: {
+                required: true,
+            },
+            location_id: {
+                required: true,
+            },
+            email: {
+                required: true,
+                email: true // Added email format validation
+            },
+            password: {
+                required: function() {
+                // Check if the hidden edit_id value is empty.
+                // It returns true if it is empty (indicating an add operation),
+                // and false if a value is available (indicating an update operation).
+                return $('#edit_id').val() === '';
+                // When updating the record, the password field will not be validated as required.
+            },
+                minlength: 6 // Minimum password length validation
 
+        },
 
         },
         messages: {
 
+            name_title: {
+                required: "Name Title is required",
+            },
+
             name: {
-                required: "Name is required",
+                required: "Full Name is required",
             },
-            group_name: {
-                required: "Group Name is required",
+
+            user_name: {
+                required: "User Name is required",
             },
+            roles: {
+                required: "Role Name is required",
+            },
+            location_id: {
+                required: "Location Name is required",
+            },
+            email: {
+                required: "Email is required",
+                email: "Please enter a valid email address", // Message for invalid email
+            },
+            password: {
+                required: "Password is required",
+                minlength: "Password must be at least 5 characters long",
+            },
+
 
         },
         errorElement: 'span',
         errorPlacement: function (error, element) {
-            error.addClass('text-danger');
-            error.insertAfter(element);
+              // error message show after selectbox
+              if (element.is("select")) {
+                    error.addClass('text-danger');
+                    // Insert the error after the closest parent div for better placement with select
+                    error.insertAfter(element.closest('div'));
+                }
+                // error message show after checkbox
+
+                else if (element.is(":checkbox")) {
+                    error.addClass('text-danger');
+                    // For checkboxes, place the error after the checkbox's parent container
+                    error.insertAfter(element.closest('div').find('label').last());
+                }
+                // error message show after inputbox
+                else {
+                    error.addClass('text-danger');
+                    error.insertAfter(element);
+                }
         },
         highlight: function (element, errorClass, validClass) {
             $(element).addClass('is-invalidRed').removeClass('is-validGreen');
@@ -46,6 +103,8 @@
 
   // add form and update validation rules code end
 
+
+
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
@@ -57,35 +116,46 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditPermissionModal').on('hidden.bs.modal', function () {
+            $('#addAndEditModal').on('hidden.bs.modal', function () {
                 resetFormAndValidation();
             });
 
+             // it will Clear the serverside validation errors on input change
+        // Clear validation error for specific fields on input change based on 'name' attribute
+        $('#addAndUpdateForm').on('input change', 'input', function() {
+            var fieldName = $(this).attr('name');
+            $('#' + fieldName + '_error').html(''); // Clear specific field error message
+        });
+
         // Show Add Warranty Modal
-        $('#addPermissionButton').click(function() {
-            $('#modalTitle').text('New Permission');
+        $('#addButton').click(function() {
+            $('#modalTitle').text('New User');
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
-            $('#addAndEditPermissionModal').modal('show');
+            $('#addAndEditModal').modal('show');
         });
 
         // Fetch and Display Data
         function showFetchData() {
             $.ajax({
-                url: '/role-permission-get-all',
+                url: '/user-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    var table = $('#permission').DataTable();
+                    var table = $('#user').DataTable();
                     table.clear().draw();
                     var counter = 1;
                     response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
+                        row.append('<td>' + item.name_title + '</td>');
                         row.append('<td>' + item.name + '</td>');
-                        row.append('<td>' + item.group_name + '</td>');
+                        row.append('<td>' + item.user_name + '</td>');
+                        row.append('<td><span class="badge rounded-pill bg-dark me-1">' + item.role_name + '</span></td>');
+                        row.append('<td>' + item.location.name + '</td>');
+                        row.append('<td>' + item.email + '</td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
@@ -98,23 +168,27 @@
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
-            $('#modalTitle').text('Edit Role');
+            $('#modalTitle').text('Edit User');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
             $.ajax({
-                url: 'role-permission-edit/' + id,
+                url: 'user-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
+                        $('#edit_name_title').val(response.message.name_title);
                         $('#edit_name').val(response.message.name);
-                        $('#edit_group_name').val(response.message.group_name);
-                        $('#addAndEditPermissionModal').modal('show');
+                        $('#edit_user_name').val(response.message.user_name);
+                        $('#edit_email').val(response.message.email);
+                        $('#edit_role_name').val(response.message.role_name);
+                        $('#edit_location_id').val(response.message.location.id);
+                        $('#addAndEditModal').modal('show');
                     }
                 }
             });
@@ -129,13 +203,13 @@
             if (!$('#addAndUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                    toastr.error('Invalid inputs, Check & try again!!','Error');
+                        toastr.error('Invalid inputs, Check & try again!!','Warning');
                 return; // Return if form is not valid
             }
 
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
-            let url = id ? 'role-permission-update/' + id : 'role-permission-store';
+            let url = id ? 'user-update/' + id : 'user-store';
             let type = id ? 'post' : 'post';
 
             $.ajax({
@@ -150,10 +224,12 @@
                     if (response.status == 400) {
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
+                            toastr.error(err_value, 'Validation Error');
+                            document.getElementsByClassName('errorSound')[0].play(); //for sound
                         });
 
                     } else {
-                        $('#addAndEditPermissionModal').modal('hide');
+                        $('#addAndEditModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
@@ -166,18 +242,18 @@
         });
 
 
-        // Delete Role
+        // Delete user
         $(document).on('click', '.delete_btn', function() {
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);
-            $('#deleteName').text('Delete Permission');
+            $('#deleteName').text('Delete User');
         });
 
         $(document).on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
             $.ajax({
-                url: 'role-permission-delete/' + id,
+                url: 'user-delete/' + id,
                 type: 'delete',
                 headers: {'X-CSRF-TOKEN': csrfToken},
                 success: function(response) {

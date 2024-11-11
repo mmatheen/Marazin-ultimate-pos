@@ -1,118 +1,210 @@
 @extends('layout.layout')
 @section('content')
-    <div class="content container-fluid">
-
-        <div class="row">
-            <div class="page-header">
-                <div class="row align-items-center">
-                    <div class="col-sm-12">
-                        <div class="page-sub-header">
-                            <h3 class="page-title">Users</h3>
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Users</a></li>
-                                <li class="breadcrumb-item active">List Users</li>
-                            </ul>
-                        </div>
+<div class="content container-fluid">
+    <div class="row">
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col-sm-12">
+                    <div class="page-sub-header">
+                        <h3 class="page-title">Users</h3>
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="students.html">Users</a></li>
+                            <li class="breadcrumb-item active">List Users</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
-
-        {{-- table row --}}
-        <div class="row">
-            <div class="col-sm-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <div class="col-auto text-end float-end ms-auto download-grp">
-                                    <!-- Button trigger modal -->
-                                    <a href={{ route('add-user') }} class="btn btn-outline-info">
-                                        <i class="fas fa-plus px-2"></i>Add
-                                </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%">
-                                <thead>
-                                    <tr>
-                                        <th>Username</th>
-                                        <th>Name</th>
-                                        <th>Role</th>
-                                        <th>Email</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Add modal row --}}
-        <div class="row">
-            <div id="addModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-                <div class="modal-dialog  modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center mt-2 mb-4">
-                                <h5>Add Warranty</h5>
-                            </div>
-                            <form class="px-3" action="#">
-                                <div class="mb-3">
-                                    <div class="form-group local-forms">
-                                        <label>Name <span class="login-danger">*</span></label>
-                                        <input class="form-control" type="text" placeholder="Enter Name">
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="form-group local-forms">
-                                        <label>Description <span class="login-danger">*</span></label>
-                                        <textarea class="form-control" type="text" placeholder="Enter Description"></textarea>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <div class="row">
-                                        <div class="col">
-                                            <div class="form-group local-forms">
-                                                <label>Duration <span class="login-danger">*</span></label>
-                                                <input class="form-control" type="number" placeholder="Enter Duration">
-                                            </div>
-                                        </div>
-                                        <div class="col">
-                                            <div class="form-group local-forms days">
-                                                <label>Blood Group <span class="login-danger">*</span></label>
-                                                <select class="form-control form-select">
-                                                    <option selected disabled>Please Select </option>
-                                                    <option>Days</option>
-                                                    <option>Months</option>
-                                                    <option>Years</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-primary">Save changes</button>
-                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {{-- Edit modal row --}}
     </div>
-@endsection
 
+    {{-- table row --}}
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="card card-table">
+                <div class="card-body">
+                    <div class="page-header">
+                        <div class="row align-items-center">
+                            <div class="col-auto text-end float-end ms-auto download-grp">
+                                <!-- Button trigger modal -->
+                                <button type="button" class="btn btn-outline-info " id="addButton">
+                                    New <i class="fas fa-plus px-2"> </i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table id="user" class="datatable table table-stripped" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name Title</th>
+                                    <th>Full Name</th>
+                                    <th>User Name</th>
+                                    <th>Role Name</th>
+                                    <th>Location Name</th>
+                                    <th>Email</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                            </tbody>
+
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="row">
+        <form id="addAndUpdateForm">
+            <div id="addAndEditModal" class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="text-center my-4">
+                            <h5 id="modalTitle"></h5>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <input type="hidden" name="edit_id" id="edit_id">
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="input-group local-forms">
+                                            <label>Name Title <span class="login-danger">*</span></label>
+                                            <select class="form-control form-select" id="edit_name_title" name="name_title">
+                                                <option selected disabled>Mr / Mrs / Miss</option>
+                                                <option value="Mr">Mr</option>
+                                                <option value="Mrs">Mrs</option>
+                                                <option value="Ms">Ms</option>
+                                                <option value="Miss">Miss</option>
+                                            </select>
+                                            <span class="text-danger" id="name_title_error"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-group local-forms">
+                                            <label>Full Name <span class="login-danger">*</span></label>
+                                            <input class="form-control" id="edit_name" name="name" type="text" placeholder="Enter Full Name">
+                                            <span class="text-danger" id="name_error"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-group local-forms">
+                                            <label>User Name <span class="login-danger">*</span></label>
+                                            <input class="form-control" id="edit_user_name" name="user_name" type="text" placeholder="Enter Last Name">
+                                            <span class="text-danger" id="user_name_name_error"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-5">
+                                        <div class="input-group local-forms">
+                                            <label>Role Name<span class="login-danger">*</span></label>
+                                            <select id="edit_role_name" name="roles" class="form-control  form-select">
+                                                <option selected disabled>Please Select </option>
+                                                @foreach($roles as $role)
+                                                <option value="{{ $role->name }}">{{ $role->name }}</option>
+
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger" id="role_name_error"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="mb-5">
+                                        <div class="input-group local-forms">
+                                            <label>Location Name<span class="login-danger">*</span></label>
+                                            <select id="edit_location_id" name="location_id" class="form-control  form-select">
+                                                <option selected disabled>Please Select </option>
+                                                @foreach($locations as $location)
+                                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger" id="location_id_error"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group local-forms">
+                                        <label>Email <span class="login-danger">*</span></label>
+                                        <input class="form-control" id="edit_email" name="email" type="email" placeholder="Enter Email">
+                                        <span class="text-danger" id="email_error"></span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group local-forms">
+                                        <label>Password <span class="login-danger">*</span></label>
+                                        <input class="form-control pass-input1" id="edit_password" name="password" type="password" placeholder="Enter Password">
+                                        <span class="profile-views feather-eye toggle-password1"></span>
+                                        <span class="text-danger" id="password_error"></span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group local-forms">
+                                        <label>Confirm Password <span class="login-danger">*</span></label>
+                                        <input class="form-control pass-input2" id="edit_confirm_password" name="password_confirmation" autocomplete="new-password" type="password" placeholder="Enter Password">
+                                        <span class="profile-views feather-eye toggle-password2"></span>
+                                        <span class="text-danger" id="confirm_password_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
+                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {{-- Delete modal --}}
+    <div id="deleteModal" class="modal custom-modal fade" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="form-header">
+                        <h3 id="deleteName"></h3>
+                        <p>Are you sure want to delete?</p>
+                    </div>
+                    <div class="modal-btn delete-action">
+                        <div class="row">
+                            <input type="hidden" id="deleting_id">
+                            <div class="row">
+                                <div class="col-6">
+                                    <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                </div>
+                                <div class="col-6">
+                                    <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel
+                                    </a>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@include('user.user_ajax')
+@endsection

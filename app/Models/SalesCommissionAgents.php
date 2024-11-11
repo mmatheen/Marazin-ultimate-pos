@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class SalesCommissionAgents extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
     protected $table='sales_commission_agents';
 
     protected $fillable=[

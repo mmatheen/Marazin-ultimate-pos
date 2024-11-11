@@ -294,6 +294,7 @@ class ProductController extends Controller
         }
     }
 
+    
     public function showSubCategoryDetailsUsingByMainCategoryId(string $main_category_id)
     {
         $subcategoryDetails = SubCategory::where('main_category_id', $main_category_id)->select('id', 'subCategoryname', 'main_category_id','subCategoryCode','description')->orderBy('main_category_id', 'asc')->get();
@@ -305,7 +306,7 @@ class ProductController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Such subcategoryDetails record Found!"
+                'message' => "No Such sub category Details record Found!"
             ]);
         }
     }

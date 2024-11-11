@@ -18,5 +18,14 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
+
+        // you have to add this according to your forignkey table order
+        $this->call(Location::class);
+        $this->call(MainCategory::class);
+        $this->call(SubCategory::class);
+        $this->call(Role::class);
+        $this->call(permission::class);
+        $this->call(RoleHasPermission::class);
+        $this->call(User::class);
     }
 }

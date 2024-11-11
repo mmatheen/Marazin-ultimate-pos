@@ -26,4 +26,6 @@ class Location extends Model
     {
         return $this->hasMany(OpeningStock::class);
     }
+
+  
 }

@@ -12,15 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('expense_sub_categories', function (Blueprint $table) {
-            $table->increments('id');
+            $table->id();
             $table->string('subExpenseCategoryname');
-            $table->integer('main_expense_category_id')->unsigned();
+            $table->unsignedBigInteger('main_expense_category_id');
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->string('subExpenseCategoryCode')->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
-
+            
               // ForeignKey
-              $table->foreign('main_expense_category_id')->references('id')->on('expense_parent_categories');
+            $table->foreign('main_expense_category_id')->references('id')->on('expense_parent_categories');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
 
         });
     }
