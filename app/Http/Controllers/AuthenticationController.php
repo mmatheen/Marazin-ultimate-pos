@@ -15,8 +15,7 @@ class AuthenticationController extends Controller
 
     public function getAlluserDetails()
     {
-        $getValue = User::with('location')->get();
-        $getValue = User::with('location')->get()->pluck('location')->unique('id')->values();
+         $getValue = User::with('location')->get();
         if ($getValue->count() > 0) {
 
             return response()->json([

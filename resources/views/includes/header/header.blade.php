@@ -196,14 +196,18 @@
                     locationSelect.empty();
                     locationSelect.append('<option value="">Select Location</option>');
 
-                    // Loop through each message object
-                    response.message.forEach(item => {
-                        if (item.location) {
-                            locationSelect.append(
-                                `<option value="${item.location.id}">${item.location.name}</option>`
-                            );
-                        }
-                    });
+                     // Use a Set to keep track of unique location IDs
+                     const uniqueLocations = new Set();
+
+                      // Loop through each message object
+                        response.message.forEach(item => {
+                            if (item.location && !uniqueLocations.has(item.location.id)) {
+                                uniqueLocations.add(item.location.id); // Mark this ID as seen
+                                locationSelect.append(
+                                    `<option value="${item.location.id}">${item.location.name}</option>`
+                                );
+                            }
+                        });
 
                     // Restore the selected location from localStorage if available
                     const savedLocationId = localStorage.getItem('selectedLocationId');
@@ -212,7 +216,7 @@
                     if (savedLocationId && savedLocationName) {
                         locationSelect.val(savedLocationId); // Set the dropdown value
                         locationNameDisplay.text(savedLocationName); // Display the saved location name
-                    } 
+                    }
                 }
             },
              error: function(error) {
