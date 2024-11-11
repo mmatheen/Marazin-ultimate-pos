@@ -18,7 +18,7 @@ class Product extends Model
               'brand_id',
               'main_category_id',
               'sub_category_id',
-              'business_location_id',
+              'location_id',
               'stock_alert',
               'alert_quantity',
               'product_image',
