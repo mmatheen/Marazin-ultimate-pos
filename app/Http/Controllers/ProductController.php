@@ -89,7 +89,7 @@ class ProductController extends Controller
                 'brand_id' => 'required|integer|exists:brands,id',
                 'main_category_id' => 'required|integer|exists:main_categories,id',
                 'sub_category_id' => 'required|integer|exists:sub_categories,id',
-                'business_location_id' => 'required|integer|exists:locations,id',
+                'location_id' => 'required|integer|exists:locations,id',
                 'stock_alert' => 'nullable|boolean',
                 'alert_quantity' => 'nullable|numeric|min:0',
                 'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -166,7 +166,7 @@ class ProductController extends Controller
                 'brand_id' => $request->brand_id,
                 'main_category_id' => $request->main_category_id,
                 'sub_category_id' => $request->sub_category_id,
-                'business_location_id' => $request->business_location_id,
+                'location_id' => $request->location_id,
                 'stock_alert' => $request->stock_alert,
                 'alert_quantity' => $request->alert_quantity,
                 'product_image' => $fileName,
@@ -294,7 +294,7 @@ class ProductController extends Controller
         }
     }
 
-    
+
     public function showSubCategoryDetailsUsingByMainCategoryId(string $main_category_id)
     {
         $subcategoryDetails = SubCategory::where('main_category_id', $main_category_id)->select('id', 'subCategoryname', 'main_category_id','subCategoryCode','description')->orderBy('main_category_id', 'asc')->get();

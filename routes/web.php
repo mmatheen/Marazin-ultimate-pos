@@ -137,13 +137,14 @@ Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
 //start product route
-Route::get('/list-product', [ProductController::class, 'product'])->name('list-product')->middleware('Add Product');
+Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
 Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 Route::get('/product-get-all', [ProductController::class, 'index']);
-Route::post('/product-store', [ProductController::class, 'store'])->middleware('Add Product');
+Route::post('/product-store', [ProductController::class, 'store']);
 //stop product route
+
 Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
 
 Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
