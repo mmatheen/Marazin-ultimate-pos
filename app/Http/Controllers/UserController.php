@@ -147,7 +147,7 @@ class UserController extends Controller
     public function edit(int $id)
     {
 
-        
+
         $getValue = User::with('location')->find($id);
 
         if ($getValue) {

@@ -12,10 +12,11 @@ class AuthenticationController extends Controller
         return view('includes.dashboards.dashboard');
     }
 
-    
+
     public function getAlluserDetails()
     {
         $getValue = User::with('location')->get();
+        $getValue = User::with('location')->get()->pluck('location')->unique('id')->values();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -29,6 +30,8 @@ class AuthenticationController extends Controller
             ]);
         }
     }
+
+
 
 
      public function getDetailsFromGuardDetailsUsingLoginUer()
