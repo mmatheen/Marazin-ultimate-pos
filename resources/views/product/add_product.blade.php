@@ -183,7 +183,7 @@
                                     <div class="row">
 
                                         <div class="col-md-8">
-                                            <div id="summernote" ></div>
+                                            <div id="summernote"></div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="row">
@@ -359,6 +359,7 @@
                                         <h5 id="modalTitle"></h5>
                                     </div>
 
+
                                     <div class="row">
                                         <input type="hidden" name="edit_id" id="edit_id">
 
@@ -374,17 +375,92 @@
                                             </div>
                                         </div>
 
+                                        <div class="col-md-6">
+                                            <div class="form-group local-forms">
+                                                <label>Product Name<span class="login-danger">*</span></label>
+                                                <select id="edit_product_id" name="product_id" class="form-control">
+                                                    <option selected disabled>Please Select Product</option>
+                                                    @foreach($products as $product)
+                                                    <option value="{{ $product->id }}">{{ $product->product_name }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
 
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <label>SkU <span class="login-danger">*</span></label>
+                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Enter SKU">
+                                                    <span class="text-danger" id="sku_error"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <div class="row">
+                                                    <div class="col">
+                                                        <div class="form-group local-forms">
+                                                            <label>Quantity <span class="login-danger">*</span></label>
+                                                            <input class="form-control" id="edit_quantity" name="quantity" type="number" placeholder="Enter Quantity">
+                                                            <span class="text-danger" id="quantity_error"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <div class="row">
+                                                    <div class="col">
+                                                        <div class="form-group local-forms">
+                                                            <label>Unit Cost <span class="login-danger">*</span></label>
+                                                            <input class="form-control" id="edit_unit_cost" name="unit_cost" type="text" placeholder="Enter Unit Cost">
+                                                            <span class="text-danger" id="unit_cost_error"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <div class="row">
+                                                    <div class="col">
+                                                        <div class="form-group local-forms">
+                                                            <label>Lot No <span class="login-danger">*</span></label>
+                                                            <input class="form-control" id="edit_lot_no" name="lot_no" type="text" placeholder="Enter Lot No">
+                                                            <span class="text-danger" id="lot_no_error"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms calendar-icon">
+                                                    <label>Expiry Date <span class="login-danger">*</span></label>
+                                                    <input type="text" name="expiry_date" id="edit_expiry_date" autocomplete="off" placeholder="YYYY.MM.DD" class="form-control datetimepicker me-5">
+                                                </div>
+                                                <span class="text-danger" id="expiry_date_error"></span>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="modal-footer">
                                         <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
                                         <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
         </form>
     </div>
 
