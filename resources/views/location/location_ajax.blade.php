@@ -170,7 +170,7 @@
                         $('#edit_name').val(response.message.name);
                         $('#edit_location_id').val(response.message.location_id);
                         $('#edit_address').val(response.message.address);
-                        $('#edit_province').val(response.message.province);
+                        $('#edit_province').val(response.message.province).trigger('change'); // when click edit location the provices is not again loaded to give the trigger function
                         $('#edit_district').val(response.message.district);
                         $('#edit_city').val(response.message.city);
                         $('#edit_email').val(response.message.email);

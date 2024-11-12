@@ -158,12 +158,10 @@
                                         </div>
 
                                         <div class="table-responsive">
-                                            <table class="datatable table table-stripped" style="width:100%" id="example1">
+                                            <table class="datatable table table-stripped" style="width:100%" id="productTable">
                                                 <thead>
                                                     <tr>
-                                                        <th><input type="checkbox" name="" value=""
-                                                                id="allchecked"
-                                                                onclick="toggleLoginFields(id,'.checked')" /></th>
+                                                        <th><input type="checkbox" id="allchecked" onclick="toggleLoginFields(id, '.checked')" /></th>
                                                         <th>Product Image</th>
                                                         <th>Action</th>
                                                         <th>Product</th>
@@ -171,79 +169,19 @@
                                                         <th>Selling Price</th>
                                                         <th>Current Stock</th>
                                                         <th>Product Type</th>
-                                                        <th>Catergory</th>
+                                                        <th>Category</th>
                                                         <th>Brand</th>
                                                         <th>Tax</th>
                                                         <th>SKU</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr>
-                                                        <td><input type="checkbox" name="" value=""
-                                                                class="checked" /></td>
-                                                        <td><img src="https://via.placeholder.com/50" alt="Product 1" />
-                                                        </td>
-                                                        <td>
-                                                            <div class="dropdown dropdown-action">
-                                                                <a href="#" class="action-icon dropdown-toggle"
-                                                                    data-bs-toggle="dropdown" aria-expanded="false"><button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button></a>
-                                                                <div class="dropdown-menu dropdown-menu-end">
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td>Product 1</td>
-                                                        <td>Location 1</td>
-                                                        <td>$10.00</td>
-                                                        <td>100</td>
-                                                        <td>Type 1</td>
-                                                        <td>Category 1</td>
-                                                        <td>Brand 1</td>
-                                                        <td>5%</td>
-                                                        <td>SKU001</td>
-                                                    </tr>
-
-                                                    <tr>
-                                                        <td><input type="checkbox" name="" value=""
-                                                                class="checked" /></td>
-                                                        <td><img src="https://via.placeholder.com/50" alt="Product 2" />
-                                                        </td>
-                                                        <td>
-                                                            <div class="dropdown dropdown-action">
-                                                                <a href="#" class="action-icon dropdown-toggle"
-                                                                    data-bs-toggle="dropdown" aria-expanded="false"><button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button></a>
-                                                                <div class="dropdown-menu dropdown-menu-end">
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-history"></i></i>&nbsp;&nbsp;Product stock history</a>
-                                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td>Product 2</td>
-                                                        <td>Location 2</td>
-                                                        <td>$20.00</td>
-                                                        <td>200</td>
-                                                        <td>Type 2</td>
-                                                        <td>Category 2</td>
-                                                        <td>Brand 2</td>
-                                                        <td>10%</td>
-                                                        <td>SKU002</td>
-                                                    </tr>
+                                                    <!-- Data from AJAX will be dynamically appended here -->
                                                 </tbody>
                                             </table>
                                         </div>
+                                        
+                                    
                                     </div>
                                 </div>
                                 <div class="tab-pane" id="solid-justified-tab2">
@@ -319,4 +257,8 @@
             });
         }
     </script>
+
+    
+@include('product.product_ajax')
 @endsection
+

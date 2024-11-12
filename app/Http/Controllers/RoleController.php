@@ -85,8 +85,7 @@ class RoleController extends Controller
 
     /**
      * Display the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
+  
      * @return \Illuminate\Http\Response
      */
     public function show(int $id)

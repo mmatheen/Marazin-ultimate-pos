@@ -2,35 +2,53 @@
 
 namespace App\Models;
 
-use App\Traits\LocationTrait;
+use App\Models\Category;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+
+
 class Product extends Model
 {
-    use HasFactory, LocationTrait;
-    protected $table='products';
-    protected $fillable=[
+    use HasFactory;
 
-              'product_name',
-              'sku',
-              'unit_id',
-              'brand_id',
-              'main_category_id',
-              'sub_category_id',
-              'location_id',
-              'stock_alert',
-              'alert_quantity',
-              'product_image',
-              'description',
-              'is_imei_or_serial_no',
-              'is_for_selling',
-              'product_type',
-              'pax',
-              'retail_price',
-              'whole_sale_price',
-              'special_price',
-              'original_price',
+    protected $fillable = [
+        'product_name',
+        'sku',
+        'unit_id',
+        'brand_id',
+        'main_category_id', 
+        'sub_category_id',
+        'stock_alert',
+        'alert_quantity', 
+        'product_image', 
+        'description', 
+        'is_imei_or_serial_no',
+        'is_for_selling',
+        'product_type', 
+        'pax', 
+        'retail_price',
+        'whole_sale_price',
+        'special_price', 
+        'original_price',
     ];
-}
 
+    // Relationship to locations (many-to-many)
+    public function locations()
+    {
+        return $this->belongsToMany(Location::class);
+    }
+
+    // Relationship to category (belongsTo)
+    public function category()
+    {
+        return $this->belongsTo(MainCategory::class, 'main_category_id');  // Adjust the second parameter based on your table column
+    }
+
+    // Relationship to brand (belongsTo)
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class, 'brand_id');  // Adjust based on your table column
+    }
+}

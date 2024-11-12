@@ -143,6 +143,8 @@ Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('up
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
+Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
+
 //stop product route
 
 Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');

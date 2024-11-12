@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('products', function (Blueprint $table) {
@@ -19,7 +16,6 @@ return new class extends Migration
             $table->unsignedBigInteger('brand_id');
             $table->unsignedBigInteger('main_category_id');
             $table->unsignedBigInteger('sub_category_id');
-            $table->unsignedBigInteger('location_id');
             $table->boolean('stock_alert')->nullable();
             $table->integer('alert_quantity')->nullable();
             $table->string('product_image')->nullable();
@@ -33,20 +29,24 @@ return new class extends Migration
             $table->double('special_price');
             $table->double('original_price');
             $table->timestamps();
-            // ForeignKeys
+
+            // Foreign keys
             $table->foreign('unit_id')->references('id')->on('units');
             $table->foreign('brand_id')->references('id')->on('brands');
             $table->foreign('main_category_id')->references('id')->on('main_categories');
             $table->foreign('sub_category_id')->references('id')->on('sub_categories');
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
+
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        Schema::dropIfExists('location_product');
         Schema::dropIfExists('products');
+
+        Schema::table('products', function (Blueprint $table) {
+            $table->unsignedBigInteger('location_id')->nullable(); // Add back location_id if rolling back
+        });
     }
 };
+

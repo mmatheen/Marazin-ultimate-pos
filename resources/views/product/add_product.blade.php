@@ -121,7 +121,7 @@
                                             <div class="mb-3 mt-4">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id"  multiple="multiple">
+                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]"  multiple="multiple">
                                                         @foreach ($locations as $location)
                                                         <option value="{{ $location->id }}">
                                                             {{ $location->name }}</option>

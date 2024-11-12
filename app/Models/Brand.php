@@ -15,4 +15,10 @@ class Brand extends Model
               'description',
               
     ];
+
+    // Relationship to products (one-to-many)
+    public function products()
+    {
+        return $this->hasMany(Product::class, 'brand_id');  // Adjust foreign key if needed
+    }
 }

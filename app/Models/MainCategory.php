@@ -19,4 +19,10 @@ class MainCategory extends Model
     {
         return $this->hasMany(SubCategory::class); // SubCategory is SubCategory modal name
     }
+
+      // Relationship to products (one-to-many)
+      public function products()
+      {
+          return $this->hasMany(Product::class, 'main_category_id');  // Adjust foreign key if needed
+      }
 }
