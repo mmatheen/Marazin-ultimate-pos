@@ -22,23 +22,41 @@ class ProductController extends Controller
 
     public function addProduct()
     {
-        $MainCategories = MainCategory::all(); // this course come from modal
-        $SubCategories = SubCategory::with('mainCategory')->get(); // this course come from modal
+        return view('product.add_product');
+    }
+
+    public function initialProductDetails()
+    {
+        $mainCategories = MainCategory::all();
+        $subCategories = SubCategory::with('mainCategory')->get();
         $brands = Brand::all();
         $units = Unit::all();
         $locations = Location::all();
-        $products = Product::all();
-        return view('product.add_product', compact('brands', 'SubCategories', 'MainCategories','units','locations','products'));
+
+        // Check if all collections have records
+        if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
+            return response()->json([
+                'status' => 200,
+                'message' => [
+                    'brands' => $brands,
+                    'subCategories' => $subCategories,
+                    'mainCategories' => $mainCategories,
+                    'units' => $units,
+                    'locations' => $locations,
+                ]
+            ]);
+        } else {
+            return response()->json([
+                'status' => 404,
+                'message' => "No Records Found!"
+            ]);
+        }
     }
 
 
-  
 
 public function index()
 {
-
-
-   
 
     $user = Auth::user();
 
@@ -46,7 +64,7 @@ public function index()
     if ($user->location_id !== null) {
         // Filter products by the user's location
         $locationId = $user->location_id;
-       
+
         $getValue = Product::whereHas('locations', function($query) use ($locationId) {
             $query->where('locations.id', $locationId);
         })->with('locations')->get();
@@ -84,7 +102,7 @@ public function index()
         // Return product details as JSON
         return response()->json(['status' => 200, 'message' => $product]);
     }
-    
+
 
     /**
      * Show the form for creating a new resource.
@@ -136,20 +154,20 @@ public function index()
                 'original_price' => 'required|numeric|min:0'
             ]
         );
-    
+
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
-    
+
         // Auto-generate SKU
         $sku = $request->sku ?: 'PRO' . sprintf("%04d", Product::count() + 1);
-    
+
         // File upload
         $fileName = $request->hasFile('product_image') ? time() . '.' . $request->file('product_image')->extension() : null;
         if ($fileName) {
             $request->file('product_image')->move(public_path('/assets/images'), $fileName);
         }
-    
+
         // Create product
         $product = Product::create([
             'product_name' => $request->product_name,
@@ -171,13 +189,13 @@ public function index()
             'special_price' => $request->special_price,
             'original_price' => $request->original_price,
         ]);
-    
+
         // Attach locations to the product
         $product->locations()->attach($request->location_id);
-    
+
         return response()->json(['status' => 200, 'message' => "New Product Details Created Successfully!"]);
     }
-    
+
 
     public function openingStockStore(Request $request)
     {

@@ -138,6 +138,7 @@ Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 
 //start product route
 Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
+Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
 Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
 Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');

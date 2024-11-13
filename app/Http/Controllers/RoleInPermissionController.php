@@ -35,7 +35,6 @@ class RoleInPermissionController extends Controller
 
             // Custom validation messages
             [
-
                 'role_id.required' => 'Please select the Role.',
                 'role_id.unique' => 'This role has already been assigned.',
                 'role_id.exists' => 'The selected Role does not exist.',
