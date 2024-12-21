@@ -22,6 +22,10 @@ use App\Http\Controllers\RoleInPermissionController;
 use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
+use App\Http\Controllers\SellController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\PurchaseReturnController;
+
 
 
 
@@ -202,3 +206,19 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
   Route::post('/unit-update/{id}', [UnitController::class, 'update']);
   Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
   //stop  brand route
+
+  Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
+  Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
+
+  Route::post('/sell-details/store', [SellController::class, 'store']);
+
+  // Store a new purchase
+Route::post('/purchases/store', [PurchaseController::class, 'store']);
+
+Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
+// Route::post('purchases/', [PurchaseController::class, 'store']);
+
+// Route::middleware('api')->group(function () {
+//     Route::post('purchases/store', [PurchaseController::class, 'store']);
+// });
+// Route::resource('purchases', PurchaseController::class);

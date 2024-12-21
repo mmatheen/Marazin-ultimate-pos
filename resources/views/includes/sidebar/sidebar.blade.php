@@ -72,8 +72,9 @@
                     <ul>
                         <li><a href={{ route('list-sale') }} class="{{ set_active(['list-sale'])}}">All Sales</a></li>
                         <li><a href={{ route('add-sale') }} class="{{ set_active(['add-sale'])}}">Add Sale</a></li>
-                        <li><a href="add-invoice.html">List POS</a></li>
-                        <li><a href="edit-invoice.html">POS</a></li>
+
+                        <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a></li>
+                        <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>
                         <li><a href="view-invoice.html">Add Draft</a></li>
                         <li><a href="invoices-settings.html">List Draft</a></li>
                         <li><a href="invoices-settings.html">Add Quatation</a></li>

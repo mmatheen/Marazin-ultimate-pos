@@ -18,7 +18,7 @@ class BrandController extends Controller
 
     public function index()
     {
-        $getValue = Brand::where('location_id', Common::getLocationId())->get();
+        $getValue = Brand::all();
         if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,

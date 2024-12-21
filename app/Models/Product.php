@@ -18,19 +18,19 @@ class Product extends Model
         'sku',
         'unit_id',
         'brand_id',
-        'main_category_id', 
+        'main_category_id',
         'sub_category_id',
         'stock_alert',
-        'alert_quantity', 
-        'product_image', 
-        'description', 
+        'alert_quantity',
+        'product_image',
+        'description',
         'is_imei_or_serial_no',
         'is_for_selling',
-        'product_type', 
-        'pax', 
+        'product_type',
+        'pax',
         'retail_price',
         'whole_sale_price',
-        'special_price', 
+        'special_price',
         'original_price',
     ];
 
@@ -43,12 +43,22 @@ class Product extends Model
     // Relationship to category (belongsTo)
     public function category()
     {
-        return $this->belongsTo(MainCategory::class, 'main_category_id');  // Adjust the second parameter based on your table column
+        return $this->belongsTo(MainCategory::class, 'main_category_id');
     }
 
     // Relationship to brand (belongsTo)
     public function brand()
     {
-        return $this->belongsTo(Brand::class, 'brand_id');  // Adjust based on your table column
+        return $this->belongsTo(Brand::class, 'brand_id');
     }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class, 'unit_id');
+    }
+
+   
+
+
+
 }

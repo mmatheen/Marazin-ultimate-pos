@@ -213,11 +213,11 @@
                                         </div>
                                     </div>
                                 </div>
-    
+
                                 <!-- Add other elements if needed -->
                             </div>
                         </div>
-    
+
                         <div class="table-responsive">
                             <table class="datatable table table-stripped" style="width:100%" id="example1">
                                 <thead>
@@ -233,7 +233,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-    
+
                                 </tbody>
                             </table>
                         </div>
@@ -275,7 +275,7 @@
                                         </div>
                                     </div>
                                 </div>
-                              
+
                                 <div class="col-md-3">
                                     <div class="mb-3">
                                         <b>Discount Amount:</b>
@@ -318,9 +318,9 @@
                                 </div>
                                 <!-- Add other elements if needed -->
                             </div>
-    
+
                         </div>
-    
+
                     </div>
                 </div>
             </div>
@@ -416,7 +416,7 @@
                                         Add additional expenses <i class="fas fa-sort-down "></i>
                                     </button>
                                 </div>
-    
+
                                 <div>
                                     <div class="collapse" id="moreinformation1">
                                         <div class="student-group-form">
@@ -441,7 +441,7 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-    
+
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
                                                                 <div class="form-group local-forms">
@@ -457,7 +457,7 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-    
+
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
                                                                 <div class="form-group local-forms">
@@ -473,8 +473,8 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-    
-    
+
+
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
                                                                 <div class="form-group local-forms">
@@ -511,12 +511,12 @@
 
     </div>
 
-    
-
-    
 
 
-  
+
+
+
+
 
     <div class="row">
         <div class="col-md-12">
@@ -1473,7 +1473,7 @@
                 });
 
                 hideclassFiled.forEach(function(field) {
-                    fiel.style.display = 'none';
+                    field.style.display = 'none';
                 })
             }
 

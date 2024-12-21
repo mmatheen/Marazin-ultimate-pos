@@ -60,7 +60,7 @@
                                                 <div class="input-group local-forms">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_unit_id" name="unit_id">
-                                                    
+
                                                     </select>
                                                     <span class="text-danger" id="unit_id_error"></span>
                                                 </div>
@@ -177,7 +177,7 @@
                                     <div class="row">
 
                                         <div class="col-md-8">
-                                            <div id="summernote"></div>
+                                            <div id="summernote" name="description"></div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="row">
@@ -347,6 +347,111 @@
 
 </div>
 
-@include('product.add_product_ajax')
+
+<div id="addOpeningStockModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add Opening Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addOpeningStockForm">
+                    <input type="hidden" name="edit_id" id="edit_id">
+                    <input type="hidden" id="location_id" name="location_id">
+
+                    <div class="row g-3">
+                        <!-- Location Name -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="location_id" class="form-label">Location Name<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="location_name" name="location_name" readonly>
+
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Name -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_product_id" class="form-label">Product Name<span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="product_name" name="product_id" readonly>
+                            </div>
+                        </div>
+
+                        <!-- SKU -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control"  name="sku" readonly>
+                                <small class="text-danger" id="sku_error"></small>
+                            </div>
+                        </div>
+
+                        <!-- Quantity -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="quantity" name="quantity" placeholder="Enter Quantity" required>
+                                <small class="text-danger" id="quantity_error"></small>
+                            </div>
+                        </div>
+
+                        <!-- Unit Cost -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="unit_cost" class="form-label">Unit Cost <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="unit_cost" name="unit_cost" readonly>
+                                <small class="text-danger" id="unit_cost_error"></small>
+                            </div>
+                        </div>
+
+                        <!-- Lot No -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="lot_no" class="form-label">Lot No <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="lot_no" name="lot_no" placeholder="Enter Lot No" required>
+                                <small class="text-danger" id="lot_no_error"></small>
+                            </div>
+                        </div>
+
+                        <!-- Expiry Date -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="expiry_date" class="form-label">Expiry Date <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control datetimepicker" id="expiry_date" name="expiry_date" autocomplete="off" placeholder="YYYY.MM.DD" required>
+                                <small class="text-danger" id="expiry_date_error"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="submit" id="modalButton" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+@include('product.product_ajax')
 @include('stock.import_opening_stock_ajax')
+
 @endsection
+
+<script>
+    $(document).ready(function() {
+        $('#summernote').summernote({
+            placeholder: 'Enter your description...',
+            tabsize: 2,
+            height: 40
+        });
+    });
+</script>

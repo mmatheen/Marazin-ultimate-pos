@@ -123,7 +123,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="example1">
+                            <table class="datatable table table-stripped" style="width:100%" id="purchase-list">
                                 <thead>
                                     <tr>
                                         <th>Action</th>
@@ -138,42 +138,14 @@
                                         <th>Added By</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>
-                                            {{-- <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button> --}}
-                                            <div class="dropdown dropdown-action">
-                                                <a href="#" class="action-icon dropdown-toggle"
-                                                    data-bs-toggle="dropdown" aria-expanded="false"><button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button></a>
-                                                <div class="dropdown-menu dropdown-menu-end">
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-undo-alt"></i>&nbsp;&nbsp;Purchase Return</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Update Status</a>
-                                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-envelope"></i>&nbsp;&nbsp;Item Received Notification</a>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td><img src="https://via.placeholder.com/50" alt="Product 1" /></td>
-                                        <td>
-                                            <button class="btn btn-primary">Edit</button>
-                                            <button class="btn btn-danger">Delete</button>
-                                        </td>
-                                        <td>Product 1</td>
-                                        <td>Location 1</td>
-                                        <td>$10.00</td>
-                                        <td>100</td>
-                                        <td>Type 1</td>
-                                        <td>Category 1</td>
-                                        <td>Brand 1</td>
-                                    </tr>
+                                <tbody id="purchase-table-body">
+
                                 </tbody>
                             </table>
                         </div>
+
+
+
                     </div>
                 </div>
             </div>
@@ -231,5 +203,7 @@
             })
         }
     </script>
+
+@include('purchase.purchase_ajax')
 
 @endsection

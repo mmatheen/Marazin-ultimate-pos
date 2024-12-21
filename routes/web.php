@@ -34,6 +34,7 @@ use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
 use App\Http\Controllers\SalesCommissionAgentsController;
+use App\Http\Controllers\SellController;
 
 /*
 |--------------------------------------------------------------------------
@@ -144,7 +145,22 @@ Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('up
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
+Route::post('/product-update/{id}', [ProductController::class, 'update']);
 Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
+Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
+
+Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
+Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+
+Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
+Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
+
+
+
+
+
+
+
 
 //stop product route
 
@@ -214,11 +230,11 @@ Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
 
 //start Customer route
 Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
-Route::get('/customer-edit/{id}', [SupplierController::class, 'edit']);
-Route::get('/customer-get-all', [SupplierController::class, 'index']);
-Route::post('/customer-store', [SupplierController::class, 'store']);
-Route::post('/customer-update/{id}', [SupplierController::class, 'update']);
-Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
+Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::post('/customer-store', [CustomerController::class, 'store']);
+Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
 //stop  Customer route
 
 //start sub catergories route
@@ -246,11 +262,42 @@ Route::get('/import-contact', [ContactController::class, 'importContact'])->name
 //start Purchase route
 Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
 Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
+//purchase
+Route::resource('purchases', PurchaseController::class);
+
+// // Display the list of purchases
+// Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
+
+// // Show the form to create a new purchase
+// Route::get('/purchases/create', [PurchaseController::class, 'create'])->name('purchases.create');
+
+// // Store a new purchase
+// Route::post('/purchases', [PurchaseController::class, 'store'])->name('purchases.store');
+
+// // Show a single purchase (if needed)
+// Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])->name('purchases.show');
+
+// // Show the form to edit an existing purchase
+// Route::get('/purchases/{purchase}/edit', [PurchaseController::class, 'edit'])->name('purchases.edit');
+
+// // Update an existing purchase
+// Route::put('/purchases/{purchase}', [PurchaseController::class, 'update'])->name('purchases.update');
+
+// // Delete a purchase
+// Route::delete('/purchases/{purchase}', [PurchaseController::class, 'destroy'])->name('purchases.destroy');
 //stop  Purchase route
 
 //start PurchaseReturn route
 Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');
 Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchaseReturn'])->name('add-purchase-return');
+
+Route::post('/purchase-return/store', [PurchaseReturnController::class, 'store']);
+Route::get('/purchase-returns/get-All', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
+Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
+Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
+
+
+
 //stop  PurchaseReturn route
 
 //start Stock transfer route
@@ -261,6 +308,8 @@ Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTran
 //start Sale transfer route
 Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
 Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
+Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
+Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
 //stop  Sale transfer route
 
 //start expense-parent route
@@ -321,3 +370,22 @@ Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::clas
 Route::get('/excel-export-student', [OpeningStockController::class, 'export'])->name('excel-export-student');
 Route::get('/excel-blank-template-export', [OpeningStockController::class, 'exportBlankTemplate'])->name('excel-blank-template-export');
 Route::post('/import-opening-stck-excel-store', [OpeningStockController::class, 'importOpeningStockStore']);
+
+Route::post('/opening-stock-store', [OpeningStockController::class, 'store'])->name('opening-stock.store');
+// Route::post('/opening-stock-store/{product-id}', [OpeningStockController::class, 'stockAdd'])->name('opening-stock.store');
+
+
+Route::post('/sell-details/store', [SellController::class, 'store']);
+Route::get('/invoice/{id}/download', [SellController::class, 'downloadInvoice'])->name('invoice.download');
+Route::get('/getAllPosDetails', [SellController::class, 'getAllPosDetails']);
+
+  // Store a new purchase
+  Route::post('/purchases/store', [PurchaseController::class, 'store']);
+  Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchaseProduct']);
+
+
+
+
+
+
+

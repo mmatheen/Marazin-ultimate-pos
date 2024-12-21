@@ -39,4 +39,11 @@ class Customer extends Model
             // Ensure the 'date' is returned in 'Y-m-d' format
             return Carbon::parse($value)->format('Y-m-d');
         }
+
+        // Add this method in your Customer model
+        public function getFullNameAttribute()
+        {
+            return $this->first_name . ' ' . $this->last_name;
+        }
+
 }

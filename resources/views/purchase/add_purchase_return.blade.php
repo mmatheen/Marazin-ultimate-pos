@@ -1,15 +1,51 @@
 @extends('layout.layout')
 @section('content')
+{{-- <style>
+    .input-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .input-group-text {
+      background-color: #007bff;
+      color: white;
+      border: 1px solid #007bff;
+      border-radius: 4px 0 0 4px;
+      padding: 10px;
+    }
+
+    .form-control {
+      border: 1px solid #007bff;
+      border-radius: 0 4px 4px 0;
+      padding: 10px;
+      outline: none;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .form-control:focus {
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
+
+    .dropdown-menu {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
+      margin-top: 5px;
+      padding: 10px;
+    }
+  </style> --}}
+
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Add Purchase Return</h3>
+                            <h3 class="page-title" id="form-title">Add Purchase Return</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="students.html">Purchase</a></li>
-                                <li class="breadcrumb-item active">Add Purchase Return</li>
+                                <li class="breadcrumb-item active" id="breadcrumb-title">Add Purchase Return</li>
                             </ul>
                         </div>
                     </div>
@@ -17,144 +53,186 @@
             </div>
         </div>
 
-
         {{-- table row --}}
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <div class="page-header">
-                            <div class="row align-items-center">
-                                <form class="px-3" action="#">
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
-                                                    <span class="input-group-text" id="basic-addon1"><i
-                                                            class="fas fa-user"></i></span>
-                                                    <select class="form-control form-select"
-                                                        aria-label="Example text with button addon"
-                                                        aria-describedby="button-addon1">
-                                                        <option selected disabled>Supplier</option>
-                                                        <option>Michael</option>
-                                                    </select>
+        <form class="px-3" id="purchaseReturn">
+            <input type="hidden" id="purchase-id" name="purchase_id">
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card card-table">
+                        <div class="card-body">
+                            <div class="page-header">
+                                <div class="row align-items-center">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <div class="input-group local-forms">
+                                                        <span class="input-group-text" id="basic-addon1"><i
+                                                                class="fas fa-user"></i></span>
+                                                     <label>Supplier<span class="login-danger">*</span></label>
+                                                        <select class="form-control form-select"
+                                                            aria-label="Example text with button addon"
+                                                            aria-describedby="button-addon1" id="supplier-id" name="supplier_id">
+                                                            <option></option>
+                                                        </select>
+                                                        <span class="text-danger" id="supplier_id_error"></span>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <div class="input-group local-forms">
+                                                        <span class="input-group-text" id="basic-addon1">
+                                                            <i class="fas fa-map-marker-alt"></i></span>
+                                                         <label>Business Location<span class="login-danger">*</span></label>
+                                                        <select class="form-control form-select"
+                                                            aria-label="Example text with button addon"
+                                                            aria-describedby="button-addon1" id="location" name="location">
+                                                            <option></option>
+                                                        </select>
+                                                        <span class="text-danger" id="location_error"></span>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Reference No<span class="login-danger"></span></label>
+                                                        <input class="form-control" type="text" placeholder="Reference No" name="reference_no" id="reference_no">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms calendar-icon">
+                                                        <label>Date <span class="login-danger">*</span></label>
+                                                        <input class="form-control datetimepicker" id="edit_date" name="purchase_return_date" type="text" placeholder="DD-MM-YYYY">
+                                                        <span class="text-danger" id="purchase_return_date_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+
+
+
+
+                                            <div class="col-md-3">
+                                                <div class="mb-3">
+                                                    <label>Attach document</label>
+                                                    <div class="invoices-upload-btn">
+                                                        <input type="file" accept=".pdf,image/*" name="attach_document" id="attach_document" class="hide-input show-file">
+                                                        <label for="file" class="upload"><i class="far fa-folder-open">&nbsp;</i> Browse..</label>
+                                                    </div>
+                                                    <span>Max File size: 5MB Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
+                                                </div>
+                                                <div class="col-md-12 my-4 d-flex justify-content-center">
+                                                    <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="100px" class="img-thumbnail" height="200px" style="display: none;">
+                                                    <iframe id="pdfViewer" width="100%" height="200px" style="display: none;"></iframe>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms days">
-                                                    <label>Business Location<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select select">
-                                                        <option selected disabled>Please Select</option>
-                                                        <option>Awesome Shop</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms">
-                                                    <label>Reference No<span class="login-danger"></span></label>
-                                                    <input class="form-control" type="text" placeholder="Reference No">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms calendar-icon">
-                                                    <label>Date Of Birth <span class="login-danger">*</span></label>
-                                                    <input class="form-control datetimepicker" type="text"
-                                                        placeholder="DD-MM-YYYY">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <label>Product image</label>
-                                                <div class="invoices-upload-btn">
-                                                    <input type="file" accept="image/*" name="image" id="file"
-                                                        class="hide-input">
-                                                    <label for="file" class="upload"><i class="far fa-folder-open">
-                                                            &nbsp;</i> Browse..</label>
-                                                </div>
-                                                <span>Max File size: 5MB
-                                                    Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Add other elements if needed -->
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card card-table">
-                    <div class="card-body">
-                        <h5>Search Products</h5>
-                        <div class="page-header">
-                            <div class="row d-flex justify-content-center mt-4">
-                                <div class="col-md-5">
-                                    <div class="input-group">
-                                        <span class="input-group-text" id="basic-addon1"><i
-                                                class="fas fa-search"></i></span>
-                                        <input type="text" class="form-control"
-                                            placeholder="Enter Product Name / SKU / Scan bar code" aria-label="Username"
-                                            aria-describedby="basic-addon1">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card card-table">
+                        <div class="card-body">
+                            <h5>Search Products</h5>
+                            <div class="page-header">
+                                <div class="row d-flex justify-content-center mt-4">
+                                    <div class="col-md-5">
+                                        <div class="mb-3">
+
+                                            <div class="input-group">
+                                                <span class="input-group-text" id="basic-addon1"><i class="fas fa-search"></i></span>
+                                                <input type="text" id="productSearchInput" class="form-control" placeholder="Enter Product Name / SKU / Scan bar code" aria-label="Search">
+                                                <div id="productSearchResults" class="dropdown-menu" style="display: none; max-height: 200px; overflow-y: auto;">
+                                                    <!-- Product search results will appear here -->
+                                                </div>
+                                            </div>
+
+
+                                        </div>
+
                                     </div>
-                                </div>
 
-                                <!-- Add other elements if needed -->
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="example1">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Unit Price</th>
-                                        <th>Subtotal</th>
-                                        <th><i class="fas fa-trash"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="row mt-5">
-                            <div class="col-md-3">
-                                <div class="mb-3">
-                                    <div class="form-group local-forms days">
-                                        <label>Purchase Tax<span class="login-danger">*</span></label>
-                                        <select class="form-control form-select select">
-                                            <option selected disabled>None</option>
-                                            <option>VAT@10%</option>
-                                            <option>CGST@10%</option>
-                                        </select>
-                                    </div>
                                 </div>
                             </div>
+
+                            <div class="table-responsive">
+                                <table class="datatable table table-stripped" style="width:100%" id="purchase_return">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Product</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Subtotal</th>
+                                            <th><i class="fas fa-trash"></i></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <hr>
+                            <div class="table-footer">
+                                <p>Total Items: <span id="total-items">.00</span></p>
+                                <p>Net Total Amount: $<span id="net-total-amount">0.00</span></p>
+                            </div>
+                            <div class="row mt-5">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <div class="form-group local-forms days">
+                                            <label>Purchase Tax<span class="login-danger">*</span></label>
+                                            <select class="form-control form-select select">
+                                                <option selected disabled>None</option>
+                                                <option>VAT@10%</option>
+                                                <option>CGST@10%</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
                         </div>
-                        <hr>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <div class="d-flex justify-content-center gap-3 mb-4">
+                <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <button type="reset" class="btn btn-secondary btn-reset btn-lg">Clear</button>
+            </div>
+
+
         </form>
     </div>
 
-    </div>
+
+
+
+
+
+
+
+
+
+
+    @include('purchase.purchase_return_ajax')
 @endsection
+

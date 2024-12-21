@@ -220,24 +220,34 @@
         <div>
         </div>
 
-        <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h1 class="modal-title fs-5" id="exampleModalLabel">Modal title</h1>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
+         {{-- Delete modal --}}
+    <div id="deleteModal" class="modal custom-modal fade" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
                 <div class="modal-body">
-                  ...
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                  <button type="button" class="btn btn-primary">Save changes</button>
-                </div>
-              </div>
-            </div>
-          </div>
+                    <div class="form-header">
+                        <h3 id="deleteName"></h3>
+                        <p>Are you sure want to delete?</p>
+                    </div>
+                    <div class="modal-btn delete-action">
+                        <div class="row">
+                            <input type="hidden" id="deleting_id">
+                            <div class="row">
+                                <div class="col-6">
+                                    <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                </div>
+                                <div class="col-6">
+                                    <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel
+                                    </a>
+                                </div>
+                            </div>
 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     </div>
 

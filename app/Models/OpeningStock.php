@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Carbon\Carbon;
-use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class OpeningStock extends Model
 {
-    use HasFactory,LocationTrait;
+    use HasFactory;
     protected $table='opening_stocks';
     protected $fillable=[
 
