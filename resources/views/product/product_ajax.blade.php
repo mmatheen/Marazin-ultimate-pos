@@ -354,147 +354,400 @@
         }
 
 
-        // Submit the Save And Another product only
-        $('#SaveProductButtonAndAnother').click(function(e) {
-            e.preventDefault(); // Prevent default form submission
+//         // Submit the Save And Another product only
+//         $('#SaveProductButtonAndAnother').click(function(e) {
+//             e.preventDefault(); // Prevent default form submission
 
-            // Gather the form data
-            let form = $('#addForm')[0];
-            let formData = new FormData(form);
+//             // Gather the form data
+//             let form = $('#addForm')[0];
+//             let formData = new FormData(form);
 
-            // Log FormData to the console
-            for (let [key, value] of formData.entries()) {
-                console.log(key + ': ' + value);
-            }
+//             // Log FormData to the console
+//             for (let [key, value] of formData.entries()) {
+//                 console.log(key + ': ' + value);
+//             }
 
-            // Validate the form before submitting
-            if (!$('#addForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play(); // for sound
-                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                return; // Return if form is not valid
-            }
+//             // Validate the form before submitting
+//             if (!$('#addForm').valid()) {
+//                 document.getElementsByClassName('warningSound')[0].play(); // for sound
+//                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+//                 return; // Return if form is not valid
+//             }
 
-            $.ajax({
-                url: 'product-store',
-                type: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-                    } else {
-                        document.getElementsByClassName('successSound')[0]
-                            .play(); // for sound
-                        toastr.success(response.message, 'Added');
-                        resetFormAndValidation();
-                        window.location.href = '{{ route('list-product') }}';
-                    }
-                }
-            });
-        });
-
-
-        // Submit the Save & Add Opening Stock only
-        $('#openingStockAndProduct').click(function(e) {
-            e.preventDefault(); // Prevent default form submission
-
-            // Gather the form data
-            let form = $('#addForm')[0];
-            let formData = new FormData(form);
-
-            // Log FormData to the console
-            for (let [key, value] of formData.entries()) {
-                console.log(key + ': ' + value);
-            }
-
-            // Validate the form before submitting
-            if (!$('#addForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play(); // for sound
-                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                return; // Return if form is not valid
-            }
-            
-
-            $.ajax({
-                url: 'product-store',
-                type: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-                    } else {
-                        document.getElementsByClassName('successSound')[0]
-                            .play(); // for sound
-                        toastr.success(response.message, 'Added');
-                        resetFormAndValidation();
-
-                        // Show the opening stock modal with product details
-                        fetchProductDetails(response.product_id);
-                        $('#addOpeningStockModal').modal('show');
+//             $.ajax({
+//                 url: 'product-store',
+//                 type: 'POST',
+//                 headers: {
+//                     'X-CSRF-TOKEN': csrfToken
+//                 },
+//                 data: formData,
+//                 contentType: false,
+//                 processData: false,
+//                 dataType: 'json',
+//                 success: function(response) {
+//                     if (response.status == 400) {
+//                         $.each(response.errors, function(key, err_value) {
+//                             $('#' + key + '_error').html(err_value);
+//                         });
+//                     } else {
+//                         document.getElementsByClassName('successSound')[0]
+//                             .play(); // for sound
+//                         toastr.success(response.message, 'Added');
+//                         resetFormAndValidation();
+//                         window.location.href = '{{ route('list-product') }}';
+//                     }
+//                 }
+//             });
+//         });
 
 
 
-                    }
-                }
-            });
-        });
 
+
+//         $(document).ready(function() {
+//     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
+
+//     $('#summernote').summernote({
+//         placeholder: 'Enter your description...',
+//         tabsize: 2,
+//         height: 40
+//     });
+
+//     // Submit the Save & Add Opening Stock only
+//     $('#openingStockAndProduct').click(function(e) {
+//         e.preventDefault(); // Prevent default form submission
+
+//         // Gather the form data
+//         let form = $('#addForm')[0];
+//         let formData = new FormData(form);
+
+//         // Log FormData to the console
+//         for (let [key, value] of formData.entries()) {
+//             console.log(key + ': ' + value);
+//         }
+
+//         // Validate the form before submitting
+//         if (!$('#addForm').valid()) {
+//             document.getElementsByClassName('warningSound')[0].play(); // for sound
+//             toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+//             return; // Return if form is not valid
+//         }
+
+//         $.ajax({
+//             url: 'product-store',
+//             type: 'POST',
+//             headers: {
+//                 'X-CSRF-TOKEN': csrfToken
+//             },
+//             data: formData,
+//             contentType: false,
+//             processData: false,
+//             dataType: 'json',
+//             success: function(response) {
+//                 if (response.status == 400) {
+//                     $.each(response.errors, function(key, err_value) {
+//                         $('#' + key + '_error').html(err_value);
+//                     });
+//                 } else {
+//                     document.getElementsByClassName('successSound')[0].play(); // for sound
+//                     toastr.success(response.message, 'Added');
+//                     resetFormAndValidation();
+
+//                     // Show the opening stock modals with product details
+//                     fetchProductDetailsForLocations(response.product_id);
+//                 }
+//             }
+//         });
+//     });
+
+//     // Fetch Product Details to Populate Modals for Multiple Locations
+//     function fetchProductDetailsForLocations(productId) {
+//         $.ajax({
+//             url: `/product-get-details/${productId}`,
+//             type: 'GET',
+//             dataType: 'json',
+//             success: function(response) {
+//                 const product = response.message;
+//                 const locations = product.locations;
+
+//                 // Iterate through each selected location and show the modals one by one
+//                 showOpeningStockModals(product, locations);
+//             },
+//             error: function() {
+//                 toastr.error('Failed to fetch product details', 'Error');
+//             }
+//         });
+//     }
+
+//     // Show Opening Stock Modals for Multiple Locations one by one
+//     function showOpeningStockModals(product, locations) {
+//         let currentIndex = 0;
+
+//         function showModal() {
+//             if (currentIndex < locations.length) {
+//                 populateOpeningStockModal(product, locations[currentIndex]);
+//                 $('#addOpeningStockModal').modal('show').on('hidden.bs.modal', function() {
+//                     currentIndex++;
+//                     showModal();
+//                 });
+//             }
+//         }
+
+//         showModal();
+//     }
+
+//     // Populate Opening Stock Modal with Product and Location Details
+//     function populateOpeningStockModal(product, location) {
+//         // Populate hidden and readonly fields
+//         $('#edit_id').val(product.id);
+//         $('#product_name').val(product.product_name);
+//         $('#location_name').val(location.name);
+//         $('#location_id').val(location.id);
+//         $('#sku').val(product.sku);
+//         $('#unit_cost').val(product.retail_price);
+
+//         // Clear error messages
+//         $('.text-danger').html('');
+//     }
+
+//     // Function to reset form and validation
+//     function resetFormAndValidation() {
+//         $('#addForm')[0].reset();
+//         $('#addForm').validate().resetForm();
+//     }
+
+ });
+//
+//     $(document).ready(function() {
+//     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
+
+//     $('#summernote').summernote({
+//         placeholder: 'Enter your description...',
+//         tabsize: 2,
+//         height: 40
+//     });
+
+//     // Submit the Save & Add Opening Stock only
+//     $('#openingStockAndProduct').click(function(e) {
+//         e.preventDefault(); // Prevent default form submission
+
+//         // Gather the form data
+//         let form = $('#addForm')[0];
+//         let formData = new FormData(form);
+
+//         // Add Summernote content to form data
+//         formData.append('description', $('#summernote').val());
+
+//         // Log FormData to the console
+//         for (let [key, value] of formData.entries()) {
+//             console.log(key + ': ' + value);
+//         }
+
+//         // Validate the form before submitting
+//         if (!$('#addForm').valid()) {
+//             document.getElementsByClassName('warningSound')[0].play(); // for sound
+//             toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+//             return; // Return if form is not valid
+//         }
+
+//         $.ajax({
+//             url: 'product-store',
+//             type: 'POST',
+//             headers: {
+//                 'X-CSRF-TOKEN': csrfToken
+//             },
+//             data: formData,
+//             contentType: false,
+//             processData: false,
+//             dataType: 'json',
+//             success: function(response) {
+//                 if (response.status == 400) {
+//                     $.each(response.errors, function(key, err_value) {
+//                         $('#' + key + '_error').html(err_value);
+//                     });
+//                 } else {
+//                     document.getElementsByClassName('successSound')[0].play(); // for sound
+//                     toastr.success(response.message, 'Added');
+//                     resetFormAndValidation();
+
+//                     // Redirect to the opening stock page
+//                     window.location.href = `/opening-stock/${response.product_id}`;
+//                 }
+//             }
+//         });
+//     });
+// });
+
+//     // Function to reset form and validation
+//     function resetFormAndValidation() {
+//         $('#addForm')[0].reset();
+//         $('#addForm').validate().resetForm();
+//         $('#summernote').summernote('reset');
+//     }
+
+
+    // // Submit the opening stock form
+    // $('#modalButton').click(function(e) {
+    //     e.preventDefault();
+
+    //     let csrfToken = $('meta[name="csrf-token"]').attr('content');
+    //     let form = $('#addOpeningStockForm')[0];
+    //     let formData = new FormData(form);
+
+    //     $.ajax({
+    //         url: `/opening-stock-store/${$('#edit_id').val()}`, // Pass the product ID dynamically
+    //         type: 'POST',
+    //         headers: {
+    //             'X-CSRF-TOKEN': csrfToken
+    //         },
+    //         data: formData,
+    //         contentType: false,
+    //         processData: false,
+    //         dataType: 'json',
+    //         success: function(response) {
+    //             if (response.status === 200) {
+    //                 toastr.success(response.message, 'Success');
+    //                 $('#addOpeningStockModal').modal('hide');
+    //                 // Refresh stock list or perform other updates
+    //             } else {
+    //                 toastr.error(response.message, 'Error');
+    //             }
+    //         },
+    //         error: function(xhr) {
+    //             if (xhr.status === 422) {
+    //                 let errors = xhr.responseJSON.errors;
+    //                 for (let key in errors) {
+    //                     $(`#${key}_error`).html(errors[key][0]);
+    //                 }
+    //             } else {
+    //                 toastr.error('Unexpected error occurred', 'Error');
+    //             }
+    //         }
+    //     });
+    // });
+
+
+    // $('#modalButton').click(function(e) {
+    //     e.preventDefault();
+
+    //     let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    //     let form = $('#openingStockForm')[0];
+    //     let formData = new FormData(form);
+
+    //      // Add Summernote content to form data
+    //      formData.append('description', $('#summernote').val());
+
+    //     $.ajax({
+    //         url: `/opening-stock-store/${$('#edit_id').val()}`, // Pass the product ID dynamically
+    //         type: 'POST',
+    //         headers: {
+    //             'X-CSRF-TOKEN': csrfToken
+    //         },
+    //         data: formData,
+    //         contentType: false,
+    //         processData: false,
+    //         dataType: 'json',
+    //         success: function(response) {
+    //             if (response.status === 200) {
+    //                 toastr.success(response.message, 'Success');
+    //             // Redirect to the opening stock page
+    //             window.location.href = `/opening-stock/${response.product_id}`;
+    //                 // Refresh stock list or perform other updates
+    //             } else {
+    //                 toastr.error(response.message, 'Error');
+    //             }
+    //         },
+    //         error: function(xhr) {
+    //             if (xhr.status === 422) {
+    //                 let errors = xhr.responseJSON.errors;
+    //                 for (let key in errors) {
+    //                     $(`#${key}_error`).html(errors[key][0]);
+    //                 }
+    //             } else {
+    //                 toastr.error('Unexpected error occurred', 'Error');
+    //             }
+    //         }
+    //     });
+    // });
+
+    $(document).ready(function() {
+    var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
+
+    $('#summernote').summernote({
+        placeholder: 'Enter your description...',
+        tabsize: 2,
+        height: 40
     });
 
-    // Fetch Product Details to Populate Modal
-    function fetchProductDetails(productId) {
+    // Submit the Save & Add Opening Stock only
+    $('#openingStockAndProduct').click(function(e) {
+        e.preventDefault(); // Prevent default form submission
+
+        // Gather the form data
+        let form = $('#addForm')[0];
+        let formData = new FormData(form);
+
+        // Add Summernote content to form data
+        formData.append('description', $('#summernote').val());
+
+        // Log FormData to the console
+        for (let [key, value] of formData.entries()) {
+            console.log(key + ': ' + value);
+        }
+
+        // Validate the form before submitting
+        if (!$('#addForm').valid()) {
+            document.getElementsByClassName('warningSound')[0].play(); // for sound
+            toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+            return; // Return if form is not valid
+        }
+
         $.ajax({
-            url: `/product-get-details/${productId}`,
-            type: 'GET',
+            url: 'product-store',
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            },
+            data: formData,
+            contentType: false,
+            processData: false,
             dataType: 'json',
             success: function(response) {
-                const product = response.message;
+                if (response.status == 400) {
+                    $.each(response.errors, function(key, err_value) {
+                        $('#' + key + '_error').html(err_value);
+                    });
+                } else {
+                    document.getElementsByClassName('successSound')[0].play(); // for sound
+                    toastr.success(response.message, 'Added');
+                    resetFormAndValidation();
 
-                // Populate hidden and readonly fields
-                $('#edit_id').val(product.id);
-                $('#product_name').val(product.product_name);
-                $('#location_name').val(product.locations[0]?.name ||
-                    ''); // If multiple locations, use the first or adapt as needed
-                $('#location_id').val(product.locations[0]?.id ||
-                    ''); // If multiple locations, use the first or adapt as needed
-                $('#sku').val(product.sku);
-                $('#unit_cost').val(product.retail_price);
-
-                // Clear error messages
-                $('.text-danger').html('');
+                    // Redirect to the opening stock page
+                    window.location.href = `/opening-stock/${response.product_id}`;
+                }
             },
-            error: function() {
-                toastr.error('Failed to fetch product details', 'Error');
+            error: function(xhr) {
+                toastr.error('Failed to add product. Please try again.', 'Error');
             }
         });
+    });
+
+    // Function to reset form and validation
+    function resetFormAndValidation() {
+        $('#addForm')[0].reset();
+        $('#addForm').validate().resetForm();
+        $('#summernote').summernote('reset');
     }
-
-
-
-    $('#modalButton').click(function(e) {
+    $(document).ready(function() {
+    $('#submitOpeningStock').click(function(e) {
         e.preventDefault();
 
         let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        let form = $('#addOpeningStockForm')[0];
+        let form = $('#openingStockForm')[0];
         let formData = new FormData(form);
 
         $.ajax({
-            url: `/opening-stock-store/${$('#edit_id').val()}`, // Pass the product ID dynamically
+            url: `/opening-stock-store/${$('#product_id').val()}`, // Pass the product ID dynamically
             type: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrfToken
@@ -506,18 +759,15 @@
             success: function(response) {
                 if (response.status === 200) {
                     toastr.success(response.message, 'Success');
-                    $('#addOpeningStockModal').modal('hide');
-                    // Refresh stock list or perform other updates
+                    window.location.href = '/add-product';
                 } else {
+
                     toastr.error(response.message, 'Error');
                 }
             },
             error: function(xhr) {
                 if (xhr.status === 422) {
                     let errors = xhr.responseJSON.errors;
-                    for (let key in errors) {
-                        $(`#${key}_error`).html(errors[key][0]);
-                    }
                 } else {
                     toastr.error('Unexpected error occurred', 'Error');
                 }
@@ -525,10 +775,8 @@
         });
     });
 
-
-
-
-
+});
+    });
 
 
     let categoryMap = {};
@@ -587,121 +835,123 @@
     }
 
     function showFetchData() {
-        $.when(
-            $.ajax({
-                url: '/product-get-all',
-                type: 'GET',
-                dataType: 'json'
-            }),
-            $.ajax({
-                url: '/import-opening-stock-get-all',
-                type: 'GET',
-                dataType: 'json'
-            }),
-            $.ajax({
-                url: '/get-all-purchases',
-                type: 'GET',
-                dataType: 'json'
-            })
-        ).done(function(productResponse, stockResponse, purchaseResponse) {
-            // Both requests succeed
-            const products = productResponse[0].message; // Products data
-            const stockData = stockResponse[0].message; // Stock data
-            const purchaseStockData = purchaseResponse[0].purchases || []; // Purchases data
+    $.when(
+        $.ajax({
+            url: '/product-get-all',
+            type: 'GET',
+            dataType: 'json'
+        }),
+        $.ajax({
+            url: '/import-opening-stock-get-all',
+            type: 'GET',
+            dataType: 'json'
+        }),
+        $.ajax({
+            url: '/get-all-purchases',
+            type: 'GET',
+            dataType: 'json'
+        })
+    ).done(function(productResponse, stockResponse, purchaseResponse) {
+        // Both requests succeed
+        const products = productResponse[0].message; // Products data
+        const stockData = stockResponse[0].message; // Stock data
+        const purchaseStockData = purchaseResponse[0].purchases || []; // Purchases data
 
-            if (Array.isArray(products) || (Array.isArray(stockData) || Array.isArray(purchaseStockData))) {
-                let table = $('#productTable').DataTable();
-                table.clear().draw();
+        if (Array.isArray(products) || (Array.isArray(stockData) || Array.isArray(purchaseStockData))) {
+            let table = $('#productTable').DataTable();
+            table.clear().draw();
 
-                // Map stock data by product ID for quick lookup
-                const stockMap = {};
-                stockData.forEach(stock => {
-                    const productId = stock.product_id;
-                    if (!stockMap[productId]) {
-                        stockMap[productId] = {
+            // Map stock data by product ID for quick lookup
+            const stockMap = {};
+            stockData.forEach(stock => {
+                const productId = stock.product_id;
+                if (!stockMap[productId]) {
+                    stockMap[productId] = {
+                        totalQuantity: 0,
+                        location: stock.location || null
+                    };
+                }
+                stockMap[productId].totalQuantity += parseInt(stock.quantity, 10) || 0; // Accumulate quantities
+            });
+
+            // Map purchase data by product ID for quick lookup
+            const purchaseMap = {};
+            purchaseStockData.forEach(purchase => {
+                purchase.purchase_products.forEach(purchaseProduct => {
+                    const productId = purchaseProduct.product_id;
+                    if (!purchaseMap[productId]) {
+                        purchaseMap[productId] = {
                             totalQuantity: 0,
-                            location: stock.location || null
+                            price: parseFloat(purchaseProduct.price) || 0,
                         };
                     }
-                    stockMap[productId].totalQuantity += parseInt(stock.quantity, 10) || 0; // Accumulate quantities
+                    purchaseMap[productId].totalQuantity += parseInt(purchaseProduct.quantity, 10) || 0; // Accumulate quantities
                 });
+            });
 
-                // Map purchase data by product ID for quick lookup
-                const purchaseMap = {};
-                purchaseStockData.forEach(purchase => {
-                    purchase.purchase_products.forEach(purchaseProduct => {
-                        const productId = purchaseProduct.product_id;
-                        if (!purchaseMap[productId]) {
-                            purchaseMap[productId] = {
-                                totalQuantity: 0,
-                                price: parseFloat(purchaseProduct.price) || 0,
-                            };
-                        }
-                        purchaseMap[productId].totalQuantity += parseInt(purchaseProduct.quantity, 10) || 0; // Accumulate quantities
-                    });
-                });
+            // Loop through all products and combine stock data if available
+            products.forEach(product => {
+                if (!product) return; // Skip null or undefined products
 
-                // Loop through all products and combine stock data if available
-                products.forEach(product => {
-                    if (!product) return; // Skip null or undefined products
+                const stockEntry = stockMap[product.id] || { totalQuantity: 0, location: null };
+                const purchaseEntry = purchaseMap[product.id] || { totalQuantity: 0, price: 0 };
 
-                    const stockEntry = stockMap[product.id] || { totalQuantity: 0, location: null };
-                    const purchaseEntry = purchaseMap[product.id] || { totalQuantity: 0, price: 0 };
+                const openingStockQty = stockEntry.totalQuantity || 0;
+                const purchaseQty = purchaseEntry.totalQuantity || 0;
+                const currentStock = openingStockQty + purchaseQty;
 
-                    const openingStockQty = stockEntry.totalQuantity || 0;
-                    const purchaseQty = purchaseEntry.totalQuantity || 0;
-                    const currentStock = openingStockQty + purchaseQty;
+                console.log(currentStock);
+                console.log(purchaseQty);
+                console.log(openingStockQty);
 
-                    // Filter based on the condition
-                    if (openingStockQty > 0 || purchaseQty > 0) {
-                        const locationName = stockEntry.location?.name ||
-                                            (product.locations?.length ? product.locations[0].name : 'N/A');
-                        // Create table row
-                        let row = $('<tr>');
-                        row.append('<td><input type="checkbox" class="checked" /></td>');
-                        row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name +
-                            '" width="50" height="70" /></td>');
-                        row.append(`
-                            <td>
-                                <div class="dropdown dropdown-action">
-                                    <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                    </a>
-                                    <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item" href="#"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
-                                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-id="${product.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                        <a class="dropdown-item edit-product" href="/edit-product/${product.id}" data-id="${product.id}">
-                                            <i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit
-                                        </a>
-                                        <a class="dropdown-item delete_btn" data-id="${product.id}"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-                                        <a class="dropdown-item" href="#"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
-                                        <a class="dropdown-item" href="#"><i class="fas fa-history"></i>&nbsp;&nbsp;Product stock history</a>
-                                        <a class="dropdown-item" href="#"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
-                                    </div>
-                                </div>
-                            </td>`);
 
-                        // Add product details
-                        row.append('<td>' + product.product_name + '</td>');
-                        row.append('<td>' + locationName + '</td>');
-                        row.append('<td>Rs ' + product.retail_price.toFixed(2) + '</td>');
-                        row.append('<td>' + currentStock + '</td>'); // Use combined quantity
-                        row.append('<td>' + product.product_type + '</td>');
-                        row.append('<td>' + (categoryMap[product.main_category_id] || 'N/A') + '</td>');
-                        row.append('<td>' + (brandMap[product.brand_id] || 'N/A') + '</td>');
-                        row.append('<td>' + "Tax-3" + '</td>');
-                        row.append('<td>' + product.sku + '</td>');
+                const locationName = stockEntry.location?.name ||
+                                    (product.locations?.length ? product.locations[0].name : 'N/A');
+                // Create table row
+                let row = $('<tr>');
+                row.append('<td><input type="checkbox" class="checked" /></td>');
+                row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name +
+                    '" width="50" height="70" /></td>');
+                row.append(`
+                    <td>
+                        <div class="dropdown dropdown-action">
+                            <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end">
+                                <a class="dropdown-item" href="#"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
+                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-id="${product.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                <a class="dropdown-item edit-product" href="/edit-product/${product.id}" data-id="${product.id}">
+                                    <i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit
+                                </a>
+                                <a class="dropdown-item delete_btn" data-id="${product.id}"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
+                                <a class="dropdown-item" href="#"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
+                                <a class="dropdown-item" href="#"><i class="fas fa-history"></i>&nbsp;&nbsp;Product stock history</a>
+                                <a class="dropdown-item" href="#"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
+                            </div>
+                        </div>
+                    </td>`);
 
-                        table.row.add(row).draw(false);
-                    }
-                });
-            } else {
-                console.error('Invalid product or stock data:', products, stockData);
-            }
-        }).fail(function(xhr, status, error) {
-            console.error('Error fetching product or stock data:', error);
-        });
-    }
+                // Add product details
+                row.append('<td>' + product.product_name + '</td>');
+                row.append('<td>' + locationName + '</td>');
+                row.append('<td>Rs ' + product.retail_price.toFixed(2) + '</td>');
+                row.append('<td>' + currentStock + '</td>'); // Use combined quantity
+                row.append('<td>' + product.product_type + '</td>');
+                row.append('<td>' + (categoryMap[product.main_category_id] || 'N/A') + '</td>');
+                row.append('<td>' + (brandMap[product.brand_id] || 'N/A') + '</td>');
+                row.append('<td>' + "Tax-3" + '</td>');
+                row.append('<td>' + product.sku + '</td>');
+
+                table.row.add(row).draw(false);
+            });
+        } else {
+            console.error('Invalid product or stock data:', products, stockData);
+        }
+    }).fail(function(xhr, status, error) {
+        console.error('Error fetching product or stock data:', error);
+    });
+}
 
 
 
@@ -958,8 +1208,8 @@
                         <table class="table table-bordered table-striped">
                             <tbody>
                                 <tr>
-                                    <td rowspan="8" class="text-center align-middle">
-                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid" />
+                                    <td rowspan="8" class="align-middle text-center">
+                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="img-fluid rounded" />
                                     </td>
                                     <th scope="row">Product Name</th>
                                     <td>${product.product_name}</td>

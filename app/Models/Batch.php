@@ -5,22 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Location extends Model
+class Batch extends Model
 {
     use HasFactory;
-    protected $table='locations';
-    protected $fillable=[
-
-              'name',
-              'location_id',
-              'address',
-              'province',
-              'district',
-              'city',
-              'email',
-              'mobile',
-              'telephone_no',
+    protected $fillable = [
+        'batch_id',
+        'product_id',
+        'price',
+        'quantity',
+        'expiry_date',
     ];
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function purchaseProducts()
     {
@@ -36,7 +35,5 @@ class Location extends Model
     {
         return $this->hasMany(Stock::class);
     }
-
-
-
 }
+

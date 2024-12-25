@@ -360,13 +360,13 @@ $('#purchaseForm').validate(purchaseValidationOptions);
                         </td>
                         <td class="retail-price">${product.retail_price || '0'}</td>
                         <td class="sub-total">0</td>
-                        <td>
-                            <input type="number" class="form-control product-tax" value="0" min="0">
-                        </td>
+
                         <td class="net-cost">0</td>
                         <td class="line-total">0</td>
                         <td>${product.profit_margin || '0'}</td>
-                        <td class="whole-sale-price">${product.whole_sale_price || '-'}</td>
+                      <td>
+                            <input type="number" class="form-control">
+                        </td>
                         <td>
                             <button class="btn btn-danger btn-sm delete-product">
                                 <i class="fas fa-trash"></i>
@@ -745,17 +745,20 @@ function calculatePaymentDue(openingBalance) {
             // Product Details
             const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
             productTableRows.forEach((row, index) => {
+                const locationId = document.getElementById('services')?.value || '';
                 const productId = row.querySelector('td:nth-child(1)')?.textContent.trim() || '';
                 const quantity = row.querySelector('td:nth-child(3) input')?.value.trim() || '0';
-                const price = row.querySelector('td:nth-child(4)')?.textContent.trim() || '0';
-                const total = row.querySelector('td:nth-child(10)')?.textContent.trim() || '0';
+                const price = row.querySelector('td:nth-child(4) input')?.value.trim() || '0';
+                const total = row.querySelector('td:nth-child(9)')?.textContent.trim() || '0';
+                const batchId = row.querySelector('td:nth-child(11) input')?.value.trim() || '';
 
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
                 formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][total]`, total);
+                formData.append(`products[${index}][location_id]`, locationId);
+                formData.append(`products[${index}][batch_id]`, batchId);
             });
-
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
             // AJAX Request
@@ -939,15 +942,14 @@ function calculatePaymentDue(openingBalance) {
                     </td>
                     <td class="retail-price">${product.price || '0'}</td>
                     <td class="sub-total">0</td>
-                    <td>
-                        <input type="number" class="form-control product-tax" value="0" min="0">
-                    </td>
                     <td class="net-cost">0</td>
                     <td class="line-total">0</td>
                     <td>
                         <input type="number" class="form-control profit-margin" value="${product.profit_margin || '0'}" min="0">
                     </td>
-                    <td class="whole-sale-price">${product.whole_sale_price || '-'}</td>
+                    <td>
+                     <input type="text" class="form-control">
+                    </td>
                     <td>
                         <button class="btn btn-danger btn-sm delete-product">
                             <i class="fas fa-trash"></i>

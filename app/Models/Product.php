@@ -36,6 +36,7 @@ class Product extends Model
 
     // Relationship to locations (many-to-many)
     public function locations()
+
     {
         return $this->belongsToMany(Location::class);
     }
@@ -57,7 +58,21 @@ class Product extends Model
         return $this->belongsTo(Unit::class, 'unit_id');
     }
 
-   
+    public function batches()
+    {
+        return $this->hasMany(Batch::class);
+    }
+
+    public function stocks()
+    {
+        return $this->hasMany(Stock::class);
+    }
+
+    public function openingStocks()
+    {
+        return $this->hasMany(OpeningStock::class);
+    }
+
 
 
 

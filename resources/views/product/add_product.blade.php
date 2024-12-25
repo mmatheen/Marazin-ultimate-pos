@@ -32,7 +32,6 @@
                         <div class="card-body">
                             <div class="page-header">
                                 <div class="row align-items-center">
-
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="mb-3">
@@ -43,7 +42,6 @@
                                                 </div>
                                             </div>
                                         </div>
-
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
@@ -60,7 +58,6 @@
                                                 <div class="input-group local-forms">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_unit_id" name="unit_id">
-
                                                     </select>
                                                     <span class="text-danger" id="unit_id_error"></span>
                                                 </div>
@@ -71,7 +68,6 @@
                                                 <div class="input-group local-forms">
                                                     <label>Product Brand <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_brand_id" name="brand_id">
-
                                                     </select>
                                                     <span class="text-danger" id="brand_id_error"></span>
                                                 </div>
@@ -81,8 +77,7 @@
                                             <div class="mb-3">
                                                 <div class="input-group local-forms">
                                                     <label>Main Category <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_main_category_id" name="main_category_id">
-
+                                                    <select class="form-control form-select select2Box" id="edit_main_category_id" name="main_category_id">
                                                     </select>
                                                     <span class="text-danger" id="main_category_id_error"></span>
                                                 </div>
@@ -94,7 +89,6 @@
                                                 <div class="input-group local-forms">
                                                     <label>Sub Category <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
-
                                                     </select>
                                                     <span class="text-danger" id="sub_category_id_error"></span>
                                                 </div>
@@ -105,14 +99,13 @@
                                             <div class="mb-3 mt-4">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]"  multiple="multiple">
-                                                        {{-- it will load dynamcaly using ajax --}}
+                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]" multiple="multiple">
+                                                        {{-- it will load dynamically using ajax --}}
                                                     </select>
                                                     <span class="text-danger" id="location_id_error"></span>
                                                 </div>
                                             </div>
                                         </div>
-
 
                                         <script>
                                             $(document).ready(function () {
@@ -122,7 +115,6 @@
                                                 });
                                             });
                                         </script>
-
 
                                     </div>
 
@@ -163,15 +155,14 @@
                                                 // Function to toggle the alert quantity field based on checkbox status
                                                 function toggleAlertQuantity() {
                                                     if ($('#edit_stock_alert').is(':checked')) {
-                                                        $('#alert_quantity_container').show(); // Show the alert quantity field when checkbox is checked
-                                                        $('#stock_alert_label').text('Show Alert Stock'); // Change label to "Hide Alert Stock"
+                                                        $('#alert_quantity_container').show();
+                                                        $('#stock_alert_label').text('Show Alert Stock');
                                                     } else {
-                                                        $('#alert_quantity_container').hide(); // Hide the alert quantity field when unchecked
-                                                        $('#stock_alert_label').text('Hide Alert Stock'); // Change label to "Show Alert Stock"
+                                                        $('#alert_quantity_container').hide();
+                                                        $('#stock_alert_label').text('Hide Alert Stock');
                                                     }
                                                 }
                                             });
-
                                         </script>
                                     </div>
                                     <div class="row">
@@ -326,7 +317,6 @@
                     </div>
                 </div>
 
-
                 <div class="row mb-4">
                     <div class="gap-4 d-flex justify-content-center">
                         <div>
@@ -344,11 +334,9 @@
                 <!-- Button trigger modal -->
         </form>
     </div>
-
 </div>
 
-
-<div id="addOpeningStockModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+{{-- <div id="addOpeningStockModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -366,8 +354,6 @@
                             <div class="form-group">
                                 <label for="location_id" class="form-label">Location Name<span class="text-danger">*</span></label>
                                 <input type="text" class="form-control" id="location_name" name="location_name" readonly>
-
-                            </div>
                             </div>
                         </div>
 
@@ -383,7 +369,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control"  name="sku" readonly>
+                                <input type="text" class="form-control" name="sku" readonly>
                                 <small class="text-danger" id="sku_error"></small>
                             </div>
                         </div>
@@ -430,28 +416,13 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </form>
-
             </div>
         </div>
     </div>
-</div>
-
-
-
-
-
+</div> --}}
 
 @include('product.product_ajax')
 @include('stock.import_opening_stock_ajax')
 
 @endsection
 
-<script>
-    $(document).ready(function() {
-        $('#summernote').summernote({
-            placeholder: 'Enter your description...',
-            tabsize: 2,
-            height: 40
-        });
-    });
-</script>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\OpeningStock;
+use App\Models\Batch;
 use Illuminate\Http\Request;
 use App\Exports\ExportOpeningStock;
 use App\Imports\ImportOpeningStock;

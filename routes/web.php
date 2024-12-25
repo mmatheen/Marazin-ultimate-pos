@@ -153,7 +153,9 @@ Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->nam
 Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
 
 Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
+Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
+Route::get('/all-stock-details', [ProductController::class, 'getAllStockDetails']);
 
 
 

@@ -9,6 +9,8 @@ use App\Models\SubCategory;
 use App\Models\Product;
 use App\Models\Unit;
 use App\Models\OpeningStock;
+use App\Models\Batch;
+use App\Models\Stock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -53,39 +55,37 @@ class ProductController extends Controller
         }
     }
 
+    public function index()
+    {
+
+        $user = Auth::user();
+
+        // Check if user has a specific location associated
+        if ($user->location_id !== null) {
+            // Filter products by the user's location
+            $locationId = $user->location_id;
+
+            $getValue = Product::whereHas('locations', function($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            })->with('locations')->get();
+        } else {
+            $getValue = Product::with('locations')->get();
+        }
 
 
-public function index()
-{
-
-    $user = Auth::user();
-
-    // Check if user has a specific location associated
-    if ($user->location_id !== null) {
-        // Filter products by the user's location
-        $locationId = $user->location_id;
-
-        $getValue = Product::whereHas('locations', function($query) use ($locationId) {
-            $query->where('locations.id', $locationId);
-        })->with('locations')->get();
-    } else {
-        $getValue = Product::with('locations')->get();
+        // Check if any records were found
+        if ($getValue->count() > 0) {
+            return response()->json([
+                'status' => 200,
+                'message' => $getValue
+            ]);
+        } else {
+            return response()->json([
+                'status' => 404,
+                'message' => "No Records Found!"
+            ]);
+        }
     }
-
-
-    // Check if any records were found
-    if ($getValue->count() > 0) {
-        return response()->json([
-            'status' => 200,
-            'message' => $getValue
-        ]);
-    } else {
-        return response()->json([
-            'status' => 404,
-            'message' => "No Records Found!"
-        ]);
-    }
-}
 
 
     public function getProductDetails($id)
@@ -166,56 +166,44 @@ public function index()
     }
 
 
-public function EditProduct($id)
-{
-    // Fetch the product and related data
-    $product = Product::with(['locations', 'category', 'brand'])->find($id);
+    public function EditProduct($id)
+    {
+        // Fetch the product and related data
+        $product = Product::with(['locations', 'category', 'brand'])->find($id);
 
-    $mainCategories = MainCategory::all();
-    $subCategories = SubCategory::all();
-    $brands = Brand::all();
-    $units = Unit::all();
-    $locations = Location::all();
+        $mainCategories = MainCategory::all();
+        $subCategories = SubCategory::all();
+        $brands = Brand::all();
+        $units = Unit::all();
+        $locations = Location::all();
 
-    // Check if the request is AJAX
-    if (request()->ajax()) {
-        return response()->json([
-            'status' => 200,
-            'message' => [
-                'product' => $product,
-                'mainCategories' => $mainCategories,
-                'subCategories' => $subCategories,
-                'brands' => $brands,
-                'units' => $units,
-                'locations' => $locations,
-            ]
-        ]);
+        // Check if the request is AJAX
+        if (request()->ajax()) {
+            return response()->json([
+                'status' => 200,
+                'message' => [
+                    'product' => $product,
+                    'mainCategories' => $mainCategories,
+                    'subCategories' => $subCategories,
+                    'brands' => $brands,
+                    'units' => $units,
+                    'locations' => $locations,
+                ]
+            ]);
+        }
+
+        // Render the edit product view for non-AJAX requests
+        return view('product.edit_product', compact('id', 'product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
     }
 
-    // Render the edit product view for non-AJAX requests
-    return view('product.edit_product', compact('id', 'product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
-}
 
 
 
-
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
-        //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+
     public function store(Request $request)
     {
         $validator = Validator::make(
@@ -293,26 +281,15 @@ public function EditProduct($id)
     }
 
 
-
     public function openingStockStore(Request $request, $productId)
     {
         $validator = Validator::make($request->all(), [
-            'sku' => [
-                'nullable',
-                'string',
-                'max:255',
-                function ($attribute, $value, $fail) {
-                    // Only validate the SKU format if it's provided
-                    if ($value && !preg_match('/^SKU\d{4}$/', $value)) {
-                        $fail('The ' . $attribute . ' must be in the format SKU followed by 4 digits. eg: SKU0001');
-                    }
-                }
-            ],
-            'location_id' => 'required|integer|exists:locations,id',
-            'quantity' => 'required|numeric|min:1',
-            'unit_cost' => 'required|numeric|min:0',
-            'lot_no' => 'required|string|max:255',
-            'expiry_date' => 'required|date',
+            'locations' => 'required|array',
+            'locations.*.id' => 'required|integer|exists:locations,id',
+            'locations.*.quantity' => 'required|numeric|min:1',
+            'locations.*.unit_cost' => 'required|numeric|min:0',
+            'locations.*.batch_id' => 'nullable|string|max:255',
+            'locations.*.expiry_date' => 'required|date',
         ]);
 
         if ($validator->fails()) {
@@ -324,21 +301,127 @@ public function EditProduct($id)
             return response()->json(['status' => 404, 'message' => 'Product not found']);
         }
 
-        // Generate SKU if not provided
-        $sku = $request->sku ?: 'SKU' . sprintf("%04d", OpeningStock::count() + 1);
+        try {
+            foreach ($request->locations as $locationData) {
+                // Parse and format expiry date
+                $formattedExpiryDate = \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d');
 
-        OpeningStock::create([
-            'sku' => $sku,
-            'location_id' => $request->location_id,
-            'product_id' => $productId,
-            'quantity' => $request->quantity,
-            'unit_cost' => $request->unit_cost,
-            'lot_no' => $request->lot_no,
-            'expiry_date' => $request->expiry_date,
-        ]);
+                // Determine the batch ID
+                $batchId = $locationData['batch_id'] ?? null;
 
-        return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
+                // Check if batch exists or create a new batch if batch_id is provided
+                $batch = null;
+                if ($batchId) {
+                    $batch = Batch::firstOrCreate([
+                        'batch_id' => $batchId,
+                        'product_id' => $productId,
+                    ], [
+                        'price' => $locationData['unit_cost'],
+                        'quantity' => $locationData['quantity'],
+                        'expiry_date' => $formattedExpiryDate,
+                    ]);
+                }
+
+                // Create Opening Stock
+                OpeningStock::create([
+                    'product_id' => $productId,
+                    'location_id' => $locationData['id'],
+                    'batch_id' => $batch ? $batchId : null,
+                    'quantity' => $locationData['quantity'],
+                    'unit_cost' => $locationData['unit_cost'],
+                    'expiry_date' => $formattedExpiryDate,
+                ]);
+
+                // Update or Create Stock
+                $stock = Stock::firstOrNew([
+                    'product_id' => $productId,
+                    'location_id' => $locationData['id'],
+                    'batch_id' => $batch ? $batchId : null,
+                    'stock_type' => "Opening Stock"
+                ]);
+
+                $stock->quantity += $locationData['quantity'];
+                $stock->save();
+            }
+
+            return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
+        } catch (\Exception $e) {
+            // Log the exception message and stack trace
+            \Log::error('Error in openingStockStore: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['status' => 500, 'message' => 'An error occurred while processing the request.']);
+        }
     }
+
+
+
+    public function getAllStockDetails()
+    {
+        // Fetch the stock details aggregated by product, location, and batch
+        $stocks = Stock::with(['product', 'batch'])
+            ->select('product_id', 'location_id', 'batch_id', \DB::raw('SUM(quantity) as quantity'))
+            ->groupBy('product_id', 'location_id', 'batch_id')
+            ->get();
+
+            if($stocks){
+
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'Stock details fetched successfully',
+                    'stocks' => $stocks
+                ]);
+            }
+            else{
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'No Record Found',
+
+                ]);
+            }
+    }
+
+
+    // public function openingStockStore(Request $request, $productId)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'locations' => 'required|array',
+    //         'locations.*.id' => 'required|integer|exists:locations,id',
+    //         'locations.*.quantity' => 'required|numeric|min:1',
+    //         'locations.*.unit_cost' => 'required|numeric|min:0',
+    //         'locations.*.lot_no' => 'required|string|max:255',
+    //         'locations.*.expiry_date' => 'required|date',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+    //     }
+
+    //     $product = Product::find($productId);
+    //     if (!$product) {
+    //         return response()->json(['status' => 404, 'message' => 'Product not found']);
+    //     }
+
+    //     foreach ($request->locations as $locationData) {
+    //         OpeningStock::create([
+    //             'sku' => $locationData['sku'] ?? 'SKU' . sprintf("%04d", OpeningStock::count() + 1),
+    //             'location_id' => $locationData['id'],
+    //             'product_id' => $productId,
+    //             'quantity' => $locationData['quantity'],
+    //             'unit_cost' => $locationData['unit_cost'],
+    //             'lot_no' => $locationData['lot_no'],
+    //             'expiry_date' => $locationData['expiry_date'],
+    //         ]);
+    //     }
+
+    //     return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
+    // }
+
+    public function showOpeningStock($productId)
+{
+    $product = Product::with('locations')->findOrFail($productId);
+    $locations = $product->locations;
+
+    return view('product.opening_stock', compact('product', 'locations'));
+}
 
 
 

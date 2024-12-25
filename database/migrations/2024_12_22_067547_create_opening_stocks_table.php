@@ -16,14 +16,16 @@ return new class extends Migration
             $table->string('sku')->nullable();
             $table->unsignedBigInteger('location_id');
             $table->unsignedBigInteger('product_id');
-            $table->string('quantity');
-            $table->string('unit_cost');
-            $table->string('lot_no');
-            $table->string('expiry_date');
+            $table->unsignedBigInteger('batch_id'); // Define the batch_id column
+            $table->integer('quantity'); // Correct data type for quantity
+            $table->decimal('unit_cost', 10, 2); // Correct data type for unit_cost
+            $table->date('expiry_date'); // Correct data type for expiry_date
             $table->timestamps();
-            // ForeignKey
-            $table->foreign('location_id')->references('id')->on('locations');
-            $table->foreign('product_id')->references('id')->on('products');
+
+            // ForeignKey constraints
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+            $table->foreign('batch_id')->references('id')->on('batches')->onDelete('cascade'); // Proper foreign key definition
         });
     }
 

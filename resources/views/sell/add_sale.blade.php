@@ -68,7 +68,7 @@
                                                 <div class="input-group local-forms">
                                                     <span class="input-group-text" id="basic-addon1"><i
                                                             class="fas fa-user"></i></span>
-                                                    <select class="form-control form-select"
+                                                    <select class="form-control form-select select2Box"
                                                         aria-label="Example text with button addon"
                                                         aria-describedby="button-addon1">
                                                         <option selected disabled>Customer*</option>

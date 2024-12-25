@@ -187,11 +187,15 @@
                                         <label for="supplier-id">Supplier <span class="login-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
-                                            <select class="form-control form-select" id="supplier-id" name="supplier_id">
+                                            <select class="form-control form-select select2Box" id="supplier-id" name="supplier_id">
                                                 <option selected disabled>Supplier</option>
                                                 <!-- Options will be added dynamically here -->
                                             </select>
+                                            <button class="btn btn-outline-primary" type="button"
+                                                        data-bs-toggle="modal" data-bs-target="#addModal"
+                                                        id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                                         </div>
+
                                         <span class="text-danger" id="supplier_id_error"></span>
                                     </div>
 
@@ -231,7 +235,7 @@
                                     <!-- Business Location Field -->
                                     <div class="col-md-3 mb-3">
                                         <label for="services">Business Location <span class="login-danger">*</span></label>
-                                        <select class="form-control form-select" data-role="tagsinput" id="services" name="services">
+                                        <select class="form-control form-select " data-role="tagsinput" id="services" name="services">
                                             <option selected disabled></option>
                                             <!-- Business location options here -->
                                         </select>
@@ -239,8 +243,8 @@
                                     </div>
 
                                     <!-- Duration and Period Fields -->
-                                    <div class="col-md-5">
-                                        <div class="row g-0 text-center">
+                                    <div class="col-md-6">
+                                        <div class="row">
                                             <!-- Duration Field -->
                                             <div class="col-md-6 mb-3">
                                                 <label for="duration">Duration <span class="login-danger">*</span></label>
@@ -262,16 +266,25 @@
                                         </div>
                                     </div>
 
-                                    <!-- Product Image Field -->
-                                    <div class="col-md-4 mb-3">
-                                        <label for="product-image">Product image</label>
-                                        <div class="invoices-upload-btn">
-                                            <input type="file" accept="image/*" name="image" id="product-image" class="hide-input">
-                                            <label for="file" class="upload"><i class="far fa-folder-open"></i> Browse..</label>
+                                    <div class="row">
+                                             <!-- Product Image Field -->
+                                    <div class="col-6">
+                                        <div class="col-md-6 mb-3">
+                                            <label>Attach document</label>
+                                            <div class="invoices-upload-btn">
+                                                <input type="file" accept=".pdf,image/*" name="attach_document" id="attach_document" class="hide-input show-file">
+                                                <label for="file" class="upload"><i class="far fa-folder-open">&nbsp;</i> Browse..</label>
+                                            </div>
+                                            <span>Max File size: 5MB Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
                                         </div>
-                                        <span>Max File size: 5MB Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
-                                        <span class="text-danger" id="product_image_error"></span>
+                                        <div class="col-md-6 my-4">
+                                            <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="100px" class="img-thumbnail" height="200px" style="display: block;">
+                                            <iframe id="pdfViewer" width="100%" height="200px" style="display: block;"></iframe>
+                                        </div>
                                     </div>
+                                    </div>
+
+
                                 </div>
 
                             </div>
@@ -302,7 +315,7 @@
                                                 <input type="text" id="productSearchInput" class="form-control"
                                                     placeholder="Enter Product Name / SKU / Scan bar code"
                                                     aria-label="Search">
-                                                <div id="productSearchResults" class="dropdown-menu" style="display: none; max-height: 200px; overflow-y: auto;">
+                                                <div id="productSearchResults" class="dropdown-menu" style="display: none; with:100%; max-height: 200px; overflow-y: auto;">
                                                     <!-- Product search results will appear here -->
                                                 </div>
                                             </div>
@@ -334,11 +347,10 @@
                                             <th>Discount <br>Percent</th>
                                             <th>Unit Cost <br>(Before Tax)</th>
                                             <th>Sub Total <br>(Before Tax)</th>
-                                            <th>Product Tax</th>
                                             <th>Net Cost</th>
                                             <th>Line Total</th>
                                             <th>Profit <br>Margin%</th>
-                                            <th>Unit Selling <br> Price <br>(Inc. Tax)</th>
+                                            <th>Batch</th>
                                             <th><i class="fas fa-trash-alt"></i></th>
                                         </tr>
                                     </thead>
@@ -518,7 +530,7 @@
         </form>
 
         {{-- Add modal row --}}
-        {{-- <div class="row">
+        <div class="row">
             <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel"
                 aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
@@ -935,7 +947,7 @@
                     </div>
                 </div>
             </div>
-        </div> --}}
+        </div>
         {{-- Edit modal row --}}
 
         {{-- Add modal row --}}
@@ -1053,9 +1065,9 @@
                                                                         <label>Business Locations<span
                                                                                 class="login-danger">*</span></label>
                                                                         <select
-                                                                            class="form-control form-select multiple-location"
-                                                                            id="edit_location_id" name="location_id[]"
-                                                                            multiple="multiple">
+                                                                            class="form-control form-select"
+                                                                            id="edit_location_id" name="location_id"
+                                                                           >
                                                                             {{-- it will load dynamcaly using ajax --}}
                                                                         </select>
                                                                         <span class="text-danger"

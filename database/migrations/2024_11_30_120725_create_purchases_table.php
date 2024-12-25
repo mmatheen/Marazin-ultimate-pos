@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('reference_no')->unique();
             $table->date('purchase_date');
             $table->enum('purchasing_status', ['Received', 'Pending', 'Ordered'])->default('Pending');
-            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
+            $table->unsignedBigInteger('location_id');
             $table->integer('pay_term')->nullable();
             $table->enum('pay_term_type', ['days', 'months'])->nullable();
             $table->string('attached_document')->nullable();
@@ -27,6 +27,9 @@ return new class extends Migration
             $table->decimal('final_total', 15, 2);
             $table->enum('payment_status', ['Paid', 'Due', 'Partial'])->default('Due');
             $table->timestamps();
+
+            $table->foreign('location_id')->references('id')->on('locations');
+
         });
     }
 

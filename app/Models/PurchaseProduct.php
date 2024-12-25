@@ -9,7 +9,9 @@ class PurchaseProduct extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['purchase_id', 'product_id', 'quantity', 'price', 'total'];
+    protected $fillable = [
+        'purchase_id', 'product_id', 'batch_id', 'location_id', 'quantity', 'price', 'total'
+    ];
 
     public function purchase()
     {
@@ -19,5 +21,15 @@ class PurchaseProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
     }
 }
