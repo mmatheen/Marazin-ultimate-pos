@@ -125,7 +125,7 @@
                         row.append('<td>' + item.product.product_name + '</td>');
                         row.append('<td>' + item.quantity + '</td>');
                         row.append('<td>' + item.unit_cost + '</td>');
-                        row.append('<td>' + item.lot_no + '</td>');
+                        row.append('<td>' + item.batch_id + '</td>');
                         row.append('<td>' + item.expiry_date + '</td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
@@ -158,7 +158,7 @@
                         $('#edit_product_id').val(response.message.product_id);
                         $('#edit_quantity').val(response.message.quantity);
                         $('#edit_unit_cost').val(response.message.unit_cost);
-                        $('#edit_lot_no').val(response.message.lot_no);
+                        $('#edit_batch_id').val(response.message.lot_no);
                         $('#edit_expiry_date').val(response.message.expiry_date);
                         $('#addAndEditOpeningStockModal').modal('show');
                     }

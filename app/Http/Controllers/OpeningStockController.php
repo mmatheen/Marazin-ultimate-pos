@@ -78,7 +78,7 @@ class OpeningStockController extends Controller
                 'product_id' => 'required|string|max:255',
                 'quantity' => 'required|string|max:255',
                 'unit_cost' => 'required|string|max:255',
-                'lot_no' => 'required|string|max:255',
+                'batch_id' => 'nullable|string|max:255',
                 'expiry_date' => 'required|string|max:255',
             ],
             [
@@ -132,7 +132,7 @@ class OpeningStockController extends Controller
                 'product_id' => $request->product_id,
                 'quantity' => $request->quantity,
                 'unit_cost' => $request->unit_cost,
-                'lot_no' => $request->lot_no,
+                'batch_id' => $request->batch_id,
                 'expiry_date' => $request->expiry_date,
 
             ]);
@@ -196,13 +196,7 @@ class OpeningStockController extends Controller
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
+
     public function update(Request $request, int $id)
     {
        // dd($request->all());
@@ -225,7 +219,7 @@ class OpeningStockController extends Controller
             'product_id' => 'required|string|max:255',
             'quantity' => 'required|string|max:255',
             'unit_cost' => 'required|string|max:255',
-            'lot_no' => 'required|string|max:255',
+            'batch_id' => 'nallable|string|max:255',
             'expiry_date' => 'required|string|max:255',
         ],
         [
@@ -250,7 +244,7 @@ class OpeningStockController extends Controller
                 'product_id' => $request->product_id,
                 'quantity' => $request->quantity,
                 'unit_cost' => $request->unit_cost,
-                'lot_no' => $request->lot_no,
+                'batch_id' => $request->batch_id,
                 'expiry_date' => $request->expiry_date,
 
                 ]);
@@ -267,12 +261,7 @@ class OpeningStockController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
+
     public function destroy(int $id)
     {
         $getValue = OpeningStock::find($id);

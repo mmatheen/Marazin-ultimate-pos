@@ -306,21 +306,33 @@ class ProductController extends Controller
                 // Parse and format expiry date
                 $formattedExpiryDate = \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d');
 
-                // Determine the batch ID
+                // // Determine the batch ID
                 $batchId = $locationData['batch_id'] ?? null;
 
-                // Check if batch exists or create a new batch if batch_id is provided
-                $batch = null;
-                if ($batchId) {
-                    $batch = Batch::firstOrCreate([
+                 // Check if batch exists
+            $batch = null;
+            if ($batchId) {
+                $batch = Batch::where('batch_id', $batchId)
+                              ->where('product_id', $productId)
+                              ->first();
+
+                if ($batch) {
+                    // Update existing batch
+                    $batch->quantity += $locationData['quantity'];
+                    $batch->price = $locationData['unit_cost'];
+                    $batch->expiry_date = $formattedExpiryDate;
+                    $batch->save();
+                } else {
+                    // Create new batch
+                    $batch = Batch::create([
                         'batch_id' => $batchId,
                         'product_id' => $productId,
-                    ], [
                         'price' => $locationData['unit_cost'],
                         'quantity' => $locationData['quantity'],
                         'expiry_date' => $formattedExpiryDate,
                     ]);
                 }
+            }
 
                 // Create Opening Stock
                 OpeningStock::create([
@@ -356,64 +368,56 @@ class ProductController extends Controller
 
     public function getAllStockDetails()
     {
-        // Fetch the stock details aggregated by product, location, and batch
-        $stocks = Stock::with(['product', 'batch'])
-            ->select('product_id', 'location_id', 'batch_id', \DB::raw('SUM(quantity) as quantity'))
-            ->groupBy('product_id', 'location_id', 'batch_id')
-            ->get();
+        $user = auth()->user();
+        $stocksQuery = Stock::with(['product', 'batch', 'location'])
+            ->select('product_id', 'location_id', 'batch_id', \DB::raw('SUM(quantity) as batch_quantity'))
+            ->groupBy('product_id', 'location_id', 'batch_id');
 
-            if($stocks){
+        // If the user is not a superadmin, filter by their location_id
+        if ($user->role_name !== 'Super Admin') {
+            $stocksQuery->where('location_id', $user->location_id);
+        }
 
-                return response()->json([
-                    'status' => 200,
-                    'message' => 'Stock details fetched successfully',
-                    'stocks' => $stocks
-                ]);
-            }
-            else{
-                return response()->json([
-                    'status' => 200,
-                    'message' => 'No Record Found',
+        $stocks = $stocksQuery->get();
 
-                ]);
-            }
+        // Map the stocks data to the desired structure
+        $stockDetails = $stocks->groupBy('product_id')->map(function ($productStocks) {
+            $product = $productStocks->first()->product;
+            return [
+                'products' => $product,
+                'locations' => $productStocks->groupBy('location_id')->map(function ($locationStocks) {
+                    $location = $locationStocks->first()->location;
+                    return [
+                        'location_id' => $location->id,
+                        'location_name' => $location->name,
+                        'total_quantity' => $locationStocks->sum('batch_quantity'),
+                        'batches' => $locationStocks->map(function ($stock) {
+                            return [
+                                'batch_id' => $stock->batch_id,
+                                'batch_quantity' => $stock->batch_quantity,
+                                'expiry_date' => optional($stock->batch)->expiry_date,
+                                'batch_price' => optional($stock->batch)->price,
+                            ];
+                        })->values(),
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        if($stockDetails->isNotEmpty()) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'Stock details fetched successfully',
+                'stocks' => $stockDetails,
+            ]);
+        } else {
+            return response()->json([
+                'status' => 200,
+                'message' => 'No Records Found',
+            ]);
+        }
     }
 
-
-    // public function openingStockStore(Request $request, $productId)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'locations' => 'required|array',
-    //         'locations.*.id' => 'required|integer|exists:locations,id',
-    //         'locations.*.quantity' => 'required|numeric|min:1',
-    //         'locations.*.unit_cost' => 'required|numeric|min:0',
-    //         'locations.*.lot_no' => 'required|string|max:255',
-    //         'locations.*.expiry_date' => 'required|date',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     $product = Product::find($productId);
-    //     if (!$product) {
-    //         return response()->json(['status' => 404, 'message' => 'Product not found']);
-    //     }
-
-    //     foreach ($request->locations as $locationData) {
-    //         OpeningStock::create([
-    //             'sku' => $locationData['sku'] ?? 'SKU' . sprintf("%04d", OpeningStock::count() + 1),
-    //             'location_id' => $locationData['id'],
-    //             'product_id' => $productId,
-    //             'quantity' => $locationData['quantity'],
-    //             'unit_cost' => $locationData['unit_cost'],
-    //             'lot_no' => $locationData['lot_no'],
-    //             'expiry_date' => $locationData['expiry_date'],
-    //         ]);
-    //     }
-
-    //     return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
-    // }
 
     public function showOpeningStock($productId)
 {

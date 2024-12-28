@@ -260,155 +260,111 @@
       fetchDropdownData('/supplier-get-all', $('#supplier-id'), "Select Supplier");
       fetchDropdownData('/location-get-all', $('#location'), "Select Location");
 
+ // Global variable to store combined product data
+ let allProducts = [];
 
-     // Global variable to store combined product data
-  let allProducts = [];
-  let productStocks = {};  // This will store the stock quantity for each product
+// Fetch data from the single API and combine it
+fetch('/all-stock-details')
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 200 && Array.isArray(data.stocks)) {
+            // Process the stocks data
+            allProducts = data.stocks.map(stock => {
+                const product = stock.products;
+                const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity), 0);
 
-  // Fetch data from all APIs and combine it
-  Promise.all([
-      fetch('/product-get-all').then(response => response.json().then(data => data.message || [])),
-      fetch('/import-opening-stock-get-all').then(response => response.json().then(data => data.message || [])),
-      fetch('/get-all-purchases').then(response => response.json().then(data => data.purchases || []))
-  ])
-  .then(([products, openingStocks, purchases]) => {
-      // Ensure all responses are arrays before processing
-      if (!Array.isArray(products)) {
-          console.error('Unexpected format for products:', products);
-          products = [];
-      }
-      if (!Array.isArray(openingStocks)) {
-          console.error('Unexpected format for openingStocks:', openingStocks);
-          openingStocks = [];
-      }
-      if (!Array.isArray(purchases)) {
-          console.error('Unexpected format for purchases:', purchases);
-          purchases = [];
-      }
+                return {
+                    id: product.id,
+                    name: product.product_name,
+                    sku: product.sku,
+                    quantity: totalQuantity,
+                    price: product.retail_price,
+                    product_details: product,
+                    locations: stock.locations
+                };
+            });
 
-      // Initialize stock quantities for products
-      products.forEach(product => {
-          productStocks[product.id] = 0;  // Start with 0 stock for each product
-      });
+            console.log('Combined product data:', allProducts);
+            // Initialize autocomplete functionality after data is ready
+            initAutocomplete();
+        } else {
+            console.error('Unexpected format or status for stocks data:', data);
+        }
+    })
+    .catch(err => console.error('Error fetching product data:', err));
 
-   // Merge all product data and accumulate stock quantities
-  allProducts = [
-      ...products.map(product => ({
-          id: product.id,
-          name: product.product_name || `Product ID ${product.id}`,  // Fallback to ID if name is missing
-          sku: product.sku,
-          quantity: null,  // Initial value
-          price: product.retail_price,
-          source: 'products'
-      })),
-      ...openingStocks.map(stock => {
-          const productId = stock.product?.id || null;
-          if (productId) {
-              productStocks[productId] = (productStocks[productId] || 0) + Number(stock.quantity || 0);
-          }
-          return {
-              id: stock.product?.id || null,
-              name: stock.product?.product_name || `Product ID ${stock.product?.id}`,  // Fallback if name is missing
-              sku: stock.product?.sku || null,
-              quantity: stock.quantity,
-              price: stock.unit_cost,
-              source: 'openingStock'
-          };
-      }),
-      ...purchases.flatMap(purchase =>
-          purchase.purchase_products.map(purchaseProduct => {
-              const productId = purchaseProduct.product_id;
-              if (productId) {
-                  productStocks[productId] = (productStocks[productId] || 0) + Number(purchaseProduct.quantity || 0);
-              }
-              return {
-                  id: productId,
-                  name: `Product ID ${productId}`,  // Fallback if name is unavailable
-                  sku: null,  // Placeholder if SKU is unavailable
-                  quantity: purchaseProduct.quantity,
-                  price: purchaseProduct.price,
-                  source: 'purchases'
-              };
-          })
-      )
-  ];
+// Function to initialize autocomplete functionality
+function initAutocomplete() {
+    $( "#productSearchInput" ).autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts.filter(product =>
+                (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            );
+            response(filteredProducts.map(product => ({
+                label: `${product.name} (${product.sku || 'No SKU'})`,
+                value: product.name,
+                product: product
+            })));
+        },
+        select: function(event, ui) {
+            // Populate the input field with the selected product name
+            $("#productSearchInput").val(ui.item.value);
+            // Add the selected product to the data table (function to be implemented)
+            addProductToTable(ui.item.product);
+            return false;
+        }
+    })
+    .autocomplete("instance")._renderItem = function(ul, item) {
+        return $("<li>")
+            .append(`<div>${item.label}</div>`)
+            .appendTo(ul);
+    };
+}
+//   /// Function to add product to table
+//   function addProductToTable(product) {
+//       const currentStock = productStocks[product.id] || 0;  // Get the stock quantity for the product
 
-  console.log('Combined product data:', allProducts);
-  console.log('Product stock quantities:', productStocks);
+//       // Check if the product is already in the table
+//       const existingRow = $('#purchase_return tbody tr[data-id="' + product.id + '"]');
+//       if (existingRow.length > 0) {
+//           toastr.warning('Product is already added to the table!', 'Duplicate Product');
+//           return;
+//       }
 
-      // Initialize search functionality after data is ready
-      initSearchFunctionality();
-  })
-  .catch(err => console.error('Error fetching product data:', err));
+//       // Initial quantity set to 1 (can be changed later)
+//       const quantity = 1;
+//       const subtotal = product.price * quantity;
 
-  // Function to initialize search functionality
-  function initSearchFunctionality() {
-      const searchInput = document.getElementById('productSearchInput');
-      const searchResults = document.getElementById('productSearchResults');
+//       const newRow = `
+//           <tr data-id="${product.id}">
+//               <td>${product.id}</td>
+//               <td>${product.name || '-'} <br>Current stock: ${currentStock || '0'}</td>
+//               <td>
+//                   <input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${currentStock}">
+//               </td>
+//               <td>${product.price || '0'}</td>
+//               <td class="sub-total">${subtotal.toFixed(2)}</td>
+//               <td>
+//                   <button class="btn btn-danger btn-sm delete-product">
+//                       <i class="fas fa-trash"></i>
+//                   </button>
+//               </td>
+//           </tr>
+//       `;
 
-      // Function to render search results
-      function renderSearchResults(filteredProducts) {
-          searchResults.innerHTML = '';  // Clear existing results
-          if (filteredProducts.length > 0) {
-              filteredProducts.forEach(product => {
-                  if (product.name && product.name !== `Product ID ${product.id}`) {
-                      const resultItem = document.createElement('div');
-                      resultItem.classList.add('dropdown-item');
-                      resultItem.textContent = `${product.name || 'Unnamed Product'} (${product.sku || 'No SKU'})`;
-                      searchResults.appendChild(resultItem);
+//       $('#purchase_return').DataTable().row.add($(newRow)).draw();
+//       updateFooter();
+//       toastr.success('New product added to the table!', 'Success');
+//   }
 
-                      // Add click event to populate the input field
-                      resultItem.addEventListener('click', () => {
-                          searchInput.value = `${product.name} (${product.sku || 'No SKU'})`;
-                          searchResults.style.display = 'none';
-                          // Add the selected product to the data table
-                          addProductToTable(product);
-                      });
-                  }
-              });
-              searchResults.style.display = 'block';  // Show the dropdown
-          } else {
-              searchResults.style.display = 'none';  // Hide if no results
-          }
-      }
-
-      // Search functionality
-      searchInput.addEventListener('input', (e) => {
-          const searchTerm = e.target.value.toLowerCase();
-          const filteredProducts = allProducts.filter(product =>
-              (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-              (product.sku && product.sku.toLowerCase().includes(searchTerm))
-          );
-          renderSearchResults(filteredProducts);
-      });
-
-      // Hide dropdown when clicking outside
-      document.addEventListener('click', (e) => {
-          if (!e.target.closest('.input-group')) {
-              searchResults.style.display = 'none';
-          }
-      });
-  }
-
-  /// Function to add product to table
-  function addProductToTable(product) {
-      const currentStock = productStocks[product.id] || 0;  // Get the stock quantity for the product
-
-      // Check if the product is already in the table
-      const existingRow = $('#purchase_return tbody tr[data-id="' + product.id + '"]');
-      if (existingRow.length > 0) {
-          toastr.warning('Product is already added to the table!', 'Duplicate Product');
-          return;
-      }
-
-      // Initial quantity set to 1 (can be changed later)
-      const quantity = 1;
-      const subtotal = product.price * quantity;
-
-      const newRow = `
+function addProductToTable(product) {
+        // Generate the new row
+        const newRow = `
           <tr data-id="${product.id}">
               <td>${product.id}</td>
-              <td>${product.name || '-'} <br>Current stock: ${currentStock || '0'}</td>
+               <td>${product.name || '-'} <br>Current stock: ${product.quantity || '0'}</td>
               <td>
                   <input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${currentStock}">
               </td>
@@ -418,14 +374,47 @@
                   <button class="btn btn-danger btn-sm delete-product">
                       <i class="fas fa-trash"></i>
                   </button>
-              </td>
+              </td> 
           </tr>
       `;
 
-      $('#purchase_return').DataTable().row.add($(newRow)).draw();
-      updateFooter();
-      toastr.success('New product added to the table!', 'Success');
-  }
+        // Add the new row to the DataTable
+        const $newRow = $(newRow);
+        $('#purchase_return').DataTable().row.add($newRow).draw();
+
+        // Remove the product from allProducts array
+        allProducts = allProducts.filter(p => p.id !== product.id);
+
+        // Update footer after adding the product
+        updateFooter();
+        toastr.success('New product added to the table!', 'Success');
+
+        // Add event listeners for dynamic updates
+        $newRow.find('.purchase-quantity, .discount-percent, .product-tax, .product-price, .profit-margin').on('input', function() {
+            updateRow($newRow);
+            updateFooter();
+        });
+
+        // Function to update row values
+        function updateRow($row) {
+            const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+            const price = parseFloat($row.find('.product-price').val()) || 0;
+            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+            const tax = parseFloat($row.find('.product-tax').val()) || 0;
+            const profitMargin = parseFloat($row.find('.profit-margin').val()) || 0;
+
+            const subTotal = quantity * price;
+            const discountAmount = subTotal * (discountPercent / 100);
+            const netCost = subTotal - discountAmount + tax;
+            const lineTotal = netCost;
+
+            $row.find('.sub-total').text(subTotal.toFixed(2));
+            $row.find('.net-cost').text(netCost.toFixed(2));
+            $row.find('.line-total').text(lineTotal.toFixed(2));
+            $row.find('.retail-price').text(price.toFixed(2));
+            $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
+        }
+}
 
   // Function to remove product from table
   function removeProductFromTable(button) {

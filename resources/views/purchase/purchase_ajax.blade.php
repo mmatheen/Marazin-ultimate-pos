@@ -2,113 +2,6 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
-        // var addAndUpdateValidationOptions = {
-        //     rules: {
-
-        //         product_name: {
-        //             required: true,
-        //         },
-
-        //         unit_id: {
-        //             required: true,
-        //         },
-        //         brand_id: {
-        //             required: true,
-        //         },
-        //         main_category_id: {
-        //             required: true,
-        //         },
-        //         sub_category_id: {
-        //             required: true,
-        //         },
-        //         location_id: {
-        //             required: true,
-        //         }
-
-        //         ,
-        //         retail_price: {
-        //             required: true,
-        //         },
-        //         whole_sale_price: {
-        //             required: true,
-        //         },
-        //         special_price: {
-        //             required: true,
-        //         },
-        //         original_price: {
-        //             required: true,
-        //         },
-
-        //     },
-        //     messages: {
-
-        //         product_name: {
-        //             required: "Product Name is required",
-        //         },
-        //         unit_id: {
-        //             required: "Product Unit  is required",
-        //         },
-        //         brand_id: {
-        //             required: "Product Brand is required",
-        //         },
-        //         main_category_id: {
-        //             required: "Main Category  is required",
-        //         },
-        //         sub_category_id: {
-        //             required: "Sub Category  is required",
-        //         },
-        //         location_id: {
-        //             required: "Business Location  is required",
-        //         }
-
-        //         ,
-        //         retail_price: {
-        //             required: "Retail Price is required",
-        //         },
-        //         whole_sale_price: {
-        //             required: "Whole Sale Price is required",
-        //         },
-        //         special_price: {
-        //             required: "Special Price is required",
-        //         },
-        //         original_price: {
-        //             required: "Cost Price is required",
-        //         },
-
-        //     },
-        //     errorElement: 'span',
-        //     errorPlacement: function(error, element) {
-
-        //         // error message show after selectbox
-        //         if (element.is("select")) {
-        //             error.addClass('text-danger');
-        //             // Insert the error after the closest parent div for better placement with select
-        //             error.insertAfter(element.closest('div'));
-        //         }
-        //         // error message show after checkbox
-        //         else if (element.is(":checkbox")) {
-        //             error.addClass('text-danger');
-        //             // For checkboxes, place the error after the checkbox's parent container
-        //             error.insertAfter(element.closest('div').find('label').last());
-        //         }
-        //         // error message show after inputbox
-        //         else {
-        //             error.addClass('text-danger');
-        //             error.insertAfter(element);
-        //         }
-        //     },
-
-        //     highlight: function(element, errorClass, validClass) {
-        //         $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-        //     },
-        //     unhighlight: function(element, errorClass, validClass) {
-        //         $(element).removeClass('is-invalidRed').addClass('is-validGreen');
-        //     }
-
-        // };
-
-        // // Apply validation to forms
-        // $('#addPurchaseProductForm').validate(addAndUpdateValidationOptions);
 
         var purchaseValidationOptions = {
     rules: {
@@ -120,7 +13,6 @@
         },
         purchase_date: {
             required: true,
-            date: true,
         },
         purchase_status: {
             required: true,
@@ -150,7 +42,6 @@
         },
         purchase_date: {
             required: "Purchase Date is required",
-            date: "Please enter a valid date",
         },
         purchase_status: {
             required: "Purchase Status is required",
@@ -196,21 +87,31 @@ $('#purchaseForm').validate(purchaseValidationOptions);
 
 
 
-        // show the image when add and edit
-        $(".show-picture").on("change", function() {
-            const input = this;
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
 
-                reader.onload = function(e) {
-                    // Update the src attribute of the img tag with the data URL of the selected image
-                    $("#selectedImage").attr("src", e.target.result);
-                    $("#selectedImage").show(); // Show the image
-                };
+      // Show Image Preview
+      $(".show-file").on("change", function() {
+      const input = this;
+      if (input.files && input.files[0]) {
+          const file = input.files[0];
+          const reader = new FileReader();
 
-                reader.readAsDataURL(input.files[0]);
-            }
-        });
+          if (file.type === "application/pdf") {
+              reader.onload = function(e) {
+                  $("#pdfViewer").attr("src", e.target.result);
+                  $("#pdfViewer").show();
+                  $("#selectedImage").hide();
+              };
+          } else if (file.type.startsWith("image/")) {
+              reader.onload = function(e) {
+                  $("#selectedImage").attr("src", e.target.result);
+                  $("#selectedImage").show();
+                  $("#pdfViewer").hide();
+              };
+          }
+
+          reader.readAsDataURL(file);
+      }
+    });
         // show the image when add and edit image code end
 
 
@@ -251,33 +152,6 @@ $('#purchaseForm').validate(purchaseValidationOptions);
                 }
             });
         });
-        // sub category details show using main category id code end
-
-
-
-        // Function to reset form and validation errors
-        // function resetFormAndValidation() {
-        //     // Reset the form fields
-        //     $('#addPurchaseProductForm')[0].reset();
-        //     // Reset the validation messages and states
-        //     $('#addPurchaseProductForm').validate().resetForm();
-        //     $('#addPurchaseProductForm').find('.is-invalidRed').removeClass('is-invalidRed');
-        //     $('#addPurchaseProductForm').find('.is-validGreen').removeClass('is-validGreen');
-        //     // Reset the image to the default
-        //     $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png');
-
-        // }
-        // // Function to reset form and validation errors
-        // function resetFormAndValidationPruchase() {
-        //     // Reset the form fields
-        //     $('#purchaseForm')[0].reset();
-        //     // Reset the validation messages and states
-        //     $('#purchaseForm').validate().resetForm();
-        //     $('#purchaseForm').find('.is-invalidRed').removeClass('is-invalidRed');
-        //     $('#purchaseForm').find('.is-validGreen').removeClass('is-validGreen');
-        //     // Reset the image to the default
-        //     $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png');
-        // }
 
         $('#onlySaveProductButton').click(function(e) {
             e.preventDefault(); // Prevent default form submission
@@ -594,37 +468,7 @@ $('#purchaseForm').validate(purchaseValidationOptions);
 
 
     });
-
-    // Fetch suppliers using AJAX
 // Fetch suppliers using AJAX
-$.ajax({
-    url: '/supplier-get-all',
-    method: 'GET',
-    dataType: 'json',
-    success: function(data) {
-        if (data.status === 200) {
-            const supplierSelect = $('#supplier-id');
-
-            // Clear existing options before appending new ones
-            supplierSelect.html('<option selected disabled>Supplier</option>');
-
-            // Loop through the supplier data and create an option for each supplier
-            data.message.forEach(function(supplier) {
-                const option = $('<option></option>')
-                    .val(supplier.id)
-                    .text(`${supplier.first_name} ${supplier.last_name} (ID: ${supplier.id})`)
-                    .data('details', supplier); // Store supplier details in data attribute
-
-                supplierSelect.append(option);
-            });
-        } else {
-            console.error('Failed to fetch supplier data:', data.message);
-        }
-    },
-    error: function(xhr, status, error) {
-        console.error('Error fetching supplier data:', error);
-    }
-});
 
 // Handle supplier selection
 $('#supplier-id').on('change', function () {
@@ -742,6 +586,15 @@ function calculatePaymentDue(openingBalance) {
             formData.append('payment_method', document.getElementById('payment-method')?.value || '');
             formData.append('payment_note', document.getElementById('payment-note')?.value || '');
 
+            const fileInput = $('#attach_document')[0];
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'application/pdf'];
+                if (validTypes.includes(file.type)) {
+                    formData.append('attached_document', file);
+                }
+            }
+
             // Product Details
             const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
             productTableRows.forEach((row, index) => {
@@ -795,209 +648,142 @@ function calculatePaymentDue(openingBalance) {
     }
 });
 
-    // Global variable to store combined product data
-    let allProducts = [];
 
-    // Fetch data from all APIs and combine it
-    Promise.all([
-            fetch('/product-get-all').then(response => response.json().then(data => data.message || [])),
-            fetch('/import-opening-stock-get-all').then(response => response.json().then(data => data.message ||
-            [])),
-            fetch('/get-all-purchases').then(response => response.json().then(data => data.purchases || []))
-         ])
-                .then(([products, openingStocks, purchases]) => {
-                    // Ensure all responses are arrays before processing
-                    if (!Array.isArray(products)) {
-                        console.error('Unexpected format for products:', products);
-                        products = [];
-                    }
-                    if (!Array.isArray(openingStocks)) {
-                        console.error('Unexpected format for openingStocks:', openingStocks);
-                        openingStocks = [];
-                    }
-                    if (!Array.isArray(purchases)) {
-                        console.error('Unexpected format for purchases:', purchases);
-                        purchases = [];
-                    }
+   // Global variable to store combined product data
+   let allProducts = [];
 
-                    // Merge all product data
-                    allProducts = [
-                        ...products.map(product => ({
-                            id: product.id,
-                            name: product.product_name,
-                            sku: product.sku,
-                            quantity: null,
-                            price: product.retail_price,
-                            source: 'products'
-                        })),
-                        ...openingStocks.map(stock => ({
-                            id: stock.product?.id || null,
-                            name: stock.product?.product_name || 'Unnamed Product',
-                            sku: stock.product?.sku || null,
-                            quantity: stock.quantity,
-                            price: stock.unit_cost,
-                            source: 'openingStock'
-                        })),
-                        ...purchases.flatMap(purchase =>
-                            purchase.purchase_products.map(purchaseProduct => ({
-                                id: purchaseProduct.product_id,
-                                name: `Product ID ${purchaseProduct.product_id}`, // Placeholder if name is unavailable
-                                sku: null, // Placeholder if SKU is unavailable
-                                quantity: purchaseProduct.quantity,
-                                price: purchaseProduct.price,
-                                source: 'purchases'
-                            }))
-                        )
-                    ];
+// Fetch data from the single API and combine it
+fetch('/all-stock-details')
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 200 && Array.isArray(data.stocks)) {
+            // Process the stocks data
+            allProducts = data.stocks.map(stock => {
+                const product = stock.products;
+                const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity), 0);
 
-                    console.log('Combined product data:', allProducts);
-                    // Initialize search functionality after data is ready
-                    initSearchFunctionality();
-                })
-                .catch(err => console.error('Error fetching product data:', err));
-
-    // Function to initialize search functionality
-            function initSearchFunctionality() {
-                const searchInput = document.getElementById('productSearchInput');
-                const searchResults = document.getElementById('productSearchResults');
-                // const table = $('#purchase_product').DataTable();
-
-                // Function to render search results
-                function renderSearchResults(filteredProducts) {
-                    searchResults.innerHTML = ''; // Clear existing results
-                    if (filteredProducts.length > 0) {
-                        filteredProducts.forEach(product => {
-
-                            if (product.name && product.name !== `Product ID ${product.id}`) {
-                            const resultItem = document.createElement('div');
-                            resultItem.classList.add('dropdown-item');
-                            resultItem.textContent =
-                                `${product.name || 'Unnamed Product'} (${product.sku || 'No SKU'})`;
-                            searchResults.appendChild(resultItem);
-
-                            // Add click event to populate the input field
-                            resultItem.addEventListener('click', () => {
-                                searchInput.value = `${product.name} (${product.sku || 'No SKU'})`;
-                                searchResults.style.display = 'none';
-                                // Add the selected product to the data table a
-                                addProductToTable(product);
-                            });
-                            }
-                        });
-                        searchResults.style.display = 'block'; // Show the dropdown
-                    } else {
-                        searchResults.style.display = 'none'; // Hide if no results
-                    }
-                }
-
-                // Search functionality
-                searchInput.addEventListener('input', (e) => {
-                    const searchTerm = e.target.value.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
-                    renderSearchResults(filteredProducts);
-                });
-
-                // Hide dropdown when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('.input-group')) {
-                        searchResults.style.display = 'none';
-                    }
-                });
-
-
-
-         function addProductToTable(product) {
-            // Calculate the current quantity
-            let currentStock = 0;
-
-            // Check for the product in the opening stock
-            const openingStock = allProducts.find(p => p.id === product.id && p.source === 'openingStock');
-            if (openingStock) {
-                currentStock += Number(openingStock.quantity || 0);
-            }
-
-            // Add quantities from purchases
-            const purchaseQuantities = allProducts
-                .filter(p => p.id === product.id && p.source === 'purchases')
-                .reduce((sum, p) => sum + Number(p.quantity || 0), 0);
-
-            currentStock += purchaseQuantities;
-
-            // Generate the new row
-            const newRow = `
-                <tr data-id="${product.id}">
-                    <td>${product.id}</td>
-                    <td>${product.name || '-'} <br>Current stock: ${currentStock || '0'}</td>
-                    <td>
-                        <input type="number" class="form-control purchase-quantity" value="1" min="1">
-                    </td>
-                    <td>
-                        <input type="number" class="form-control product-price" value="${product.price || '0'}" min="0">
-                    </td>
-                    <td>
-                        <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
-                    </td>
-                    <td class="retail-price">${product.price || '0'}</td>
-                    <td class="sub-total">0</td>
-                    <td class="net-cost">0</td>
-                    <td class="line-total">0</td>
-                    <td>
-                        <input type="number" class="form-control profit-margin" value="${product.profit_margin || '0'}" min="0">
-                    </td>
-                    <td>
-                     <input type="text" class="form-control">
-                    </td>
-                    <td>
-                        <button class="btn btn-danger btn-sm delete-product">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-
-            // Add the new row to the DataTable
-            const $newRow = $(newRow);
-            $('#purchase_product').DataTable().row.add($newRow).draw();
-
-            // Remove the product from allProducts array
-            allProducts = allProducts.filter(p => p.id !== product.id);
-
-            // Update footer after adding the product
-            updateFooter();
-            toastr.success('New product added to the table!', 'Success');
-
-            // Add event listeners for dynamic updates
-            $newRow.find('.purchase-quantity, .discount-percent, .product-tax, .product-price, .profit-margin').on('input', function() {
-                updateRow($newRow);
-                updateFooter();
+                return {
+                    id: product.id,
+                    name: product.product_name,
+                    sku: product.sku,
+                    quantity: totalQuantity,
+                    price: product.retail_price,
+                    product_details: product,
+                    locations: stock.locations
+                };
             });
 
-            // Function to update row values
-            function updateRow($row) {
-                const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
-                const price = parseFloat($row.find('.product-price').val()) || 0;
-                const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-                const tax = parseFloat($row.find('.product-tax').val()) || 0;
-                const profitMargin = parseFloat($row.find('.profit-margin').val()) || 0;
+            console.log('Combined product data:', allProducts);
+            // Initialize autocomplete functionality after data is ready
+            initAutocomplete();
+        } else {
+            console.error('Unexpected format or status for stocks data:', data);
+        }
+    })
+    .catch(err => console.error('Error fetching product data:', err));
 
-                const subTotal = quantity * price;
-                const discountAmount = subTotal * (discountPercent / 100);
-                const netCost = subTotal - discountAmount + tax;
-                const lineTotal = netCost;
-
-                $row.find('.sub-total').text(subTotal.toFixed(2));
-                $row.find('.net-cost').text(netCost.toFixed(2));
-                $row.find('.line-total').text(lineTotal.toFixed(2));
-                $row.find('.retail-price').text(price.toFixed(2));
-                $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
-            }
-
-
-       }
+// Function to initialize autocomplete functionality
+function initAutocomplete() {
+    $( "#productSearchInput" ).autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts.filter(product =>
+                (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            );
+            response(filteredProducts.map(product => ({
+                label: `${product.name} (${product.sku || 'No SKU'})`,
+                value: product.name,
+                product: product
+            })));
+        },
+        select: function(event, ui) {
+            // Populate the input field with the selected product name
+            $("#productSearchInput").val(ui.item.value);
+            // Add the selected product to the data table (function to be implemented)
+            addProductToTable(ui.item.product);
+            return false;
+        }
+    })
+    .autocomplete("instance")._renderItem = function(ul, item) {
+        return $("<li>")
+            .append(`<div>${item.label}</div>`)
+            .appendTo(ul);
+    };
 }
+
+
+    function addProductToTable(product) {
+        // Generate the new row
+        const newRow = `
+            <tr data-id="${product.id}">
+                <td>${product.id}</td>
+                <td>${product.name || '-'} <br>Current stock: ${product.quantity || '0'}</td>
+                <td>
+                    <input type="number" class="form-control purchase-quantity" value="1" min="1">
+                </td>
+                <td>
+                    <input type="number" class="form-control product-price" value="${product.price || '0'}" min="0">
+                </td>
+                <td>
+                    <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
+                </td>
+                <td class="retail-price">${product.price || '0'}</td>
+                <td class="sub-total">0</td>
+                <td class="net-cost">0</td>
+                <td class="line-total">0</td>
+                <td>
+                    <input type="number" class="form-control profit-margin" value="${product.profit_margin || '0'}" min="0">
+                </td>
+                <td>
+                 <input type="text" class="form-control">
+                </td>
+                <td>
+                    <button class="btn btn-danger btn-sm delete-product">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        // Add the new row to the DataTable
+        const $newRow = $(newRow);
+        $('#purchase_product').DataTable().row.add($newRow).draw();
+
+        // Remove the product from allProducts array
+        allProducts = allProducts.filter(p => p.id !== product.id);
+
+        // Update footer after adding the product
+        updateFooter();
+        toastr.success('New product added to the table!', 'Success');
+
+        // Add event listeners for dynamic updates
+        $newRow.find('.purchase-quantity, .discount-percent, .product-tax, .product-price, .profit-margin').on('input', function() {
+            updateRow($newRow);
+            updateFooter();
+        });
+
+        // Function to update row values
+        function updateRow($row) {
+            const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+            const price = parseFloat($row.find('.product-price').val()) || 0;
+            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+            const tax = parseFloat($row.find('.product-tax').val()) || 0;
+            const profitMargin = parseFloat($row.find('.profit-margin').val()) || 0;
+
+            const subTotal = quantity * price;
+            const discountAmount = subTotal * (discountPercent / 100);
+            const netCost = subTotal - discountAmount + tax;
+            const lineTotal = netCost;
+
+            $row.find('.sub-total').text(subTotal.toFixed(2));
+            $row.find('.net-cost').text(netCost.toFixed(2));
+            $row.find('.line-total').text(lineTotal.toFixed(2));
+            $row.find('.retail-price').text(price.toFixed(2));
+            $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
+        }
+    }
+
 
 
 // Function to update footer (total items and net total)

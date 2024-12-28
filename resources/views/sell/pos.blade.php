@@ -414,6 +414,32 @@
     .brand-card button:hover {
       background-color: #0056b3;
     }
+
+        .scrollable-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .product-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .billing-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-control[readonly] {
+            background-color: #fff;
+        }
+   
     </style>
 </head>
 
@@ -522,12 +548,10 @@
 
                                 </div>
                                 <div class="col-md-8">
-                                    <input type="text" class="form-control" id="payment-reference"
-                                        placeholder="Enter Product name / SKU / Scan bar code">
-                                        <input type="hidden" id="payment-mode"  value="cash"/>
-                                        <input type="hidden" id="payment-status" value="paid" />
-                                        <input type="hidden" id="invoice-no" value="inv-00256" />
-
+                                    <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
+                                    <input type="hidden" id="payment-mode" value="cash"/>
+                                    <input type="hidden" id="payment-status" value="paid"/>
+                                    <input type="hidden" id="invoice-no" value="inv-00256"/>
                                 </div>
                                 <div class="col-md-12">
                                     <table class="table table-bordered">
@@ -618,15 +642,15 @@
             </div>
 
         </div>
-
-
-          <!-- Offcanvas Category Menu -->
+<!-- Offcanvas Category Menu -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory" aria-labelledby="offcanvasCategoryLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
+        <button type="button" class="btn btn-secondary" id="categoryBackBtn">Back</button>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
+        <button type="button" class="btn btn-primary" id="allProductsBtn">All Products</button>
         <div id="categoryContainer" class="category-container">
             <!-- Categories will be dynamically injected here -->
         </div>
@@ -635,13 +659,13 @@
             <!-- Subcategories will be dynamically injected here -->
         </div>
     </div>
-
 </div>
 
 <!-- Offcanvas Brand Menu -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand" aria-labelledby="offcanvasBrandLabel">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
+        <button type="button" class="btn btn-secondary" id="brandBackBtn">Back</button>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body">
@@ -650,7 +674,6 @@
         </div>
     </div>
 </div>
-
 
         <div class="bottom-fixed">
             <div class="row align-items-center">
@@ -677,6 +700,45 @@
                 </div>
             </div>
         </div>
+
+
+
+        {{-- <!-- Product Details Modal -->
+<div class="modal fade" id="productDetailsModal" tabindex="-1" aria-labelledby="productDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productDetailsModalLabel">Product Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="modalUnitPrice" class="form-label">Unit Price</label>
+                    <input type="number" class="form-control" id="modalUnitPrice" step="0.01">
+                </div>
+                <div class="mb-3">
+                    <label for="discountType" class="form-label">Discount Type</label>
+                    <select class="form-select" id="modalDiscountType">
+                        <option value="fixed">Fixed Amount</option>
+                        <option value="percentage">Percentage</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="modalDiscountAmount" class="form-label">Discount Amount</label>
+                    <input type="number" class="form-control" id="modalDiscountAmount" step="0.01" value="0">
+                </div>
+                <div class="mb-3">
+                    <label for="modalDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="modalDescription" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveProductDetails">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div> --}}
 
 
 

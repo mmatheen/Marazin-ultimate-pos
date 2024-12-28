@@ -43,7 +43,7 @@
                                     <th>Product Name</th>
                                     <th>Quantity</th>
                                     <th>Unit Cost</th>
-                                    <th>Lot Number</th>
+                                    <th>Batch Number</th>
                                     <th>Expiry Date</th>
                                     <th>Action</th>
                                 </tr>
@@ -141,9 +141,9 @@
                                         <div class="row">
                                             <div class="col">
                                                 <div class="form-group local-forms">
-                                                    <label>Lot No <span class="login-danger">*</span></label>
-                                                    <input class="form-control" id="edit_lot_no" name="lot_no" type="text" placeholder="Enter Lot No">
-                                                    <span class="text-danger" id="lot_no_error"></span>
+                                                    <label>Batch No <span class="login-danger">*</span></label>
+                                                    <input class="form-control" id="edit_batch_id" name="batch_id" type="text" placeholder="Enter Batch No">
+                                                    <span class="text-danger" id="batch_id_error"></span>
                                                 </div>
                                             </div>
                                         </div>

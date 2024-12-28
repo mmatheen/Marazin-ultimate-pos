@@ -2,6 +2,7 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        supplierGetAll();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
@@ -229,6 +230,7 @@
                         $('#addAndEditSupplierModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
+                        supplierGetAll();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, id ? 'Updated' : 'Added');
@@ -260,6 +262,7 @@
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
+                        supplierGetAll();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, 'Deleted');
@@ -267,5 +270,37 @@
                 }
             });
         });
+
+
+function supplierGetAll(){
+$.ajax({
+    url: '/supplier-get-all',
+    method: 'GET',
+    dataType: 'json',
+    success: function(data) {
+        if (data.status === 200) {
+            const supplierSelect = $('#supplier-id');
+
+            // Clear existing options before appending new ones
+            supplierSelect.html('<option selected disabled>Supplier</option>');
+
+            // Loop through the supplier data and create an option for each supplier
+            data.message.forEach(function(supplier) {
+                const option = $('<option></option>')
+                    .val(supplier.id)
+                    .text(`${supplier.first_name} ${supplier.last_name} (ID: ${supplier.id})`)
+                    .data('details', supplier); // Store supplier details in data attribute
+
+                supplierSelect.append(option);
+            });
+        } else {
+            console.error('Failed to fetch supplier data:', data.message);
+        }
+    },
+    error: function(xhr, status, error) {
+        console.error('Error fetching supplier data:', error);
+    }
+});
+}
     });
 </script>

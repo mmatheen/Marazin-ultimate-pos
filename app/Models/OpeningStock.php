@@ -10,20 +10,26 @@ class OpeningStock extends Model
 {
     use HasFactory;
     protected $table='opening_stocks';
-    protected $fillable = [
-        'product_id', 'location_id', 'batch_id', 'quantity', 'unit_cost', 'lot_no', 'expiry_date'
-    ];
+    protected $fillable=[
 
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
+              'sku',
+              'location_id',
+              'product_id',
+              'quantity',
+              'unit_cost',
+              'batch_id',
+              'expiry_date',
+    ];
 
     public function location()
     {
         return $this->belongsTo(Location::class);
     }
 
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
     public function batch()
     {
         return $this->belongsTo(Batch::class);

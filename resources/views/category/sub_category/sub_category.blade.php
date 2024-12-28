@@ -59,7 +59,7 @@
             </div>
         </div>
 
-        @include('category.main_category.main_category_modal')
+        @include('category.sub_category.sub_category_modal')
         {{-- Delete modal --}}
         <div id="deleteModal" class="modal custom-modal fade" role="dialog">
             <div class="modal-dialog modal-dialog-centered">
@@ -92,4 +92,6 @@
     </div>
 
     @include('category.sub_category.sub_category_ajax')
+    @include('category.main_category.main_category_ajax')
+
 @endsection

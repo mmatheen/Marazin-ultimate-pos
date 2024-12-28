@@ -181,112 +181,130 @@
                     <div class="card card-table">
                         <div class="card-body">
                             <div class="page-header">
-                                <div class="row align-items-center">
+                                <!-- First Row -->
+                                <div class="row mb-4">
                                     <!-- Supplier Field -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="supplier-id">Supplier <span class="login-danger">*</span></label>
-                                        <div class="input-group">
-                                            <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
-                                            <select class="form-control form-select select2Box" id="supplier-id" name="supplier_id">
-                                                <option selected disabled>Supplier</option>
-                                                <!-- Options will be added dynamically here -->
-                                            </select>
-                                            <button class="btn btn-outline-primary" type="button"
-                                                        data-bs-toggle="modal" data-bs-target="#addModal"
-                                                        id="button-addon1"><i class="fas fa-plus-circle"></i></button>
-                                        </div>
 
-                                        <span class="text-danger" id="supplier_id_error"></span>
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="supplier-id">Supplier <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            {{-- <span class="input-group-text"><i class="fas fa-user"></i></span> --}}
+                                            <select class="form-select select2Box text-truncate"
+                                                style="max-width: calc(100% - 50px);" id="supplier-id" name="supplier_id">
+                                            </select>
+                                            <button
+                                                class="btn btn-outline-primary d-flex align-items-center justify-content-center"
+                                                type="button" data-bs-toggle="modal" data-bs-target="#addAndEditSupplierModal"
+                                                style="width: 40px;">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                        </div>
+                                        <span class="text-danger small" id="supplier_id_error"></span>
                                     </div>
 
                                     <!-- Reference No Field -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="reference-no">Reference No <span class="login-danger">*</span></label>
-                                        <input class="form-control" type="text" placeholder="Reference No" id="reference-no" name="reference_no">
-                                        <span class="text-danger" id="reference_no_error"></span>
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="reference-no">Reference No <span class="text-danger">*</span></label>
+                                        <input class="form-control" type="text" placeholder="Reference No"
+                                            id="reference-no" name="reference_no">
+                                        <span class="text-danger small" id="reference_no_error"></span>
                                     </div>
 
                                     <!-- Purchase Date Field -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="purchase-date">Purchase Date <span class="login-danger">*</span></label>
-                                        <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY" id="purchase-date" name="purchase_date">
-                                        <span class="text-danger" id="purchase_date_error"></span>
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="purchase-date">Purchase Date <span class="text-danger">*</span></label>
+                                        <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY"
+                                            id="purchase-date" name="purchase_date">
+                                        <span class="text-danger small" id="purchase_date_error"></span>
                                     </div>
 
                                     <!-- Purchase Status Field -->
-                                    <div class="col-md-3 mb-3">
-                                        <label for="purchase-status">Purchase Status <span class="login-danger">*</span></label>
-                                        <select class="form-control form-select" id="purchase-status" name="purchase_status">
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="purchase-status">Purchase Status <span
+                                                class="text-danger">*</span></label>
+                                        <select class="form-select" id="purchase-status" name="purchase_status">
                                             <option selected disabled>Please Select</option>
                                             <option>Received</option>
                                             <option>Pending</option>
                                             <option>Ordered</option>
                                         </select>
-                                        <span class="text-danger" id="purchase_status_error"></span>
+                                        <span class="text-danger small" id="purchase_status_error"></span>
                                     </div>
                                 </div>
 
-                                <div class="row">
+
+                                <!-- Second Row -->
+                                <div class="row mb-4">
                                     <!-- Supplier Details -->
-                                    <div class="col-md-3" id="supplier-details">
-                                        <p><span id="supplier-name"></span><br><span id="supplier-phone"></span></p>
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <div class="supplier-info p-3 border rounded">
+                                            <h6 class="mb-2">Supplier Details</h6>
+                                            <p class="mb-0">
+                                                <span id="supplier-name"></span><br>
+                                                <span id="supplier-phone"></span>
+                                            </p>
+                                        </div>
                                     </div>
 
                                     <!-- Business Location Field -->
-                                    <div class="col-md-3 mb-3">
+                                    <div class="col-lg-3 col-md-6 mb-3">
                                         <label for="services">Business Location <span class="login-danger">*</span></label>
-                                        <select class="form-control form-select " data-role="tagsinput" id="services" name="services">
+                                        <select class="form-control form-select" data-role="tagsinput" id="services"
+                                            name="services">
                                             <option selected disabled></option>
-                                            <!-- Business location options here -->
                                         </select>
                                         <span class="text-danger" id="business_location_error"></span>
                                     </div>
 
-                                    <!-- Duration and Period Fields -->
-                                    <div class="col-md-6">
-                                        <div class="row">
-                                            <!-- Duration Field -->
-                                            <div class="col-md-6 mb-3">
-                                                <label for="duration">Duration <span class="login-danger">*</span></label>
-                                                <input class="form-control" id="duration" name="duration" type="number" placeholder="Enter Duration">
-                                                <span class="text-danger" id="duration_error"></span>
-                                            </div>
-
-                                            <!-- Period Field -->
-                                            <div class="col-md-6 mb-3">
-                                                <label for="period">Period <span class="login-danger">*</span></label>
-                                                <select class="form-control" id="period" name="duration_type">
-                                                    <option selected disabled>Please Select</option>
-                                                    <option>days</option>
-                                                    <option>months</option>
-                                                    <option>years</option>
-                                                </select>
-                                                <span class="text-danger" id="duration_type_error"></span>
-                                            </div>
-                                        </div>
+                                    <!-- Duration Field -->
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="duration">Duration <span class="login-danger">*</span></label>
+                                        <input class="form-control" id="duration" name="duration" type="number"
+                                            placeholder="Enter Duration">
+                                        <span class="text-danger" id="duration_error"></span>
                                     </div>
 
-                                    <div class="row">
-                                             <!-- Product Image Field -->
-                                    <div class="col-6">
-                                        <div class="col-md-6 mb-3">
-                                            <label>Attach document</label>
-                                            <div class="invoices-upload-btn">
-                                                <input type="file" accept=".pdf,image/*" name="attach_document" id="attach_document" class="hide-input show-file">
-                                                <label for="file" class="upload"><i class="far fa-folder-open">&nbsp;</i> Browse..</label>
-                                            </div>
-                                            <span>Max File size: 5MB Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
-                                        </div>
-                                        <div class="col-md-6 my-4">
-                                            <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="100px" class="img-thumbnail" height="200px" style="display: block;">
-                                            <iframe id="pdfViewer" width="100%" height="200px" style="display: block;"></iframe>
-                                        </div>
+                                    <!-- Period Field -->
+                                    <div class="col-lg-3 col-md-6 mb-3">
+                                        <label for="period">Period <span class="login-danger">*</span></label>
+                                        <select class="form-control" id="period" name="duration_type">
+                                            <option selected disabled>Please Select</option>
+                                            <option>days</option>
+                                            <option>months</option>
+                                            <option>years</option>
+                                        </select>
+                                        <span class="text-danger" id="duration_type_error"></span>
                                     </div>
-                                    </div>
-
-
                                 </div>
 
+                                <!-- Third Row - Document Upload -->
+                                <div class="row">
+                                    <div class="col-lg-6 col-md-12">
+                                        <div class="document-upload p-3 border rounded">
+                                            <label class="mb-2">Attach document</label>
+                                            <div class="invoices-upload-btn mb-2">
+                                                <input type="file" accept=".pdf,image/*" name="attach_document"
+                                                    id="attach_document" class="hide-input show-file">
+                                                <label for="file" class="upload btn btn-outline-secondary">
+                                                    <i class="far fa-folder-open"></i> Browse..
+                                                </label>
+                                            </div>
+                                            <small class="text-muted d-block">
+                                                Max File size: 5MB<br>
+                                                Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6 col-md-12">
+                                        <div class="preview-container p-3 border rounded">
+                                            <img id="selectedImage" src="/assets/img/No Product Image Available.png"
+                                                alt="Selected Image" class="img-thumbnail mb-2"
+                                                style="max-width: 200px; display: block;">
+                                            <iframe id="pdfViewer" width="100%" height="200px"
+                                                style="display: none;"></iframe>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -308,20 +326,16 @@
 
                                     </div>
 
-                                    <div class="col-md-5">
+                                    <div class="ui-widget col-md-5">
                                         <div class="mb-3">
                                             <div class="input-group">
-                                                <span class="input-group-text" id="basic-addon1"><i class="fas fa-search"></i></span>
+                                                <span class="input-group-text" id="basic-addon1"><i
+                                                        class="fas fa-search"></i></span>
                                                 <input type="text" id="productSearchInput" class="form-control"
                                                     placeholder="Enter Product Name / SKU / Scan bar code"
                                                     aria-label="Search">
-                                                <div id="productSearchResults" class="dropdown-menu" style="display: none; with:100%; max-height: 200px; overflow-y: auto;">
-                                                    <!-- Product search results will appear here -->
-                                                </div>
                                             </div>
-
                                         </div>
-
                                     </div>
 
                                     <div class="col-md-3">
@@ -392,7 +406,8 @@
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Discount Amount<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" id="discount-amount" placeholder="0">
+                                                <input class="form-control" type="text" id="discount-amount"
+                                                    placeholder="0">
                                             </div>
                                         </div>
                                     </div>
@@ -528,426 +543,146 @@
             </div>
 
         </form>
-
-        {{-- Add modal row --}}
-        <div class="row">
-            <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel"
-                aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="exampleModalLabel">Add a new contact</h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <form id="addAndEditForm" method="POST" action="">
-                                <div class="row">
-
-                                    <div class="col-md-4 mt-xs-2px">
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="inlineRadioOptions"
-                                                id="inlineRadio1" value="option1"
-                                                onclick="toggleLoginFields('inlineRadio1','.hidden','.hiddenway_two_action')">
-                                            <label class="form-check-label" for="inlineRadio1">Individual</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="inlineRadioOptions"
-                                                id="inlineRadio2" value="option2"
-                                                onclick="toggleLoginFields2('inlineRadio2','.hidden','.hiddenway_two_action')">
-                                            <label class="form-check-label" for="inlineRadio2">Business</label>
-                                        </div>
-                                        <div class="col"></div>
-                                        <div class="col"></div>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-address-book"></i></span>
-                                            <input type="text" class="form-control" placeholder="Contact ID"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                        <span>Leave empty to autogenerate</span>
-                                    </div>
-                                </div>
-
-                                <div class="row mt-3">
-                                    <div class="col-md-3 hidden">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Prefix<span class="login-danger">*</span></label>
-                                                <select class="form-control form-select select">
-                                                    <option selected disabled>Mr / Mrs / Miss</option>
-                                                    <option>Mr</option>
-                                                    <option>Mrs</option>
-                                                    <option>Ms</option>
-                                                    <option>Miss</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 hidden">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>First Name<span class="login-danger">*</span></label>
-                                                <input class="form-control" type="text" placeholder="First Name">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 hidden">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Middle name<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Middle name">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 hidden">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Last Name<span class="login-danger"></span></label>
-                                                <input class="form-control" type="text" placeholder="Last Name">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-3 hiddenway_two_action">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-mobile-alt"></i></span>
-                                            <input type="text" class="form-control" placeholder="Bussiness Name"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-3">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-mobile-alt"></i></span>
-                                            <input type="text" class="form-control" placeholder="Mobile"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-phone"></i></span>
-                                            <input type="text" class="form-control"
-                                                placeholder="Alternate contact number"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-phone"></i></span>
-                                            <input type="text" class="form-control" placeholder="Landline"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="input-group mb-3">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-envelope"></i></span>
-                                            <input type="text" class="form-control" placeholder="Email"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="button-addon1">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row mt-4">
-                                    <div class="col-md-4 hidden">
-                                        <div class="form-group local-forms calendar-icon">
-                                            <label>Date Of Birth <span class="login-danger">*</span></label>
-                                            <input class="form-control datetimepicker" type="text"
-                                                placeholder="DD-MM-YYYY">
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-5">
-                                        <div class="input-group local-forms">
-                                            <span class="input-group-text" id="basic-addon1"><i
-                                                    class="fas fa-user"></i></span>
-                                            <select class="form-control form-select"
-                                                aria-label="Example text with button addon"
-                                                aria-describedby="basic-addon1">
-                                                <option selected disabled>Assigned to</option>
-                                                <option>Mr SuperUser</option>
-                                                <option>Mr Ahshan</option>
-                                                <option>Mr Afshan</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-
-                                </div>
-
-                                <div class="row">
-                                    <div class="d-flex justify-content-center">
-                                        <button class="btn btn-primary mt-xs-2px" type="button"
-                                            data-bs-toggle="collapse" data-bs-target="#moreinformation1"
-                                            aria-expanded="false" aria-controls="collapseExample">
-                                            More Infomation <i class="fas fa-sort-down "></i>
-                                        </button>
-                                    </div>
-
-                                    <div>
-                                        <div class="collapse" id="moreinformation1">
-                                            <div class="student-group-form">
-                                                <hr>
-                                                <div class="row mt-4">
-                                                    <div class="col-md-4">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control"
-                                                                placeholder="Tax number"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control"
-                                                                placeholder="Opening Balance"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="d-flex justify-content-between">
-                                                            <div class="mb-3">
-                                                                <div class="form-group local-forms">
-                                                                    <label>Pay term<span
-                                                                            class="login-danger"></span></label>
-                                                                    <input class="form-control" type="text"
-                                                                        placeholder="Pay term">
-                                                                </div>
-                                                            </div>
-
-                                                            <div class="mb-3">
-                                                                <div class="form-group local-forms">
-                                                                    <select class="form-control form-select select">
-                                                                        <option selected disabled>Please Select</option>
-                                                                        <option>Per Month</option>
-                                                                        <option>Per Week</option>
-                                                                        <option>Per Day</option>
-                                                                    </select>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <hr />
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Address line 1<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Address line 1">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Address line 2<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Address line 2">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-md-3">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control" placeholder="City"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control"
-                                                                placeholder="State"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control"
-                                                                placeholder="Country"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="input-group mb-3">
-                                                            <span class="input-group-text" id="basic-addon1"><i
-                                                                    class="fas fa-address-book"></i></span>
-                                                            <input type="text" class="form-control"
-                                                                placeholder="Zip Code"
-                                                                aria-label="Example text with button addon"
-                                                                aria-describedby="button-addon1">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <hr>
-                                                <div class="row">
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 1<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 1">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 2<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 2">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 3<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 3">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 4<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 4">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 5<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 5">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 6<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 6">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 7<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 7">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 8<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 8">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 9<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 9">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Custom Field 10<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Custom Field 10">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <hr>
-                                                <div class="row justify-content-center">
-                                                    <div class="col-md-8">
-                                                        <div class="mb-3">
-                                                            <div class="form-group local-forms">
-                                                                <label>Shipping Address<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="text"
-                                                                    placeholder="Shipping Address">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="submit" class="btn btn-primary">Save changes</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-
+{{-- Add/Edit modal row --}}
+<div class="row">
+    <div id="addAndEditSupplierModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="text-center mt-2 mb-4">
+                        <h5 id="modalTitle"></h5>
                     </div>
+                    <form id="addAndUpdateForm">
+
+                        <div class="row">
+                            <input type="hidden" name="edit_id" id="edit_id">
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="form-group local-forms">
+                                        <label>Prefix<span class="login-danger">*</span></label>
+                                        <select class="form-control form-select" id="edit_prefix" name="prefix">
+                                            <option selected disabled>Mr / Mrs / Miss</option>
+                                            <option>Mr</option>
+                                            <option>Mrs</option>
+                                            <option>Ms</option>
+                                            <option>Miss</option>
+                                        </select>
+                                        <span class="text-danger" id="prefix_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="form-group local-forms">
+                                        <label>First Name<span class="login-danger">*</span></label>
+                                        <input class="form-control" id="edit_first_name" name="first_name" type="text" placeholder="First Name">
+                                        <span class="text-danger" id="first_name_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="form-group local-forms">
+                                        <label>Last Name<span class="login-danger"></span></label>
+                                        <input class="form-control" id="edit_last_name" name="last_name" type="text" placeholder="Last Name">
+                                        <span class="text-danger" id="last_name_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-mobile-alt"></i></span>
+                                        <input type="text" class="form-control" id="edit_email" name="email" placeholder="Email" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                        <span class="text-danger" id="email_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-envelope"></i></span>
+                                        <input type="text" class="form-control" id="edit_mobile_no" name="mobile_no" placeholder="Mobile" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                        <span class="text-danger" id="mobile_no_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-address-book"></i></span>
+                                        <input type="text" class="form-control" id="edit_contact_id" name="contact_id" placeholder="Contact ID" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                        <span class="text-danger" id="contact_id_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3 mt-3">
+                                    <div class="input-group local-forms">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
+                                        <select class="form-control form-select" id="edit_contact_type" name="contact_type" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                            <option selected disabled>Contact type</option>
+                                            <option>Suppliers</option>
+                                            <option>Customers</option>
+                                            <option>Both (Supplier & Customer)</option>
+                                        </select>
+                                        <span class="text-danger" id="contact_type_error"></span>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3 mt-3">
+                                    <div class="form-group local-forms calendar-icon">
+                                        <label>Date <span class="login-danger">*</span></label>
+                                        <input class="form-control datetimepicker" id="edit_date" name="date" type="text" placeholder="DD-MM-YYYY">
+                                        <span class="text-danger" id="date_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-3 mt-3">
+                                    <div class="input-group local-forms">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
+                                        <select class="form-control form-select" id="edit_assign_to" name="assign_to" aria-label="Example text with button addon" aria-describedby="basic-addon1">
+                                            <option selected disabled>Assigned to</option>
+                                            <option>Mr SuperUser</option>
+                                            <option>Mr Ahshan</option>
+                                            <option>Mr Afshan</option>
+                                        </select>
+                                        <span class="text-danger" id="assign_to_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="input-group mb-3">
+                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-address-book"></i></span>
+                                        <input type="text" class="form-control" id="edit_opening_balance" name="opening_balance" placeholder="Opening Balance" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                        <span class="text-danger" id="opening_balance_error"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
+                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
+    </div>
+</div>
         {{-- Edit modal row --}}
 
         {{-- Add modal row --}}
@@ -1064,10 +799,8 @@
                                                                     <div class="input-group local-forms">
                                                                         <label>Business Locations<span
                                                                                 class="login-danger">*</span></label>
-                                                                        <select
-                                                                            class="form-control form-select"
-                                                                            id="edit_location_id" name="location_id"
-                                                                           >
+                                                                        <select class="form-control form-select"
+                                                                            id="edit_location_id" name="location_id">
                                                                             {{-- it will load dynamcaly using ajax --}}
                                                                         </select>
                                                                         <span class="text-danger"
@@ -1541,4 +1274,6 @@
 
 
             @include('purchase.purchase_ajax')
+
+            @include('contact.supplier.supplier_ajax')
         @endsection

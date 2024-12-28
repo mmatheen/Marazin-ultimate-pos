@@ -54,7 +54,7 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditMainCategoryModal').on('hidden.bs.modal', function () {
+            $('#addAndEditSubCategoryModal').on('hidden.bs.modal', function () {
                 resetFormAndValidation();
             });
 
@@ -65,7 +65,7 @@
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
-            $('#addAndEditMainCategoryModal').modal('show');
+            $('#addAndEditSubCategoryModal').modal('show');
         });
 
         // Fetch and Display Data
@@ -114,7 +114,7 @@
                         $('#edit_main_category_id').val(response.message.main_category_id);
                         $('#edit_subCategoryCode').val(response.message.subCategoryCode);
                         $('#edit_description').val(response.message.description);
-                        $('#addAndEditMainCategoryModal').modal('show');
+                        $('#addAndEditSubCategoryModal').modal('show');
                     }
                 }
             });
@@ -153,7 +153,7 @@
                         });
 
                     } else {
-                        $('#addAndEditMainCategoryModal').modal('hide');
+                        $('#addAndEditSubCategoryModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound

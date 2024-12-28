@@ -171,7 +171,6 @@
                                                         <th>Product Type</th>
                                                         <th>Category</th>
                                                         <th>Brand</th>
-                                                        <th>Tax</th>
                                                         <th>SKU</th>
                                                     </tr>
                                                 </thead>
@@ -180,8 +179,8 @@
                                                 </tbody>
                                             </table>
                                         </div>
-                                        
-                                    
+
+
                                     </div>
                                 </div>
                                 <div class="tab-pane" id="solid-justified-tab2">
@@ -268,7 +267,7 @@
         }
     </script>
 
-    
+
 @include('product.product_ajax')
 @endsection
 

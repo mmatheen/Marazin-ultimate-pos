@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('purchase_id');
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('location_id');
-            $table->unsignedBigInteger('batch_id');
+            $table->unsignedBigInteger('batch_id')->nullable();
             $table->integer('quantity')->default(1);
             $table->decimal('price', 15, 2);
             $table->decimal('total', 15, 2);

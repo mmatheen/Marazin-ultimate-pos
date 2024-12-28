@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('batches', function (Blueprint $table) {
             $table->id();
-            $table->string('batch_id')->unique()->nullable();
+            $table->string('batch_id')->nullable(); // Allow batch_id to be nullable
             $table->unsignedBigInteger('product_id');
             $table->decimal('price', 10, 2);
             $table->integer('quantity');

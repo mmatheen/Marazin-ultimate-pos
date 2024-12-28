@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css">
 
     <style>
         @media (max-width: 575.98px) {
@@ -284,6 +285,7 @@
             background-color: #6f42c1;
             color: white;
         }
+
     </style>
 
 </head>
@@ -306,6 +308,7 @@
             @include('includes.footer.footer')
         </div>
     </div>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
 
     <script src="{{ asset('assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/js/feather.min.js') }}"></script>
@@ -339,6 +342,7 @@
         // In your Javascript (external .js resource or <script> tag)
         $(document).ready(function() {
             $('.select2Box').select2();
+
         });
     </script>
 

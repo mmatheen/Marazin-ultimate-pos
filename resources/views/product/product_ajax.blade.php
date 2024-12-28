@@ -776,6 +776,10 @@
     });
 
 });
+
+
+
+
     });
 
 
@@ -834,84 +838,26 @@
         });
     }
 
-    function showFetchData() {
-    $.when(
-        $.ajax({
-            url: '/product-get-all',
-            type: 'GET',
-            dataType: 'json'
-        }),
-        $.ajax({
-            url: '/import-opening-stock-get-all',
-            type: 'GET',
-            dataType: 'json'
-        }),
-        $.ajax({
-            url: '/get-all-purchases',
-            type: 'GET',
-            dataType: 'json'
-        })
-    ).done(function(productResponse, stockResponse, purchaseResponse) {
-        // Both requests succeed
-        const products = productResponse[0].message; // Products data
-        const stockData = stockResponse[0].message; // Stock data
-        const purchaseStockData = purchaseResponse[0].purchases || []; // Purchases data
-
-        if (Array.isArray(products) || (Array.isArray(stockData) || Array.isArray(purchaseStockData))) {
+   function showFetchData() {
+    // Fetch data from the single API and combine it
+    $.ajax({
+        url: '/all-stock-details',
+        type: 'GET',
+        dataType: 'json'
+    }).done(function(response) {
+        if (response.status === 200 && Array.isArray(response.stocks)) {
+            const stocks = response.stocks;
             let table = $('#productTable').DataTable();
             table.clear().draw();
 
-            // Map stock data by product ID for quick lookup
-            const stockMap = {};
-            stockData.forEach(stock => {
-                const productId = stock.product_id;
-                if (!stockMap[productId]) {
-                    stockMap[productId] = {
-                        totalQuantity: 0,
-                        location: stock.location || null
-                    };
-                }
-                stockMap[productId].totalQuantity += parseInt(stock.quantity, 10) || 0; // Accumulate quantities
-            });
-
-            // Map purchase data by product ID for quick lookup
-            const purchaseMap = {};
-            purchaseStockData.forEach(purchase => {
-                purchase.purchase_products.forEach(purchaseProduct => {
-                    const productId = purchaseProduct.product_id;
-                    if (!purchaseMap[productId]) {
-                        purchaseMap[productId] = {
-                            totalQuantity: 0,
-                            price: parseFloat(purchaseProduct.price) || 0,
-                        };
-                    }
-                    purchaseMap[productId].totalQuantity += parseInt(purchaseProduct.quantity, 10) || 0; // Accumulate quantities
-                });
-            });
-
             // Loop through all products and combine stock data if available
-            products.forEach(product => {
-                if (!product) return; // Skip null or undefined products
+            stocks.forEach(stock => {
+                const product = stock.products;
+                const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity, 10), 0);
 
-                const stockEntry = stockMap[product.id] || { totalQuantity: 0, location: null };
-                const purchaseEntry = purchaseMap[product.id] || { totalQuantity: 0, price: 0 };
-
-                const openingStockQty = stockEntry.totalQuantity || 0;
-                const purchaseQty = purchaseEntry.totalQuantity || 0;
-                const currentStock = openingStockQty + purchaseQty;
-
-                console.log(currentStock);
-                console.log(purchaseQty);
-                console.log(openingStockQty);
-
-
-                const locationName = stockEntry.location?.name ||
-                                    (product.locations?.length ? product.locations[0].name : 'N/A');
-                // Create table row
-                let row = $('<tr>');
+                const row = $('<tr>');
                 row.append('<td><input type="checkbox" class="checked" /></td>');
-                row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name +
-                    '" width="50" height="70" /></td>');
+                row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name + '" width="50" height="70" /></td>');
                 row.append(`
                     <td>
                         <div class="dropdown dropdown-action">
@@ -932,29 +878,27 @@
                         </div>
                     </td>`);
 
+                const locationName = stock.locations.length > 0 ? stock.locations[0].location_name : 'N/A';
+
                 // Add product details
                 row.append('<td>' + product.product_name + '</td>');
                 row.append('<td>' + locationName + '</td>');
                 row.append('<td>Rs ' + product.retail_price.toFixed(2) + '</td>');
-                row.append('<td>' + currentStock + '</td>'); // Use combined quantity
+                row.append('<td>' + totalQuantity + '</td>'); // Use combined quantity
                 row.append('<td>' + product.product_type + '</td>');
-                row.append('<td>' + (categoryMap[product.main_category_id] || 'N/A') + '</td>');
-                row.append('<td>' + (brandMap[product.brand_id] || 'N/A') + '</td>');
-                row.append('<td>' + "Tax-3" + '</td>');
+                row.append('<td>' + (product.main_category_id || 'N/A') + '</td>');
+                row.append('<td>' + (product.brand_id || 'N/A') + '</td>');
                 row.append('<td>' + product.sku + '</td>');
 
                 table.row.add(row).draw(false);
             });
         } else {
-            console.error('Invalid product or stock data:', products, stockData);
+            console.error('Invalid product or stock data:', response);
         }
     }).fail(function(xhr, status, error) {
         console.error('Error fetching product or stock data:', error);
     });
-}
-
-
-
+   }
 
 
     // $(document).on('click', '.edit-product', function(event) {

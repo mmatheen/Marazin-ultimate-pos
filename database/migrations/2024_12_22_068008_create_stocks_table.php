@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('location_id');
-            $table->unsignedBigInteger('batch_id');
+            $table->unsignedBigInteger('batch_id')->nullable();
             $table->integer('quantity');
             $table->string('stock_type');
 
