@@ -42,18 +42,18 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#unitAddAndUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#unitAddAndUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#unitAddAndUpdateForm').validate().resetForm();
+            $('#unitAddAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#unitAddAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -65,7 +65,7 @@
         $('#addUnitButton').click(function() {
             $('#modalTitle').text('New Unit');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#unitAddAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditUnitModal').modal('show');
@@ -100,7 +100,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Unit');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#unitAddAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -123,11 +123,11 @@
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#unitAddAndUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#unitAddAndUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                    toastr.warning('Invalid inputs, Check & try again!!','Warning');
@@ -152,6 +152,7 @@
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
+                        populateBrandDropdown();
 
                     } else {
                         populateBrandDropdown();
@@ -186,6 +187,7 @@
                     if (response.status == 404) {
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
+                        populateBrandDropdown();
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
@@ -203,11 +205,11 @@
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    let unitSelect = $('#unitSelect');
+                    let unitSelect = $('#edit_unit_id');
                     unitSelect.empty(); // Clear existing options
                     unitSelect.append('<option selected disabled>Unit</option>'); // Add default option
                     $.each(data, function(key, value) {
-                        unitSelect.append('<option value="'+value.name+'">'+value.name+'</option>');
+                        unitSelect.append('<option value="'+value.id+'">'+value.name+'</option>');
                     });
                 },
                 error: function(xhr, status, error) {

@@ -55,12 +55,15 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="input-group local-forms">
+                                                <div class="input-group local-forms ">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_unit_id" name="unit_id">
                                                     </select>
                                                     <span class="text-danger" id="unit_id_error"></span>
                                                 </div>
+                                                <button type="button" class="btn btn-outline-info " id="addUnitButton">
+                                                    <i class="fas fa-plus-circle"></i>
+                                                </button>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -115,7 +118,7 @@
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 mt-4">
+                                            <div class="mt-4 mb-3">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
                                                     <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]" multiple="multiple">
@@ -137,7 +140,7 @@
 
                                     </div>
 
-                                    <div class="row mt-3">
+                                    <div class="mt-3 row">
                                         <div class="col-md-4">
                                             <div class="mb-5">
                                                 <div class="form-check">
@@ -194,15 +197,17 @@
                                                 <div class="col-md-12">
                                                     <label>Product image</label>
                                                     <div class="invoices-upload-btn">
-                                                        <input type="file" accept="image/*" name="product_image" id="file" class="hide-input show-picture">
+                                                        <input type="file" accept=".pdf,image/*" name="product_image" id="file" class="hide-input show-picture">
                                                         <label for="file" class="upload"><i class="far fa-folder-open">
                                                                 &nbsp;</i> Browse..</label>
                                                     </div>
                                                     <span>Max File size: 5MB </span>
                                                 </div>
 
-                                                <div class="col-md-12 my-4 d-flex justify-content-center">
+                                                <div class="my-4 col-md-12 d-flex justify-content-center">
                                                     <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
+                                                    <iframe id="pdfViewer" width="100%" height="200px"
+                                                    style="display: none;"></iframe>
                                                 </div>
                                             </div>
                                         </div>
@@ -219,7 +224,7 @@
                             <div class="card-body">
                                 <div class="page-header">
                                     <div class="row align-items-center">
-                                        <div class="row mt-2">
+                                        <div class="mt-2 row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="form-check ms-3">
@@ -244,7 +249,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="row mt-4">
+                                        <div class="mt-4 row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="input-group local-forms">
@@ -336,7 +341,7 @@
                     </div>
                 </div>
 
-                <div class="row mb-4">
+                <div class="mb-4 row">
                     <div class="gap-4 d-flex justify-content-center">
                         <div>
                             <button type="submit" class="btn btn-outline-primary" id="openingStockAndProduct">Save & Add Opening Stock</button>
@@ -439,14 +444,14 @@
         </div>
     </div>
 </div> --}}
-
+{{--
 
 <div id="addAndEditSubCategoryModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form id="addAndUpdateForm">
                 <div class="modal-body" >
-                    <div class="text-center mt-2 mb-4">
+                    <div class="mt-2 mb-4 text-center">
                         <h5 id="modalTitle"></h5>
                     </div>
 
@@ -499,14 +504,17 @@
             </form>
         </div>
     </div>
-</div>
+{{-- </div> --}} -
 @include('product.product_ajax')
 @include('brand.brand_modal')
 @include('brand.brand_ajax')
+@include('unit.unit_modal')
+@include('unit.unit_ajax')
 @include('category.main_category.main_category_ajax')
 @include('category.main_category.main_category_modal')
 @include('category.sub_category.sub_category_modal')
 @include('category.sub_category.sub_category_ajax')
+
 
 
 {{-- @include('stock.import_opening_stock_ajax') --}}

@@ -226,7 +226,7 @@ class ProductController extends Controller
                 'location_id.*' => 'integer|exists:locations,id',
                 'stock_alert' => 'nullable|boolean',
                 'alert_quantity' => 'nullable|numeric|min:0',
-                'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'product_image' => 'nullable|mimes:jpeg,png,jpg,gif,pdf|max:5120',
                 'description' => 'nullable|string',
                 'is_imei_or_serial_no' => 'nullable|boolean',
                 'is_for_selling' => 'required|boolean',
@@ -247,9 +247,11 @@ class ProductController extends Controller
         $sku = $request->sku ?: 'PRO' . sprintf("%04d", Product::count() + 1);
 
         // File upload
-        $fileName = $request->hasFile('product_image') ? time() . '.' . $request->file('product_image')->extension() : null;
-        if ($fileName) {
-            $request->file('product_image')->move(public_path('/assets/images'), $fileName);
+        $fileName = null;
+        if ($request->hasFile('product_image')) {
+            $file = $request->file('product_image');
+            $fileName = time() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('/assets/images'), $fileName);
         }
 
         // Create product
@@ -277,10 +279,10 @@ class ProductController extends Controller
         // Attach locations to the product
         $product->locations()->attach($request->location_id);
 
-        return response()->json(['status' => 200, 'message' => "New Product Details Created Successfully!",'product_id' => $product->id]);
+        return response()->json(['status' => 200, 'message' => "New Product Details Created Successfully!", 'product_id' => $product->id]);
     }
 
-
+    
     public function openingStockStore(Request $request, $productId)
     {
         $validator = Validator::make($request->all(), [
@@ -417,6 +419,7 @@ class ProductController extends Controller
             ]);
         }
     }
+
 
 
     public function showOpeningStock($productId)

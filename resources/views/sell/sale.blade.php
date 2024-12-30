@@ -128,7 +128,7 @@
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" value=""
                                                 id="subscriptions" checked>
-                                           
+
                                             <label class="form-check-label" for="subscriptions">
                                                 Subscriptions
                                             </label>
@@ -247,4 +247,7 @@
             });
         }
     </script>
+
+
+@include('sell.sales_ajax')
 @endsection

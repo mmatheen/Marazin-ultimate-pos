@@ -799,8 +799,8 @@
                                                                     <div class="input-group local-forms">
                                                                         <label>Business Locations<span
                                                                                 class="login-danger">*</span></label>
-                                                                        <select class="form-control form-select"
-                                                                            id="edit_location_id" name="location_id">
+                                                                        <select class="form-control form-select multiple-location"
+                                                                            id="edit_location_id" name="location_id[]" multiple>
                                                                             {{-- it will load dynamcaly using ajax --}}
                                                                         </select>
                                                                         <span class="text-danger"
@@ -810,14 +810,15 @@
                                                             </div>
 
 
-                                                            {{-- <script>
+                                                            <script>
                                                                 $(document).ready(function() {
-                                                                    $('.multiple-location').select2({
-                                                                        placeholder: "  Business Location",
-                                                                        allowClear: true
+                                                                        $('#edit_location_id').select2({
+                                                                            placeholder: 'Select Business Locations',
+                                                                            allowClear: true,
+                                                                            width: '100%' // Ensures the dropdown takes the full width of the container
+                                                                        });
                                                                     });
-                                                                });
-                                                            </script> --}}
+                                                            </script>
 
 
 

@@ -22,4 +22,5 @@ class CustomerGroup extends Model
     {
         return $this->belongsTo(SellingPriceGroup::class); // SellingPriceGroup is SellingPriceGroup modal name
     }
+
 }

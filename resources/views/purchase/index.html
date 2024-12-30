@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preskool - Students</title>
+</head>
+<body>
+  <div id="sidebar">
+    <ul>
+      <li><a href="#" onclick="changeTitle('Dashboard')">Dashboard</a></li>
+      <li><a href="#" onclick="changeTitle('Students')">Students</a></li>
+      <li><a href="#" onclick="changeTitle('Teachers')">Teachers</a></li>
+      <li><a href="#" onclick="changeTitle('Settings')">Settings</a></li>
+    </ul>
+  </div>
+
+  <div id="content">
+    <h1>Welcome to Preskool</h1>
+  </div>
+
+  <script>
+    function changeTitle(sectionName) {
+      document.title = `Preskool - ${sectionName}`;
+    }
+  </script>
+</body>
+</html>

@@ -33,18 +33,18 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#brandAddAndUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#brandAddAndUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#brandAddAndUpdateForm').validate().resetForm();
+            $('#brandAddAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#brandAddAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -56,7 +56,7 @@
         $('#addBrandButton').click(function() {
             $('#modalTitle').text('New Brand');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#brandAddAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addEditBrandModal').modal('show');
@@ -91,7 +91,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Brand');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#brandAddAndUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -113,11 +113,11 @@
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#brandAddAndUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#brandAddAndUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                        toastr.warning('Invalid inputs, Check & try again!!','Warning');
@@ -142,6 +142,8 @@
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
+
+                        populateBrandDropdown();
 
                     } else {
                         populateBrandDropdown();
@@ -176,6 +178,7 @@
                     if (response.status == 404) {
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
+                        populateBrandDropdown();
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
@@ -193,11 +196,11 @@
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    let brandSelect = $('#brandSelect');
+                    let brandSelect = $('#edit_brand_id');
                     brandSelect.empty(); // Clear existing options
                     brandSelect.append('<option selected disabled>Brand</option>'); // Add default option
                     $.each(data, function(key, value) {
-                        brandSelect.append('<option value="'+value.name+'">'+value.name+'</option>');
+                        brandSelect.append('<option value="'+value.id+'">'+value.name+'</option>');
                     });
                 },
                 error: function(xhr, status, error) {

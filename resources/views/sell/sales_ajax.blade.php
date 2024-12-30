@@ -2,115 +2,116 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
+
         var purchaseValidationOptions = {
-            rules: {
-                supplier_id: {
-                    required: true,
-                },
-                reference_no: {
-                    required: true,
-                },
-                purchase_date: {
-                    required: true,
-                },
-                purchase_status: {
-                    required: true,
-                },
-                services: {
-                    required: true,
-                },
-                duration: {
-                    required: true,
-                    number: true,
-                },
-                duration_type: {
-                    required: true,
-                },
-                image: {
-                    required: false, // Image field is optional, can be customized if needed
-                    extension: "jpg|jpeg|png|gif|pdf|csv|zip|doc|docx", // Allowed file extensions
-                    filesize: 5242880 // Max file size 5MB (in bytes)
-                }
-            },
-            messages: {
-                supplier_id: {
-                    required: "Supplier is required",
-                },
-                reference_no: {
-                    required: "Reference No is required",
-                },
-                purchase_date: {
-                    required: "Purchase Date is required",
-                },
-                purchase_status: {
-                    required: "Purchase Status is required",
-                },
-                services: {
-                    required: "Business Location is required",
-                },
-                duration: {
-                    required: "Duration is required",
-                    number: "Please enter a valid number",
-                },
-                duration_type: {
-                    required: "Period is required",
-                },
-                image: {
-                    extension: "Please upload a valid file (jpg, jpeg, png, gif, pdf, csv, zip, doc, docx)",
-                    filesize: "Max file size is 5MB"
-                }
-            },
-            errorElement: 'span',
-            errorPlacement: function(error, element) {
-                if (element.is("select")) {
-                    error.addClass('text-danger');
-                    error.insertAfter(element.closest('div'));
-                } else if (element.is(":checkbox")) {
-                    error.addClass('text-danger');
-                    error.insertAfter(element.closest('div').find('label').last());
-                } else {
-                    error.addClass('text-danger');
-                    error.insertAfter(element);
-                }
-            },
-            highlight: function(element, errorClass, validClass) {
-                $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-            },
-            unhighlight: function(element, errorClass, validClass) {
-                $(element).removeClass('is-invalidRed').addClass('is-validGreen');
-            }
-        };
+    rules: {
+        supplier_id: {
+            required: true,
+        },
+        reference_no: {
+            required: true,
+        },
+        purchase_date: {
+            required: true,
+        },
+        purchase_status: {
+            required: true,
+        },
+        services: {
+            required: true,
+        },
+        duration: {
+            required: true,
+            number: true,
+        },
+        duration_type: {
+            required: true,
+        },
+        image: {
+            required: false, // Image field is optional, can be customized if needed
+            extension: "jpg|jpeg|png|gif|pdf|csv|zip|doc|docx", // Allowed file extensions
+            filesize: 5242880 // Max file size 5MB (in bytes)
+        }
+    },
+    messages: {
+        supplier_id: {
+            required: "Supplier is required",
+        },
+        reference_no: {
+            required: "Reference No is required",
+        },
+        purchase_date: {
+            required: "Purchase Date is required",
+        },
+        purchase_status: {
+            required: "Purchase Status is required",
+        },
+        services: {
+            required: "Business Location is required",
+        },
+        duration: {
+            required: "Duration is required",
+            number: "Please enter a valid number",
+        },
+        duration_type: {
+            required: "Period is required",
+        },
+        image: {
+            extension: "Please upload a valid file (jpg, jpeg, png, gif, pdf, csv, zip, doc, docx)",
+            filesize: "Max file size is 5MB"
+        }
+    },
+    errorElement: 'span',
+    errorPlacement: function(error, element) {
+        if (element.is("select")) {
+            error.addClass('text-danger');
+            error.insertAfter(element.closest('div'));
+        } else if (element.is(":checkbox")) {
+            error.addClass('text-danger');
+            error.insertAfter(element.closest('div').find('label').last());
+        } else {
+            error.addClass('text-danger');
+            error.insertAfter(element);
+        }
+    },
+    highlight: function(element, errorClass, validClass) {
+        $(element).addClass('is-invalidRed').removeClass('is-validGreen');
+    },
+    unhighlight: function(element, errorClass, validClass) {
+        $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+    }
+};
 
-        // Apply validation to forms
-        $('#purchaseForm').validate(purchaseValidationOptions);
-
-
+// Apply validation to forms
+$('#purchaseForm').validate(purchaseValidationOptions);
 
 
-            // Show Image Preview
-            $(".show-file").on("change", function() {
-            const input = this;
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
 
-                if (file.type === "application/pdf") {
-                    reader.onload = function(e) {
-                        $("#pdfViewer").attr("src", e.target.result);
-                        $("#pdfViewer").show();
-                        $("#selectedImage").hide();
-                    };
-                } else if (file.type.startsWith("image/")) {
-                    reader.onload = function(e) {
-                        $("#selectedImage").attr("src", e.target.result);
-                        $("#selectedImage").show();
-                        $("#pdfViewer").hide();
-                    };
-                }
 
-                reader.readAsDataURL(file);
-            }
-            });
+      // Show Image Preview
+      $(".show-file").on("change", function() {
+      const input = this;
+      if (input.files && input.files[0]) {
+          const file = input.files[0];
+          const reader = new FileReader();
+
+          if (file.type === "application/pdf") {
+              reader.onload = function(e) {
+                  $("#pdfViewer").attr("src", e.target.result);
+                  $("#pdfViewer").show();
+                  $("#selectedImage").hide();
+              };
+          } else if (file.type.startsWith("image/")) {
+              reader.onload = function(e) {
+                  $("#selectedImage").attr("src", e.target.result);
+                  $("#selectedImage").show();
+                  $("#pdfViewer").hide();
+              };
+          }
+
+          reader.readAsDataURL(file);
+      }
+    });
         // show the image when add and edit image code end
 
 
@@ -646,6 +647,29 @@ function calculatePaymentDue(openingBalance) {
         console.error('Purchase button not found!');
     }
 });
+
+
+fetch('/customer-get-all')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200) {
+                    const customerSelect = document.getElementById('customer-id');
+
+                    // Loop through the customer data and create an option for each customer
+                    data.message.forEach(customer => {
+                        const option = document.createElement('option');
+                        option.value = customer.id;
+                        option.textContent =
+                            `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`;
+                        customerSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Failed to fetch customer data:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching customer data:', error);
+            });
 
 
    // Global variable to store combined product data

@@ -291,11 +291,6 @@ public function store(Request $request)
 
         // Loop through items to create ProductOrder records and update stock
         foreach ($request->items as $order) {
-            // Validate location_id exists
-            if (!Location::where('id', $order['location_id'])->exists()) {
-                throw new \Exception('Invalid location ID: ' . $order['location_id']);
-            }
-
             ProductOrder::create([
                 'sell_detail_id' => $sellDetail->id,
                 'product_id' => $order['product_id'],

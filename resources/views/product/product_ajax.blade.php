@@ -77,9 +77,7 @@
                 },
                 location_id: {
                     required: "Business Location  is required",
-                }
-
-                ,
+                },
                 retail_price: {
                     required: "Retail Price is required",
                 },
@@ -131,21 +129,29 @@
         // add form and update validation rules code end
 
 
-        // show the image when add and edit
         $(".show-picture").on("change", function() {
-            const input = this;
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
+    const input = this;
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const reader = new FileReader();
 
-                reader.onload = function(e) {
-                    // Update the src attribute of the img tag with the data URL of the selected image
-                    $("#selectedImage").attr("src", e.target.result);
-                    $("#selectedImage").show(); // Show the image
-                };
+        if (file.type === "application/pdf") {
+            reader.onload = function(e) {
+                $("#pdfViewer").attr("src", e.target.result);
+                $("#pdfViewer").show();
+                $("#selectedImage").hide();
+            };
+        } else if (file.type.startsWith("image/")) {
+            reader.onload = function(e) {
+                $("#selectedImage").attr("src", e.target.result);
+                $("#selectedImage").show();
+                $("#pdfViewer").hide();
+            };
+        }
 
-                reader.readAsDataURL(input.files[0]);
-            }
-        });
+        reader.readAsDataURL(file);
+    }
+});
         // show the image when add and edit image code end
 
 
@@ -282,9 +288,9 @@
                         // If there are brands or subcategories, add the default options and populate with data
                         brandSelect.append('<option selected disabled>Product Brand</option>');
                         mainCategorySelect.append(
-                            '<option selected disabled>Main Category Brand</option>');
+                            '<option selected disabled>Main Category</option>');
                         subCategorySelect.append(
-                            '<option selected disabled>Sub Category Brand</option>');
+                            '<option selected disabled>Sub Category </option>');
                         unitSelect.append('<option selected disabled>Unit</option>');
                         // locationSelect.append('<option selected disabled>Location</option>');
 
@@ -337,338 +343,24 @@
 
 
 
-        function populateBrandDropdown(brands) {
-            const brandSelect = $('#edit_brand_id');
-            brandSelect.empty(); // Clear existing options
+        // function populateBrandDropdown(brands) {
+        //     const brandSelect = $('#edit_brand_id');
+        //     brandSelect.empty(); // Clear existing options
 
-            if (brands.length > 0) {
-                // If there are brands, add the default option and populate with brand options
-                brandSelect.append('<option selected disabled>Product Brand</option>');
-                brands.forEach(brand => {
-                    brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
-                });
-            } else {
-                // If no brands are found, add a single disabled option indicating no records
-                brandSelect.append('<option selected disabled>No brands available</option>');
-            }
-        }
+        //     if (brands.length > 0) {
+        //         // If there are brands, add the default option and populate with brand options
+        //         brandSelect.append('<option selected disabled>Product Brand</option>');
+        //         brands.forEach(brand => {
+        //             brandSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
+        //         });
+        //     } else {
+        //         // If no brands are found, add a single disabled option indicating no records
+        //         brandSelect.append('<option selected disabled>No brands available</option>');
+        //     }
+        // }
 
-
-//         // Submit the Save And Another product only
-//         $('#SaveProductButtonAndAnother').click(function(e) {
-//             e.preventDefault(); // Prevent default form submission
-
-//             // Gather the form data
-//             let form = $('#addForm')[0];
-//             let formData = new FormData(form);
-
-//             // Log FormData to the console
-//             for (let [key, value] of formData.entries()) {
-//                 console.log(key + ': ' + value);
-//             }
-
-//             // Validate the form before submitting
-//             if (!$('#addForm').valid()) {
-//                 document.getElementsByClassName('warningSound')[0].play(); // for sound
-//                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-//                 return; // Return if form is not valid
-//             }
-
-//             $.ajax({
-//                 url: 'product-store',
-//                 type: 'POST',
-//                 headers: {
-//                     'X-CSRF-TOKEN': csrfToken
-//                 },
-//                 data: formData,
-//                 contentType: false,
-//                 processData: false,
-//                 dataType: 'json',
-//                 success: function(response) {
-//                     if (response.status == 400) {
-//                         $.each(response.errors, function(key, err_value) {
-//                             $('#' + key + '_error').html(err_value);
-//                         });
-//                     } else {
-//                         document.getElementsByClassName('successSound')[0]
-//                             .play(); // for sound
-//                         toastr.success(response.message, 'Added');
-//                         resetFormAndValidation();
-//                         window.location.href = '{{ route('list-product') }}';
-//                     }
-//                 }
-//             });
-//         });
-
-
-
-
-
-//         $(document).ready(function() {
-//     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
-
-//     $('#summernote').summernote({
-//         placeholder: 'Enter your description...',
-//         tabsize: 2,
-//         height: 40
-//     });
-
-//     // Submit the Save & Add Opening Stock only
-//     $('#openingStockAndProduct').click(function(e) {
-//         e.preventDefault(); // Prevent default form submission
-
-//         // Gather the form data
-//         let form = $('#addForm')[0];
-//         let formData = new FormData(form);
-
-//         // Log FormData to the console
-//         for (let [key, value] of formData.entries()) {
-//             console.log(key + ': ' + value);
-//         }
-
-//         // Validate the form before submitting
-//         if (!$('#addForm').valid()) {
-//             document.getElementsByClassName('warningSound')[0].play(); // for sound
-//             toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-//             return; // Return if form is not valid
-//         }
-
-//         $.ajax({
-//             url: 'product-store',
-//             type: 'POST',
-//             headers: {
-//                 'X-CSRF-TOKEN': csrfToken
-//             },
-//             data: formData,
-//             contentType: false,
-//             processData: false,
-//             dataType: 'json',
-//             success: function(response) {
-//                 if (response.status == 400) {
-//                     $.each(response.errors, function(key, err_value) {
-//                         $('#' + key + '_error').html(err_value);
-//                     });
-//                 } else {
-//                     document.getElementsByClassName('successSound')[0].play(); // for sound
-//                     toastr.success(response.message, 'Added');
-//                     resetFormAndValidation();
-
-//                     // Show the opening stock modals with product details
-//                     fetchProductDetailsForLocations(response.product_id);
-//                 }
-//             }
-//         });
-//     });
-
-//     // Fetch Product Details to Populate Modals for Multiple Locations
-//     function fetchProductDetailsForLocations(productId) {
-//         $.ajax({
-//             url: `/product-get-details/${productId}`,
-//             type: 'GET',
-//             dataType: 'json',
-//             success: function(response) {
-//                 const product = response.message;
-//                 const locations = product.locations;
-
-//                 // Iterate through each selected location and show the modals one by one
-//                 showOpeningStockModals(product, locations);
-//             },
-//             error: function() {
-//                 toastr.error('Failed to fetch product details', 'Error');
-//             }
-//         });
-//     }
-
-//     // Show Opening Stock Modals for Multiple Locations one by one
-//     function showOpeningStockModals(product, locations) {
-//         let currentIndex = 0;
-
-//         function showModal() {
-//             if (currentIndex < locations.length) {
-//                 populateOpeningStockModal(product, locations[currentIndex]);
-//                 $('#addOpeningStockModal').modal('show').on('hidden.bs.modal', function() {
-//                     currentIndex++;
-//                     showModal();
-//                 });
-//             }
-//         }
-
-//         showModal();
-//     }
-
-//     // Populate Opening Stock Modal with Product and Location Details
-//     function populateOpeningStockModal(product, location) {
-//         // Populate hidden and readonly fields
-//         $('#edit_id').val(product.id);
-//         $('#product_name').val(product.product_name);
-//         $('#location_name').val(location.name);
-//         $('#location_id').val(location.id);
-//         $('#sku').val(product.sku);
-//         $('#unit_cost').val(product.retail_price);
-
-//         // Clear error messages
-//         $('.text-danger').html('');
-//     }
-
-//     // Function to reset form and validation
-//     function resetFormAndValidation() {
-//         $('#addForm')[0].reset();
-//         $('#addForm').validate().resetForm();
-//     }
 
  });
-//
-//     $(document).ready(function() {
-//     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
-
-//     $('#summernote').summernote({
-//         placeholder: 'Enter your description...',
-//         tabsize: 2,
-//         height: 40
-//     });
-
-//     // Submit the Save & Add Opening Stock only
-//     $('#openingStockAndProduct').click(function(e) {
-//         e.preventDefault(); // Prevent default form submission
-
-//         // Gather the form data
-//         let form = $('#addForm')[0];
-//         let formData = new FormData(form);
-
-//         // Add Summernote content to form data
-//         formData.append('description', $('#summernote').val());
-
-//         // Log FormData to the console
-//         for (let [key, value] of formData.entries()) {
-//             console.log(key + ': ' + value);
-//         }
-
-//         // Validate the form before submitting
-//         if (!$('#addForm').valid()) {
-//             document.getElementsByClassName('warningSound')[0].play(); // for sound
-//             toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-//             return; // Return if form is not valid
-//         }
-
-//         $.ajax({
-//             url: 'product-store',
-//             type: 'POST',
-//             headers: {
-//                 'X-CSRF-TOKEN': csrfToken
-//             },
-//             data: formData,
-//             contentType: false,
-//             processData: false,
-//             dataType: 'json',
-//             success: function(response) {
-//                 if (response.status == 400) {
-//                     $.each(response.errors, function(key, err_value) {
-//                         $('#' + key + '_error').html(err_value);
-//                     });
-//                 } else {
-//                     document.getElementsByClassName('successSound')[0].play(); // for sound
-//                     toastr.success(response.message, 'Added');
-//                     resetFormAndValidation();
-
-//                     // Redirect to the opening stock page
-//                     window.location.href = `/opening-stock/${response.product_id}`;
-//                 }
-//             }
-//         });
-//     });
-// });
-
-//     // Function to reset form and validation
-//     function resetFormAndValidation() {
-//         $('#addForm')[0].reset();
-//         $('#addForm').validate().resetForm();
-//         $('#summernote').summernote('reset');
-//     }
-
-
-    // // Submit the opening stock form
-    // $('#modalButton').click(function(e) {
-    //     e.preventDefault();
-
-    //     let csrfToken = $('meta[name="csrf-token"]').attr('content');
-    //     let form = $('#addOpeningStockForm')[0];
-    //     let formData = new FormData(form);
-
-    //     $.ajax({
-    //         url: `/opening-stock-store/${$('#edit_id').val()}`, // Pass the product ID dynamically
-    //         type: 'POST',
-    //         headers: {
-    //             'X-CSRF-TOKEN': csrfToken
-    //         },
-    //         data: formData,
-    //         contentType: false,
-    //         processData: false,
-    //         dataType: 'json',
-    //         success: function(response) {
-    //             if (response.status === 200) {
-    //                 toastr.success(response.message, 'Success');
-    //                 $('#addOpeningStockModal').modal('hide');
-    //                 // Refresh stock list or perform other updates
-    //             } else {
-    //                 toastr.error(response.message, 'Error');
-    //             }
-    //         },
-    //         error: function(xhr) {
-    //             if (xhr.status === 422) {
-    //                 let errors = xhr.responseJSON.errors;
-    //                 for (let key in errors) {
-    //                     $(`#${key}_error`).html(errors[key][0]);
-    //                 }
-    //             } else {
-    //                 toastr.error('Unexpected error occurred', 'Error');
-    //             }
-    //         }
-    //     });
-    // });
-
-
-    // $('#modalButton').click(function(e) {
-    //     e.preventDefault();
-
-    //     let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    //     let form = $('#openingStockForm')[0];
-    //     let formData = new FormData(form);
-
-    //      // Add Summernote content to form data
-    //      formData.append('description', $('#summernote').val());
-
-    //     $.ajax({
-    //         url: `/opening-stock-store/${$('#edit_id').val()}`, // Pass the product ID dynamically
-    //         type: 'POST',
-    //         headers: {
-    //             'X-CSRF-TOKEN': csrfToken
-    //         },
-    //         data: formData,
-    //         contentType: false,
-    //         processData: false,
-    //         dataType: 'json',
-    //         success: function(response) {
-    //             if (response.status === 200) {
-    //                 toastr.success(response.message, 'Success');
-    //             // Redirect to the opening stock page
-    //             window.location.href = `/opening-stock/${response.product_id}`;
-    //                 // Refresh stock list or perform other updates
-    //             } else {
-    //                 toastr.error(response.message, 'Error');
-    //             }
-    //         },
-    //         error: function(xhr) {
-    //             if (xhr.status === 422) {
-    //                 let errors = xhr.responseJSON.errors;
-    //                 for (let key in errors) {
-    //                     $(`#${key}_error`).html(errors[key][0]);
-    //                 }
-    //             } else {
-    //                 toastr.error('Unexpected error occurred', 'Error');
-    //             }
-    //         }
-    //     });
-    // });
 
     $(document).ready(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
@@ -1152,8 +844,8 @@
                         <table class="table table-bordered table-striped">
                             <tbody>
                                 <tr>
-                                    <td rowspan="8" class="align-middle text-center">
-                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="img-fluid rounded" />
+                                    <td rowspan="8" class="text-center align-middle">
+                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid" />
                                     </td>
                                     <th scope="row">Product Name</th>
                                     <td>${product.product_name}</td>

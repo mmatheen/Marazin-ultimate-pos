@@ -22,6 +22,9 @@
                 display: none;
             }
         </style>
+       <div class="container">
+
+        <form id="addSalesForm">
         <div class="row">
             <div class="page-header">
                 <div class="row align-items-center">
@@ -61,60 +64,45 @@
                     <div class="card-body">
                         <div class="page-header">
                             <div class="row align-items-center">
-                                <form class="px-3" action="#">
+
                                     <div class="row">
                                         <div class="col-md-3">
                                             <div class="mb-3">
-                                                <div class="input-group local-forms">
-                                                    <span class="input-group-text" id="basic-addon1"><i
-                                                            class="fas fa-user"></i></span>
+                                                <div class="input-group local-forms ">
                                                     <select class="form-control form-select select2Box"
                                                         aria-label="Example text with button addon"
-                                                        aria-describedby="button-addon1">
+                                                        aria-describedby="button-addon1" id="customer-id">
                                                         <option selected disabled>Customer*</option>
                                                     </select>
                                                     <button class="btn btn-outline-primary" type="button"
                                                         data-bs-toggle="modal" data-bs-target="#addModal"
-                                                        id="button-addon1"><i class="fas fa-plus-circle"></i></button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-6">
-                                            <div class="row g-0 text-center">
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <div class="form-group local-forms">
-                                                            <label>Pay term<span class="login-danger"></span></label>
-                                                            <input class="form-control" type="text"
-                                                                placeholder="Pay term">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <div class="form-group local-forms days">
-                                                            <label>Department<span class="login-danger"></span></label>
-                                                            <select class="form-control form-select select">
-                                                                <option selected disabled>Please Select</option>
-                                                                <option>Per Month</option>
-                                                                <option>Per Week</option>
-                                                                <option>Per Day</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
+                                                        id="button-addon1"><i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-3">
                                             <div class="form-group local-forms calendar-icon">
-                                                <label>Purchase Date<span class="login-danger">*</span></label>
+                                                <label>Sales Date<span class="login-danger">*</span></label>
                                                 <input class="form-control datetimepicker" type="text"
                                                     placeholder="DD-MM-YYYY">
                                             </div>
                                         </div>
 
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms days">
+                                                    <label>Status<span class="login-danger">*</span></label>
+                                                    <select class="form-control form-select select">
+                                                        <option selected disabled>Please Select </option>
+                                                        <option>Final</option>
+                                                        <option>Draft</option>
+                                                        <option>Quatation</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="row">
@@ -132,33 +120,6 @@
                                                 </p>
                                             </div>
                                         </div>
-
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms days">
-                                                    <label>Status<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select select">
-                                                        <option selected disabled>Please Select </option>
-                                                        <option>Final</option>
-                                                        <option>Draft</option>
-                                                        <option>Quatation</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="form-group local-forms days">
-                                                    <label>Invoice scheme<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select select">
-                                                        <option selected disabled>Default</option>
-                                                        <option>Please Select</option>
-                                                        <option>Draft</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
 
                             </div>
@@ -168,8 +129,7 @@
                                     <div class="mb-3 mt-4">
                                         <div class="form-group local-forms">
                                             <label>Invoice No<span class="login-danger"></span></label>
-                                            <input class="form-control" type="text"
-                                                placeholder="Pay term">
+                                            <input class="form-control" type="text" placeholder="Pay term">
                                         </div>
                                     </div>
                                 </div>
@@ -177,8 +137,7 @@
                                 <div class="col-md-3">
                                     <label>Attach Document</label>
                                     <div class="invoices-upload-btn">
-                                        <input type="file" accept="image/*" name="image" id="file"
-                                            class="hide-input">
+                                        <input type="file" accept="image/*" name="image" id="file" class="hide-input">
                                         <label for="file" class="upload"><i class="far fa-folder-open">
                                                 &nbsp;</i> Browse..</label>
                                     </div>
@@ -186,8 +145,6 @@
                                         Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
                                 </div>
                             </div>
-                            </form>
-                            <!-- Add other elements if needed -->
                         </div>
                     </div>
                 </div>
@@ -206,20 +163,20 @@
                                             <span class="input-group-text" id="basic-addon1"><i
                                                     class="fas fa-search"></i></span>
                                             <input type="text" class="form-control"
-                                                placeholder="Enter Product Name / SKU / Scan bar code" aria-label="Username"
-                                                aria-describedby="basic-addon1">
-                                                <button class="btn btn-outline-primary" type="button"
-                                                id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                                                placeholder="Enter Product Name / SKU / Scan bar code"
+                                                aria-label="Username" aria-describedby="basic-addon1"
+                                                id="productSearchInput">
+                                            <button class="btn btn-outline-primary" type="button" id="button-addon1"><i
+                                                    class="fas fa-plus-circle"></i></button>
+
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Add other elements if needed -->
                             </div>
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="example1">
+                            <table class="datatable table table-stripped" style="width:100%" id="addSale">
                                 <thead>
                                     <tr>
                                         <th>Product</th>
@@ -228,7 +185,7 @@
                                         <th>Discount</th>
                                         <th>Tax</th>
                                         <th>Price inc.Tax</th>
-                                        <th>Subtotoal</th>
+                                        <th>Subtotal</th>
                                         <th><i class="fas fa-window-close"></i></th>
                                     </tr>
                                 </thead>
@@ -242,6 +199,10 @@
                 </div>
             </div>
         </div>
+    </div>
+
+
+
 
         <div class="row">
             <div class="col-md-12">
@@ -603,8 +564,7 @@
             </div>
         </div>
     </div>
-
-
+</form>
     {{-- Add modal row --}}
     <div class="row">
         <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -1491,4 +1451,9 @@
                 })
             }
         </script>
-    @endsection
+
+
+
+
+  @endsection
+
