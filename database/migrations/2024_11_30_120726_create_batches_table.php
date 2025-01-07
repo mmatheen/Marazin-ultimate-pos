@@ -12,15 +12,20 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('batches', function (Blueprint $table) {
-            $table->id();
-            $table->string('batch_id')->nullable(); // Allow batch_id to be nullable
+            $table->bigIncrements('id');
+            $table->string('batch_no')->nullable();
             $table->unsignedBigInteger('product_id');
-            $table->decimal('price', 10, 2);
-            $table->integer('quantity');
+            $table->integer('qty');
+            $table->decimal('unit_cost', 10, 2);
+            $table->decimal('wholesale_price', 10, 2);
+            $table->decimal('special_price', 10, 2);
+            $table->decimal('retail_price', 10, 2);
+            $table->decimal('max_retail_price', 10, 2);
             $table->date('expiry_date')->nullable();
             $table->timestamps();
 
             $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+
         });
     }
 

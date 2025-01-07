@@ -9,16 +9,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class OpeningStock extends Model
 {
     use HasFactory;
-    protected $table='opening_stocks';
-    protected $fillable=[
 
-              'sku',
-              'location_id',
-              'product_id',
-              'quantity',
-              'unit_cost',
-              'batch_id',
-              'expiry_date',
+    protected $table = 'opening_stocks';
+
+    protected $fillable = [
+        'sku',
+        'location_id',
+        'product_id',
+        'quantity',
+        'unit_cost',
+        'batch_id',
+        'expiry_date',
     ];
 
     public function location()
@@ -30,26 +31,21 @@ class OpeningStock extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
     public function batch()
     {
         return $this->belongsTo(Batch::class);
     }
 
+    // Setter for the 'expiry_date' field to ensure it's saved in Y-m-d format
+    public function setExpiryDateAttribute($value)
+    {
+        $this->attributes['expiry_date'] = Carbon::parse($value)->format('Y-m-d');
+    }
 
-
-
-     // Setter for the 'expiry_date' field to ensure it's saved in Y-m-d format
-     public function setExpiry_DateAttribute($value)
-     {
-         // Ensure 'expiry_date' is saved in the 'Y-m-d' format
-         $this->attributes['expiry_date'] = Carbon::parse($value)->format('Y-m-d');
-     }
-
-     // Getter for the 'expiry_date' field to ensure it's returned in 'Y-m-d' format
-     public function getExpiry_DateAttribute($value)
-     {
-         // Ensure the 'expiry_date' is returned in 'Y-m-d' format
-         return Carbon::parse($value)->format('Y-m-d');
-     }
+    // Getter for the 'expiry_date' field to ensure it's returned in Y-m-d format
+    public function getExpiryDateAttribute($value)
+    {
+        return Carbon::parse($value)->format('Y-m-d');
+    }
 }
-

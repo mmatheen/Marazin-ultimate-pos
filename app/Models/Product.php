@@ -2,12 +2,8 @@
 
 namespace App\Models;
 
-use App\Models\Category;
-
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-
 
 class Product extends Model
 {
@@ -32,13 +28,13 @@ class Product extends Model
         'whole_sale_price',
         'special_price',
         'original_price',
+        'max_retail_price',
     ];
 
     // Relationship to locations (many-to-many)
     public function locations()
-
     {
-        return $this->belongsToMany(Location::class);
+        return $this->belongsToMany(Location::class)->withPivot('qty');
     }
 
     // Relationship to category (belongsTo)
@@ -53,27 +49,28 @@ class Product extends Model
         return $this->belongsTo(Brand::class, 'brand_id');
     }
 
+    // Relationship to unit (belongsTo)
     public function unit()
     {
         return $this->belongsTo(Unit::class, 'unit_id');
     }
 
+    // Relationship to batches (hasMany)
     public function batches()
     {
         return $this->hasMany(Batch::class);
     }
 
-    public function stocks()
+    // Relationship to stock histories (hasMany)
+    public function stockHistories()
     {
-        return $this->hasMany(Stock::class);
+        return $this->hasMany(StockHistory::class);
     }
 
+    // Relationship to opening stocks (hasMany)
     public function openingStocks()
     {
         return $this->hasMany(OpeningStock::class);
     }
-
-
-
-
 }
+ 

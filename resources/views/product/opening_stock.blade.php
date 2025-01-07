@@ -17,9 +17,10 @@
         </div>
     </div>
 
-    <div class="container">
+
         <form id="openingStockForm">
             <input type="hidden" name="product_id" id="product_id" value="{{ $product->id }}">
+            <div class="container">
             <div class="row">
                 <div class="col-md-12">
                     <div class="card card-table">
@@ -51,16 +52,16 @@
                                                     <input type="text" class="form-control" name="locations[{{ $loop->index }}][sku]" value="{{ $product->sku }}" readonly>
                                                 </td>
                                                 <td>
-                                                    <input type="number" class="form-control" name="locations[{{ $loop->index }}][quantity]" placeholder="Enter Quantity" required>
-                                                    <small class="text-danger" id="quantity_error_{{ $loop->index }}"></small>
+                                                    <input type="number" class="form-control" name="locations[{{ $loop->index }}][qty]" placeholder="Enter Quantity" required>
+                                                    <small class="text-danger" id="qty_error_{{ $loop->index }}"></small>
                                                 </td>
                                                 <td>
                                                     <input type="text" class="form-control" name="locations[{{ $loop->index }}][unit_cost]" value="{{ $product->retail_price }}" readonly>
                                                     <small class="text-danger" id="unit_cost_error_{{ $loop->index }}"></small>
                                                 </td>
                                                 <td>
-                                                    <input type="text" class="form-control" name="locations[{{ $loop->index }}][batch_id]" placeholder="Enter Batch No" required>
-                                                    <small class="text-danger" id="batch_id_error_{{ $loop->index }}"></small>
+                                                    <input type="text" class="form-control batch-no-input" name="locations[{{ $loop->index }}][batch_no]" placeholder="Enter Batch No" required>
+                                                    <small class="text-danger" id="batch_no_error_{{ $loop->index }}"></small>
                                                 </td>
                                                 <td>
                                                     <input type="text" class="form-control datetimepicker" name="locations[{{ $loop->index }}][expiry_date]" autocomplete="off" placeholder="YYYY.MM.DD" required>
@@ -74,11 +75,12 @@
 
                             <div class="modal-footer">
                                 <button type="submit" id="submitOpeningStock" class="btn btn-primary">Save</button>
-                                {{-- <a href="{{ route('product.index') }}" class="btn btn-secondary">Cancel</a> --}}
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+            </div>
         </form>
     </div>
 </div>

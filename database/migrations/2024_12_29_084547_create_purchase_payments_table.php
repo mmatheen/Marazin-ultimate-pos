@@ -12,15 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('purchase_payments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('purchase_id')->constrained('purchases')->onDelete('cascade');
-            $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('purchase_id');
+            $table->unsignedBigInteger('supplier_id');
             $table->string('payment_method');
             $table->string('payment_account')->nullable();
-            $table->decimal('amount', 8, 2);
+            $table->decimal('amount', 15, 2);
             $table->date('payment_date');
             $table->text('payment_note')->nullable();
             $table->timestamps();
+
+            $table->foreign('purchase_id')->references('id')->on('purchases')->onDelete('cascade');
+            $table->foreign('supplier_id')->references('id')->on('suppliers')->onDelete('cascade');
         });
     }
 

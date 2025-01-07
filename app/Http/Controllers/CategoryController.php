@@ -8,5 +8,9 @@ class CategoryController extends Controller
 {
     public function category(){
         return view('category.category');
+
+        DB::transaction(function () {
+            
+        });
     }
 }

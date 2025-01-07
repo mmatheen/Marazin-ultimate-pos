@@ -155,7 +155,7 @@ Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
 Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
-Route::get('/all-stock-details', [ProductController::class, 'getAllStockDetails']);
+Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
 
 
 
@@ -312,6 +312,7 @@ Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale')
 Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
 Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
 Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
+Route::post('/sales/store', [SaleController::class, 'store']);
 //stop  Sale transfer route
 
 //start expense-parent route
@@ -383,7 +384,8 @@ Route::get('/getAllPosDetails', [SellController::class, 'getAllPosDetails']);
 
   // Store a new purchase
   Route::post('/purchases/store', [PurchaseController::class, 'store']);
-  Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchaseProduct']);
+  Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+  Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchaseProduct']);
 
 
 

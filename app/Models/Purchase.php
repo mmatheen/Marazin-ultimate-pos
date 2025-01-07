@@ -27,7 +27,7 @@ class Purchase extends Model
 
     public function products()
     {
-        return $this->hasMany(PurchaseProduct::class);
+        return $this->hasMany(Product::class);
     }
 
     // Relationship with PurchaseProduct
@@ -40,5 +40,9 @@ class Purchase extends Model
     public function paymentInfo()
     {
         return $this->hasOne(PaymentInfo::class); // Assuming one-to-one relationship
+    }
+    public function purchasePayment()
+    {
+        return $this->hasOne(PurchasePayment::class); // Assuming one-to-one relationship
     }
 }

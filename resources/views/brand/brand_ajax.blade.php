@@ -62,6 +62,7 @@
             $('#addEditBrandModal').modal('show');
         });
 
+
         // Fetch and Display Data
         function showFetchData() {
             $.ajax({
@@ -111,7 +112,7 @@
             });
         });
 
-
+    
         // Submit Add/Update Form
         $('#brandAddAndUpdateForm').submit(function(e) {
             e.preventDefault();

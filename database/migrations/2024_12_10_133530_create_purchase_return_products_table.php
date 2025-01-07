@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('purchase_return_products', function (Blueprint $table) {
-            $table->id();
+            $table->bigIncrements('id');
             $table->unsignedBigInteger('purchase_return_id');
             $table->unsignedBigInteger('product_id');
             $table->integer('quantity');
@@ -20,7 +20,6 @@ return new class extends Migration
             $table->decimal('subtotal', 10, 2);
             $table->timestamps();
 
-            // Foreign key constraints
             $table->foreign('purchase_return_id')->references('id')->on('purchase_returns')->onDelete('cascade');
             $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
         });

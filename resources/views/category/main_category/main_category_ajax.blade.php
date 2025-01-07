@@ -6,10 +6,10 @@
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
-        rules: {
-            mainCategoryName: {
-                required: true,
-            },
+                rules: {
+                    mainCategoryName: {
+                        required: true,
+                    },
 
         },
         messages: {

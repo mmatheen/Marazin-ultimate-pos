@@ -54,48 +54,46 @@
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms ">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex ">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_unit_id" name="unit_id">
                                                     </select>
-                                                    <span class="text-danger" id="unit_id_error"></span>
+                                                    <button type="button" class="btn btn-outline-info" id="addUnitButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
-                                                <button type="button" class="btn btn-outline-info " id="addUnitButton">
-                                                    <i class="fas fa-plus-circle"></i>
-                                                </button>
+
+                                                <span class="text-danger" id="unit_id_error"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="mb-3 d-flex">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex" >
                                                     <label>Product Brand <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_brand_id" name="brand_id">
                                                     </select>
-                                                    <span class="text-danger" id="brand_id_error"></span>
-
+                                                    <button type="button" class="btn btn-outline-info " id="addBrandButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
-                                                <button
-                                                class="btn btn-outline-info d-flex align-items-center justify-content-center"
-                                                type="button" data-bs-toggle="modal" data-bs-target="#addEditBrandModal"
-                                                style="width: 40px;">
-                                                <i class="fas fa-plus-circle"></i>
-                                            </button>
-
+                                                <span class="text-danger" id="brand_id_error"></span>
                                             </div>
                                         </div>
+
+
                                         <div class="col-md-4">
-                                            <div class="mb-3 d-flex">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms d-flex">
                                                     <label>Main Category <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select select2Box" id="edit_main_category_id" name="main_category_id">
+                                                    <select class="form-control form-select" id="edit_main_category_id" name="main_category_id">
                                                     </select>
-                                                    <span class="text-danger" id="main_category_id_error"></span>
-
+                                                    <button type="button" class="btn btn-outline-info" id="addMainCategoryButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
-                                                <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
-                                                    <i class="fas fa-plus-circle"></i>
-                                                </button>
+
+
                                             </div>
 
                                         </div>
@@ -103,17 +101,18 @@
 
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 d-flex">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex">
                                                     <label>Sub Category <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
                                                     </select>
-                                                    <span class="text-danger" id="sub_category_id_error"></span>
-
+                                                    <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
-                                                <button type="button" class="btn btn-outline-info " id="addSubCategoryButton">
-                                                    <i class="fas fa-plus-circle"></i>
-                                                </button>
+                                                <span class="text-danger" id="sub_category_id_error"></span>
+
+
                                             </div>
                                         </div>
 
@@ -121,8 +120,8 @@
                                             <div class="mt-4 mb-3">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]" multiple="multiple">
-                                                        {{-- it will load dynamically using ajax --}}
+                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="locations[]" multiple="multiple">
+                                
                                                     </select>
                                                     <span class="text-danger" id="location_id_error"></span>
                                                 </div>
@@ -132,7 +131,7 @@
                                         <script>
                                             $(document).ready(function () {
                                                 $('.multiple-location').select2({
-                                                    placeholder: "  Business Location",
+                                                    placeholder: "Select Business Locations",
                                                     allowClear: true
                                                 });
                                             });
@@ -197,7 +196,7 @@
                                                 <div class="col-md-12">
                                                     <label>Product image</label>
                                                     <div class="invoices-upload-btn">
-                                                        <input type="file" accept=".pdf,image/*" name="product_image" id="file" class="hide-input show-picture">
+                                                        <input type="file" accept="image/*" name="product_image" id="file" class="hide-input show-picture">
                                                         <label for="file" class="upload"><i class="far fa-folder-open">
                                                                 &nbsp;</i> Browse..</label>
                                                     </div>
@@ -206,8 +205,7 @@
 
                                                 <div class="my-4 col-md-12 d-flex justify-content-center">
                                                     <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
-                                                    <iframe id="pdfViewer" width="100%" height="200px"
-                                                    style="display: none;"></iframe>
+
                                                 </div>
                                             </div>
                                         </div>
@@ -297,6 +295,7 @@
                                                                 <th scope="col">Retail Price</th>
                                                                 <th scope="col">Whole Sale Price</th>
                                                                 <th scope="col">Special Price</th>
+                                                                <th scope="col">Max Retail Price</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -328,6 +327,12 @@
                                                                         <span class="text-danger" id="special_price_error"></span>
                                                                     </div>
                                                                 </td>
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <input type="text" id="edit_max_retail_price" name="max_retail_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="max_retail_price_error"></span>
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -354,6 +359,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <!-- Button trigger modal -->
         </form>
@@ -444,67 +450,9 @@
         </div>
     </div>
 </div> --}}
-{{--
 
-<div id="addAndEditSubCategoryModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form id="addAndUpdateForm">
-                <div class="modal-body" >
-                    <div class="mt-2 mb-4 text-center">
-                        <h5 id="modalTitle"></h5>
-                    </div>
 
-                    <input type="hidden" name="edit_id" id="edit_id">
 
-                    <div class="col-md-12">
-                        <div class="form-group local-forms">
-                            <label>main category<span class="login-danger">*</span></label>
-                            <select id="edit_main_category_id" name="main_category_id" class="form-control select2Box form-select select">
-                                {{-- <option selected disabled>Please Select </option>
-                                @foreach($MainCategories as $MainCategory)
-                                <option value="{{ $MainCategory->id }}">{{ $MainCategory->mainCategoryName }}</option>
-                                @endforeach --}}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-12">
-                        <div class="mb-3">
-                            <div class="form-group local-forms">
-                                <label>sub category<span class="login-danger">*</span></label>
-                                <input id="edit_subCategoryname" name="subCategoryname" class="form-control" type="text" placeholder="sub category">
-                                <span class="text-danger" id="subCategoryname_error"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-12">
-                        <div class="mb-3">
-                            <div class="form-group local-forms">
-                                <label>category code<span class="login-danger">*</span></label>
-                                <input id="edit_subCategoryCode" name="subCategoryCode" class="form-control" type="text" placeholder="category code">
-                                <span class="text-danger" id="subCategoryCode_error"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-12">
-                        <div class="mb-3">
-                            <div class="form-group local-forms">
-                                <label>description<span class="login-danger">*</span></label>
-                                <textarea id="edit_description" name="description" class="form-control" type="text" placeholder="description"></textarea>
-                                <span class="text-danger" id="description_error"></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
-                        <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-{{-- </div> --}} -
 @include('product.product_ajax')
 @include('brand.brand_modal')
 @include('brand.brand_ajax')

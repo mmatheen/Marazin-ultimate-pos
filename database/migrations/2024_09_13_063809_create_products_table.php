@@ -6,12 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+       public function up(): void
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('product_name');
-            $table->string('sku');
+            $table->string('sku')->unique();
             $table->unsignedBigInteger('unit_id');
             $table->unsignedBigInteger('brand_id');
             $table->unsignedBigInteger('main_category_id');
@@ -21,13 +21,14 @@ return new class extends Migration
             $table->string('product_image')->nullable();
             $table->string('description')->nullable();
             $table->boolean('is_imei_or_serial_no')->nullable();
-            $table->string('is_for_selling');
+            $table->string('is_for_selling')->nullable();
             $table->string('product_type');
             $table->string('pax')->nullable();
+            $table->double('original_price');
             $table->double('retail_price');
             $table->double('whole_sale_price');
             $table->double('special_price');
-            $table->double('original_price');
+            $table->double('max_retail_price');
             $table->timestamps();
 
             // Foreign keys
@@ -37,16 +38,23 @@ return new class extends Migration
             $table->foreign('sub_category_id')->references('id')->on('sub_categories');
         });
 
+        Schema::create('location_product', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('product_id');
+            $table->unsignedBigInteger('location_id');
+            $table->integer('qty')->default(0);
+            $table->timestamps();
+
+            // Foreign keys
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
+        });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('location_product');
         Schema::dropIfExists('products');
-
-        Schema::table('products', function (Blueprint $table) {
-            $table->unsignedBigInteger('location_id')->nullable(); // Add back location_id if rolling back
-        });
     }
 };
 

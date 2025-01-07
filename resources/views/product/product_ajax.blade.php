@@ -1,153 +1,74 @@
-<div class="modal fade" id="viewProductModal" tabindex="-1" aria-labelledby="viewProductModalLabel" aria-hidden="true">
-    <div class="modal-dialog lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewProductModalLabel">Product Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="productDetails">
-                <!-- Modal content will be dynamically inserted here -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 
 <script type="text/javascript">
-    $(document).ready(function() {
-        var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+$(document).ready(function() {
+    var csrfToken = $('meta[name="csrf-token"]').attr('content'); // for CSRF token
 
-        var addAndUpdateValidationOptions = {
-            rules: {
-
-                product_name: {
-                    required: true,
-                },
-
-                unit_id: {
-                    required: true,
-                },
-                brand_id: {
-                    required: true,
-                },
-                main_category_id: {
-                    required: true,
-                },
-                sub_category_id: {
-                    required: true,
-                },
-                location_id: {
-                    required: true,
-                }
-
-                ,
-                retail_price: {
-                    required: true,
-                },
-                whole_sale_price: {
-                    required: true,
-                },
-                special_price: {
-                    required: true,
-                },
-                original_price: {
-                    required: true,
-                },
-
-            },
-            messages: {
-
-                product_name: {
-                    required: "Product Name is required",
-                },
-                unit_id: {
-                    required: "Product Unit  is required",
-                },
-                brand_id: {
-                    required: "Product Brand is required",
-                },
-                main_category_id: {
-                    required: "Main Category  is required",
-                },
-                sub_category_id: {
-                    required: "Sub Category  is required",
-                },
-                location_id: {
-                    required: "Business Location  is required",
-                },
-                retail_price: {
-                    required: "Retail Price is required",
-                },
-                whole_sale_price: {
-                    required: "Whole Sale Price is required",
-                },
-                special_price: {
-                    required: "Special Price is required",
-                },
-                original_price: {
-                    required: "Cost Price is required",
-                },
-
-            },
-            errorElement: 'span',
-            errorPlacement: function(error, element) {
-
-                // error message show after selectbox
-                if (element.is("select")) {
-                    error.addClass('text-danger');
-                    // Insert the error after the closest parent div for better placement with select
-                    error.insertAfter(element.closest('div'));
-                }
-                // error message show after checkbox
-                else if (element.is(":checkbox")) {
-                    error.addClass('text-danger');
-                    // For checkboxes, place the error after the checkbox's parent container
-                    error.insertAfter(element.closest('div').find('label').last());
-                }
-                // error message show after inputbox
-                else {
-                    error.addClass('text-danger');
-                    error.insertAfter(element);
-                }
-            },
-
-            highlight: function(element, errorClass, validClass) {
-                $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-            },
-            unhighlight: function(element, errorClass, validClass) {
-                $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+    var addAndUpdateValidationOptions = {
+        rules: {
+            product_name: { required: true },
+            unit_id: { required: true },
+            brand_id: { required: true },
+            main_category_id: { required: true },
+            sub_category_id: { required: true },
+            'location_id[]': { required: true },
+            retail_price: { required: true },
+            whole_sale_price: { required: true },
+            special_price: { required: true },
+            original_price: { required: true }
+        },
+        messages: {
+            product_name: { required: "Product Name is required" },
+            unit_id: { required: "Product Unit is required" },
+            brand_id: { required: "Product Brand is required" },
+            main_category_id: { required: "Main Category is required" },
+            sub_category_id: { required: "Sub Category is required" },
+            'location_id[]': { required: "Business Location is required" },
+            retail_price: { required: "Retail Price is required" },
+            whole_sale_price: { required: "Whole Sale Price is required" },
+            special_price: { required: "Special Price is required" },
+            original_price: { required: "Cost Price is required" }
+        },
+        errorElement: 'span',
+        errorPlacement: function(error, element) {
+            error.addClass('text-danger');
+            if (element.is("select")) {
+                error.insertAfter(element.closest('div'));
+            } else if (element.is(":checkbox")) {
+                error.insertAfter(element.closest('div').find('label').last());
+            } else {
+                error.insertAfter(element);
             }
+        },
+        highlight: function(element, errorClass, validClass) {
+            $(element).addClass('is-invalidRed').removeClass('is-validGreen');
+        },
+        unhighlight: function(element, errorClass, validClass) {
+            $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+        }
+    };
 
-        };
+    // Apply validation to forms
+    $('#addForm').validate(addAndUpdateValidationOptions);
 
-        // Apply validation to forms
-        $('#addForm').validate(addAndUpdateValidationOptions);
 
         // add form and update validation rules code end
 
 
         $(".show-picture").on("change", function() {
-    const input = this;
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const reader = new FileReader();
+        const input = this;
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
 
-        if (file.type === "application/pdf") {
-            reader.onload = function(e) {
-                $("#pdfViewer").attr("src", e.target.result);
-                $("#pdfViewer").show();
-                $("#selectedImage").hide();
-            };
-        } else if (file.type.startsWith("image/")) {
-            reader.onload = function(e) {
-                $("#selectedImage").attr("src", e.target.result);
-                $("#selectedImage").show();
-                $("#pdfViewer").hide();
-            };
-        }
+            if (file.type.startsWith("image/")) {
+                reader.onload = function(e) {
+                    $("#selectedImage").attr("src", e.target.result);
+                    $("#selectedImage").show();
+                    $("#pdfViewer").hide();
+                };
+            }
 
         reader.readAsDataURL(file);
     }
@@ -248,12 +169,138 @@
                             .play(); // for sound
                         toastr.success(response.message, 'Added');
                         resetFormAndValidation();
+                        fetchLastAddedProducts()
                     }
                 }
             });
         });
 
+        function fetchLastAddedProducts() {
+    $.ajax({
+        url: 'get-last-product', // Adjusted route
+        type: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 200) {
+                const product = response.product;
+                const newRow = `
+                    <tr data-id="${product.id}">
+                        <td>${product.id}</td>
+                        <td>${product.product_name || '-'}</td>
+                        <td>
+                            <input type="number" class="form-control purchase-quantity" value="1" min="1">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control product-price" value="${product.retail_price || '0'}" min="0" step="0.01">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
+                        </td>
+                        <td class="retail-price">${product.retail_price || '0'}</td>
+                        <td class="sub-total">0</td>
+                        <td class="net-cost">0</td>
+                        <td class="line-total">0</td>
+                        <td>${product.profit_margin || '0'}</td>
+                        <td>
+                            <input type="number" class="form-control">
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm delete-product">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
 
+                // Destroy and reinitialize DataTables to update with new rows
+                const table = $('#purchase_product').DataTable();
+                table.destroy();
+                $('#purchase_product tbody').append(newRow);
+                $('#purchase_product').DataTable();
+
+                // Update the row and footer initially
+                const $newRow = $('#purchase_product tbody tr').last();
+                updateRow($newRow);
+                updateFooter();
+
+                // Add event listeners to the new row for input changes
+                $newRow.find('.purchase-quantity, .discount-percent, .product-price').on('input', function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
+
+                toastr.success('New product added to the table!', 'Success');
+            } else {
+                toastr.error(response.message || 'Unable to fetch product details.', 'Error');
+            }
+        },
+        error: function(xhr, status, error) {
+            toastr.error('An error occurred while fetching product details.', 'Error');
+            console.error(xhr, status, error);
+        },
+    });
+}
+
+// Function to update row values
+function updateRow($row) {
+    const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+    const price = parseFloat($row.find('.product-price').val()) || 0;
+    const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+    const profitMargin = parseFloat($row.find('.profit-margin').text()) || 0;
+
+    const subTotal = quantity * price;
+    const discountAmount = subTotal * (discountPercent / 100);
+    const netCost = subTotal - discountAmount;
+    const lineTotal = netCost;
+
+    $row.find('.sub-total').text(subTotal.toFixed(2));
+    $row.find('.net-cost').text(netCost.toFixed(2));
+    $row.find('.line-total').text(lineTotal.toFixed(2));
+    $row.find('.retail-price').text(price.toFixed(2));
+    $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
+}
+
+// Function to update footer (total items and net total)
+function updateFooter() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
+
+    $('#purchase_product tbody tr').each(function() {
+        totalItems += parseFloat($(this).find('.purchase-quantity').val()) || 0;
+        netTotalAmount += parseFloat($(this).find('.line-total').text()) || 0;
+    });
+
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+
+    const discountType = $('#discount-type').val();
+    const discountInput = parseFloat($('#discount-amount').val()) || 0;
+    let discountAmount = 0;
+
+    if (discountType === 'fixed') {
+        discountAmount = discountInput;
+    } else if (discountType === 'percentage') {
+        discountAmount = (netTotalAmount * discountInput) / 100;
+    }
+
+    const taxType = $('#tax-type').val();
+    let taxAmount = 0;
+
+    if (taxType === 'vat10') {
+        taxAmount = (netTotalAmount - discountAmount) * 0.10;
+    } else if (taxType === 'cgst10') {
+        taxAmount = (netTotalAmount - discountAmount) * 0.10;
+    }
+
+    const finalTotal = netTotalAmount - discountAmount + taxAmount;
+
+    $('#purchase-total').text(`Purchase Total: $ ${finalTotal.toFixed(2)}`);
+    $('#discount-display').text(`(-) $ ${discountAmount.toFixed(2)}`);
+    $('#tax-display').text(`(+) $ ${taxAmount.toFixed(2)}`);
+}
         // Fetch main category, sub category, location, unit, brand details to select box code start
         $.ajax({
             url: 'initial-product-details', // Replace with your endpoint URL
@@ -371,9 +418,22 @@
         height: 40
     });
 
-    // Submit the Save & Add Opening Stock only
+        // Global flag to track submission state
+    let isSubmitting = false;
+
+    // Handle form submission
     $('#openingStockAndProduct').click(function(e) {
         e.preventDefault(); // Prevent default form submission
+
+        // Check if the form is already being submitted
+        if (isSubmitting) {
+            // If already submitting, show an alert and prevent further clicks
+            toastr.error('Form is already being submitted. Please wait.', 'Warning');
+            return; // Prevent further execution
+        }
+
+        // Set the flag to indicate that the form is being submitted
+        isSubmitting = true;
 
         // Gather the form data
         let form = $('#addForm')[0];
@@ -382,15 +442,18 @@
         // Add Summernote content to form data
         formData.append('description', $('#summernote').val());
 
-        // Log FormData to the console
+        // Log FormData to the console (for debugging)
         for (let [key, value] of formData.entries()) {
             console.log(key + ': ' + value);
         }
 
         // Validate the form before submitting
         if (!$('#addForm').valid()) {
-            document.getElementsByClassName('warningSound')[0].play(); // for sound
+            document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
             toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+
+            // Reset the flag to allow future submissions
+            isSubmitting = false;
             return; // Return if form is not valid
         }
 
@@ -410,7 +473,7 @@
                         $('#' + key + '_error').html(err_value);
                     });
                 } else {
-                    document.getElementsByClassName('successSound')[0].play(); // for sound
+                    document.getElementsByClassName('successSound')[0].play(); // Play success sound
                     toastr.success(response.message, 'Added');
                     resetFormAndValidation();
 
@@ -420,9 +483,15 @@
             },
             error: function(xhr) {
                 toastr.error('Failed to add product. Please try again.', 'Error');
+            },
+            complete: function() {
+                // Reset the flag after the request completes (success or failure)
+                isSubmitting = false;
             }
         });
     });
+
+
 
     // Function to reset form and validation
     function resetFormAndValidation() {
@@ -430,42 +499,63 @@
         $('#addForm').validate().resetForm();
         $('#summernote').summernote('reset');
     }
-    $(document).ready(function() {
-    $('#submitOpeningStock').click(function(e) {
-        e.preventDefault();
+ $(document).ready(function() {
+            $('#submitOpeningStock').click(function(e) {
+                e.preventDefault();
 
-        let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        let form = $('#openingStockForm')[0];
-        let formData = new FormData(form);
+                let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                let form = $('#openingStockForm')[0];
+                let formData = new FormData(form);
 
-        $.ajax({
-            url: `/opening-stock-store/${$('#product_id').val()}`, // Pass the product ID dynamically
-            type: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            },
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 200) {
-                    toastr.success(response.message, 'Success');
-                    window.location.href = '/add-product';
-                } else {
 
-                    toastr.error(response.message, 'Error');
+            // Additional validation for batch numbers
+                let isValidBatchNo = true;
+
+                $('.batch-no-input').each(function () {
+                    let batchNo = $(this).val();
+                    if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
+                        isValidBatchNo = false;
+                    }
+                });
+
+                // If any batch number is invalid, show the error and stop submission
+                if (!isValidBatchNo) {
+                    document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
+                    toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
+                    return; // Stop submission
                 }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    let errors = xhr.responseJSON.errors;
-                } else {
-                    toastr.error('Unexpected error occurred', 'Error');
-                }
-            }
-        });
-    });
+
+
+
+
+                $.ajax({
+                    url: `/opening-stock-store/${$('#product_id').val()}`, // Pass the product ID dynamically
+                    type: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 200) {
+                            toastr.success(response.message, 'Success');
+                            window.location.href = '/add-product';
+                        } else {
+
+                            toastr.error(response.message, 'Error');
+                        }
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                        } else {
+                            toastr.error('Unexpected error occurred', 'Error');
+                        }
+                    }
+                });
+            });
 
 });
 
@@ -547,7 +637,9 @@
                 const product = stock.products;
                 const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity, 10), 0);
 
-                const row = $('<tr>');
+                const row = $(`<tr class="onclickShow"  data-id="${product.id}">`);
+
+
                 row.append('<td><input type="checkbox" class="checked" /></td>');
                 row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name + '" width="50" height="70" /></td>');
                 row.append(`
@@ -592,6 +684,85 @@
     });
    }
 
+
+   // Row Click Event
+   $('#productTable').on('click', 'tr', function (e) {
+            if (!$(e.target).closest('button').length) {
+                // var id = $(this).attr('value'); // Get the record ID
+                var productId = $(this).data('id'); // Extract product ID from data-id attribute
+                $('#viewProductModal').modal('show');
+                // $('#modalContent').html('<p>Loading...</p>');
+
+        //         // Fetch product details by ID
+        $.ajax({
+            url: '/product-get-details/' + productId,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 200) {
+                    var product = response.message;
+                    var details = `
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <tbody>
+                                <tr>
+                                    <td rowspan="8" class="text-center align-middle">
+                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid" />
+                                    </td>
+                                    <th scope="row">Product Name</th>
+                                    <td>${product.product_name}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">SKU</th>
+                                    <td>${product.sku}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Category</th>
+                                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Brand</th>
+                                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Locations</th>
+                                    <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Price</th>
+                                    <td>$${product.retail_price}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Alert Quantity</th>
+                                    <td>${product.alert_quantity}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Product Type</th>
+                                    <td>${product.product_type}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                `;
+                    $('#productDetails').html(details);
+                } else {
+                    console.error('Failed to load product details. Status: ' + response.status);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching product details:', error);
+            }
+        });
+
+        }
+    });
+
+
+    // Stop propagation for buttons inside the rows
+    $('#productTable').on('click', '.view_btn, .edit-product, .delete_btn_project', function (e) {
+                        e.stopPropagation(); // Prevent the row's click event
+                    });
 
     // $(document).on('click', '.edit-product', function(event) {
     //     event.preventDefault();

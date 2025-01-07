@@ -1,7 +1,8 @@
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const productContainer = document.getElementById('product-container');
-    const billingBody = document.getElementById('billing-body');
+
+document.addEventListener("DOMContentLoaded", function () {
+    const productContainer = document.getElementById('productContainer');
+    const billingBody = document.getElementById('billing-body'); // Corrected the ID
     const discountInput = document.getElementById('discount');
     const taxInput = document.getElementById('order-tax');
     const shippingInput = document.getElementById('shipping');
@@ -154,13 +155,13 @@
     }
 
     function fetchAllProducts() {
-        fetch('/all-stock-details')
+        fetch('http://127.0.0.1:8000/products/stocks')
             .then(response => response.json())
             .then(data => {
-                if (data.status === 200 && Array.isArray(data.stocks)) {
-                    stockData = data.stocks;
+                if (data.status === 200 && Array.isArray(data.data)) {
+                    stockData = data.data;
                     // Populate the global allProducts array
-                    allProducts = stockData.map(stock => stock.products);
+                    allProducts = stockData.map(stock => stock.product);
                     displayProducts(stockData);
                     initAutocomplete();
                 } else {
@@ -172,17 +173,35 @@
             });
     }
 
-    function closeOffcanvas(id) {
-        const offcanvasElement = document.getElementById(id);
-        const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasElement);
-        if (offcanvasInstance) {
-            offcanvasInstance.hide();
-        } else {
-            offcanvasElement.classList.remove('show');
-            document.querySelector('.offcanvas-backdrop').remove();
-        }
+    function initAutocomplete() {
+        $("#productSearchInput").autocomplete({
+            source: function (request, response) {
+                const searchTerm = request.term.toLowerCase();
+                const filteredProducts = allProducts.filter(product =>
+                    (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                );
+                response(filteredProducts.map(product => ({
+                    label: `${product.product_name} (${product.sku || 'No SKU'})`,
+                    value: product.product_name,
+                    product: product
+                })));
+            },
+            select: function (event, ui) {
+                // Populate the input field with the selected product name
+                $("#productSearchInput").val(ui.item.value);
+                // Add the selected product to the data table
+                addProductToTable(ui.item.product);
+                return false;
+            }
+        }).autocomplete("instance")._renderItem = function (ul, item) {
+            return $("<li>")
+                .append(`<div>${item.label}</div>`)
+                .appendTo(ul);
+        };
     }
 
+    // Ensure stockData is properly defined and populated before accessing its elements
     function displayProducts(products) {
         const productContainer = document.getElementById('productContainer');
         productContainer.innerHTML = ''; // Clear previous products
@@ -197,50 +216,49 @@
 
         // Process the stocks data
         products.forEach(stock => {
-            const product = stock.products;
-            const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity, 10), 0);
+            const product = stock.product;
+            const totalQuantity = stock.batches.reduce((sum, batch) => sum + parseInt(batch.total_quantity, 10), 0);
 
             // Update stockMap
             if (!stockMap.has(product.id)) {
                 stockMap.set(product.id, {
                     totalQuantity: 0,
-                    locations: []
+                    batches: []
                 });
             }
             stockMap.get(product.id).totalQuantity += totalQuantity;
 
-            // Process locations
-            stock.locations.forEach(location => {
-                const locationData = {
-                    location_id: location.location_id,
-                    location_name: location.location_name,
-                    total_quantity: location.total_quantity
+            // Process batches
+            stock.batches.forEach(batch => {
+                const batchData = {
+                    batch_no: batch.batch_no,
+                    total_quantity: batch.total_quantity,
+                    unit_cost: batch.unit_cost,
+                    retail_price: batch.retail_price,
+                    ...batch // Add other batch properties if necessary
                 };
 
-                stockMap.get(product.id).locations.push(locationData);
+                stockMap.get(product.id).batches.push(batchData);
             });
         });
 
         // Generate and insert cards using fetched product data
         products.forEach(stock => {
-            const product = stock.products;
+            const product = stock.product;
             const stockEntry = stockMap.get(product.id);
 
             // Determine the quantity and price
             const quantity = stockEntry ? stockEntry.totalQuantity : 0;
             const price = product.retail_price;
 
-            let locationName = 'N/A'; // Default location if none is found
-            let locationId = null; // Default location ID if none is found
-            if (stockEntry && stockEntry.locations.length > 0) {
-                locationName = stockEntry.locations[0].location_name; // Use first location
-                locationId = stockEntry.locations[0].location_id; // Use first location ID
+            let batchNo = 'N/A'; // Default batch number if none is found
+            if (stockEntry && stockEntry.batches.length > 0) {
+                batchNo = stockEntry.batches[0].batch_no; // Use first batch number
             }
 
-            // Add location to product object
-            product.location = {
-                name: locationName,
-                id: locationId // Ensure the location ID is added
+            // Add batch to product object
+            product.batch = {
+                no: batchNo
             };
 
             const cardHTML = `
@@ -250,7 +268,7 @@
                         <div class="product-card-body">
                             <h6>${product.product_name} <br> <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span></h6>
                             <h6><span class="badge bg-success">${quantity} Pc(s) in stock</span></h6>
-                            <p class="card-text">Location: ${locationName}</p>
+                            <p class="card-text">Batch: ${batchNo}</p>
                         </div>
                     </div>
                 </div>
@@ -265,322 +283,271 @@
 
         productCards.forEach((card, index) => {
             card.addEventListener('click', () => {
-                // Pass product with location name to addProductToTable
-                addProductToTable(stockData[index].products);
+                // Ensure stockData is defined and has elements before accessing
+                if (stockData && stockData[index] && stockData[index].product) {
+                    addProductToTable(stockData[index].product);
+                } else {
+                    console.error('Invalid product data:', stockData[index]);
+                }
             });
         });
     }
 
-    // function filterProductsByCategory(categoryId) {
-    //     fetch(`/product-get-by-category/${categoryId}`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             const products = data.message;
-    //             displayProducts(products);
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching product data:', error);
-    //         });
-    // }
+    // Add selected product to the table
+    function addProductToTable(product) {
+        console.log("Product to be added:", product);
 
-    // function filterProductsBySubCategory(subCategoryId) {
-    //     fetch(`/product-get-by-sub-category/${subCategoryId}`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             const products = data.message;
-    //             displayProducts(products);
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching product data:', error);
-    //         });
-    // }
-
-    // function filterProductsByBrand(brandId) {
-    //     fetch(`/product-get-by-brand/${brandId}`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             const products = data.message;
-    //             displayProducts(products);
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching product data:', error);
-    //         });
-    // }
-
-        function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
-                    response(filteredProducts.map(product => ({
-                        label: `${product.product_name} (${product.sku || 'No SKU'})`,
-                        value: product.product_name,
-                        product: product
-                    })));
-                },
-                select: function(event, ui) {
-                    // Populate the input field with the selected product name
-                    $("#productSearchInput").val(ui.item.value);
-                    // Add the selected product to the data table (function to be implemented)
-                    addProductToTable(ui.item.product);
-                    return false;
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
-            };
-        }
-
-        function addProductToTable(product) {
-            console.log("Product to be added:", product);
-            console.log("Location ID for Product:", product.location.id);
-
-            // Ensure stockMap is updated correctly
-            const stockMap = new Map();
-            stockData.forEach(stock => {
-                const productId = stock.products.id;
-                if (!stockMap.has(productId)) {
-                    stockMap.set(productId, 0);
-                }
-                stockMap.set(productId, stockMap.get(productId) + parseInt(stock.locations.reduce((sum, location) =>
-                    sum + parseInt(location.total_quantity, 10), 0)));
-            });
-
-            // Get stock entry for the current product
-            const stockQuantity = stockMap.get(product.id) || 0;
-            const totalQuantity = stockQuantity;
-
-            // Determine location ID
-            let locationId = product.location?.id || null;
-
-            // Prevent adding products with zero stock quantity
-            if (totalQuantity === 0) {
-                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-                return;
+        // Ensure stockMap is updated correctly
+        const stockMap = new Map();
+        stockData.forEach(stock => {
+            const productId = stock.product.id;
+            if (!stockMap.has(productId)) {
+                stockMap.set(productId, 0);
             }
+            stockMap.set(productId, stockMap.get(productId) + parseInt(stock.batches.reduce((sum, batch) =>
+                sum + parseInt(batch.total_quantity, 10), 0)));
+        });
 
-            addProductToTableWithDetails(product, totalQuantity, locationId);
-        }
+        // Get stock entry for the current product
+        const stockQuantity = stockMap.get(product.id) || 0;
+        const totalQuantity = stockQuantity;
 
-        function addProductToTableWithDetails(product, totalQuantity, locationId) {
-    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row =>
-        row.querySelector('.product-name').textContent === product.product_name
-    );
+        // Determine batch number
+        let batchNo = product.batch?.no || null;
 
-    const batches = [];
-    stockData.forEach(stock => {
-        if (stock.products.id === product.id) {
-            stock.locations.forEach(location => {
-                if (location.location_id === locationId) {
-                    location.batches.forEach(batch => {
-                        batches.push(batch);
-                    });
-                }
-            });
-        }
-    });
-
-    if (existingRow) {
-        const quantityInput = existingRow.querySelector('.quantity-input');
-        let newQuantity = parseInt(quantityInput.value, 10) + 1;
-
-        if (newQuantity > totalQuantity) {
-            toastr.error(`You cannot add more than ${totalQuantity} units of this product.`, 'Warning');
+        // Prevent adding products with zero stock quantity
+        if (totalQuantity === 0) {
+            toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
             return;
         }
 
-        quantityInput.value = newQuantity;
-
-        const priceInput = existingRow.querySelector('.price-input');
-        const basePrice = parseFloat(priceInput.value);
-        const discountAmount = product.discount_amount || 0;
-        const finalPrice = product.discount_type === 'percentage'
-            ? basePrice * (1 - discountAmount / 100)
-            : basePrice - discountAmount;
-
-        const subtotal = parseFloat(quantityInput.value) * finalPrice;
-        existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
-    } else {
-        document.getElementsByClassName('successSound')[0].play();
-        toastr.info(
-            `<div style="display: flex; align-items: center;">
-                <img src="assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
-                <span style="font-size: 16px; font-weight: bold; padding-right:5px;">${product.product_name} </span>Product Added!
-            </div>`
-        );
-
-        const basePrice = product.retail_price;
-        const discountAmount = product.discount_amount || 0;
-        const finalPrice = product.discount_type === 'percentage'
-            ? basePrice * (1 - discountAmount / 100)
-            : basePrice - discountAmount;
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="assets/images/${product.product_image}" style="width:80px; height:80px; margin-right:10px; border-radius:50%;"/>
-                    <div>
-                        <div class="font-weight-bold product-name">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
-                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-                        <select class="form-select batch-dropdown" aria-label="Select Batch">
-                            <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
-                                All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice}
-                            </option>
-                            ${batches.map(batch => `
-                                <option value="${batch.batch_id || 'null'}" data-price="${batch.batch_price || finalPrice}" data-quantity="${batch.batch_quantity}">
-                                    Batch ${batch.batch_id || 'N/A'} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price || finalPrice}
-                                </option>`).join('')}
-                        </select>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="quantity-container">
-                    <button class="quantity-minus">-</button>
-                    <input type="number" value="1" min="1" max="${totalQuantity}" class="form-control quantity-input">
-                    <button class="quantity-plus">+</button>
-                </div>
-            </td>
-            <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input"></td>
-            <td class="subtotal">${finalPrice.toFixed(2)}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
-            <td class="product-id" style="display:none">${product.id}</td>
-            <td class="location-id" style="display:none">${locationId}</td>
-            <td class="discount-data" style="display:none">
-                ${JSON.stringify({
-                    type: product.discount_type,
-                    amount: product.discount_amount
-                })}
-            </td>
-        `;
-
-        billingBody.insertBefore(row, billingBody.firstChild);
-
-        const quantityInput = row.querySelector('.quantity-input');
-        const priceInput = row.querySelector('.price-input');
-        const quantityMinus = row.querySelector('.quantity-minus');
-        const quantityPlus = row.querySelector('.quantity-plus');
-        const removeBtn = row.querySelector('.remove-btn');
-        const batchDropdown = row.querySelector('.batch-dropdown');
-
-        removeBtn.addEventListener('click', () => {
-            row.remove();
-            updateTotals();
-        });
-
-        quantityMinus.addEventListener('click', () => {
-            if (quantityInput.value > 1) {
-                quantityInput.value--;
-                updateTotals();
-            }
-        });
-
-        quantityPlus.addEventListener('click', () => {
-            let newQuantity = parseInt(quantityInput.value, 10) + 1;
-            if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
-                document.getElementsByClassName('errorSound')[0].play();
-                toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
-            } else {
-                quantityInput.value = newQuantity;
-                updateTotals();
-            }
-        });
-
-        quantityInput.addEventListener('input', () => {
-            const quantityValue = parseInt(quantityInput.value, 10);
-            if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
-                quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
-                document.getElementsByClassName('errorSound')[0].play();
-                toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
-            }
-            updateTotals();
-        });
-
-        priceInput.addEventListener('input', () => {
-            updateTotals();
-        });
-
-        batchDropdown.addEventListener('change', () => {
-            const selectedOption = batchDropdown.selectedOptions[0];
-            const batchPrice = parseFloat(selectedOption.getAttribute('data-price'));
-            const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
-            if (quantityInput.value > batchQuantity) {
-                quantityInput.value = batchQuantity;
-                toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
-            }
-            priceInput.value = batchPrice.toFixed(2);
-            const subtotal = parseFloat(quantityInput.value) * batchPrice;
-            row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
-            quantityInput.setAttribute('max', batchQuantity);
-            updateTotals();
-        });
+        const locationId = null; // Update this to the actual location ID if needed
+        addProductToTableWithDetails(product, totalQuantity, locationId);
     }
 
-    updateTotals();
-}
-
-        function updateTotals() {
-            let totalItems = 0;
-            let totalAmount = 0;
-
-            billingBody.querySelectorAll('tr').forEach(row => {
-                const quantity = parseInt(row.querySelector('.quantity-input').value);
-                const price = parseFloat(row.querySelector('.price-input').value);
-                const subtotal = quantity * price;
-
-                row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
-
-                totalItems += quantity;
-                totalAmount += subtotal;
-
-
-
-            });
-            const discount = parseFloat(discountInput.value) || 0;
-                const tax = parseFloat(taxInput.value) || 0;
-                const shipping = parseFloat(shippingInput.value) || 0;
-
-                const subtotalAmount = totalAmount - discount;
-                const totalAmountWithTaxAndShipping = subtotalAmount + tax + shipping;
-
-                document.getElementById('items-count').textContent = totalItems.toFixed(2);
-                document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
-                document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+    // Add product with details to the table
+    function addProductToTableWithDetails(product, totalQuantity, locationId) {
+        if (!billingBody) {
+            console.error('billingBody element not found');
+            return;
         }
 
+        const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row =>
+            row.querySelector('.product-name').textContent === product.product_name
+        );
 
-        discountInput.addEventListener('input', updateTotals);
-        taxInput.addEventListener('input', updateTotals);
-        shippingInput.addEventListener('input', updateTotals);
+        const batches = [];
+        stockData.forEach(stock => {
+            if (stock.product.id === product.id) {
+                stock.batches.forEach(batch => {
+                    if (batch.location_batches) {
+                        batch.location_batches.forEach(location_batch => {
+                            if (location_batch.location_id === locationId) {
+                                batches.push({
+                                    ...batch,
+                                    location_name: location_batch.location.name,
+                                    location_id: location_batch.location_id
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
 
+        if (existingRow) {
+            const quantityInput = existingRow.querySelector('.quantity-input');
+            let newQuantity = parseInt(quantityInput.value, 10) + 1;
 
-        fetch('/customer-get-all')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 200) {
-                    const customerSelect = document.getElementById('customer-id');
+            if (newQuantity > totalQuantity) {
+                toastr.error(`You cannot add more than ${totalQuantity} units of this product.`, 'Warning');
+                return;
+            }
 
-                    // Loop through the customer data and create an option for each customer
-                    data.message.forEach(customer => {
-                        const option = document.createElement('option');
-                        option.value = customer.id;
-                        option.textContent =
-                            `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`;
-                        customerSelect.appendChild(option);
-                    });
-                } else {
-                    console.error('Failed to fetch customer data:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching customer data:', error);
+            quantityInput.value = newQuantity;
+
+            const priceInput = existingRow.querySelector('.price-input');
+            const basePrice = parseFloat(priceInput.value);
+            const discountAmount = product.discount_amount || 0;
+            const finalPrice = product.discount_type === 'percentage'
+                ? basePrice * (1 - discountAmount / 100)
+                : basePrice - discountAmount;
+
+            const subtotal = parseFloat(quantityInput.value) * finalPrice;
+            existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+        } else {
+            document.getElementsByClassName('successSound')[0].play();
+            toastr.info(
+                `<div style="display: flex; align-items: center;">
+                    <img src="assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
+                    <span style="font-size: 16px; font-weight: bold; padding-right:5px;">${product.product_name} </span>Product Added!
+                </div>`
+            );
+
+            const basePrice = product.retail_price;
+            const discountAmount = product.discount_amount || 0;
+            const finalPrice = product.discount_type === 'percentage'
+                ? basePrice * (1 - discountAmount / 100)
+                : basePrice - discountAmount;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="assets/images/${product.product_image}" style="width:80px; height:80px; margin-right:10px; border-radius:50%;"/>
+                        <div>
+                            <div class="font-weight-bold product-name">${product.product_name}</div>
+                            <div class="text-muted">${product.sku}</div>
+                            ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                            <select class="form-select batch-dropdown" aria-label="Select Batch">
+                                <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
+                                    All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice}
+                                </option>
+                                ${batches.map(batch => `
+                                    <option value="${batch.batch_no || 'null'}" data-price="${batch.retail_price || finalPrice}" data-quantity="${batch.total_quantity}">
+                                        Location ${batch.location_name} - Qty: ${batch.total_quantity} - Price: ${batch.retail_price || finalPrice}
+                                    </option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="quantity-container">
+                        <button class="quantity-minus">-</button>
+                        <input type="number" value="1" min="1" max="${totalQuantity}" class="form-control quantity-input">
+                        <button class="quantity-plus">+</button>
+                    </div>
+                </td>
+                <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input"></td>
+                <td class="subtotal">${finalPrice.toFixed(2)}</td>
+                <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
+                <td class="product-id" style="display:none">${product.id}</td>
+                <td class="location-id" style="display:none">${locationId}</td>
+                <td class="discount-data" style="display:none">
+                    ${JSON.stringify({
+                        type: product.discount_type,
+                        amount: product.discount_amount
+                    })}
+                </td>
+            `;
+
+            billingBody.insertBefore(row, billingBody.firstChild);
+
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            const quantityMinus = row.querySelector('.quantity-minus');
+            const quantityPlus = row.querySelector('.quantity-plus');
+            const removeBtn = row.querySelector('.remove-btn');
+            const batchDropdown = row.querySelector('.batch-dropdown');
+
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updateTotals();
             });
+
+            quantityMinus.addEventListener('click', () => {
+                if (quantityInput.value > 1) {
+                    quantityInput.value--;
+                    updateTotals();
+                }
+            });
+
+            quantityPlus.addEventListener('click', () => {
+                let newQuantity = parseInt(quantityInput.value, 10) + 1;
+                if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                    document.getElementsByClassName('errorSound')[0].play();
+                    toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
+                } else {
+                    quantityInput.value = newQuantity;
+                    updateTotals();
+                }
+            });
+
+            quantityInput.addEventListener('input', () => {
+                const quantityValue = parseInt(quantityInput.value, 10);
+                if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                    quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
+                    document.getElementsByClassName('errorSound')[0].play();
+                    toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
+                }
+                updateTotals();
+            });
+            priceInput.addEventListener('input', () => {
+                updateTotals();
+            });
+
+            batchDropdown.addEventListener('change', () => {
+                const selectedOption = batchDropdown.selectedOptions[0];
+                const batchPrice = parseFloat(selectedOption.getAttribute('data-price'));
+                const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+                if (quantityInput.value > batchQuantity) {
+                    quantityInput.value = batchQuantity;
+                    toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
+                }
+                priceInput.value = batchPrice.toFixed(2);
+                const subtotal = parseFloat(quantityInput.value) * batchPrice;
+                row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+                quantityInput.setAttribute('max', batchQuantity);
+                updateTotals();
+            });
+        }
+
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalItems = 0;
+        let totalAmount = 0;
+
+        billingBody.querySelectorAll('tr').forEach(row => {
+            const quantity = parseInt(row.querySelector('.quantity-input').value);
+            const price = parseFloat(row.querySelector('.price-input').value);
+            const subtotal = quantity * price;
+
+            row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+
+            totalItems += quantity;
+            totalAmount += subtotal;
+        });
+
+        const discount = parseFloat(discountInput.value) || 0;
+        const tax = parseFloat(taxInput.value) || 0;
+        const shipping = parseFloat(shippingInput.value) || 0;
+
+        const subtotalAmount = totalAmount - discount;
+        const totalAmountWithTaxAndShipping = subtotalAmount + tax + shipping;
+
+        document.getElementById('items-count').textContent = totalItems.toFixed(2);
+        document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
+        document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+    }
+
+    // Add event listeners for input changes
+    discountInput.addEventListener('input', updateTotals);
+    taxInput.addEventListener('input', updateTotals);
+    shippingInput.addEventListener('input', updateTotals);
+
+// Fetch customer data and populate the customer dropdown
+fetch('/customer-get-all')
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 200) {
+            const customerSelect = document.getElementById('customer-id');
+
+            // Loop through the customer data and create an option for each customer
+            data.message.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`;
+                customerSelect.appendChild(option);
+            });
+        } else {
+            console.error('Failed to fetch customer data:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching customer data:', error);
+    });
      });
 
 

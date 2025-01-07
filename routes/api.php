@@ -26,7 +26,7 @@ use App\Http\Controllers\SellController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseReturnController;
 
-
+use App\Http\Controllers\SaleController;
 
 
 
@@ -222,3 +222,7 @@ Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edi
 //     Route::post('purchases/store', [PurchaseController::class, 'store']);
 // });
 // Route::resource('purchases', PurchaseController::class);
+
+
+Route::post('/sales/store', [SaleController::class, 'store']);
+Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');

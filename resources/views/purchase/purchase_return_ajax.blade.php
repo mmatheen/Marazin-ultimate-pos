@@ -260,8 +260,8 @@
       fetchDropdownData('/supplier-get-all', $('#supplier-id'), "Select Supplier");
       fetchDropdownData('/location-get-all', $('#location'), "Select Location");
 
- // Global variable to store combined product data
- let allProducts = [];
+// Global variable to store combined product data
+let allProducts = [];
 
 // Fetch data from the single API and combine it
 fetch('/all-stock-details')
@@ -270,8 +270,8 @@ fetch('/all-stock-details')
         if (data.status === 200 && Array.isArray(data.stocks)) {
             // Process the stocks data
             allProducts = data.stocks.map(stock => {
-                const product = stock.products;
-                const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity), 0);
+                const product = stock.product;
+                const totalQuantity = stock.total_quantity;
 
                 return {
                     id: product.id,
@@ -295,7 +295,7 @@ fetch('/all-stock-details')
 
 // Function to initialize autocomplete functionality
 function initAutocomplete() {
-    $( "#productSearchInput" ).autocomplete({
+    $("#productSearchInput").autocomplete({
         source: function(request, response) {
             const searchTerm = request.term.toLowerCase();
             const filteredProducts = allProducts.filter(product =>
@@ -322,229 +322,183 @@ function initAutocomplete() {
             .appendTo(ul);
     };
 }
-//   /// Function to add product to table
-//   function addProductToTable(product) {
-//       const currentStock = productStocks[product.id] || 0;  // Get the stock quantity for the product
 
-//       // Check if the product is already in the table
-//       const existingRow = $('#purchase_return tbody tr[data-id="' + product.id + '"]');
-//       if (existingRow.length > 0) {
-//           toastr.warning('Product is already added to the table!', 'Duplicate Product');
-//           return;
-//       }
-
-//       // Initial quantity set to 1 (can be changed later)
-//       const quantity = 1;
-//       const subtotal = product.price * quantity;
-
-//       const newRow = `
-//           <tr data-id="${product.id}">
-//               <td>${product.id}</td>
-//               <td>${product.name || '-'} <br>Current stock: ${currentStock || '0'}</td>
-//               <td>
-//                   <input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${currentStock}">
-//               </td>
-//               <td>${product.price || '0'}</td>
-//               <td class="sub-total">${subtotal.toFixed(2)}</td>
-//               <td>
-//                   <button class="btn btn-danger btn-sm delete-product">
-//                       <i class="fas fa-trash"></i>
-//                   </button>
-//               </td>
-//           </tr>
-//       `;
-
-//       $('#purchase_return').DataTable().row.add($(newRow)).draw();
-//       updateFooter();
-//       toastr.success('New product added to the table!', 'Success');
-//   }
-
+// Function to add product to table
 function addProductToTable(product) {
-        // Generate the new row
-        const newRow = `
-          <tr data-id="${product.id}">
-              <td>${product.id}</td>
-               <td>${product.name || '-'} <br>Current stock: ${product.quantity || '0'}</td>
-              <td>
-                  <input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${currentStock}">
-              </td>
-              <td>${product.price || '0'}</td>
-              <td class="sub-total">${subtotal.toFixed(2)}</td>
-              <td>
-                  <button class="btn btn-danger btn-sm delete-product">
-                      <i class="fas fa-trash"></i>
-                  </button>
-              </td> 
-          </tr>
-      `;
+    const quantity = 1; // Initial quantity set to 1 (can be changed later)
+    const subtotal = product.price * quantity;
 
-        // Add the new row to the DataTable
-        const $newRow = $(newRow);
-        $('#purchase_return').DataTable().row.add($newRow).draw();
+    // Generate the new row
+    const newRow = `
+        <tr data-id="${product.id}">
+            <td>${product.id}</td>
+            <td>${product.name || '-'} <br>Current stock: ${product.quantity || '0'}</td>
+            <td>
+                <input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${product.quantity}">
+            </td>
+            <td>${product.price || '0'}</td>
+            <td class="sub-total">${subtotal.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-danger btn-sm delete-product">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `;
 
-        // Remove the product from allProducts array
-        allProducts = allProducts.filter(p => p.id !== product.id);
+    // Add the new row to the DataTable
+    const $newRow = $(newRow);
+    $('#purchase_return').DataTable().row.add($newRow).draw();
 
-        // Update footer after adding the product
+    // Remove the product from allProducts array
+    allProducts = allProducts.filter(p => p.id !== product.id);
+
+    // Update footer after adding the product
+    updateFooter();
+    toastr.success('New product added to the table!', 'Success');
+
+    // Add event listeners for dynamic updates
+    $newRow.find('.purchase-quantity').on('input', function() {
+        updateRow($newRow);
         updateFooter();
-        toastr.success('New product added to the table!', 'Success');
+    });
 
-        // Add event listeners for dynamic updates
-        $newRow.find('.purchase-quantity, .discount-percent, .product-tax, .product-price, .profit-margin').on('input', function() {
-            updateRow($newRow);
-            updateFooter();
-        });
+    // Function to update row values
+    function updateRow($row) {
+        const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+        const price = parseFloat($row.find('td:nth-child(4)').text()) || 0;
+        const subTotal = quantity * price;
 
-        // Function to update row values
-        function updateRow($row) {
-            const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
-            const price = parseFloat($row.find('.product-price').val()) || 0;
-            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-            const tax = parseFloat($row.find('.product-tax').val()) || 0;
-            const profitMargin = parseFloat($row.find('.profit-margin').val()) || 0;
-
-            const subTotal = quantity * price;
-            const discountAmount = subTotal * (discountPercent / 100);
-            const netCost = subTotal - discountAmount + tax;
-            const lineTotal = netCost;
-
-            $row.find('.sub-total').text(subTotal.toFixed(2));
-            $row.find('.net-cost').text(netCost.toFixed(2));
-            $row.find('.line-total').text(lineTotal.toFixed(2));
-            $row.find('.retail-price').text(price.toFixed(2));
-            $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
-        }
+        $row.find('.sub-total').text(subTotal.toFixed(2));
+    }
 }
 
-  // Function to remove product from table
-  function removeProductFromTable(button) {
-      const row = $(button).closest('tr'); // Get the row containing the button
-      const productId = row.data('id');   // Get the product ID from the row
+// Function to remove product from table
+function removeProductFromTable(button) {
+    const row = $(button).closest('tr'); // Get the row containing the button
+    const productId = row.data('id');   // Get the product ID from the row
 
-      // Remove the row from the DataTable
-      $('#purchase_return').DataTable().row(row).remove().draw();
+    // Remove the row from the DataTable
+    $('#purchase_return').DataTable().row(row).remove().draw();
 
-      // Update the footer after removal
-      updateFooter();
+    // Update the footer after removal
+    updateFooter();
 
-      toastr.success(`Product ID ${productId} removed from the table!`, 'Success');
-  }
+    toastr.success(`Product ID ${productId} removed from the table!`, 'Success');
+}
 
-  // Event listener for remove button
-  $('#purchase_return').on('click', '.delete-product', function () {
-      removeProductFromTable(this);
-  });
+// Event listener for remove button
+$('#purchase_return').on('click', '.delete-product', function () {
+    removeProductFromTable(this);
+});
 
+// Update footer function
+function updateFooter() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
 
-  // Update footer function
-  function updateFooter() {
-      let totalItems = 0;
-      let netTotalAmount = 0;
+    $('#purchase_return tbody tr').each(function() {
+        const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+        const price = parseFloat($(this).find('td:nth-child(4)').text()) || 0;
+        const subtotal = quantity * price;
 
-      $('#purchase_return tbody tr').each(function() {
-          const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-          const price = parseFloat($(this).find('td:nth-child(4)').text()) || 0;
-          const subtotal = quantity * price;
+        $(this).find('.sub-total').text(subtotal.toFixed(2));
 
-          $(this).find('.sub-total').text(subtotal.toFixed(2));
+        totalItems += quantity;
+        netTotalAmount += subtotal;
+    });
 
-          totalItems += quantity;
-          netTotalAmount += subtotal;
-      });
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+}
 
-      $('#total-items').text(totalItems.toFixed(2));
-      $('#net-total-amount').text(netTotalAmount.toFixed(2));
-  }
+// Event listener for quantity change
+$('#purchase_return').on('input', '.purchase-quantity', function() {
+    const input = $(this);
+    const productId = input.closest('tr').data('id');
+    const maxQuantity = parseInt(input.attr('max')) || 0;
 
-  // Event listener for quantity change
-  $('#purchase_return').on('input', '.purchase-quantity', function() {
-      const input = $(this);
-      const productId = input.closest('tr').data('id');
-      const maxQuantity = productStocks[productId] || 0;
+    // Check if the quantity exceeds the available stock
+    let newQuantity = parseInt(input.val()) || 0;
+    if (newQuantity > maxQuantity) {
+        toastr.warning(`Cannot enter more than ${maxQuantity} for this product.`, 'Quantity Limit Exceeded');
+        input.val(maxQuantity);  // Reset to the max quantity
+    }
 
-      // Check if the quantity exceeds the available stock
-      let newQuantity = parseInt(input.val()) || 0;
-      if (newQuantity > maxQuantity) {
-          toastr.warning(`Cannot enter more than ${maxQuantity} for this product.`, 'Quantity Limit Exceeded');
-          input.val(maxQuantity);  // Reset to the max quantity
-      }
+    updateFooter();
+});
 
-      updateFooter();
-  });
+// Form submission
+$('#purchaseReturn').on('submit', function (e) {
+    e.preventDefault();
 
+    if (!$('#purchaseReturn').valid()) {
+        document.getElementsByClassName('warningSound')[0].play(); // for sound
+        toastr.options = { "closeButton": true, "positionClass": "toast-top-right" };
+        toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+        return; // Return if form is not valid
+    }
 
+    const formData = new FormData(this);
+    formData.append('supplier_id', $('#supplier-id').val());
+    formData.append('location_id', $('#location').val());
+    formData.append('reference_no', $('input[placeholder="Reference No"]').val());
+    formData.append('return_date', $('input.datetimepicker').val());
 
-      $('#purchaseReturn').on('submit', function (e) {
-      e.preventDefault();
+    const fileInput = $('#attach_document')[0];
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'application/pdf'];
+        if (validTypes.includes(file.type)) {
+            formData.append('attach_document', file);
+        }
+    }
 
-         // Validate the form before submitting
-         if (!$('#purchaseReturn').valid()) {
-                   document.getElementsByClassName('warningSound')[0].play(); //for sound
-                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                        toastr.error('Invalid inputs, Check & try again!!','Warning');
-                return; // Return if form is not valid
+    const productRows = document.querySelectorAll('#purchase_return tbody tr');
+    if (productRows.length === 0) {
+        toastr.error("No products added.");
+        return;
+    }
+
+    productRows.forEach((row, index) => {
+        formData.append(`products[${index}][product_id]`, row.querySelector('td:nth-child(1)').textContent.trim());
+        formData.append(`products[${index}][quantity]`, row.querySelector('td:nth-child(3) input').value);
+        formData.append(`products[${index}][unit_price]`, row.querySelector('td:nth-child(4)').textContent.trim());
+        formData.append(`products[${index}][subtotal]`, row.querySelector('td:nth-child(5)').textContent.trim());
+    });
+
+    for (const [key, value] of formData.entries()) {
+        console.log(key, value); // Debug FormData
+    }
+
+    $.ajax({
+        url: '/purchase-return/store',
+        method: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        headers: { 'X-CSRF-TOKEN': csrfToken },
+        dataType: 'json',
+        success: function(response) {
+            if (response.status == 400) {
+                $.each(response.errors, function(key, err_value) {
+                    $('#' + key + '_error').html(err_value);
+                });
+                const responseData = response.responseJSON || {}; // Extract JSON response
+                const message = responseData.error || 'An error occurred during submission.';
+                const errors = responseData.messages || {}; // Adjust based on backend response format
+
+                // Display the error message
+                toastr.error(message);
+
+            } else {
+                document.getElementsByClassName('successSound')[0].play(); // for sound
+                toastr.success(response.message, 'Added');
+                resetFormAndValidation();
             }
-
-      const formData = new FormData(this);
-      formData.append('supplier_id', $('#supplier-id').val());
-      formData.append('location_id', $('#location').val());
-      formData.append('reference_no', $('input[placeholder="Reference No"]').val());
-      formData.append('return_date', $('input.datetimepicker').val());
-
-      const fileInput = $('#attach_document')[0];
-      if (fileInput.files.length > 0) {
-          const file = fileInput.files[0];
-          const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'application/pdf'];
-          if (validTypes.includes(file.type)) {
-              formData.append('attach_document', file);
-          }
-      }
-
-      const productRows = document.querySelectorAll('#purchase_return tbody tr');
-      if (productRows.length === 0) {
-          toastr.error("No products added.");
-          return;
-      }
-
-      productRows.forEach((row, index) => {
-          formData.append(`products[${index}][product_id]`, row.querySelector('td:nth-child(1)').textContent.trim());
-          formData.append(`products[${index}][quantity]`, row.querySelector('td:nth-child(3) input').value);
-          formData.append(`products[${index}][unit_price]`, row.querySelector('td:nth-child(4)').textContent.trim());
-          formData.append(`products[${index}][subtotal]`, row.querySelector('td:nth-child(5)').textContent.trim());
-      });
-
-      for (const [key, value] of formData.entries()) {
-          console.log(key, value); // Debug FormData
-      }
-
-      $.ajax({
-      url: '/purchase-return/store',
-      method: 'POST',
-      data: formData,
-      contentType: false,
-      processData: false,
-      headers: { 'X-CSRF-TOKEN': csrfToken },
-      dataType: 'json',
-      success: function(response) {
-          if (response.status == 400) {
-              $.each(response.errors, function(key, err_value) {
-                  $('#' + key + '_error').html(err_value);
-              });
-           const responseData = response.responseJSON || {}; // Extract JSON response
-          const message = responseData.error || 'An error occurred during submission.';
-          const errors = responseData.messages || {}; // Adjust based on backend response format
-
-          // Display the error message
-          toastr.error(message);
-
-          } else {
-              document.getElementsByClassName('successSound')[0]
-                  .play(); // for sound
-              toastr.success(response.message, 'Added');
-              resetFormAndValidation();
-              // window.location.href = '{{ route('list-product') }}';
-          }
-      }
+        }
+    });
+});
 
 
 
@@ -575,11 +529,7 @@ function addProductToTable(product) {
       //         fieldElement.closest('div').append(`<span class="text-danger">${errorMessage}</span>`);
       //     });
       // }
-  });
 
-  });
-
-});
 
 
 
@@ -784,6 +734,7 @@ $(document).ready(function () {
         });
     });
 })
+    })
 
     // Add Payment button click to show modal
     $('#purchase_return_list tbody').on('click', '.add-payment-btn', function (event) {

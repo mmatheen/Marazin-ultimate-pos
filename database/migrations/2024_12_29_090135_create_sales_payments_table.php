@@ -12,16 +12,19 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('sales_payments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('sale_id')->constrained('sales')->onDelete('cascade');
-            $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
-            $table->boolean('is_walkin_customer')->default(false);
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('sale_id');
+            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->boolean('is_walkin_customer')->default(0);
             $table->string('payment_method');
             $table->string('payment_account')->nullable();
-            $table->decimal('amount', 8, 2);
+            $table->decimal('amount', 15, 2);
             $table->date('payment_date');
             $table->text('payment_note')->nullable();
             $table->timestamps();
+
+            $table->foreign('sale_id')->references('id')->on('sales')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('set null');
         });
     }
 

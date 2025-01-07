@@ -12,15 +12,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('sales_products', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('sale_id')->constrained('sales')->onDelete('cascade');
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->foreignId('batch_id')->constrained('batches')->onDelete('cascade'); // Add batch_id column
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('sale_id');
+            $table->unsignedBigInteger('product_id');
+            $table->unsignedBigInteger('batch_id');
+            $table->unsignedBigInteger('location_id');
             $table->integer('quantity');
-            $table->decimal('unit_price', 8, 2);
+            $table->enum('price_type', ['retail', 'wholesale', 'special']);
+            $table->decimal('price', 8, 2);
             $table->decimal('discount', 8, 2)->nullable();
             $table->decimal('tax', 8, 2)->nullable();
             $table->timestamps();
+
+            $table->foreign('sale_id')->references('id')->on('sales')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
+            $table->foreign('batch_id')->references('id')->on('batches')->onDelete('cascade');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 
