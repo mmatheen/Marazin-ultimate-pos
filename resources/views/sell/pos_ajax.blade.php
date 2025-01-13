@@ -639,7 +639,7 @@ $(document).ready(function () {
             const productRow = $(this);
             const productData = {
                 product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
-                batch_no: "",
+                batch_no: parseInt(productRow.find('.batch-dropdown').text().trim(), 10),
                 location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
                 quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
                 price_type: 'retail', // Assuming the price type is 'retail'
