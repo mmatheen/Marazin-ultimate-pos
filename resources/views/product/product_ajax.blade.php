@@ -186,32 +186,28 @@ $(document).ready(function() {
         success: function(response) {
             if (response.status === 200) {
                 const product = response.product;
+                const unitPrice = parseFloat(product.original_price) || 0;
+                const retailPrice = parseFloat(product.retail_price) || 0;
+                const wholesalePrice = parseFloat(product.whole_sale_price) || 0;
+                const specialPrice = parseFloat(product.special_price) || 0;
+                const maxRetailPrice = parseFloat(product.max_retail_price) || 0;
+
                 const newRow = `
                     <tr data-id="${product.id}">
                         <td>${product.id}</td>
-                        <td>${product.product_name || '-'}</td>
-                        <td>
-                            <input type="number" class="form-control purchase-quantity" value="1" min="1">
-                        </td>
-                        <td>
-                            <input type="number" class="form-control product-price" value="${product.retail_price || '0'}" min="0" step="0.01">
-                        </td>
-                        <td>
-                            <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
-                        </td>
-                        <td class="retail-price">${product.retail_price || '0'}</td>
+                        <td>${product.product_name || '-'} <br><small>Stock: ${product.quantity || 0}</small></td>
+                        <td><input type="number" class="form-control purchase-quantity" value="1" min="1"></td>
+                        <td><input type="number" class="form-control unit-price" value="${unitPrice.toFixed(2)}" min="0" step="0.01"></td>
+                        <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
+                        <td>${unitPrice.toFixed(2)}</td>
+                        <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" step="0.01"></td>
+                        <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0" step="0.01"></td>
+                        <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0" step="0.01"></td>
+                        <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0" step="0.01"></td>
                         <td class="sub-total">0</td>
-                        <td class="net-cost">0</td>
-                        <td class="line-total">0</td>
-                        <td>${product.profit_margin || '0'}</td>
-                        <td>
-                            <input type="number" class="form-control">
-                        </td>
-                        <td>
-                            <button class="btn btn-danger btn-sm delete-product">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
+                        <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+                        <td><input type="text" class="form-control batch-id"></td>
+                        <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
                     </tr>
                 `;
 
@@ -227,7 +223,7 @@ $(document).ready(function() {
                 updateFooter();
 
                 // Add event listeners to the new row for input changes
-                $newRow.find('.purchase-quantity, .discount-percent, .product-price').on('input', function() {
+                $newRow.find('.purchase-quantity, .discount-percent, .unit-price, .wholesale-price, .special-price, .max-retail-price, .profit-margin').on('input', function() {
                     updateRow($newRow);
                     updateFooter();
                 });
@@ -247,11 +243,14 @@ $(document).ready(function() {
 // Function to update row values
 function updateRow($row) {
     const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
-    const price = parseFloat($row.find('.product-price').val()) || 0;
+    const unitPrice = parseFloat($row.find('.unit-price').val()) || 0;
     const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-    const profitMargin = parseFloat($row.find('.profit-margin').text()) || 0;
+    const profitMargin = parseFloat($row.find('.profit-margin').val()) || 0;
+    const wholesalePrice = parseFloat($row.find('.wholesale-price').val()) || 0;
+    const specialPrice = parseFloat($row.find('.special-price').val()) || 0;
+    const maxRetailPrice = parseFloat($row.find('.max-retail-price').val()) || 0;
 
-    const subTotal = quantity * price;
+    const subTotal = quantity * unitPrice;
     const discountAmount = subTotal * (discountPercent / 100);
     const netCost = subTotal - discountAmount;
     const lineTotal = netCost;
@@ -259,8 +258,6 @@ function updateRow($row) {
     $row.find('.sub-total').text(subTotal.toFixed(2));
     $row.find('.net-cost').text(netCost.toFixed(2));
     $row.find('.line-total').text(lineTotal.toFixed(2));
-    $row.find('.retail-price').text(price.toFixed(2));
-    $row.find('.whole-sale-price').text((price * (1 - profitMargin / 100)).toFixed(2));
 }
 
 // Function to update footer (total items and net total)
@@ -301,6 +298,17 @@ function updateFooter() {
     $('#discount-display').text(`(-) $ ${discountAmount.toFixed(2)}`);
     $('#tax-display').text(`(+) $ ${taxAmount.toFixed(2)}`);
 }
+
+// $(document).ready(function() {
+//     // Initialize DataTable
+//     $("#purchase_product").DataTable({
+//         autoWidth: true,
+//         responsive: true,
+//     });
+
+//     // Fetch products on page load
+//     fetchLastAddedProducts();
+// });
         // Fetch main category, sub category, location, unit, brand details to select box code start
         $.ajax({
             url: 'initial-product-details', // Replace with your endpoint URL
@@ -620,155 +628,206 @@ function updateFooter() {
         });
     }
 
-   function showFetchData() {
-    // Fetch data from the single API and combine it
+//     $(document).ready(function () {
+//     // Initialize DataTable
+//     const productTable = $('#productTable').DataTable();
+
+//     // Fetch data and populate the table
+//     function showFetchData() {
+//         $.ajax({
+//             url: '/products/stocks', // Ensure this URL is correct and the endpoint exists
+//             type: 'GET',
+//             dataType: 'json'
+//         }).done(function (response) {
+//             console.log(response);  // Log the response for debugging
+//             if (response.status === 200 && Array.isArray(response.data)) {
+//                 const stocks = response.data;
+//                 productTable.clear();
+
+//                 // Loop through all products and combine stock data if available
+//                 stocks.forEach(stock => {
+//                     const product = stock.product;
+//                     if (!product) {
+//                         console.warn('Product data is null for stock:', stock);
+//                         return; // Skip this iteration if product data is null
+//                     }
+
+//                     const totalQuantity = stock.batches.reduce((sum, batch) => sum + parseInt(batch.total_quantity, 10), 0);
+//                     const locationName = stock.batches.length > 0 && stock.batches[0].location_batches.length > 0 ? stock.batches[0].location_batches[0].location.name : 'N/A';
+
+//                     const row = $(`
+//                         <tr class="onclickShow" data-id="${product.id}">
+//                             <td><input type="checkbox" class="checked" /></td>
+//                             <td><img src="/assets/images/${product.product_image}" alt="${product.product_name}" width="50" height="70" /></td>
+//                             <td>
+//                                 <div class="dropdown dropdown-action">
+//                                     <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+//                                         <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
+//                                     </a>
+//                                     <div class="dropdown-menu dropdown-menu-end">
+//                                         <a class="dropdown-item" href="#"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
+//                                         <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-id="${product.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+//                                         <a class="dropdown-item edit-product" href="/edit-product/${product.id}" data-id="${product.id}"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>
+//                                         <a class="dropdown-item delete_btn" data-id="${product.id}"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
+//                                         <a class="dropdown-item" href="#"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
+//                                         <a class="dropdown-item" href="#"><i class="fas fa-history"></i>&nbsp;&nbsp;Product stock history</a>
+//                                         <a class="dropdown-item" href="#"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
+//                                     </div>
+//                                 </div>
+//                             </td>
+//                             <td>${product.product_name}</td>
+//                             <td>${locationName}</td>
+//                             <td>Rs ${product.retail_price.toFixed(2)}</td>
+//                             <td>${totalQuantity}</td>
+//                             <td>${product.product_type}</td>
+//                             <td>${product.main_category_id || 'N/A'}</td>
+//                             <td>${product.brand_id || 'N/A'}</td>
+//                             <td>${product.sku}</td>
+//                         </tr>
+//                     `);
+
+//                     productTable.row.add(row);
+//                 });
+
+//                 productTable.draw();
+//             } else {
+//                 console.error('Invalid product or stock data:', response);
+//             }
+//         }).fail(function (xhr, status, error) {
+//             console.error('Error fetching product or stock data:', error);
+//         });
+//     }
+
+//     // Fetch product data on page load
+//     showFetchData();
+
+//     // Handle row click events to show product details
+//     $('#productTable').on('click', 'tr', function (e) {
+//         if (!$(e.target).closest('button').length) {
+//             const productId = $(this).data('id');
+//             $('#viewProductModal').modal('show');
+
+//             $.ajax({
+//                 url: '/product-get-details/' + productId,
+//                 type: 'GET',
+//                 dataType: 'json',
+//                 success: function (response) {
+//                     if (response.status === 200) {
+//                         const product = response.message.product;
+//                         if (!product) {
+//                             console.warn('Product data is null for product ID:', productId);
+//                             $('#productDetails').html('<p>Product details are not available.</p>');
+//                             return;
+//                         }
+
+//                         const details = `
+//                             <div class="table-responsive">
+//                                 <table class="table table-bordered table-striped">
+//                                     <tbody>
+//                                         <tr>
+//                                             <td rowspan="8" class="text-center align-middle">
+//                                                 <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid' />
+//                                             </td>
+//                                             <th scope="row">Product Name</th>
+//                                             <td>${product.product_name}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">SKU</th>
+//                                             <td>${product.sku}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Category</th>
+//                                             <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Brand</th>
+//                                             <td>${brandMap[product.brand_id] || 'N/A'}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Locations</th>
+//                                             <td>${response.message.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Price</th>
+//                                             <td>Rs ${product.retail_price.toFixed(2)}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Alert Quantity</th>
+//                                             <td>${product.alert_quantity}</td>
+//                                         </tr>
+//                                         <tr>
+//                                             <th scope="row">Product Type</th>
+//                                             <td>${product.product_type}</td>
+//                                         </tr>
+//                                     </tbody>
+//                                 </table>
+//                             </div>
+//                         `;
+//                         $('#productDetails').html(details);
+//                     } else {
+//                         console.error('Failed to load product details. Status:', response.status);
+//                     }
+//                 },
+//                 error: function (xhr, status, error) {
+//                     console.error('Error fetching product details:', error);
+//                 }
+//             });
+//         }
+//     });
+
+//     // Stop propagation for buttons inside the rows
+//     $('#productTable').on('click', '.view_btn, .edit-product, .delete_btn', function (e) {
+//         e.stopPropagation(); // Prevent the row's click event
+//     });
+// });
+$(document).ready(function() {
+    // Function to format the product data into table rows
+    function formatProductData(product) {
+        return `
+            <tr>
+                <td><input type="checkbox" class="checked" /></td>
+                <td><img src="/path/to/images/${product.product_image}" alt="${product.product_name}" width="50" height="50"></td>
+                <td>
+                    <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</button>
+                </td>
+                <td>${product.product_name}</td>
+                <td>${product.batches.length > 0 ? product.batches[0].location_batches[0].location.name : 'N/A'}</td>
+                <td>${product.retail_price}</td>
+                <td>${product.total_stock}</td>
+                <td>${product.product_type}</td>
+                <td>${product.main_category_id}</td>
+                <td>${product.brand_id}</td>
+                <td>${product.sku}</td>
+            </tr>
+        `;
+    }
+
+    // AJAX call to fetch the product data
     $.ajax({
-        url: '/all-stock-details',
-        type: 'GET',
-        dataType: 'json'
-    }).done(function(response) {
-        if (response.status === 200 && Array.isArray(response.stocks)) {
-            const stocks = response.stocks;
-            let table = $('#productTable').DataTable();
-            table.clear().draw();
+        url: 'http://127.0.0.1:8000/products/stocks',
+        method: 'GET',
+        success: function(response) {
+            if (response.status === 200) {
+                var productTableBody = $('#productTable tbody');
+                productTableBody.empty(); // Clear existing data
 
-            // Loop through all products and combine stock data if available
-            stocks.forEach(stock => {
-                const product = stock.products;
-                const totalQuantity = stock.locations.reduce((sum, location) => sum + parseInt(location.total_quantity, 10), 0);
-
-                const row = $(`<tr class="onclickShow"  data-id="${product.id}">`);
-
-
-                row.append('<td><input type="checkbox" class="checked" /></td>');
-                row.append('<td><img src="/assets/images/' + product.product_image + '" alt="' + product.product_name + '" width="50" height="70" /></td>');
-                row.append(`
-                    <td>
-                        <div class="dropdown dropdown-action">
-                            <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                <a class="dropdown-item" href="#"><i class="fas fa-barcode"></i>&nbsp;Labels</a>
-                                <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-id="${product.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                <a class="dropdown-item edit-product" href="/edit-product/${product.id}" data-id="${product.id}">
-                                    <i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit
-                                </a>
-                                <a class="dropdown-item delete_btn" data-id="${product.id}"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-database"></i>&nbsp;&nbsp;Add or edit opening stock</a>
-                                <a class="dropdown-item" href="#"><i class="fas fa-history"></i>&nbsp;&nbsp;Product stock history</a>
-                                <a class="dropdown-item" href="#"><i class="far fa-copy"></i>&nbsp;&nbsp;Duplicate Product</a>
-                            </div>
-                        </div>
-                    </td>`);
-
-                const locationName = stock.locations.length > 0 ? stock.locations[0].location_name : 'N/A';
-
-                // Add product details
-                row.append('<td>' + product.product_name + '</td>');
-                row.append('<td>' + locationName + '</td>');
-                row.append('<td>Rs ' + product.retail_price.toFixed(2) + '</td>');
-                row.append('<td>' + totalQuantity + '</td>'); // Use combined quantity
-                row.append('<td>' + product.product_type + '</td>');
-                row.append('<td>' + (product.main_category_id || 'N/A') + '</td>');
-                row.append('<td>' + (product.brand_id || 'N/A') + '</td>');
-                row.append('<td>' + product.sku + '</td>');
-
-                table.row.add(row).draw(false);
-            });
-        } else {
-            console.error('Invalid product or stock data:', response);
-        }
-    }).fail(function(xhr, status, error) {
-        console.error('Error fetching product or stock data:', error);
-    });
-   }
-
-
-   // Row Click Event
-   $('#productTable').on('click', 'tr', function (e) {
-            if (!$(e.target).closest('button').length) {
-                // var id = $(this).attr('value'); // Get the record ID
-                var productId = $(this).data('id'); // Extract product ID from data-id attribute
-                $('#viewProductModal').modal('show');
-                // $('#modalContent').html('<p>Loading...</p>');
-
-        //         // Fetch product details by ID
-        $.ajax({
-            url: '/product-get-details/' + productId,
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 200) {
-                    var product = response.message;
-                    var details = `
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <tbody>
-                                <tr>
-                                    <td rowspan="8" class="text-center align-middle">
-                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid" />
-                                    </td>
-                                    <th scope="row">Product Name</th>
-                                    <td>${product.product_name}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">SKU</th>
-                                    <td>${product.sku}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Category</th>
-                                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Brand</th>
-                                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Locations</th>
-                                    <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Price</th>
-                                    <td>$${product.retail_price}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Alert Quantity</th>
-                                    <td>${product.alert_quantity}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Product Type</th>
-                                    <td>${product.product_type}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                `;
-                    $('#productDetails').html(details);
-                } else {
-                    console.error('Failed to load product details. Status: ' + response.status);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching product details:', error);
+                response.data.forEach(function(item) {
+                    var product = item.product;
+                    product.total_stock = item.total_stock;
+                    product.batches = item.batches;
+                    productTableBody.append(formatProductData(product));
+                });
+            } else {
+                console.error('Failed to fetch product data.');
             }
-        });
-
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching product data:', error);
         }
     });
+});
 
 
-    // Stop propagation for buttons inside the rows
-    $('#productTable').on('click', '.view_btn, .edit-product, .delete_btn_project', function (e) {
-                        e.stopPropagation(); // Prevent the row's click event
-                    });
-
-    // $(document).on('click', '.edit-product', function(event) {
-    //     event.preventDefault();
-    //     const productId = $(this).data('id');
-    //     window.location.href = `/edit-product/${productId}`; // Navigate to the edit page
-    // });
     $(document).ready(function() {
         // Fetch product details and populate the form when the page is loaded
         const productId = window.location.pathname.split('/').pop();

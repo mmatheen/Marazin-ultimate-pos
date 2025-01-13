@@ -151,8 +151,8 @@
                                         <!-- Supplier Field -->
                                         <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="supplier-id">Supplier <span class="text-danger">*</span></label>
-                                            <div class="input-group">
-                                                <select class="form-select" id="supplier-id" name="supplier_id">
+                                            <div class="input-group d-flex">
+                                                <select class="form-select select2Box" id="supplier-id" name="supplier_id">
                                                 </select>
                                                 <button type="button" class="btn btn-outline-info" id="addSupplierButton">
                                                     <i class="fas fa-plus-circle"></i>
@@ -161,14 +161,14 @@
                                             <span class="text-danger small" id="supplier_id_error"></span>
                                         </div>
 
-
                                         <!-- Reference No Field -->
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="reference-no">Reference No</label>
-                                            <input class="form-control" type="text" placeholder="Reference No" id="reference-no" name="reference_no">
+                                            <label for="reference-no">Reference No <span
+                                                    class="text-danger">*</span></label>
+                                            <input class="form-control" type="text" placeholder="Reference No"
+                                                id="reference-no" name="reference_no">
                                             <span class="text-danger small" id="reference_no_error"></span>
                                         </div>
-
 
                                         <!-- Purchase Date Field -->
                                         <div class="col-lg-3 col-md-6 mb-3">
@@ -183,15 +183,12 @@
                                         <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="purchase-status">Purchase Status <span
                                                     class="text-danger">*</span></label>
-                                            <div class="input-group">
-
-                                                <select class="form-select" id="purchase-status" name="purchase_status">
-                                                    <option selected disabled>Please Select</option>
-                                                    <option>Received</option>
-                                                    <option>Pending</option>
-                                                    <option>Ordered</option>
-                                                </select>
-                                            </div>
+                                            <select class="form-select" id="purchase-status" name="purchase_status">
+                                                <option selected disabled>Please Select</option>
+                                                <option>Received</option>
+                                                <option>Pending</option>
+                                                <option>Ordered</option>
+                                            </select>
                                             <span class="text-danger small" id="purchase_status_error"></span>
                                         </div>
                                     </div>
@@ -213,12 +210,10 @@
                                         <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="services">Business Location <span
                                                     class="login-danger">*</span></label>
-                                            <div class="input-group">
                                             <select class="form-control form-select" data-role="tagsinput" id="services"
                                                 name="services">
                                                 <option selected disabled></option>
                                             </select>
-                                            </div>
                                             <span class="text-danger" id="business_location_error"></span>
                                         </div>
 
@@ -232,16 +227,13 @@
 
                                         <!-- Period Field -->
                                         <div class="col-lg-3 col-md-6 mb-3">
-
                                             <label for="period">Period <span class="login-danger">*</span></label>
-                                            <div class="input-group">
                                             <select class="form-control" id="period" name="duration_type">
                                                 <option selected disabled>Please Select</option>
                                                 <option>days</option>
                                                 <option>months</option>
                                                 <option>years</option>
                                             </select>
-                                            </div>
                                             <span class="text-danger" id="duration_type_error"></span>
                                         </div>
                                     </div>
@@ -286,15 +278,15 @@
                         <div class="card card-table">
                             <div class="card-body">
                                 <div class="page-header">
-                                    <div class="row">
-                                        {{-- <div class="col-md-3">
+                                    <div class="row d-flex justify-content-center">
+                                        <div class="col-md-3">
                                             <div class="mb-3">
                                                 <button type="button" class="btn btn-primary" data-bs-toggle="modal"
                                                     data-bs-target="#ImportProduct">Import Products</button>
                                             </div>
-                                        </div> --}}
+                                        </div>
 
-                                        <div class="ui-widget col-md-8">
+                                        <div class="ui-widget col-md-5">
                                             <div class="mb-3">
                                                 <div class="input-group">
                                                     <span class="input-group-text" id="basic-addon1"><i
@@ -510,7 +502,6 @@
                 </div>
             </form>
         </div>
-
 
 
 

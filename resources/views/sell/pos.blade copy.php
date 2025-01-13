@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Page</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <link rel="shortcut icon" href={{asset('assets/img/favicon.png')}}>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -478,18 +477,61 @@
 
     </style>
 </head>
+
 <body>
     <div class="container-fluid p-3">
         <div class="row mt-2">
             <div class="col-md-12">
-                <div class="card bg-white p-3">
-                    <div class="row">
-                        <!-- Location and Date Section -->
-                        <div class="col-md-6">
-                            <h5>Location: <strong>@if ($location) {{ $location->name }} @endif</strong></h5>
-                        </div>
-                        <div class="col-md-6 text-end">
-                            <input type="datetime-local" class="form-control d-inline-block w-auto" />
+                <div class="card flex-fill bg-white" style="padding: 10px; min-height: auto;">
+                    <div class="card-body" style="padding: 10px;">
+                        <div class="row">
+                            <!-- Location and Date Section -->
+                            <div class="col-md-5">
+                                <div class="row d-flex justify-content-end align-items-center">
+                                    <div class="col-auto">
+                                        <div class="form-group local-forms days">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h5 class="me-2">Location: <strong>@if ($location) {{ $location->name }} @endif</strong></h5>
+                                                <div>
+                                                    <input type="datetime-local" class="form-control d-inline-block w-auto" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Buttons Section -->
+                            <div class="col-md-7">
+                                <div class="row d-flex justify-content-end align-items-center">
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm" onclick="window.history.back();"><i class="fas fa-backward"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-window-close"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-business-time"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-calculator"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-redo-alt"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-wallet"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-light btn-sm"><i class="fas fa-pause-circle"></i></button>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-primary btn-sm d-flex align-items-center" style="width: 140px; padding: 5px 10px;">
+                                            <i class="fas fa-minus-circle me-2"></i> Add Expense
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -498,177 +540,147 @@
 
         <div class="row mt-2">
             <div class="col-md-12">
-                <div class="card bg-white p-3">
-                    <div class="row">
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm" onclick="window.history.back();"><i class="fas fa-backward"></i></button>
+                <div class="row">
+                    <div class="col-md-7 scrollable-content">
+                        <div class="blog grid-blog flex-fill">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group local-forms days">
+                                        <label>Customer Type<span class="login-danger">*</span></label>
+                                        <select class="form-control form-select select select" id="customer-id">
+                                            <option selected disabled>Please Select</option>
+                                            <!-- Options will be populated dynamically -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+
+                                    <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
+                                    <input type="hidden" id="payment-mode" value="cash"/>
+                                    <input type="hidden" id="payment-status" value="paid"/>
+                                    <input type="hidden" id="invoice-no" value="inv-00256"/>
+                                </div>
+                                <div class="col-md-12">
+                                    <table class="table table-bordered">
+                                        <thead class="thead-light">
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Quantity</th>
+                                                <th>Price inc. tax</th>
+                                                <th>Subtotal</th>
+                                                <th>Remove</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="billing-body">
+                                            <!-- Dynamic rows go here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-window-close"></i></button>
+
+                        <!-- Billing Summary (Positioned at the Bottom) -->
+                        <div class="billing-summary mt-auto">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Items</label>
+                                        <p id="items-count" class="form-control">0</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Discount</label>
+                                        <input type="text" id="discount" class="form-control" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Order Tax</label>
+                                        <input type="text" id="order-tax" class="form-control" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Shipping</label>
+                                        <input type="text" id="shipping" class="form-control" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3 offset-md-9">
+                                    <div class="form-group">
+                                        <label>Total</label>
+                                        <p id="total-amount" class="form-control">0.00</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-business-time"></i></button>
+                    </div>
+
+                    <!-- Product List -->
+                    <div class="col-md-5">
+                        <!-- Buttons for Category and Brand -->
+                        <div class="row mb-3">
+                            <div class="d-flex justify-content-between w-100 mb-2">
+                                <button type="button" class="btn btn-primary text-center w-50 me-3" id="allProductsBtn">All Products</button>
+                                <button type="button" class="btn btn-primary text-center w-100 me-3" id="category-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory" aria-controls="offcanvasCategory">Category</button>
+                                <button type="button" class="btn btn-primary text-center w-100" id="brand-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand" aria-controls="offcanvasBrand">Brand</button>
+                            </div>
                         </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-calculator"></i></button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-redo-alt"></i></button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-wallet"></i></button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-light btn-sm"><i class="fas fa-pause-circle"></i></button>
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-primary btn-sm d-flex align-items-center" style="width: 140px; padding: 5px 10px;">
-                                <i class="fas fa-minus-circle me-2"></i> Add Expense
-                            </button>
+
+                        <div class="row mt-2 scrollable-content" id="product-container">
+
+                            <div id="productContainer" class="row g-3">
+                                <!-- Products will be dynamically injected here -->
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="row mt-2">
-            <div class="col-md-7">
-                <div class="card bg-white p-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Customer Type<span class="login-danger">*</span></label>
-                                <select class="form-control" id="customer-id">
-                                    <option selected disabled>Please Select</option>
-                                    <!-- Options will be populated dynamically -->
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-8">
-                            <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
-                            <input type="hidden" id="payment-mode" value="cash"/>
-                            <input type="hidden" id="payment-status" value="paid"/>
-                            <input type="hidden" id="invoice-no" value="inv-00256"/>
-                        </div>
-                        <div class="col-md-12 mt-3">
-                            <table class="table table-bordered">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Price inc. tax</th>
-                                        <th>Subtotal</th>
-                                        <th>Remove</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="billing-body">
-                                    <!-- Dynamic rows go here -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Billing Summary (Positioned at the Bottom) -->
-                <div class="card bg-white mt-3 p-3">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Items</label>
-                                <p id="items-count" class="form-control">0</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Discount</label>
-                                <input type="text" id="discount" class="form-control" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Order Tax</label>
-                                <input type="text" id="order-tax" class="form-control" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Shipping</label>
-                                <input type="text" id="shipping" class="form-control" placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3 offset-md-9">
-                            <div class="form-group">
-                                <label>Total</label>
-                                <p id="total-amount" class="form-control">0.00</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Product List -->
-            <div class="col-md-5">
-                <div class="card bg-white p-3">
-                    <!-- Buttons for Category and Brand -->
-                    <div class="row mb-3">
-                        <div class="d-flex justify-content-between w-100 mb-2">
-                            <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All Products</button>
-                            <button type="button" class="btn btn-primary w-50 me-3" id="category-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory" aria-controls="offcanvasCategory">Category</button>
-                            <button type="button" class="btn btn-primary w-50" id="brand-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand" aria-controls="offcanvasBrand">Brand</button>
-                        </div>
-                    </div>
-
-                    <div id="productContainer" class="row g-3 scrollable-content">
-                        <!-- Products will be dynamically injected here -->
-                    </div>
-                </div>
-            </div>
+<!-- Offcanvas Category Menu -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory" aria-labelledby="offcanvasCategoryLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="categoryContainer" class="category-container">
+            <!-- Categories will be dynamically injected here -->
         </div>
+    </div>
+</div>
 
-        <!-- Offcanvas Category Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory" aria-labelledby="offcanvasCategoryLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="categoryContainer" class="category-container">
-                    <!-- Categories will be dynamically injected here -->
-                </div>
-            </div>
+<!-- Offcanvas Subcategory Menu -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory" aria-labelledby="offcanvasSubcategoryLabel">
+    <div class="offcanvas-header">
+        <button type="button" class="btn btn-secondary" id="subcategoryBackBtn">Back</button>
+        <h5 class="offcanvas-title" id="offcanvasSubcategoryLabel">Subcategories</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="subcategoryContainer" class="subcategory-container">
+            <!-- Subcategories will be dynamically injected here -->
         </div>
+    </div>
+</div>
 
-        <!-- Offcanvas Subcategory Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory" aria-labelledby="offcanvasSubcategoryLabel">
-            <div class="offcanvas-header">
-                <button type="button" class="btn btn-secondary" id="subcategoryBackBtn">Back</button>
-                <h5 class="offcanvas-title" id="offcanvasSubcategoryLabel">Subcategories</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="subcategoryContainer" class="subcategory-container">
-                    <!-- Subcategories will be dynamically injected here -->
-                </div>
-            </div>
+<!-- Offcanvas Brand Menu -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand" aria-labelledby="offcanvasBrandLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div id="brandContainer" class="category-container">
+            <!-- Brands will be dynamically injected here -->
         </div>
+    </div>
+</div>
 
-        <!-- Offcanvas Brand Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand" aria-labelledby="offcanvasBrandLabel">
-            <div class="offcanvas-header">
-                <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-            </div>
-            <div class="offcanvas-body">
-                <div id="brandContainer" class="category-container">
-                    <!-- Brands will be dynamically injected here -->
-                </div>
-            </div>
-        </div>
 
-        <!-- Bottom Fixed Section -->
-        <div class="bottom-fixed mt-3">
+        <div class="bottom-fixed">
             <div class="row align-items-center">
                 <!-- Buttons Section -->
                 <div class="col-md-7">
@@ -693,10 +705,16 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Include Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
-    @include('sell.pos_ajax')
+
+
+
+
+
+        @include('sell.pos_ajax')
+
+
+
 </body>
+
 </html>

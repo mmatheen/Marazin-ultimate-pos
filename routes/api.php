@@ -216,6 +216,7 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
 Route::post('/purchases/store', [PurchaseController::class, 'store']);
 
 Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
+Route::post('/purchase/return', [PurchaseReturnController::class, 'store']);
 // Route::post('purchases/', [PurchaseController::class, 'store']);
 
 // Route::middleware('api')->group(function () {

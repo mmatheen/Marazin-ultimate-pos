@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\OpeningStock;
+use App\Models\Batch;
+use App\Models\LocationBatch;
+use App\Models\Product;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnProduct;
-use App\Models\PurchaseProduct;
+use App\Models\StockHistory;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseReturnController extends Controller
 {
@@ -22,107 +26,171 @@ class PurchaseReturnController extends Controller
     }
 
     public function store(Request $request)
-    {
-        try {
-            // Validate request
-            $validated = $request->validate([
-                'supplier_id' => 'required|exists:suppliers,id',
-                'location_id' => 'required|exists:locations,id',
-                'reference_no' => 'nullable|string|max:255',
-                'return_date' => 'required|date',
-                'attach_document' => 'nullable|mimes:jpeg,png,jpg,gif,pdf|max:5120',
-                'products' => 'required|array',
-                'products.*.product_id' => 'required|exists:products,id',
-                'products.*.quantity' => 'required|integer|min:1',
-                'products.*.unit_price' => 'required|numeric|min:0',
-                'products.*.subtotal' => 'required|numeric|min:0',
-            ]);
+{
+    $validator = Validator::make($request->all(), [
+        'supplier_id' => 'required|integer|exists:suppliers,id',
+        'location_id' => 'required|integer|exists:locations,id',
+        'return_date' => 'required|date',
+        'attach_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
+        'products' => 'required|array',
+        'products.*.product_id' => 'required|integer|exists:products,id',
+        'products.*.quantity' => 'required|integer|min:1',
+        'products.*.unit_price' => 'required|numeric|min:0',
+        'products.*.subtotal' => 'required|numeric|min:0',
+        'products.*.batch_no' => 'nullable|string|max:255',
+    ]);
 
-            // File upload
-            $fileName = $request->hasFile('attach_document') ? time() . '.' . $request->file('attach_document')->extension() : null;
-            if ($fileName) {
-                $request->file('attach_document')->move(public_path('/assets/documents'), $fileName);
-            }
-
-            // Generate a reference number if not provided
-            $referenceNo = $validated['reference_no'] ?? 'PR-' . strtoupper(uniqid());
-
-            // Format the return date
-            $returnDate = Carbon::parse($validated['return_date'])->format('Y-m-d');
-
-            // Save the purchase return
-            $purchaseReturn = PurchaseReturn::create([
-                'supplier_id' => $validated['supplier_id'],
-                'reference_no' => $referenceNo,
-                'location_id' => $validated['location_id'],
-                'return_date' => $returnDate,
-                'attach_document' => $fileName,
-            ]);
-
-            // Save purchase return products and update stock quantities
-            foreach ($validated['products'] as $product) {
-                // Check if the product exists in the purchase_product and opening_stock tables
-                $purchaseProduct = PurchaseProduct::where('product_id', $product['product_id'])->first();
-                $openingStockProduct = OpeningStock::where('product_id', $product['product_id'])->first();
-
-                // Handle case where the product is not found in either table
-                if (!$purchaseProduct && !$openingStockProduct) {
-                    return response()->json([
-                        'error' => 'Product not found in purchase or opening stock.',
-                    ], 400);
-                }
-
-                // Create purchase return product
-                PurchaseReturnProduct::create([
-                    'purchase_return_id' => $purchaseReturn->id,
-                    'product_id' => $product['product_id'],
-                    'quantity' => $product['quantity'],
-                    'unit_price' => $product['unit_price'],
-                    'subtotal' => $product['subtotal'],
-                ]);
-
-                // Reduce the quantity of the product in the purchase or opening stock
-                $remainingQuantityToReduce = $product['quantity'];
-
-                if ($purchaseProduct && $purchaseProduct->quantity >= $remainingQuantityToReduce) {
-                    // Reduce from purchase product only
-                    $purchaseProduct->quantity -= $remainingQuantityToReduce;
-                    $purchaseProduct->save();
-                } elseif ($openingStockProduct && $openingStockProduct->quantity >= $remainingQuantityToReduce) {
-                    // Reduce from opening stock only
-                    $openingStockProduct->quantity -= $remainingQuantityToReduce;
-                    $openingStockProduct->save();
-                } else {
-                    // Reduce from both purchase product and opening stock
-                    if ($purchaseProduct) {
-                        $remainingQuantityToReduce -= $purchaseProduct->quantity;
-                        $purchaseProduct->quantity = 0;
-                        $purchaseProduct->save();
-                    }
-
-                    if ($openingStockProduct->quantity >= $remainingQuantityToReduce) {
-                        $openingStockProduct->quantity -= $remainingQuantityToReduce;
-                        $openingStockProduct->save();
-                    } else {
-                        return response()->json([
-                            'error' => 'Insufficient stock in opening stock.',
-                        ], 400);
-                    }
-                }
-            }
-
-            return response()->json(['message' => 'Purchase return saved successfully!', 'reference_no' => $referenceNo], 200);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Log validation errors for debugging
-            return response()->json([
-                'error' => 'Validation failed.',
-                'messages' => $e->errors(),
-            ], 400);
-        } catch (\Exception $e) {
-            // Log any other errors
-            return response()->json(['error' => 'Failed to save purchase return. Please try again.'], 500);
-        }
+    if ($validator->fails()) {
+        return response()->json(['status' => 400, 'errors' => $validator->messages()]);
     }
+
+    DB::transaction(function () use ($request) {
+        $attachDocument = $this->handleAttachedDocument($request);
+        $referenceNo = $this->generateReferenceNo();
+
+        // Create or update the purchase return record
+        $purchaseReturn = PurchaseReturn::create([
+            'supplier_id' => $request->supplier_id,
+            'reference_no' => $referenceNo,
+            'location_id' => $request->location_id,
+            'return_date' => $request->return_date,
+            'attach_document' => $attachDocument,
+        ]);
+
+        // Process each returned product
+        foreach ($request->products as $productData) {
+            $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
+        }
+    });
+
+    return response()->json(['status' => 200, 'message' => 'Purchase return recorded successfully!']);
+}
+
+/**
+ * Handle file upload for attached documents.
+ */
+private function handleAttachedDocument($request)
+{
+    if ($request->hasFile('attach_document')) {
+        return $request->file('attach_document')->store('documents');
+    }
+    return null;
+}
+
+/**
+ * Generate a unique reference number for the purchase return.
+ */
+private function generateReferenceNo()
+{
+    return 'PRT-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
+}
+
+/**
+ * Process a single product return, handling batch-wise reductions.
+ */
+private function processProductReturn($productData, $purchaseReturnId, $locationId)
+{
+    $product = Product::find($productData['product_id']);
+    $quantityToReturn = $productData['quantity'];
+
+    if (!empty($productData['batch_no'])) {
+        // Handle batch-specific return
+        $this->reduceBatchStock($productData['batch_no'], $locationId, $quantityToReturn);
+    } else {
+        // Handle FIFO return
+        $this->reduceStockFIFO($productData['product_id'], $locationId, $quantityToReturn);
+    }
+
+
+    PurchaseReturnProduct::create(
+        [
+            'purchase_return_id' => $purchaseReturnId,
+            'product_id' => $productData['product_id'],
+            'quantity' => $productData['quantity'],
+            'unit_price' => $productData['unit_price'],
+            'subtotal' => $productData['subtotal'],
+            'batch_no' => $productData['batch_no'],
+        ]
+    );
+}
+
+/**
+ * Reduce stock for a specific batch.
+ */
+private function reduceBatchStock($batchNo, $locationId, $quantity)
+{
+    $batch = Batch::where('batch_no', $batchNo)->firstOrFail();
+
+    // Use updateOrCreate for location batches
+    $locationBatch = LocationBatch::updateOrCreate(
+        ['batch_id' => $batch->id, 'location_id' => $locationId],
+        ['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]
+    );
+
+    $batch->decrement('qty', $quantity);
+
+    StockHistory::create([
+        'loc_batch_id' => $locationBatch->id,
+        'quantity' => -$quantity,
+        'stock_type' => StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+    ]);
+}
+
+/**
+ * Reduce stock using FIFO (First In, First Out) method.
+ */
+private function reduceStockFIFO($productId, $locationId, $quantity)
+{
+    $batches = Batch::where('product_id', $productId)
+        ->whereHas('locationBatches', function ($query) use ($locationId) {
+            $query->where('location_id', $locationId)->where('qty', '>', 0);
+        })
+        ->orderBy('created_at')
+        ->get();
+
+    if ($batches->isEmpty()) {
+        throw new \Exception('No batches found for this product in the selected location.');
+    }
+
+    foreach ($batches as $batch) {
+        $locationBatch = LocationBatch::firstOrCreate(
+            ['batch_id' => $batch->id, 'location_id' => $locationId],
+            ['qty' => 0]
+        );
+
+        if ($quantity <= 0) {
+            break;
+        }
+
+        // Calculate how much to deduct
+        $deductQuantity = min($quantity, $locationBatch->qty);
+
+        // If no stock left in the batch
+        if ($deductQuantity <= 0) {
+            continue; // Skip to the next batch if current batch has no stock to reduce
+        }
+
+        // Reduce stock in batch and location batch
+        $batch->decrement('qty', $deductQuantity);
+        $locationBatch->decrement('qty', $deductQuantity);
+        $quantity -= $deductQuantity;
+
+        // Log stock history for deduction
+        StockHistory::create([
+            'loc_batch_id' => $locationBatch->id,
+            'quantity' => -$deductQuantity,
+            'stock_type' => 'Purchase Return',
+        ]);
+    }
+
+    // If quantity is still left to deduct, it means stock was insufficient
+    if ($quantity > 0) {
+        throw new \Exception('Insufficient stock to complete the return.');
+    }
+}
+
+
+
 
 public function getAllPurchaseReturns()
 {

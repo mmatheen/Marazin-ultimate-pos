@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\AuthenticationController;
 use Illuminate\Support\Facades\Route;
 
 // without logout you can't go to login page. guest middleware will manage this task.
@@ -36,4 +37,11 @@ Route::middleware('auth')->group(function () {
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
+});
+
+
+
+Route::middleware(['auth', 'check.session'])->group(function () {
+    Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });

@@ -125,11 +125,8 @@
                     <div class="row">
                         <div class="col-md-12">
                             <ul class="nav nav-tabs nav-tabs-solid">
-                                <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1"
-                                        data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
-                                <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2"
-                                        data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a>
-                                </li>
+                                <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1" data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li>
                             </ul>
                         </div>
                     </div>
@@ -141,22 +138,11 @@
                                         <div class="page-header">
                                             <div class="row align-items-center">
                                                 <div class="col-auto text-end float-end ms-auto download-grp">
-                                                    <!-- Button trigger modal -->
-                                                    <a href="{{ route('add-product') }}"><button type="button"
-                                                            class="btn btn-outline-info">
-                                                            <i class="fas fa-plus px-2"> </i>Add
-                                                        </button></a>
-
-                                                    <button type="button" class="btn btn-outline-info "
-                                                        data-bs-toggle="modal" data-bs-target="#addModal">
-                                                        <i class="fas fa-download"></i>&nbsp;&nbsp;Download
-                                                    </button>
-
-
+                                                    <a href="{{ route('add-product') }}"><button type="button" class="btn btn-outline-info"><i class="fas fa-plus px-2"> </i>Add</button></a>
+                                                    <button type="button" class="btn btn-outline-info " data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-download"></i>&nbsp;&nbsp;Download</button>
                                                 </div>
                                             </div>
                                         </div>
-
                                         <div class="table-responsive">
                                             <table class="datatable table table-stripped" style="width:100%" id="productTable">
                                                 <thead>
@@ -179,8 +165,6 @@
                                                 </tbody>
                                             </table>
                                         </div>
-
-
                                     </div>
                                 </div>
                                 <div class="tab-pane" id="solid-justified-tab2">
@@ -202,7 +186,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-
+                                                <!-- Data from AJAX will be dynamically appended here -->
                                             </tbody>
                                         </table>
                                     </div>
@@ -210,14 +194,26 @@
                             </div>
                         </div>
                     </div>
-
-
                 </div>
             </div>
         </div>
 
-        <div>
+        <!-- Modal for viewing product details -->
+        <div class="modal fade" id="viewProductModal" tabindex="-1" aria-labelledby="viewProductModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewProductModalLabel">Product Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="productDetails">
+                        <!-- Product details will be dynamically injected here -->
+                    </div>
+                </div>
+            </div>
         </div>
+
+       
 
          {{-- Delete modal --}}
     <div id="deleteModal" class="modal custom-modal fade" role="dialog">

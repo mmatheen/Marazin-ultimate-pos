@@ -27,6 +27,9 @@ class DatabaseSeeder extends Seeder
         $this->call(permission::class);
         $this->call(RoleHasPermission::class);
         $this->call(User::class);
+        $this->call([
+            WalkInCustomerSeeder::class,
+        ]);
 
 
     }

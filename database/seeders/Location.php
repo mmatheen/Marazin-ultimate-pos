@@ -17,6 +17,7 @@ class Location extends Seeder
     {
         DB::table('locations')->insert([
             [
+                'id'=>1,
                 'name' => 'marazin',
                 'Location_id'=>'',
                 'address' => 'Kalmunai',
@@ -29,7 +30,7 @@ class Location extends Seeder
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
-         
+
         ]);
     }
 }

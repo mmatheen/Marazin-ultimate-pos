@@ -12,6 +12,7 @@ class PurchaseReturnProduct extends Model
     protected $fillable = [
         'purchase_return_id',
         'product_id',
+        'batch_no',
         'quantity',
         'unit_price',
         'subtotal',
@@ -26,6 +27,8 @@ class PurchaseReturnProduct extends Model
     {
         return $this->belongsTo(Product::class, 'product_id');
     }
+
+
 
 
 

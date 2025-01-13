@@ -8,16 +8,13 @@ use App\Models\MainCategory;
 use App\Models\SubCategory;
 use App\Models\Product;
 use App\Models\Unit;
-use App\Models\OpeningStock;
 use App\Models\LocationBatch;
 use App\Models\StockHistory;
 use App\Models\Batch;
-use App\Models\Stock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class ProductController extends Controller
 {
@@ -114,27 +111,10 @@ class ProductController extends Controller
         $product = Product::with(['unit', 'brand', 'locations'])->latest('created_at')->first();
 
         if ($product) {
-            // Calculate derived fields like line_total if needed
-            $line_total = $product->retail_price * ($product->pax ?? 1);
-            $net_cost = $product->retail_price * (1 + ($product->product_tax ?? 0) / 100);
-            $profit_margin = $product->retail_price - $product->original_price;
 
             return response()->json([
                 'status' => 200,
-                'product' => [
-                    'id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'purchase_quantity' => $product->pax,
-                    // 'original_price' => $product->original_price,
-                    'discount_percent' => $product->discount_percent,
-                    'retail_price' => $product->retail_price,
-                    'sub_total' => $line_total,
-                    'product_tax' => $product->product_tax,
-                    'net_cost' => $net_cost,
-                    'line_total' => $line_total,
-                    'profit_margin' => $profit_margin,
-                    'whole_sale_price' => $product->whole_sale_price,
-                ],
+                'product' =>$product,
             ]);
         } else {
             return response()->json([
@@ -143,7 +123,6 @@ class ProductController extends Controller
             ]);
         }
     }
-
 
 
     public function getProductsByCategory($categoryId)
@@ -163,7 +142,6 @@ class ProductController extends Controller
             return response()->json([
                 'status' => 500,
                 'message' => 'Error fetching products',
-                'error' => $e->getMessage()
             ]);
          }
 
@@ -199,171 +177,6 @@ class ProductController extends Controller
         // Render the edit product view for non-AJAX requests
         return view('product.edit_product', compact('id', 'product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
     }
-
-
-
-    // public function store(Request $request)
-    // {
-    //     $validator = Validator::make(
-    //         $request->all(),
-    //         [
-    //             'sku' => [
-    //                 'nullable', 'string', 'max:255', 'unique:products',
-    //                 function ($attribute, $value, $fail) {
-    //                     if (!preg_match('/^SKU\d{4}$/', $value)) {
-    //                         $fail('The ' . $attribute . ' must be in the format SKU followed by 4 digits. eg: SKU0001');
-    //                     }
-    //                 }
-    //             ],
-    //             'product_name' => 'required|string|max:255',
-    //             'unit_id' => 'required|integer|exists:units,id',
-    //             'brand_id' => 'required|integer|exists:brands,id',
-    //             'main_category_id' => 'required|integer|exists:main_categories,id',
-    //             'sub_category_id' => 'required|integer|exists:sub_categories,id',
-    //             'location_id' => 'required|array',
-    //             'location_id.*' => 'integer|exists:locations,id',
-    //             'stock_alert' => 'nullable|boolean',
-    //             'alert_quantity' => 'nullable|numeric|min:0',
-    //             'product_image' => 'nullable|mimes:jpeg,png,jpg,gif|max:5120',
-    //             'description' => 'nullable|string',
-    //             'is_imei_or_serial_no' => 'nullable|boolean',
-    //             'is_for_selling' => 'required|boolean',
-    //             'product_type' => 'required|string',
-    //             'pax' => 'nullable|integer',
-    //             'retail_price' => 'required|numeric|min:0',
-    //             'whole_sale_price' => 'required|numeric|min:0',
-    //             'special_price' => 'required|numeric|min:0',
-    //             'original_price' => 'required|numeric|min:0',
-    //             'max_retail_price' => 'required|numeric|min:0'
-    //         ]
-    //     );
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     // Auto-generate SKU
-    //     $sku = $request->sku ?: 'PRO' . sprintf("%04d", Product::count() + 1);
-
-    //     // File upload
-    //     $fileName = null;
-    //     if ($request->hasFile('product_image')) {
-    //         $file = $request->file('product_image');
-    //         $fileName = time() . '.' . $file->getClientOriginalExtension();
-    //         $file->move(public_path('/assets/images'), $fileName);
-    //     }
-
-    //     // Create product
-    //     $product = Product::create([
-    //         'product_name' => $request->product_name,
-    //         'sku' => $sku,
-    //         'unit_id' => $request->unit_id,
-    //         'brand_id' => $request->brand_id,
-    //         'main_category_id' => $request->main_category_id,
-    //         'sub_category_id' => $request->sub_category_id,
-    //         'stock_alert' => $request->stock_alert,
-    //         'alert_quantity' => $request->alert_quantity,
-    //         'product_image' => $fileName,
-    //         'description' => $request->description,
-    //         'is_imei_or_serial_no' => $request->is_imei_or_serial_no,
-    //         'is_for_selling' => $request->is_for_selling,
-    //         'product_type' => $request->product_type,
-    //         'pax' => $request->pax,
-    //         'retail_price' => $request->retail_price,
-    //         'whole_sale_price' => $request->whole_sale_price,
-    //         'special_price' => $request->special_price,
-    //         'original_price' => $request->original_price,
-    //     ]);
-
-    //     // Attach locations to the product
-    //     $product->locations()->attach($request->location_id);
-
-    //     return response()->json(['status' => 200, 'message' => "New Product Details Created Successfully!", 'product_id' => $product->id]);
-    // }
-
-
-    // public function openingStockStore(Request $request, $productId)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'locations' => 'required|array',
-    //         'locations.*.id' => 'required|integer|exists:locations,id',
-    //         'locations.*.quantity' => 'required|numeric|min:1',
-    //         'locations.*.unit_cost' => 'required|numeric|min:0',
-    //         'locations.*.batch_id' => 'nullable|string|max:255',
-    //         'locations.*.expiry_date' => 'required|date',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     $product = Product::find($productId);
-    //     if (!$product) {
-    //         return response()->json(['status' => 404, 'message' => 'Product not found']);
-    //     }
-
-    //     try {
-    //         foreach ($request->locations as $locationData) {
-    //             // Parse and format expiry date
-    //             $formattedExpiryDate = \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d');
-
-    //             // // Determine the batch ID
-    //             $batchId = $locationData['batch_id'] ?? null;
-
-    //              // Check if batch exists
-    //         $batch = null;
-    //         if ($batchId) {
-    //             $batch = Batch::where('batch_id', $batchId)
-    //                           ->where('product_id', $productId)
-    //                           ->first();
-
-    //             if ($batch) {
-    //                 // Update existing batch
-    //                 $batch->quantity += $locationData['quantity'];
-    //                 $batch->price = $locationData['unit_cost'];
-    //                 $batch->expiry_date = $formattedExpiryDate;
-    //                 $batch->save();
-    //             } else {
-    //                 // Create new batch
-    //                 $batch = Batch::create([
-    //                     'batch_id' => $batchId,
-    //                     'product_id' => $productId,
-    //                     'price' => $locationData['unit_cost'],
-    //                     'quantity' => $locationData['quantity'],
-    //                     'expiry_date' => $formattedExpiryDate,
-    //                 ]);
-    //             }
-    //         }
-    //             // Create Opening Stock
-    //             OpeningStock::create([
-    //                 'product_id' => $productId,
-    //                 'location_id' => $locationData['id'],
-    //                 'batch_id' => $batch ? $batchId : null,
-    //                 'quantity' => $locationData['quantity'],
-    //                 'unit_cost' => $locationData['unit_cost'],
-    //                 'expiry_date' => $formattedExpiryDate,
-    //             ]);
-
-    //             // Update or Create Stock
-    //             $stock = Stock::firstOrNew([
-    //                 'product_id' => $productId,
-    //                 'location_id' => $locationData['id'],
-    //                 'batch_id' => $batch ? $batchId : null,
-    //                 'stock_type' => "Opening Stock"
-    //             ]);
-
-    //             $stock->quantity += $locationData['quantity'];
-    //             $stock->save();
-    //         }
-
-    //         return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
-    //     } catch (\Exception $e) {
-
-    //         return response()->json(['status' => 500, 'message' => 'An error occurred while processing the request.']);
-    //     }
-    // }
-
-
 
 
     public function store(Request $request)
@@ -449,7 +262,6 @@ class ProductController extends Controller
     }
 
 
-
     public function openingStockStore(Request $request, $productId)
     {
         $validator = Validator::make($request->all(), [
@@ -479,7 +291,7 @@ class ProductController extends Controller
             DB::transaction(function () use ($request, $product) {
                 foreach ($request->locations as $locationData) {
                     // Validate batch_no format
-                    if (!empty($locationData['batch_no']) && !preg_match('/^BATCH[0-9]{3,}$/', $locationData['batch_no'])) {
+                    if (!empty($locationData['batch_no']) && !preg_match('/^BATCH[0-4]{3,}$/', $locationData['batch_no'])) {
                         throw new \Exception("Invalid batch number: " . $locationData['batch_no']);
                     }
 
@@ -536,86 +348,110 @@ class ProductController extends Controller
     }
 
 
-
-    // public function getAllStockDetails()
+    // public function getAllProductStocks()
     // {
-    //     $user = auth()->user();
+    //     // Retrieve all products with related stock details
+    //     $products = Product::with(['batches.locationBatches.location'])->get();
 
-    //     // Get all products
-    //     $allProducts = Product::all();
+    //     // Prepare structured data
+    //     $productStocks = $products->map(function($product) {
+    //         // Calculate the total stock by summing up the quantities from all batches
+    //         $totalStock = $product->batches->sum(function($batch) {
+    //             return $batch->locationBatches->sum('qty');
+    //         });
 
-    //     // Prepare the stock query
-    //     $stocksQuery = Stock::with(['product', 'batch', 'location'])
-    //         ->select('product_id', 'location_id', 'batch_id', \DB::raw('SUM(quantity) as batch_quantity'))
-    //         ->groupBy('product_id', 'location_id', 'batch_id');
-
-    //     // If the user is not a superadmin, filter by their location_id
-    //     if ($user->role_name !== 'Super Admin') {
-    //         $stocksQuery->where('location_id', $user->location_id);
-    //     }
-
-    //     $stocks = $stocksQuery->get();
-
-    //     // Group stocks by product ID
-    //     $groupedStocks = $stocks->groupBy('product_id');
-
-    //     // Map the products data to the desired structure
-    //     $stockDetails = $allProducts->map(function ($product) use ($groupedStocks) {
-    //         $productStocks = $groupedStocks->get($product->id, collect());
+    //         // Prepare batch-wise data
+    //         $batches = $product->batches->map(function($batch) {
+    //             $totalBatchQty = $batch->locationBatches->sum('qty');
+    //             return [
+    //                 'batch_no' => $batch->batch_no,
+    //                 'unit_cost' => $batch->unit_cost,
+    //                 'wholesale_price' => $batch->wholesale_price,
+    //                 'special_price' => $batch->special_price,
+    //                 'retail_price' => $batch->retail_price,
+    //                 'max_retail_price' => $batch->max_retail_price,
+    //                 'expiry_date' => $batch->expiry_date,
+    //                 'total_quantity' => $totalBatchQty,
+    //             ];
+    //         });
 
     //         return [
     //             'product' => $product,
-    //             'total_quantity' => $productStocks->sum('batch_quantity'), // Correct total quantity for the product
-    //             'locations' => $productStocks->groupBy('location_id')->map(function ($locationStocks) {
-    //                 $location = $locationStocks->first()->location;
-    //                 return [
-    //                     'location_id' => $location->id,
-    //                     'location_name' => $location->name,
-    //                     'total_quantity' => $locationStocks->sum('batch_quantity'), // Total quantity for the location
-    //                     'batches' => $locationStocks->map(function ($stock) {
-    //                         return [
-    //                             'batch_id' => $stock->batch_id,
-    //                             'batch_quantity' => $stock->batch_quantity,
-    //                             'expiry_date' => optional($stock->batch)->expiry_date,
-    //                             'batch_price' => optional($stock->batch)->price,
-    //                         ];
-    //                     })->values(),
-    //                 ];
-    //             })->values(),
-    //             // 'purchase_message' => $productStocks->isEmpty() ? 'Please purchase this product' : null,
+    //             'total_stock' => $totalStock,
+    //             'batches' => $batches,
     //         ];
     //     });
 
-    //     if ($stockDetails->isNotEmpty()) {
-    //         return response()->json([
-    //             'status' => 200,
-    //             'message' => 'Stock details fetched successfully',
-    //             'stocks' => $stockDetails,
-    //         ]);
-    //     } else {
-    //         return response()->json([
-    //             'status' => 200,
-    //             'message' => 'No Records Found',
-    //         ]);
-    //     }
+    //     return response()->json(['status' => 200, 'data' => $productStocks]);
     // }
+    // public function getAllProductStocks()
+    // {
+    //     // Retrieve all products with related stock details
+    //     $products = Product::with(['batches.locationBatches.location'])->get();
 
+    //     // Prepare structured data
+    //     $productStocks = $products->map(function ($product) {
+    //         // Calculate the total stock for the product by summing up the quantities across all batches
+    //         $totalStock = $product->batches->sum(function ($batch) {
+    //             return $batch->locationBatches->sum('qty');
+    //         });
+
+    //         // Prepare batch-wise data with location details and total quantity per batch
+    //         $batches = $product->batches->map(function ($batch) {
+    //             // Batch total quantity
+    //             $totalBatchQty = $batch->locationBatches->sum('qty');
+
+    //             // Location-wise quantity details
+    //             $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+    //                 return [
+    //                     'location_name' => $locationBatch->location->name ?? 'N/A',
+    //                     'quantity' => $locationBatch->qty,
+    //                 ];
+    //             });
+
+    //             return [
+    //                 'batch_no' => $batch->batch_no,
+    //                 'expiry_date' => $batch->expiry_date,
+    //                 'total_batch_quantity' => $totalBatchQty,
+    //                 'location_batches' => $locationBatches,
+    //             ];
+    //         });
+
+    //         return [
+    //             'product' => $product, // Includes all product details
+    //             'total_stock' => $totalStock,
+    //             'batches' => $batches,
+    //         ];
+    //     });
+
+    //     return response()->json(['status' => 200, 'data' => $productStocks]);
+    // }
     public function getAllProductStocks()
     {
-        // Retrieve all products with related stock details
-        $products = Product::with(['batches.locationBatches.location'])->get();
+        // Retrieve all products
+        $products = Product::with('batches.locationBatches.location')->get();
 
-        // Prepare structured data
-        $productStocks = $products->map(function($product) {
-            // Calculate the total stock by summing up the quantities from all batches
-            $totalStock = $product->batches->sum(function($batch) {
+        // Prepare the response
+        $productStocks = $products->map(function ($product) {
+            // Calculate total stock
+            $totalStock = $product->batches->sum(function ($batch) {
                 return $batch->locationBatches->sum('qty');
             });
 
-            // Prepare batch-wise data
-            $batches = $product->batches->map(function($batch) {
-                $totalBatchQty = $batch->locationBatches->sum('qty');
+            // Map through batches
+            $batches = $product->batches->map(function ($batch) {
+                // Map through location batches
+                $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+                    return [
+                        'batch_id' => $locationBatch->batch_id ?? 'N/A',
+                        'location_id' => $locationBatch->location_id ?? 'N/A',
+                        'location_name' => $locationBatch->location->name ?? 'N/A',
+                        'quantity' => $locationBatch->qty,
+                    ];
+                });
+
                 return [
+                    'id'=>$batch->id,
                     'batch_no' => $batch->batch_no,
                     'unit_cost' => $batch->unit_cost,
                     'wholesale_price' => $batch->wholesale_price,
@@ -623,31 +459,53 @@ class ProductController extends Controller
                     'retail_price' => $batch->retail_price,
                     'max_retail_price' => $batch->max_retail_price,
                     'expiry_date' => $batch->expiry_date,
-                    'total_quantity' => $totalBatchQty,
+                    'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+                    'location_batches' => $locationBatches,
                 ];
             });
 
+            // Return the product structure
             return [
-                'product' => $product,
+                'product' => [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->sku,
+                    'unit_id' => $product->unit_id,
+                    'brand_id' => $product->brand_id,
+                    'main_category_id' => $product->main_category_id,
+                    'sub_category_id' => $product->sub_category_id,
+                    'stock_alert' => $product->stock_alert,
+                    'alert_quantity' => $product->alert_quantity,
+                    'product_image' => $product->product_image,
+                    'description' => $product->description,
+                    'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                    'is_for_selling' => $product->is_for_selling,
+                    'product_type' => $product->product_type,
+                    'pax' => $product->pax,
+                    'original_price' => $product->original_price,
+                    'retail_price' => $product->retail_price,
+                    'whole_sale_price' => $product->whole_sale_price,
+                    'special_price' => $product->special_price,
+                    'max_retail_price' => $product->max_retail_price,
+                ],
                 'total_stock' => $totalStock,
                 'batches' => $batches,
             ];
         });
 
+        // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }
 
 
 
     public function showOpeningStock($productId)
-        {
-            $product = Product::with('locations')->findOrFail($productId);
-            $locations = $product->locations;
+    {
+        $product = Product::with('locations')->findOrFail($productId);
+        $locations = $product->locations;
 
-            return view('product.opening_stock', compact('product', 'locations'));
-        }
-
-
+        return view('product.opening_stock', compact('product', 'locations'));
+    }
 
 
     public function update(Request $request, $id)

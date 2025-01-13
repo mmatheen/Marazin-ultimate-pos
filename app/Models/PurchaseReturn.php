@@ -13,9 +13,15 @@ class PurchaseReturn extends Model
         'supplier_id',
         'reference_no',
         'location_id',
+        
         'return_date',
         'attach_document',
     ];
+
+public function products()
+{
+    return $this->hasMany(PurchaseReturnProduct::class);
+}
 
 
 public function supplier()

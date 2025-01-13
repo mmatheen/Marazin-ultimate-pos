@@ -31,11 +31,6 @@ class Batch extends Model
         return $this->hasMany(PurchaseProduct::class);
     }
 
-    public function openingStocks()
-    {
-        return $this->hasMany(OpeningStock::class);
-    }
-
     public function stockHistories()
     {
         return $this->hasMany(StockHistory::class);

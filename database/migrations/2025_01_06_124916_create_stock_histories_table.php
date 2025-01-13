@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('loc_batch_id');
             $table->integer('quantity');
-            $table->enum('stock_type', ['opening_stock', 'purchase', 'sale', 'transfer_in', 'transfer_out']);
+            $table->enum('stock_type', ['opening_stock', 'purchase', 'purchase_return','sale', 'transfer_in', 'transfer_out']);
             $table->timestamps();
 
             $table->foreign('loc_batch_id')->references('id')->on('location_batches')->onDelete('cascade');
