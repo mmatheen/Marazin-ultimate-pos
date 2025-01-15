@@ -123,82 +123,89 @@ class SaleController extends Controller
 
         return response()->json(['status' => 200, 'message' => 'Sale recorded successfully!', 'invoice_html' => $html]);
     }
-/**
- * Handle product sale with batch-wise or FIFO stock deduction.
- */
-private function processProductSale($productData, $saleId, $locationId)
-{
-    $quantityToDeduct = $productData['quantity'];
 
-    if (!empty($productData['batch_no'])) {
-        // Check if the batch has enough stock
-        $batch = Batch::where('batch_no', $productData['batch_no'])->firstOrFail();
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
-            ->where('location_id', $locationId)
-            ->firstOrFail();
+    /**
+     * Handle product sale with batch-wise or FIFO stock deduction.
+     */
+    private function processProductSale($productData, $saleId, $locationId)
+    {
+        $quantityToDeduct = $productData['quantity'];
 
-        if ($locationBatch->qty < $quantityToDeduct) {
-            throw new \Exception("Batch {$productData['batch_no']} does not have enough stock.");
+        if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
+            // Check if the batch has enough stock
+            $batch = Batch::findOrFail($productData['batch_id']);
+            $locationBatch = LocationBatch::where('batch_id', $batch->id)
+                ->where('location_id', $locationId)
+                ->firstOrFail();
+
+            if ($locationBatch->qty < $quantityToDeduct) {
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
+            }
+
+            // Deduct stock from a specific batch
+            $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct);
+            $batchId = $batch->id;
+        } else {
+            // Check if there is enough stock across all batches using FIFO
+            $totalAvailableQty = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productData['product_id'])
+                ->where('location_batches.location_id', $locationId)
+                ->where('location_batches.qty', '>', 0)
+                ->sum('location_batches.qty');
+
+            if ($totalAvailableQty < $quantityToDeduct) {
+                throw new \Exception('Insufficient stock to complete the sale.');
+            }
+
+            // Deduct stock using FIFO
+            $this->deductStockFIFO($productData['product_id'], $locationId, $quantityToDeduct);
+            $batchId = null;
         }
 
-        // Deduct stock from a specific batch
-        $this->deductBatchStock($productData['batch_no'], $locationId, $quantityToDeduct);
-        $batchId = $batch->id;
-    } else {
-        // Check if there is enough stock across all batches using FIFO
-        $totalAvailableQty = DB::table('location_batches')
-            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-            ->where('batches.product_id', $productData['product_id'])
-            ->where('location_batches.location_id', $locationId)
-            ->where('location_batches.qty', '>', 0)
-            ->sum('location_batches.qty');
-
-        if ($totalAvailableQty < $quantityToDeduct) {
-            throw new \Exception('Insufficient stock to complete the sale.');
-        }
-
-        // Deduct stock using FIFO
-        $this->deductStockFIFO($productData['product_id'], $locationId, $quantityToDeduct);
-        $batchId = null;
+        // Create sales product record
+        SalesProduct::create([
+            'sale_id' => $saleId,
+            'product_id' => $productData['product_id'],
+            'quantity' => $productData['quantity'],
+            'price' => $productData['unit_price'],
+            'unit_price' => $productData['unit_price'],
+            'subtotal' => $productData['subtotal'],
+            'batch_id' => $batchId,
+            'location_id' => $locationId,
+            'price_type' => $productData['price_type'],
+            'discount' => $productData['discount'],
+            'tax' => $productData['tax'],
+        ]);
     }
 
-    // Create sales product record
-    SalesProduct::create([
-        'sale_id' => $saleId,
-        'product_id' => $productData['product_id'],
-        'quantity' => $productData['quantity'],
-        'price' => $productData['unit_price'],
-        'unit_price' => $productData['unit_price'],
-        'subtotal' => $productData['subtotal'],
-        'batch_id' => $batchId,
-        'location_id' => $locationId,
-        'price_type' => $productData['price_type'],
-        'discount' => $productData['discount'],
-        'tax' => $productData['tax'],
-    ]);
-}
-
-/**
- * Deduct stock from a specific batch.
- */
-
-
-private function deductBatchStock($batchNo, $locationId, $quantity)
+    /**
+     * Deduct stock from a specific batch.
+     */
+    private function deductBatchStock($batchId, $locationId, $quantity)
 {
-    Log::info("Deducting $quantity from batch $batchNo at location $locationId");
+    Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
 
-    $batch = Batch::where('batch_no', $batchNo)->firstOrFail();
+    $batch = Batch::findOrFail($batchId);
     $locationBatch = LocationBatch::where('batch_id', $batch->id)
         ->where('location_id', $locationId)
         ->firstOrFail();
 
     Log::info("Before deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
 
-    // Deduct stock from location batch
-    $locationBatch->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+    // Deduct stock from location batch using query builder
+    DB::table('location_batches')
+        ->where('id', $locationBatch->id)
+        ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
 
-    // Deduct stock from batch
-    $batch->decrement('qty', $quantity);
+    // Deduct stock from batch using query builder
+    DB::table('batches')
+        ->where('id', $batch->id)
+        ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+
+    // Reload the updated quantities
+    $locationBatch->refresh();
+    $batch->refresh();
 
     Log::info("After deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
 
@@ -210,61 +217,61 @@ private function deductBatchStock($batchNo, $locationId, $quantity)
     ]);
 }
 
-private function deductStockFIFO($productId, $locationId, $quantity)
-{
-    Log::info("Deducting $quantity from product $productId at location $locationId using FIFO");
+    private function deductStockFIFO($productId, $locationId, $quantity)
+    {
+        Log::info("Deducting $quantity from product $productId at location $locationId using FIFO");
 
-    $batches = Batch::where('product_id', $productId)
-        ->whereHas('locationBatches', function ($query) use ($locationId) {
-            $query->where('location_id', $locationId)->where('qty', '>', 0);
-        })
-        ->orderBy('created_at')
-        ->get();
+        $batches = Batch::where('product_id', $productId)
+            ->whereHas('locationBatches', function ($query) use ($locationId) {
+                $query->where('location_id', $locationId)->where('qty', '>', 0);
+            })
+            ->orderBy('created_at')
+            ->get();
 
-    foreach ($batches as $batch) {
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
-            ->where('location_id', $locationId)
-            ->firstOrFail();
+        foreach ($batches as $batch) {
+            $locationBatch = LocationBatch::where('batch_id', $batch->id)
+                ->where('location_id', $locationId)
+                ->firstOrFail();
 
-        if ($quantity <= 0) {
-            break;
+            if ($quantity <= 0) {
+                break;
+            }
+
+            $deductQuantity = min($quantity, $locationBatch->qty);
+
+            Log::info("Deducting $deductQuantity from batch {$batch->batch_no}");
+
+            // Deduct stock from batch and location batch
+            $batch->decrement('qty', $deductQuantity);
+            $locationBatch->decrement('qty', $deductQuantity);
+
+            // Create stock history record
+            StockHistory::create([
+                'loc_batch_id' => $locationBatch->id,
+                'quantity' => -$deductQuantity,
+                'stock_type' => 'Sale',
+            ]);
+
+            $quantity -= $deductQuantity;
         }
 
-        $deductQuantity = min($quantity, $locationBatch->qty);
-
-        Log::info("Deducting $deductQuantity from batch {$batch->batch_no}");
-
-        // Deduct stock from batch and location batch
-        $batch->decrement('qty', $deductQuantity);
-        $locationBatch->decrement('qty', $deductQuantity);
-
-        // Create stock history record
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => -$deductQuantity,
-            'stock_type' => 'Sale',
-        ]);
-
-        $quantity -= $deductQuantity;
+        if ($quantity > 0) {
+            throw new \Exception('Insufficient stock to complete the sale.');
+        }
     }
 
-    if ($quantity > 0) {
-        throw new \Exception('Insufficient stock to complete the sale.');
+    private function generateReferenceNo()
+    {
+        return 'PUR-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
     }
-}
 
-private function generateReferenceNo()
-{
-    return 'PUR-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
-}
-
-private function handleAttachedDocument($request)
-{
-    if ($request->hasFile('attached_document')) {
-        return $request->file('attached_document')->store('documents');
+    private function handleAttachedDocument($request)
+    {
+        if ($request->hasFile('attached_document')) {
+            return $request->file('attached_document')->store('documents');
+        }
+        return null;
     }
-    return null;
-}
     public function update(Request $request, $id)
     {
         $validated = $request->validate([

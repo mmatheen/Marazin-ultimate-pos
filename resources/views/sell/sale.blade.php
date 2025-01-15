@@ -232,9 +232,6 @@
     </div>
 
 
-    {{-- Edit modal row --}}
-    </div>
-
     <script>
         function toggleLoginFields(propertyId, actionClass) {
             var checkBox = document.getElementById(propertyId);

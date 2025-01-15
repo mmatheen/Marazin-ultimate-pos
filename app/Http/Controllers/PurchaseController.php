@@ -201,7 +201,7 @@ class PurchaseController extends Controller
         }
 
         DB::transaction(function () use ($request) {
-          
+
             $attachedDocument = $this->handleAttachedDocument($request);
             $referenceNo = $this->generateReferenceNo();
 
@@ -319,7 +319,7 @@ class PurchaseController extends Controller
 
     private function generateBatchNo($productId)
     {
-        return 'BATCH-' . $productId + 1;
+        return 'batch-' . $productId + 1;
     }
 
 

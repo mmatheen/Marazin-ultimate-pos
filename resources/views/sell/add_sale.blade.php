@@ -201,7 +201,6 @@
                                                 <span class="input-group-text" id="basic-addon1"><i class="fas fa-exclamation"></i></span>
                                                 <label>Discount Amount</label>
                                                 <input class="form-control" id="discount_amount" name="discount_amount" type="text" placeholder="Discount Amount">
-
                                             </div>
                                         </div>
                                     </div>
@@ -209,11 +208,9 @@
                                     <div class="col-md-3">
                                         <div class="mb-3">
                                             <b>Discount Amount:</b>
-                                            <p>(-) Rs. 0.00</p>
+                                            <p id="discount_display">(-) Rs. 0.00</p>
                                         </div>
                                     </div>
-
-
                                 </div>
                                 <div class="row">
                                     <div class="col-md-6">
@@ -222,14 +219,19 @@
                                             <textarea class="form-control" id="additional_notes" name="additional_notes" placeholder="Additional Notes"></textarea>
                                         </div>
                                     </div>
-
+                                </div>
+                                <div class="row justify-content-end">
+                                    <div class="col-4">
+                                        <b>After Discount Total Amount</b>
+                                        <p id="discount-net-total-amount">Rs. 0.00</p>
+                                    </div>
                                 </div>
                            </div>
-
                         </div>
                     </div>
                 </div>
             </div>
+
 
             {{-- Additional Details --}}
             <div class="row">
@@ -388,6 +390,24 @@
             <button type="submit" class="btn btn-primary">Save</button>
         </form>
     </div>
+    <!-- Include this modal in your HTML -->
+<div class="modal fade" id="confirmRemoveModal" tabindex="-1" aria-labelledby="confirmRemoveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmRemoveModalLabel">Confirm Remove</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to remove this product?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmRemoveButton">Remove</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     @include('sell.sales_ajax')
 @endsection

@@ -70,8 +70,7 @@
             errorPlacement: function(error, element) {
                 if (element.is("select")) {
                     error.addClass('text-danger small');
-                    error.insertAfter(element.closest(
-                    '.input-group')); // Place error after select container
+                    error.insertAfter(element.closest('.input-group')); // Place error after select container
                 } else if (element.is(":checkbox") || element.is(":radio")) {
                     error.addClass('text-danger small');
                     error.insertAfter(element.closest('div').find('label').last());
@@ -102,6 +101,7 @@
             $('#supplier-id, #discount-type, #payment-method').val('').trigger('change');
         }
 
+        // Fetch locations data from the server
         function fetchLocations() {
             $.ajax({
                 url: '/location-get-all',
@@ -109,13 +109,11 @@
                 dataType: 'json',
                 success: function(data) {
                     const locationSelect = $('#services');
-                    locationSelect.html(
-                        '<option selected disabled>Please Select Locations</option>');
+                    locationSelect.html('<option selected disabled>Please Select Locations</option>');
 
                     if (data.status === 200) {
                         data.message.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(
-                                location.name);
+                            const option = $('<option></option>').val(location.id).text(location.name);
                             locationSelect.append(option);
                         });
                     } else {
@@ -213,11 +211,13 @@
             table.row.add($newRow).draw(); // Add new row to DataTable
             updateRow($newRow); // Update calculations for the new row
 
+            // Set up event listeners for quantity, discount, and price changes
             $newRow.find(".purchase-quantity, .discount-percent, .product-price").on("input", function() {
                 updateRow($newRow); // Update calculations when values change
                 updateFooter(); // Update footer
             });
 
+            // Set up event listener for deleting a product row
             $newRow.find(".delete-product").on("click", function() {
                 table.row($newRow).remove().draw(); // Remove row from table
                 updateFooter(); // Update footer
@@ -236,14 +236,17 @@
             $row.find(".sub-total").text(subTotal.toFixed(2));
         }
 
-        // Update footer (total items and net total)
+      // Update footer (total items and net total)
         function updateFooter() {
             let totalItems = 0;
             let netTotalAmount = 0;
 
             $('#purchase_product tbody tr').each(function() {
-                totalItems += parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                netTotalAmount += parseFloat($(this).find('.sub-total').text()) || 0;
+                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
+
+                totalItems += quantity;
+                netTotalAmount += subTotal;
             });
 
             $('#total-items').text(totalItems.toFixed(2));
@@ -274,14 +277,8 @@
             $('#discount-display').text(`(-) $ ${discountAmount.toFixed(2)}`);
             $('#tax-display').text(`(+) $ ${taxAmount.toFixed(2)}`);
         }
-
         // Update footer when discount or tax values change
         $('#discount-type, #discount-amount, #tax-type').on('change input', updateFooter);
-
-        // // Fetch products when the page loads
-        // $(document).ready(function () {
-        //     fetchProducts();
-        // });
 
         // Handle form submission
         $('#purchaseButton').on('click', function(event) {
@@ -293,10 +290,10 @@
             }
 
             const formData = new FormData($('#purchaseForm')[0]);
-            formData.append('payment_method', document.geterrorElementById('payment-method').value);
+            formData.append('payment_method', document.getElementById('payment-method').value);
 
-            const locationId = document.geterrorElementById('services')?.value || '';
-            let purchaseDate = document.geterrorElementById('purchase-date')?.value || '';
+            const locationId = document.getElementById('services')?.value || '';
+            let purchaseDate = document.getElementById('purchase-date')?.value || '';
 
             if (purchaseDate) {
                 const dateParts = purchaseDate.split('-');
@@ -311,9 +308,7 @@
             const fileInput = $('#attach_document')[0];
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
-                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif',
-                    'application/pdf'
-                ];
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'application/pdf'];
                 if (validTypes.includes(file.type)) {
                     formData.append('attached_document', file);
                 }
@@ -356,7 +351,7 @@
                             $('#' + key + '_error').html(err_value);
                         });
                     } else {
-                        document.geterrorElementsByClassName('successSound')[0].play();
+                        document.getElementsByClassName('successSound')[0].play();
                         toastr.success(response.message, 'Product Added');
                         resetFormAndValidation();
                     }
@@ -426,7 +421,6 @@
             const totalPurchase = parseFloat($('#purchase-total').val() || 0);
             return totalPurchase - openingBalance;
         }
-
 
 
 
