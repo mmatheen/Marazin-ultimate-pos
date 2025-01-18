@@ -353,6 +353,12 @@ function addProductToTable(product) {
         return;
     }
 
+    // Check if stockEntry.batches is defined and is an array
+    if (!Array.isArray(stockEntry.batches)) {
+        console.error('No batches found for the product');
+        return;
+    }
+
     const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
     if (locationBatches.length === 0) {
         console.error('No batches with quantity found');
@@ -420,11 +426,19 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
             basePrice - discountAmount;
 
         const row = document.createElement('tr');
-        const locationOptions = locationBatches.map(lb => {
-            const batch = stockEntry.batches.find(batch => batch.id === lb.batch_id);
-            const batchPrice = batch ? batch.retail_price : finalPrice;
-            return `<option value="${lb.batch_id}" data-price="${batchPrice}" data-quantity="${lb.quantity}">${lb.batch_id} (Qty: ${lb.quantity}) - Price: ${batchPrice}</option>`;
-        }).join('');
+
+        // Ensure batches is an array before accessing its properties
+        const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
+            batch_id: batch.id,
+            batch_price: parseFloat(batch.retail_price),
+            batch_quantity: locationBatch.quantity
+        }))) : [];
+
+        const batchOptions = batches.map(batch => `
+            <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
+                Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
+            </option>
+        `).join('');
         row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
@@ -434,10 +448,10 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
                         <div class="text-muted">${product.sku}</div>
                         ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
                         <select class="form-select batch-dropdown" aria-label="Select Batch">
-                             <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
-                                    All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice}
-                                </option>
-                            ${locationOptions}
+                            <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
+                                All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice.toFixed(2)}
+                            </option>
+                            ${batchOptions}
                         </select>
                     </div>
                 </div>
@@ -597,7 +611,6 @@ fetch('/customer-get-all')
     .catch(error => {
         console.error('Error fetching customer data:', error);
     });
-});
 
 $(document).ready(function () {
     $('#cashButton').on('click', function () {
@@ -637,9 +650,11 @@ $(document).ready(function () {
         // Gather the product details
         $('#billing-body tr').each(function () {
             const productRow = $(this);
+            const batchDropdown = productRow.find('.batch-dropdown');
+            const selectedBatch = batchDropdown.val() !== "all" ? batchDropdown.val() : null;
             const productData = {
                 product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
-                batch_no: parseInt(productRow.find('.batch-dropdown').text().trim(), 10),
+                batch_id: selectedBatch,
                 location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
                 quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
                 price_type: 'retail', // Assuming the price type is 'retail'
@@ -682,7 +697,6 @@ $(document).ready(function () {
         });
     });
 });
-
     function resetForm() {
         document.getElementById('customer-id').value = 'Please Select';
 
@@ -718,7 +732,7 @@ $(document).ready(function () {
     //             console.error('Error fetching data:', error);
     //         });
     // }
-
+    });
 
 
     $(document).ready(function() {

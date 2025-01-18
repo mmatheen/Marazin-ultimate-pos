@@ -33,6 +33,7 @@ use App\Http\Controllers\SellingPriceGroupController;
 
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
+use App\Http\Controllers\SaleReturnController;
 use App\Http\Controllers\SalesCommissionAgentsController;
 use App\Http\Controllers\SellController;
 
@@ -297,6 +298,11 @@ Route::post('/purchase-return/store', [PurchaseReturnController::class, 'store']
 Route::get('/purchase-returns/get-All', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
 Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
 Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
+
+
+Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
+Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
+
 
 
 

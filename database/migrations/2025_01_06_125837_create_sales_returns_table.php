@@ -13,11 +13,21 @@ return new class extends Migration
     {
         Schema::create('sales_returns', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('sale_id')->nullable(); // If returning with a bill (invoice)
+            $table->unsignedBigInteger('customer_id')->nullable(); // Allow null for walk-in returns
+            $table->unsignedBigInteger('location_id');
             $table->date('return_date');
-            $table->decimal('total_amount', 15, 2);
+            $table->decimal('return_total', 12, 2); // Total value of the return
+            $table->text('notes')->nullable(); // Reason or additional details
+            $table->boolean('is_defective')->default(false); // Indicates defective items
             $table->timestamps();
+
+            // Foreign keys
+            $table->foreign('sale_id')->references('id')->on('sales')->onDelete('cascade');
+            $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
+
     }
 
     /**

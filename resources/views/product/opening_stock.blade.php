@@ -66,7 +66,7 @@
                                                     <td>
                                                         <input type="text" class="form-control"
                                                             name="locations[{{ $loop->index }}][unit_cost]"
-                                                            value="{{ $product->retail_price }}" readonly>
+                                                            value="{{ $product->original_price }}" readonly>
                                                         <small class="text-danger"
                                                             id="unit_cost_error_{{ $loop->index }}"></small>
                                                     </td>

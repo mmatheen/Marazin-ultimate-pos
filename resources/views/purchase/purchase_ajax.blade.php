@@ -90,17 +90,6 @@
         // Apply validation to forms
         $('#purchaseForm').validate(purchaseValidationOptions);
 
-        // Function to reset form and validation messages
-        function resetFormAndValidation() {
-            $('#purchaseForm')[0].reset(); // Reset the form
-            $('#purchaseForm').validate().resetForm(); // Reset validation states
-            $('#purchaseForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#purchaseForm').find('.is-validGreen').removeClass('is-validGreen');
-            $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png'); // Reset the image
-            $('#purchase_product tbody').empty(); // Clear the product table
-            $('#supplier-id, #discount-type, #payment-method').val('').trigger('change');
-        }
-
         // Fetch locations data from the server
         function fetchLocations() {
             $.ajax({
@@ -130,7 +119,7 @@
 
         // Fetch product data from the server
         function fetchProducts() {
-            fetch('/products/stocks/')
+            fetch('/products/stocks')
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 200 && Array.isArray(data.data)) {
@@ -151,218 +140,294 @@
                 })
                 .catch(error => console.error("Error fetching products:", error));
         }
+// Initialize autocomplete
+function initAutocomplete(products) {
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = products.filter(
+                product =>
+                product.name.toLowerCase().includes(searchTerm) ||
+                product.sku.toLowerCase().includes(searchTerm)
+            );
 
-        // Initialize autocomplete
-        function initAutocomplete(products) {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = products.filter(
-                        product =>
-                        product.name.toLowerCase().includes(searchTerm) ||
-                        product.sku.toLowerCase().includes(searchTerm)
-                    );
-
-                    response(
-                        filteredProducts.map(product => ({
-                            label: `${product.name} (${product.sku})`,
-                            value: product.name,
-                            product: product,
-                        }))
-                    );
-                },
-                select: function(event, ui) {
-                    addProductToTable(ui.item.product); // Add product to the table
-                    $("#productSearchInput").val(""); // Clear search input
-                    return false;
-                },
-            });
+            if (filteredProducts.length === 0) {
+                // Optionally display a "No products found" in the dropdown
+                response([{ label: "No products found", value: "" }]);
+            } else {
+                response(
+                    filteredProducts.map(product => ({
+                        label: `${product.name} (${product.sku})`,
+                        value: product.name,
+                        product: product,
+                    }))
+                );
+            }
+        },
+        select: function(event, ui) {
+            if (!ui.item.product) {
+                // Do nothing if no product is selected
+                return false;
+            }
+            addProductToTable(ui.item.product); // Add product to the table
+            $("#productSearchInput").val(""); // Clear search input
+            return false;
+        },
+    }).data("ui-autocomplete")._renderItem = function(ul, item) {
+        if (!item.product) {
+            return $("<li>")
+                .append(`<div style="color: red;">${item.label}</div>`)
+                .appendTo(ul);
         }
+        return $("<li>")
+            .append(`<div>${item.label}</div>`)
+            .appendTo(ul);
+    };
+}
 
-        // Add product row to the table
-        function addProductToTable(product) {
-            const price = parseFloat(product.price) || 0;
-            const wholesalePrice = parseFloat(product.wholesale_price) || 0;
-            const specialPrice = parseFloat(product.special_price) || 0;
-            const maxRetailPrice = parseFloat(product.max_retail_price) || 0;
+function addProductToTable(product) {
+    const table = $("#purchase_product").DataTable();
+    let existingRow = null;
 
-            const newRow = `
-                <tr data-id="${product.id}">
-                    <td>${product.id}</td>
-                    <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
-                    <td><input type="number" class="form-control purchase-quantity" value="1" min="1"></td>
-                    <td><input type="number" class="form-control product-price" value="${price.toFixed(2)}" min="0"></td>
-                    <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
-                    <td>${price.toFixed(2)}</td>
-                    <td>${price.toFixed(2)}</td>
-                    <td><input type="number" class="form-control" value="${wholesalePrice.toFixed(2)}" ></td>
-                    <td><input type="number" class="form-control" value="${specialPrice.toFixed(2)}" ></td>
-                    <td><input type="number" class="form-control" value="${maxRetailPrice.toFixed(2)}" ></td>
-                    <td class="sub-total">0</td>
-                    <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                    <td><input type="text" class="form-control batch-id"></td>
-                    <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
-                </tr>
-            `;
-
-            const $newRow = $(newRow);
-            const table = $("#purchase_product").DataTable();
-
-            table.row.add($newRow).draw(); // Add new row to DataTable
-            updateRow($newRow); // Update calculations for the new row
-
-            // Set up event listeners for quantity, discount, and price changes
-            $newRow.find(".purchase-quantity, .discount-percent, .product-price").on("input", function() {
-                updateRow($newRow); // Update calculations when values change
-                updateFooter(); // Update footer
-            });
-
-            // Set up event listener for deleting a product row
-            $newRow.find(".delete-product").on("click", function() {
-                table.row($newRow).remove().draw(); // Remove row from table
-                updateFooter(); // Update footer
-            });
+    // Check if the product is already in the table
+    $('#purchase_product tbody tr').each(function() {
+        const rowProductId = $(this).data('id');
+        if (rowProductId === product.id) {
+            existingRow = $(this);
+            return false; // Break the loop
         }
+    });
 
-        // Update row calculations
-        function updateRow($row) {
-            const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
-            const price = parseFloat($row.find(".product-price").val()) || 0;
-            const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
+    if (existingRow) {
+        // Update the quantity of the existing product
+        const quantityInput = existingRow.find('.purchase-quantity');
+        const newQuantity = parseFloat(quantityInput.val()) + 1;
+        quantityInput.val(newQuantity).trigger('input'); // Update and trigger input event
+    } else {
+        // Add new row if the product is not already in the table
+        const price = parseFloat(product.price) || 0;
+        const wholesalePrice = parseFloat(product.wholesale_price) || 0;
+        const specialPrice = parseFloat(product.special_price) || 0;
+        const maxRetailPrice = parseFloat(product.max_retail_price) || 0;
 
-            const discountedPrice = price - (price * discountPercent) / 100;
-            const subTotal = discountedPrice * quantity;
+        const newRow = `
+            <tr data-id="${product.id}">
+                <td>${product.id}</td>
+                <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
+                <td><input type="number" class="form-control purchase-quantity" value="1" min="1"></td>
+                <td><input type="number" class="form-control product-price" value="${price.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
+                <td><input type="number" class="form-control unit-cost" value="${price.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control retail-price" value="${price.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
+                <td class="sub-total">0</td>
+                <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+                <td><input type="date" class="form-control expiry-date"></td>
+                <td><input type="text" class="form-control batch_no"></td>
+                <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+            </tr>
+        `;
 
-            $row.find(".sub-total").text(subTotal.toFixed(2));
-        }
+        const $newRow = $(newRow);
+        table.row.add($newRow).draw(); // Add new row to DataTable
+        updateRow($newRow); // Update calculations for the new row
+        updateFooter(); // Update footer after adding new row
 
-      // Update footer (total items and net total)
-        function updateFooter() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
-
-            $('#purchase_product tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
-
-                totalItems += quantity;
-                netTotalAmount += subTotal;
-            });
-
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
-
-            const discountType = $('#discount-type').val();
-            const discountInput = parseFloat($('#discount-amount').val()) || 0;
-            let discountAmount = 0;
-
-            if (discountType === 'fixed') {
-                discountAmount = discountInput;
-            } else if (discountType === 'percentage') {
-                discountAmount = (netTotalAmount * discountInput) / 100;
-            }
-
-            const taxType = $('#tax-type').val();
-            let taxAmount = 0;
-
-            if (taxType === 'vat10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            } else if (taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            }
-
-            const finalTotal = netTotalAmount - discountAmount + taxAmount;
-
-            $('#purchase-total').text(`Purchase Total: $ ${finalTotal.toFixed(2)}`);
-            $('#discount-display').text(`(-) $ ${discountAmount.toFixed(2)}`);
-            $('#tax-display').text(`(+) $ ${taxAmount.toFixed(2)}`);
-        }
-        // Update footer when discount or tax values change
-        $('#discount-type, #discount-amount, #tax-type').on('change input', updateFooter);
-
-        // Handle form submission
-        $('#purchaseButton').on('click', function(event) {
-            event.preventDefault(); // Prevent default form submission
-
-            if (!$('#purchaseForm').valid()) {
-                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                return; // Return if form is not valid
-            }
-
-            const formData = new FormData($('#purchaseForm')[0]);
-            formData.append('payment_method', document.getElementById('payment-method').value);
-
-            const locationId = document.getElementById('services')?.value || '';
-            let purchaseDate = document.getElementById('purchase-date')?.value || '';
-
-            if (purchaseDate) {
-                const dateParts = purchaseDate.split('-');
-                if (dateParts.length === 3) {
-                    purchaseDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-                }
-            }
-
-            formData.append('location_id', locationId);
-            formData.append('purchase_date', purchaseDate);
-
-            const fileInput = $('#attach_document')[0];
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'application/pdf'];
-                if (validTypes.includes(file.type)) {
-                    formData.append('attached_document', file);
-                }
-            }
-
-            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
-            productTableRows.forEach((row, index) => {
-                const productId = row.querySelector('.product-id').textContent.trim() || '';
-                const quantity = row.querySelector('.purchase-quantity').value.trim() || '0';
-                const price = row.querySelector('.product-price').value.trim() || '0';
-                const total = row.querySelector('.line-total').textContent.trim() || '0';
-                const batchId = row.querySelector('.batch-id').value.trim() || '';
-
-                formData.append(`products[${index}][product_id]`, productId);
-                formData.append(`products[${index}][quantity]`, quantity);
-                formData.append(`products[${index}][price]`, price);
-                formData.append(`products[${index}][total]`, total);
-                formData.append(`products[${index}][location_id]`, locationId);
-                formData.append(`products[${index}][batch_id]`, batchId);
-            });
-
-            // Log form data for debugging
-            for (let pair of formData.entries()) {
-                console.log(pair[0] + ': ' + pair[1]);
-            }
-
-            $.ajax({
-                url: 'purchases/store',
-                type: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-                    } else {
-                        document.getElementsByClassName('successSound')[0].play();
-                        toastr.success(response.message, 'Product Added');
-                        resetFormAndValidation();
-                    }
-                },
-                error: function(xhr, status, error) {
-                    toastr.error('Something went wrong! Please try again.', 'Error');
-                },
-            });
+        // Set up event listeners for quantity, discount, and price changes
+        $newRow.find(".purchase-quantity, .discount-percent, .product-price, .unit-cost, .retail-price, .wholesale-price, .special-price, .max-retail-price").on("input", function() {
+            updateRow($newRow); // Update calculations when values change
+            updateFooter(); // Update footer
         });
 
-        // Show Image Preview
+        // Set up event listener for deleting a product row
+        $newRow.find(".delete-product").on("click", function() {
+            table.row($newRow).remove().draw(); // Remove row from table
+            updateFooter(); // Update footer
+        });
+
+        // // Initialize date picker for the new row
+        // $newRow.find('.expiry-date').datepicker({
+        //     format: 'yyyy-mm-dd',
+        //     autoclose: true
+        // });
+    }
+}
+
+// Update row calculations
+function updateRow($row) {
+    const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
+    const price = parseFloat($row.find(".product-price").val()) || 0;
+    const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
+
+    const discountedPrice = price - (price * discountPercent) / 100;
+    const subTotal = discountedPrice * quantity;
+
+    $row.find(".sub-total").text(subTotal.toFixed(2));
+}
+
+// Update footer (total items and net total)
+function updateFooter() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
+
+    $('#purchase_product tbody tr').each(function() {
+        const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+        const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
+
+        totalItems += quantity;
+        netTotalAmount += subTotal;
+    });
+
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+    $('#total').val(netTotalAmount.toFixed(2)); // Update hidden total input
+
+    const discountType = $('#discount-type').val();
+    const discountInput = parseFloat($('#discount-amount').val()) || 0;
+    let discountAmount = 0;
+
+    if (discountType === 'fixed') {
+        discountAmount = discountInput;
+    } else if (discountType === 'percentage') {
+        discountAmount = (netTotalAmount * discountInput) / 100;
+    }
+
+    const taxType = $('#tax-type').val();
+    let taxAmount = 0;
+
+    if (taxType === 'vat10') {
+        taxAmount = (netTotalAmount - discountAmount) * 0.10;
+    } else if (taxType === 'cgst10') {
+        taxAmount = (netTotalAmount - discountAmount) * 0.10;
+    }
+
+    const finalTotal = netTotalAmount - discountAmount + taxAmount;
+
+    $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
+    $('#final-total').val(finalTotal.toFixed(2)); // Update hidden final total input
+    $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
+    $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
+
+     // Calculate payment due based on advance balance
+     const advanceBalance = parseFloat($('#advance-payment').val()) || 0;
+        const paymentDue = finalTotal - advanceBalance;
+        $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
+}
+
+// Update footer when discount or tax values change
+$('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
+
+function formatDate(dateStr) {
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${month}-${day}`;
+}
+
+function formatDate(dateStr) {
+    const [day, month, year] = dateStr.split('-');
+    return `${year}-${month}-${day}`;
+}
+
+$('#purchaseButton').on('click', function(event) {
+    event.preventDefault(); // Prevent default form submission
+
+    if (!$('#purchaseForm').valid()) {
+        toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+        return; // Return if form is not valid
+    }
+
+    const formData = new FormData($('#purchaseForm')[0]);
+
+    // Convert the purchase date and paid date to the correct format
+    const purchaseDate = formatDate($('#purchase-date').val());
+    const paidDate = formatDate($('#payment-date').val());
+
+    // Append required fields
+    formData.append('purchase_date', purchaseDate);
+    formData.append('paid_date', paidDate);
+    formData.append('final_total', $('#final-total').val());
+
+
+    // Collect product details and format as an array
+    const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
+    productTableRows.forEach((row, index) => {
+        const productId = $(row).data('id');
+        const quantity = $(row).find('.purchase-quantity').val() || 0;
+        const unitCost = $(row).find('.unit-cost').val() || 0;
+        const wholesalePrice = $(row).find('.wholesale-price').val() || 0;
+        const specialPrice = $(row).find('.special-price').val() || 0;
+        const retailPrice = $(row).find('.retail-price').val() || 0;
+        const maxRetailPrice = $(row).find('.max-retail-price').val() || 0;
+        const price = $(row).find('.product-price').val() || 0;
+        const total = $(row).find('.sub-total').text() || 0;
+        const batchNo = $(row).find('.batch_no').val() || '';
+        const expiryDateRaw = $(row).find('.expiry-date').val();
+        const expiryDate = (expiryDateRaw);
+
+        if (!expiryDate || isNaN(Date.parse(expiryDate))) {
+            toastr.error('Invalid expiry date format. Please use MM/DD/YYYY.', 'Error');
+            return; // Stop the process if the date is invalid
+        }
+
+
+
+        formData.append(`products[${index}][product_id]`, productId);
+        formData.append(`products[${index}][quantity]`, quantity);
+        formData.append(`products[${index}][unit_cost]`, unitCost);
+        formData.append(`products[${index}][wholesale_price]`, wholesalePrice);
+        formData.append(`products[${index}][special_price]`, specialPrice);
+        formData.append(`products[${index}][retail_price]`, retailPrice);
+        formData.append(`products[${index}][max_retail_price]`, maxRetailPrice);
+        formData.append(`products[${index}][price]`, price);
+        formData.append(`products[${index}][total]`, total);
+        formData.append(`products[${index}][batch_no]`, batchNo);
+        formData.append(`products[${index}][expiry_date]`, expiryDate);
+
+    });
+
+    // Log form data for debugging
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+
+    $.ajax({
+        url: 'purchases/store',
+        type: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+        },
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 400) {
+                $.each(response.errors, function(key, err_value) {
+                    $('#' + key + '_error').html(err_value);
+                });
+            } else {
+                document.getElementsByClassName('successSound')[0].play();
+                toastr.success(response.message, 'Product Added');
+                resetFormAndValidation();
+            }
+        },
+        error: function(xhr, status, error) {
+            toastr.error('Something went wrong! Please try again.', 'Error');
+        },
+    });
+});
+
+function resetFormAndValidation() {
+    $('#purchaseForm')[0].reset();
+    $('#purchase_product tbody').empty();
+    $('#total-items').text('0');
+    $('#net-total-amount').text('0.00');
+    $('#purchase-total').text('Purchase Total: Rs 0.00');
+    $('#final-total').val('0.00');
+    $('#discount-display').text('(-) Rs 0.00');
+    $('#tax-display').text('(+) Rs 0.00');
+}
         $(".show-file").on("change", function() {
             const input = this;
             if (input.files && input.files[0]) {

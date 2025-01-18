@@ -61,6 +61,29 @@ class SaleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             // Validation rules
+            'customer_id' => 'required|integer|exists:customers,id',
+            'location_id' => 'required|integer|exists:locations,id',
+            'sales_date' => 'required|date',
+            'status' => 'required|string',
+            'invoice_no' => 'nullable|string',
+            'additional_notes' => 'nullable|string',
+            'shipping_details' => 'nullable|string',
+            'shipping_address' => 'nullable|string',
+            'shipping_charges' => 'nullable|numeric',
+            'shipping_status' => 'nullable|string',
+            'delivered_to' => 'nullable|string',
+            'delivery_person' => 'nullable|string',
+            'attach_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
+            'products' => 'required|array',
+            'products.*.product_id' => 'required|integer|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.unit_price' => 'required|numeric|min:0',
+            'products.*.subtotal' => 'required|numeric|min:0',
+            'products.*.batch_id' => 'nullable|string|max:255',
+            'products.*.price_type' => 'required|string|in:retail,wholesale,special',
+            'products.*.discount' => 'nullable|numeric|min:0',
+            'products.*.tax' => 'nullable|numeric|min:0',
+
         ]);
 
         if ($validator->fails()) {
@@ -130,6 +153,7 @@ class SaleController extends Controller
     private function processProductSale($productData, $saleId, $locationId)
     {
         $quantityToDeduct = $productData['quantity'];
+        $batchIds = [];
 
         if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
             // Check if the batch has enough stock
@@ -144,7 +168,7 @@ class SaleController extends Controller
 
             // Deduct stock from a specific batch
             $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct);
-            $batchId = $batch->id;
+            $batchIds[] = $batch->id;
         } else {
             // Check if there is enough stock across all batches using FIFO
             $totalAvailableQty = DB::table('location_batches')
@@ -159,63 +183,83 @@ class SaleController extends Controller
             }
 
             // Deduct stock using FIFO
-            $this->deductStockFIFO($productData['product_id'], $locationId, $quantityToDeduct);
-            $batchId = null;
+            $remainingQuantity = $quantityToDeduct;
+            $batches = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productData['product_id'])
+                ->where('location_batches.location_id', $locationId)
+                ->where('location_batches.qty', '>', 0)
+                ->orderBy('batches.created_at')
+                ->select('location_batches.batch_id', 'location_batches.qty')
+                ->get();
+
+            foreach ($batches as $batch) {
+                if ($remainingQuantity <= 0) {
+                    break;
+                }
+
+                $deductQuantity = min($remainingQuantity, $batch->qty);
+                $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity);
+                $batchIds[] = $batch->batch_id;
+                $remainingQuantity -= $deductQuantity;
+            }
         }
 
-        // Create sales product record
-        SalesProduct::create([
-            'sale_id' => $saleId,
-            'product_id' => $productData['product_id'],
-            'quantity' => $productData['quantity'],
-            'price' => $productData['unit_price'],
-            'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'],
-            'batch_id' => $batchId,
-            'location_id' => $locationId,
-            'price_type' => $productData['price_type'],
-            'discount' => $productData['discount'],
-            'tax' => $productData['tax'],
-        ]);
+        // Create sales product records for each batch used in FIFO
+        foreach ($batchIds as $batchId) {
+            SalesProduct::create([
+                'sale_id' => $saleId,
+                'product_id' => $productData['product_id'],
+                'quantity' => $quantityToDeduct,
+                'price' => $productData['unit_price'],
+                'unit_price' => $productData['unit_price'],
+                'subtotal' => $productData['subtotal'],
+                'batch_id' => $batchId,
+                'location_id' => $locationId,
+                'price_type' => $productData['price_type'],
+                'discount' => $productData['discount'],
+                'tax' => $productData['tax'],
+            ]);
+        }
     }
 
     /**
      * Deduct stock from a specific batch.
      */
     private function deductBatchStock($batchId, $locationId, $quantity)
-{
-    Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
+    {
+        Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
 
-    $batch = Batch::findOrFail($batchId);
-    $locationBatch = LocationBatch::where('batch_id', $batch->id)
-        ->where('location_id', $locationId)
-        ->firstOrFail();
+        $batch = Batch::findOrFail($batchId);
+        $locationBatch = LocationBatch::where('batch_id', $batch->id)
+            ->where('location_id', $locationId)
+            ->firstOrFail();
 
-    Log::info("Before deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
+        Log::info("Before deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
 
-    // Deduct stock from location batch using query builder
-    DB::table('location_batches')
-        ->where('id', $locationBatch->id)
-        ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+        // Deduct stock from location batch using query builder
+        DB::table('location_batches')
+            ->where('id', $locationBatch->id)
+            ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
 
-    // Deduct stock from batch using query builder
-    DB::table('batches')
-        ->where('id', $batch->id)
-        ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+        // Deduct stock from batch using query builder
+        DB::table('batches')
+            ->where('id', $batch->id)
+            ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
 
-    // Reload the updated quantities
-    $locationBatch->refresh();
-    $batch->refresh();
+        // Reload the updated quantities
+        $locationBatch->refresh();
+        $batch->refresh();
 
-    Log::info("After deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
+        Log::info("After deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
 
-    // Create stock history record
-    StockHistory::create([
-        'loc_batch_id' => $locationBatch->id,
-        'quantity' => -$quantity,
-        'stock_type' => 'Sale',
-    ]);
-}
+        // Create stock history record
+        StockHistory::create([
+            'loc_batch_id' => $locationBatch->id,
+            'quantity' => -$quantity,
+            'stock_type' => 'Sale',
+        ]);
+    }
 
     private function deductStockFIFO($productId, $locationId, $quantity)
     {
@@ -272,6 +316,9 @@ class SaleController extends Controller
         }
         return null;
     }
+
+
+
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
@@ -394,5 +441,33 @@ class SaleController extends Controller
         });
 
         return response()->json(['message' => 'Sale updated successfully!', 'sale' => $sale], 200);
+    }
+
+
+    public function getSaleByInvoiceNo($invoiceNo)
+    {
+        $sale = Sale::with('products.product')->where('invoice_no', $invoiceNo)->first();
+
+        if (!$sale) {
+            return response()->json(['error' => 'Sale not found'], 404);
+        }
+
+        return response()->json([
+            'sale_id' => $sale->id,
+            'customer_id' => $sale->customer_id,
+            'location_id' => $sale->location_id,
+            'products' => $sale->products,
+
+        ]);
+    }
+
+    public function searchSales(Request $request)
+    {
+        $term = $request->get('term');
+        $sales = Sale::where('invoice_no', 'LIKE', '%' . $term . '%')
+            ->orWhere('id', 'LIKE', '%' . $term . '%')
+            ->get(['invoice_no as value', 'id']);
+
+        return response()->json($sales);
     }
 }

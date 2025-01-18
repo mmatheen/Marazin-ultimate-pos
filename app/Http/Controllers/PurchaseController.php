@@ -194,6 +194,11 @@ class PurchaseController extends Controller
             'products.*.total' => 'required|numeric|min:0',
             'products.*.batch_no' => 'nullable|string|max:255',
             'products.*.expiry_date' => 'nullable|date',
+            'advance_balance' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string',
+            'payment_account' => 'nullable|string',
+            'payment_note' => 'nullable|string',
+            'paid_date' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
@@ -220,7 +225,7 @@ class PurchaseController extends Controller
                 'discount_type' => $request->discount_type,
                 'discount_amount' => $request->discount_amount,
                 'final_total' => $request->final_total,
-                'payment_status' => $request->payment_status,
+                'payment_status' => 'Due', // Initial status
             ]);
 
             // Process each product in the purchase
@@ -289,16 +294,23 @@ class PurchaseController extends Controller
                     'total' => $productData['total'],
                 ]);
 
-                // PurchasePayment::create([
-                //     'purchase_id' => $purchase->id,
-                //     'supplier_id' => $request->supplier_id,
-                //     'payment_method' => $request['payment_method'],
-                //     'payment_account' => $request->payment_account,
-                //     'amount' => $request->final_total,
-                //     'payment_date' => now(), // Assuming payment is made immediately
-                //     'payment_note' => $request['payment_note'],
-                // ]);
+                // Handle initial payment if provided
             }
+            if ($request->advance_balance > 0) {
+                PurchasePayment::create([
+                    'purchase_id' => $purchase->id,
+                    'supplier_id' => $request->supplier_id,
+                    'amount' => $request->advance_balance,
+                    'payment_method' => $request->payment_method,
+                    'payment_account' => $request->payment_account,
+                    'payment_date' => $request->paid_date,
+                    'payment_note' => $request->payment_note,
+                ]);
+            }
+
+            // Update purchase payment status and due amount
+            $purchase->updatePaymentStatus();
+
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase recorded successfully!']);

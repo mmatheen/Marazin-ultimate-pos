@@ -27,10 +27,8 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchaseReturnController;
 
 use App\Http\Controllers\SaleController;
-
-
-
-
+use App\Http\Controllers\SaleReturnController;
+use App\Http\Controllers\SalesReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -227,3 +225,8 @@ Route::post('/purchase/return', [PurchaseReturnController::class, 'store']);
 
 Route::post('/sales/store', [SaleController::class, 'store']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
+
+
+Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
+Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
+Route::get('/search/sales', [SaleController::class, 'searchSales']);

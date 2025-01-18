@@ -290,10 +290,10 @@ class ProductController extends Controller
         try {
             DB::transaction(function () use ($request, $product) {
                 foreach ($request->locations as $locationData) {
-                    // Validate batch_no format
-                    if (!empty($locationData['batch_no']) && !preg_match('/^BATCH[0-4]{3,}$/', $locationData['batch_no'])) {
-                        throw new \Exception("Invalid batch number: " . $locationData['batch_no']);
-                    }
+                    // // Validate batch_no format
+                    // if (!empty($locationData['batch_no']) && !preg_match('/^BATCH[0-4]{3,}$/', $locationData['batch_no'])) {
+                    //     throw new \Exception("Invalid batch number: " . $locationData['batch_no']);
+                    // }
 
                     // Parse and format expiry date
                     $formattedExpiryDate = $locationData['expiry_date']
@@ -347,85 +347,6 @@ class ProductController extends Controller
         }
     }
 
-
-    // public function getAllProductStocks()
-    // {
-    //     // Retrieve all products with related stock details
-    //     $products = Product::with(['batches.locationBatches.location'])->get();
-
-    //     // Prepare structured data
-    //     $productStocks = $products->map(function($product) {
-    //         // Calculate the total stock by summing up the quantities from all batches
-    //         $totalStock = $product->batches->sum(function($batch) {
-    //             return $batch->locationBatches->sum('qty');
-    //         });
-
-    //         // Prepare batch-wise data
-    //         $batches = $product->batches->map(function($batch) {
-    //             $totalBatchQty = $batch->locationBatches->sum('qty');
-    //             return [
-    //                 'batch_no' => $batch->batch_no,
-    //                 'unit_cost' => $batch->unit_cost,
-    //                 'wholesale_price' => $batch->wholesale_price,
-    //                 'special_price' => $batch->special_price,
-    //                 'retail_price' => $batch->retail_price,
-    //                 'max_retail_price' => $batch->max_retail_price,
-    //                 'expiry_date' => $batch->expiry_date,
-    //                 'total_quantity' => $totalBatchQty,
-    //             ];
-    //         });
-
-    //         return [
-    //             'product' => $product,
-    //             'total_stock' => $totalStock,
-    //             'batches' => $batches,
-    //         ];
-    //     });
-
-    //     return response()->json(['status' => 200, 'data' => $productStocks]);
-    // }
-    // public function getAllProductStocks()
-    // {
-    //     // Retrieve all products with related stock details
-    //     $products = Product::with(['batches.locationBatches.location'])->get();
-
-    //     // Prepare structured data
-    //     $productStocks = $products->map(function ($product) {
-    //         // Calculate the total stock for the product by summing up the quantities across all batches
-    //         $totalStock = $product->batches->sum(function ($batch) {
-    //             return $batch->locationBatches->sum('qty');
-    //         });
-
-    //         // Prepare batch-wise data with location details and total quantity per batch
-    //         $batches = $product->batches->map(function ($batch) {
-    //             // Batch total quantity
-    //             $totalBatchQty = $batch->locationBatches->sum('qty');
-
-    //             // Location-wise quantity details
-    //             $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
-    //                 return [
-    //                     'location_name' => $locationBatch->location->name ?? 'N/A',
-    //                     'quantity' => $locationBatch->qty,
-    //                 ];
-    //             });
-
-    //             return [
-    //                 'batch_no' => $batch->batch_no,
-    //                 'expiry_date' => $batch->expiry_date,
-    //                 'total_batch_quantity' => $totalBatchQty,
-    //                 'location_batches' => $locationBatches,
-    //             ];
-    //         });
-
-    //         return [
-    //             'product' => $product, // Includes all product details
-    //             'total_stock' => $totalStock,
-    //             'batches' => $batches,
-    //         ];
-    //     });
-
-    //     return response()->json(['status' => 200, 'data' => $productStocks]);
-    // }
     public function getAllProductStocks()
     {
         // Retrieve all products
