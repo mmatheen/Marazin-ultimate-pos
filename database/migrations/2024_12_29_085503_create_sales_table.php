@@ -18,13 +18,13 @@ return new class extends Migration
             $table->date('sales_date');
             $table->string('status');
             $table->string('invoice_no')->nullable();
-            $table->text('additional_notes')->nullable();
-            $table->text('shipping_details')->nullable();
-            $table->text('shipping_address')->nullable();
-            $table->decimal('shipping_charges', 8, 2)->nullable();
-            $table->string('shipping_status')->nullable();
-            $table->string('delivered_to')->nullable();
-            $table->string('delivery_person')->nullable();
+            // $table->text('additional_notes')->nullable();
+            // $table->text('shipping_details')->nullable();
+            // $table->text('shipping_address')->nullable();
+            // $table->decimal('shipping_charges', 8, 2)->nullable();
+            // $table->string('shipping_status')->nullable();
+            // $table->string('delivered_to')->nullable();
+            // $table->string('delivery_person')->nullable();
             $table->timestamps();
 
 

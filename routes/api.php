@@ -213,15 +213,11 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
   // Store a new purchase
 Route::post('/purchases/store', [PurchaseController::class, 'store']);
 
-Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
-Route::post('/purchase/return', [PurchaseReturnController::class, 'store']);
-// Route::post('purchases/', [PurchaseController::class, 'store']);
 
-// Route::middleware('api')->group(function () {
-//     Route::post('purchases/store', [PurchaseController::class, 'store']);
-// });
-// Route::resource('purchases', PurchaseController::class);
-
+Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
+Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
+Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
+Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store']);
 
 Route::post('/sales/store', [SaleController::class, 'store']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');

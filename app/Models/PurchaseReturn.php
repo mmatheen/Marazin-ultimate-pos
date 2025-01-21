@@ -13,7 +13,7 @@ class PurchaseReturn extends Model
         'supplier_id',
         'reference_no',
         'location_id',
-        
+
         'return_date',
         'attach_document',
     ];

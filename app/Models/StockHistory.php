@@ -16,16 +16,39 @@ class StockHistory extends Model
     ];
 
     // Stock type constants
-    const STOCK_TYPE_PURCHASE = 'Purchase';
-    const STOCK_TYPE_PURCHASE_RETURN = 'Purchase Return';
-    const STOCK_TYPE_OPENING_STOCK = 'Opening Stock';
-    const STOCK_TYPE_SALE = 'Sale';
-    const STOCK_TYPE_SALE_RETURN = 'Sale Return';
-    const STOCK_TYPE_STOCK_TRANSFER = 'Stock Transfer';
-    const STOCK_TYPE_ADJUSTMENT = 'Adjustment';
+    const STOCK_TYPE_OPENING = 'opening_stock';
+    const STOCK_TYPE_PURCHASE = 'purchase';
+    const STOCK_TYPE_PURCHASE_RETURN = 'purchase_return';
+    const STOCK_TYPE_SALE = 'sale';
+    const STOCK_TYPE_SALE_RETURN_WITH_BILL = 'sales_return_with_bill';
+    const STOCK_TYPE_SALE_RETURN_WITHOUT_BILL = 'sales_return_without_bill';
+    const STOCK_TYPE_TRANSFER_IN = 'transfer_in';
+    const STOCK_TYPE_TRANSFER_OUT = 'transfer_out';
+    const STOCK_TYPE_ADJUSTMENT = 'adjustment';
+
 
     public function locationBatch()
     {
         return $this->belongsTo(LocationBatch::class);
+    }
+
+    /**
+     * Get all valid stock types.
+     *
+     * @return array
+     */
+    public static function getStockTypes()
+    {
+        return [
+            self::STOCK_TYPE_OPENING,
+            self::STOCK_TYPE_PURCHASE,
+            self::STOCK_TYPE_PURCHASE_RETURN,
+            self::STOCK_TYPE_SALE,
+            self::STOCK_TYPE_SALE_RETURN_WITH_BILL,
+            self::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+            self::STOCK_TYPE_TRANSFER_IN,
+            self::STOCK_TYPE_TRANSFER_OUT,
+            self::STOCK_TYPE_ADJUSTMENT,
+        ];
     }
 }

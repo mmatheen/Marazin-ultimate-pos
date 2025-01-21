@@ -52,7 +52,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
-    <title>Certificate Verify</title>
+    <title>ARB - Distribution</title>
     <link rel="shortcut icon" href="{{ URL::to('assets/img/favicon.png') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/feather/feather.css') }}">
@@ -91,8 +91,8 @@
                             <div class="d-flex justify-content-center mb-3">
                                 <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px" height="100px" src="{{ URL::to('assets/img/logo-small.png') }}" alt="Logo"></a>
                             </div>
-                            <h1 class="mb-4">Certificate Verification to verify.marazin.lk</h1>
-                            <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p>
+                            <h1 class="mb-4 text-center">ARB Distribution</h1>
+                            {{-- <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p> --}}
                             <form action="{{ route('login') }}" method="POST">
                                 @csrf
                                 <div class="form-group">
@@ -124,7 +124,7 @@
                                     <div>
 
                                     </div>
-                                    <a href="{{ route('password.request') }}">Forgot Password?</a>
+                                    {{-- <a href="{{ route('password.request') }}">Forgot Password?</a> --}}
 
                                 </div>
                                 {{-- <div class="g-recaptcha" data-sitekey="6Ld6hFEqAAAAAMr2FkeEfhEzC8zTgUxfyRUJq1OJ"></div> --}}

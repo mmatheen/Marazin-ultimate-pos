@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('sales_returns', function (Blueprint $table) {
             $table->bigIncrements('id');
+            $table->string('invoice_number')->unique();
             $table->unsignedBigInteger('sale_id')->nullable(); // If returning with a bill (invoice)
             $table->unsignedBigInteger('customer_id')->nullable(); // Allow null for walk-in returns
             $table->unsignedBigInteger('location_id');
@@ -20,6 +21,7 @@ return new class extends Migration
             $table->decimal('return_total', 12, 2); // Total value of the return
             $table->text('notes')->nullable(); // Reason or additional details
             $table->boolean('is_defective')->default(false); // Indicates defective items
+            $table->enum('stock_type', ['with_bill', 'without_bill']);
             $table->timestamps();
 
             // Foreign keys

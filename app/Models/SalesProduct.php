@@ -13,8 +13,15 @@ class SalesProduct extends Model
     //     'sale_id', 'product_id', 'batch_id', 'location_id','quantity', 'unit_price', 'discount', 'tax',
     // ];
     protected $fillable = [
-        'sale_id', 'product_id', 'batch_id', 'location_id', 'quantity', 'price_type',
-        'price', 'discount', 'tax',
+        'sale_id',
+        'product_id',
+        'batch_id',
+        'location_id',
+        'quantity',
+        'price_type',
+        'price',
+        'discount',
+        'tax',
     ];
 
 

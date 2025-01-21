@@ -233,7 +233,7 @@
             </div>
 
 
-            {{-- Additional Details --}}
+            {{-- Additional Details
             <div class="row">
                 <div class="col-md-12">
                     <div class="card card-table">
@@ -309,7 +309,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
             {{-- Payment Details --}}
             <div class="row">

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('sale_id');
             $table->unsignedBigInteger('product_id');
-            $table->unsignedBigInteger('batch_id');
+            $table->unsignedBigInteger('batch_id')->nullable();
             $table->unsignedBigInteger('location_id');
             $table->integer('quantity');
             $table->enum('price_type', ['retail', 'wholesale', 'special']);

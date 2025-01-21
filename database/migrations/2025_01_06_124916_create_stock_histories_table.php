@@ -11,15 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('stock_histories', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('loc_batch_id');
-            $table->integer('quantity');
-            $table->enum('stock_type', ['opening_stock', 'purchase', 'purchase_return','sale', 'transfer_in', 'transfer_out']);
-            $table->timestamps();
+            Schema::create('stock_histories', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->unsignedBigInteger('loc_batch_id');
+                $table->integer('quantity');
+                $table->enum('stock_type', [
+                    'opening_stock',
+                    'purchase',
+                    'purchase_return',
+                    'sale',
+                    'sales_return_with_bill',
+                    'sales_return_without_bill',
+                    'transfer_in',
+                    'transfer_out',
+                    'adjustment'
+                ]);
+                $table->timestamps();
 
-            $table->foreign('loc_batch_id')->references('id')->on('location_batches')->onDelete('cascade');
-        });
+                $table->foreign('loc_batch_id')->references('id')->on('location_batches')->onDelete('cascade');
+            });
+
     }
 
     /**

@@ -28,87 +28,35 @@
                 </div>
             </div>
 
-            <div>
-                <div class="collapse" id="collapseExample">
-                    <div class="card card-body mb-4">
-                        <div class="student-group-form">
-                            <div class="row">
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
+            <div class="collapse" id="collapseExample">
+                <div class="card card-body mb-4">
+                    <div class="student-group-form">
+                        <div class="row">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group local-forms">
+                                    <label>Product <span class="login-danger">*</span></label>
+                                    <select class="form-control select" id="productNameFilter">
+                                        <option value="">Select Product</option>
+                                        <!-- Populate with product options -->
+                                    </select>
                                 </div>
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group local-forms">
+                                    <label>Category <span class="login-danger">*</span></label>
+                                    <select class="form-control select" id="categoryFilter">
+                                        <option value="">Select Category</option>
+                                        <!-- Populate with category options -->
+                                    </select>
                                 </div>
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-3 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4 col-md-6">
-                                    <div class="form-group local-forms">
-                                        <label>Gender <span class="login-danger">*</span></label>
-                                        <select class="form-control select">
-                                            <option>Select Gender</option>
-                                            <option>Female</option>
-                                            <option>Male</option>
-                                            <option>Others</option>
-                                        </select>
-                                    </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group local-forms">
+                                    <label>Brand <span class="login-danger">*</span></label>
+                                    <select class="form-control select" id="brandFilter">
+                                        <option value="">Select Brand</option>
+                                        <!-- Populate with brand options -->
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -213,7 +161,7 @@
             </div>
         </div>
 
-       
+
 
          {{-- Delete modal --}}
     <div id="deleteModal" class="modal custom-modal fade" role="dialog">

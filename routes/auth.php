@@ -41,7 +41,3 @@ Route::middleware('auth')->group(function () {
 
 
 
-Route::middleware(['auth', 'check.session'])->group(function () {
-    Route::get('/dashboard', [AuthenticationController::class, 'dashboard'])->name('dashboard');
-    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
-});

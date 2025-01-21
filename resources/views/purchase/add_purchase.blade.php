@@ -2,80 +2,125 @@
 @section('content')
     <div class="content container-fluid">
         <style>
-            /* Your existing CSS styles... */
-            .login-fields1 { display: none; }
-            .login-fields2 { display: none; }
-            .login-fields3 { display: none; }
-            .hidden+.hidden2 { display: none; }
-            .hiddenway_two_action { display: none; }
+            /* Compact and Neat Table Styles */
             .table-container {
                 width: 100%;
-                max-width: 100%;
                 overflow-x: auto;
-                margin-bottom: 10px;
+                margin-bottom: 2px;
                 font-family: Arial, sans-serif;
             }
+
             .datatable {
                 width: 100%;
                 border-collapse: collapse;
                 border: 1px solid #ddd;
-                font-size: 12px;
+                font-size: 12px; /* Reduced font size for compactness */
             }
+
             .datatable th,
             .datatable td {
-                padding: 2px 4px;
+                padding: 2px 2px; /* Reduced padding for compactness */
                 text-align: center;
                 vertical-align: middle;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+
             .datatable th {
                 background-color: #4CAF50;
                 color: white;
                 font-weight: bold;
-                min-width: 70px;
-                padding: 2px 4px;
-                font-size: 11px;
-                line-height: 1;
+                min-width: 50px;
+                font-size: 12px; /* Reduced font size for header */
+                line-height: 1; /* Reduced line height for compactness */
             }
+
             .datatable tbody tr {
                 border-bottom: 1px solid #ddd;
+                height: 20px; /* Reduced row height */
             }
+
             .datatable tbody tr:last-child {
                 border-bottom: none;
             }
+
             .datatable tbody tr:hover {
-                background-color: #f1f1f1;
+                background-color: #f9f9f9;
             }
+
             .datatable input[type="number"],
+            .datatable input[type="text"],
             .datatable select {
-                width: 60px;
-                height: 24px;
+                width: 80px; /* Adjusted width for inputs */
+                height: 30px; /* Reduced input height */
                 text-align: center;
-                padding: 2px;
+                padding: 1px; /* Reduced padding */
                 border: 1px solid #ccc;
                 border-radius: 2px;
-                font-size: 11px;
+                font-size: 12px; /* Reduced font size for inputs */
             }
+            .datatable input[type="date"]{
+                width: 90px; /* Adjusted width for inputs */
+                height: 30px; /* Reduced input height */
+                text-align: center;
+                padding: 1px; /* Reduced padding */
+                border: 1px solid #ccc;
+                border-radius: 2px;
+                font-size: 12px; /* Reduced font size for inputs */
+            }
+
             .datatable .btn-danger {
-                padding: 2px 4px;
+                padding: 1px 3px; /* Reduced padding for buttons */
                 background-color: #e74c3c;
                 border: none;
                 color: white;
                 border-radius: 2px;
-                font-size: 11px;
+                font-size: 9px; /* Reduced font size for buttons */
+                cursor: pointer; /* Added cursor pointer for better UX */
             }
+
             .datatable .btn-danger:hover {
                 background-color: #c0392b;
             }
+
             .table-footer {
                 text-align: right;
-                margin-top: 10px;
+                margin-top: 5px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 12px; /* Reduced font size for footer */
             }
+            table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: middle; /* To ensure text alignment doesn't look cramped */
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .input-field {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .total {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .fa-trash-alt {
+            color: #ff0000;
+            cursor: pointer;
+        }
+        .table-primary {
+            background-color: #f2f2f2;
+        }
         </style>
+
         <div class="row">
             <div class="page-header">
                 <div class="row align-items-center">
@@ -222,18 +267,18 @@
                                         <thead>
                                             <tr class="table-primary">
                                                 <th>#</th>
-                                                <th>Product Name</th>
-                                                <th>Purchase Quantity</th>
-                                                <th>Unit Cost (Before Discount)</th>
-                                                <th>Discount Percent</th>
-                                                <th>Unit Cost</th>
-                                                <th>Retail Cost</th>
-                                                <th>Wholesale Cost</th>
-                                                <th>Special Cost</th>
-                                                <th>Max Retail Cost</th>
-                                                <th>Sub Total</th>
-                                                <th>Profit Margin%</th>
-                                                <th>Expiry Date%</th>
+                                                <th>Product<br>Name</th>
+                                                <th>Purchase<br>Quantity</th>
+                                                <th>Unit Cost<br>(Before Discount)</th>
+                                                <th>Discount<br>Percent</th>
+                                                <th>Unit<br>Cost</th>
+                                                <th>Retail<br>Price</th>
+                                                <th>Wholesale<br>Price</th>
+                                                <th>Special<br>Price</th>
+                                                <th>Max Retail<br>Price</th>
+                                                <th>Sub<br>Total</th>
+                                                <th>Profit<br>Margin%</th>
+                                                <th>Expiry<br>Date</th>
                                                 <th>Batch</th>
                                                 <th><i class="fas fa-trash-alt"></i></th>
                                             </tr>
