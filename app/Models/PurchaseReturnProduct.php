@@ -28,8 +28,8 @@ class PurchaseReturnProduct extends Model
         return $this->belongsTo(Product::class, 'product_id');
     }
 
-
-
-
-
+    public function batch()
+    {
+        return $this->belongsTo(Batch::class, 'batch_no');
+    }
 }

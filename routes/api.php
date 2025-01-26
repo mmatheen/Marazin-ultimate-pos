@@ -29,6 +29,7 @@ use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleReturnController;
 use App\Http\Controllers\SalesReturnController;
+use App\Http\Controllers\StockTransferController;
 
 /*
 |--------------------------------------------------------------------------
@@ -212,12 +213,15 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
 
   // Store a new purchase
 Route::post('/purchases/store', [PurchaseController::class, 'store']);
+// web.php
+Route::get('/purchase-returns/get-product-details/{purchaseId}/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
 
 
 Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
 Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
 Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
-Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store']);
+Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
+Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.store');
 
 Route::post('/sales/store', [SaleController::class, 'store']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
@@ -226,3 +230,16 @@ Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpening
 Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
 Route::get('/search/sales', [SaleController::class, 'searchSales']);
+
+
+
+
+Route::post('/stock-transfer/store', [StockTransferController::class, 'store'])->name('stock-transfer.store');
+
+use App\Http\Controllers\StockAdjustmentController;
+
+Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
+Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
+Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
+Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'update'])->name('stock-adjustments.update');
+Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');

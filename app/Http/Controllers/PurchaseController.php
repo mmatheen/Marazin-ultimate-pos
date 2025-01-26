@@ -522,4 +522,26 @@ class PurchaseController extends Controller
         // Return the purchase along with related purchase products and payment info
         return response()->json(['purchase' => $purchase], 200);
     }
+
+
+    public function getPurchaseProductsBySupplier($supplierId)
+    {
+        try {
+            // Fetch purchases related to the supplier with their products and specific batches
+            $purchases = Purchase::with(['purchaseProducts.product', 'purchaseProducts.batch'])
+                ->where('supplier_id', $supplierId)
+                ->get();
+
+            // Check if any purchases are found
+            if ($purchases->isEmpty()) {
+                return response()->json(['message' => 'No purchases found for this supplier.'], 404);
+            }
+
+            // Return the purchases along with related purchase products and batches
+            return response()->json(['purchases' => $purchases], 200);
+        } catch (\Exception $e) {
+            // Return a JSON response with the error message
+            return response()->json(['message' => 'An error occurred while fetching purchase products.'], 500);
+        }
+    }
 }

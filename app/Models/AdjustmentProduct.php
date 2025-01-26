@@ -5,29 +5,32 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class StockTransferProduct extends Model
+class AdjustmentProduct extends Model
 {
     use HasFactory;
+
     protected $fillable = [
-        'stock_transfer_id',
+        'stock_adjustment_id',
         'product_id',
         'batch_id',
         'quantity',
         'unit_price',
-        'sub_total'
-
+        'subtotal',
     ];
 
-    public function stockTransfer()
+    // Relationship with StockAdjustment
+    public function stockAdjustment()
     {
-        return $this->belongsTo(StockTransfer::class);
+        return $this->belongsTo(StockAdjustment::class);
     }
 
+    // Relationship with Product
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
 
+    // Relationship with Batch
     public function batch()
     {
         return $this->belongsTo(Batch::class);

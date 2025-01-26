@@ -682,6 +682,7 @@ $(document).ready(function () {
             data: JSON.stringify(saleData),
             success: function (response) {
                 if (response.status === 200) {
+                    document.getElementsByClassName('successSound')[0].play();
                     toastr.success('Sale recorded successfully!');
                     var printWindow = window.open('', '_blank');
                     printWindow.document.write(response.invoice_html);

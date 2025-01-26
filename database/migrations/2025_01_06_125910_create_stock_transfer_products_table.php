@@ -13,7 +13,18 @@ return new class extends Migration
     {
         Schema::create('stock_transfer_products', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('stock_transfer_id');
+            $table->unsignedBigInteger('product_id');
+            $table->unsignedBigInteger('batch_id');
+            $table->integer('quantity');
+            $table->decimal('unit_price', 10, 2);
+            $table->decimal('sub_total', 10, 2);
             $table->timestamps();
+
+            // Foreign key constraints
+            $table->foreign('stock_transfer_id')->references('id')->on('stock_transfers')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products');
+            $table->foreign('batch_id')->references('id')->on('batches');
         });
     }
 

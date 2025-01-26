@@ -115,7 +115,7 @@
                                 name: product.product.product_name,
                                 quantity: product.quantity,
                                 price: product.unit_cost,
-                                batches: product.batch ? [product.batch] : []
+                                batches: product.product.batches || []
                             }))
                         );
                         initAutocomplete(allProducts);
@@ -461,7 +461,7 @@
                             <span class="close-btn" id="closeBtn">&times;</span>
                             <h2>Purchase Return Details</h2>
                             <h2>Reference No: ${purchaseReturn.reference_no}</h2>
-                           <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
+                            <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
                             <p><b>Supplier:</b> ${supplier}</p>
                             <p><b>Business Location:</b> ${location}</p>
                             <table>
@@ -569,7 +569,6 @@
                 success: function(response) {
                     if (response.purchase_return) {
                         populateForm(response.purchase_return);
-                        $('#productSearchInput').prop('disabled', true);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -686,140 +685,5 @@
         }
 
         fetchData();
-
-        // View button click to show modal
-        $('#purchase_return_list tbody').on('click', '.view-btn', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            const purchaseId = $(this).data('id'); // Get purchase ID directly from data attribute
-
-            // Fetch purchase details using AJAX
-            $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.purchase_return) {
-                        const purchaseReturn = response.purchase_return;
-                        const supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        const location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
-
-                        // Dynamically generate products table
-                        const productsHtml = purchaseReturn.purchase_return_products.length > 0 ?
-                            purchaseReturn.purchase_return_products.map((product, index) => `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${product.product.product_name}</td>
-                                    <td>$ ${parseFloat(product.unit_price).toFixed(2)}</td>
-                                    <td>${product.quantity} Pc(s)</td>
-                                    <td>$ ${parseFloat(product.subtotal).toFixed(2)}</td>
-                                </tr>
-                            `).join('') :
-                            `<tr><td colspan="5" class="text-center">No products found for this purchase return.</td></tr>`;
-
-                        const netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
-                        const returnTax = parseFloat(purchaseReturn.tax_amount || 0);
-                        const returnTotal = netTotal + returnTax;
-
-                        // Inject content into modal
-                        const modalContent = `
-                            <span class="close-btn" id="closeBtn">&times;</span>
-                            <h2>Purchase Return Details</h2>
-                            <h2>Reference No: ${purchaseReturn.reference_no}</h2>
-                            <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
-                            <p><b>Supplier:</b> ${supplier}</p>
-                            <p><b>Business Location:</b> ${location}</p>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Product Name</th>
-                                        <th>Unit Price</th>
-                                        <th>Return Quantity</th>
-                                        <th>Return Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${productsHtml}
-                                </tbody>
-                            </table>
-                            <div class="footer">
-                                <div>
-                                    <p><b>Net Total Amount:</b> $${netTotal.toFixed(2)}</p>
-                                    <p><b>Net Total Return Tax:</b> $${returnTax.toFixed(2)}</p>
-                                    <p><b>Return Total:</b> $${returnTotal.toFixed(2)}</p>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button class="button print-btn">Print</button>
-                                    <button class="button close">Close</button>
-                                </div>
-                            </div>
-                        `;
-
-                        $('#myModal .modal-content').html(modalContent); // Inject content into modal
-                        $('#myModal').css("display", "block");
-
-                        var modal = document.getElementById("myModal");
-                        var span = document.getElementById("closeBtn");
-                        span.onclick = function() {
-                            modal.style.display = "none";
-                        }
-
-                        // Modal close button
-                        $('#myModal').on('click', '.close', function() {
-                            $('#myModal').hide();
-                        });
-
-                        // Print button
-                        $('#myModal').off('click').on('click', '.print-btn', function() {
-                            window.print();
-                        });
-
-                    } else {
-                        alert("No details found for this purchase.");
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching purchase details:', error);
-                    alert("Error fetching purchase details.");
-                }
-            });
-        });
-
-        // Add Payment button click to show modal
-        $('#purchase_return_list tbody').on('click', '.add-payment-btn', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            const purchaseId = $(this).data('id'); // Get purchase ID directly from data attribute
-
-            // Fetch purchase return details using AJAX
-            $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.purchase_return) {
-                        let purchaseReturn = response.purchase_return;
-                        let supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        let location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
-                        let netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
-
-                        // Populate modal fields
-                        $('#supplierDetails').text(supplier);
-                        $('#referenceNo').text(purchaseReturn.reference_no);
-                        $('#locationDetails').text(location);
-                        $('#totalAmount').text(netTotal.toFixed(2));
-                        $('#payAmount').text(netTotal.toFixed(2));
-
-                        // Open the modal
-                        $('#paymentModal').modal('show');
-                    } else {
-                        alert("No details found for this purchase return.");
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching purchase return details:', error);
-                    alert("Error fetching purchase return details.");
-                }
-            });
-        });
     });
 </script>

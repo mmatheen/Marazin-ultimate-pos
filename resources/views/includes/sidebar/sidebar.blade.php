@@ -101,8 +101,8 @@
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Adjustment</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="">List Stock Adjustments</a></li>
-                        <li><a href="">Add Stock Adjustment</a></li>
+                        <li><a href="{{ route('list-stock-adjustment') }}" class="{{ set_active(['list-stock-adjustment'])}}">List Stock Adjustments</a></li>
+                        <li><a href="{{ route('add-stock-adjustment') }}" class="{{ set_active(['add-stock-adjustment'])}}">Add Stock Adjustment</a></li>
                     </ul>
                 </li>
                 <li class="submenu">

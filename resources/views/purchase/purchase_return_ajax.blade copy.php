@@ -67,7 +67,8 @@
                     if (data.status === 200 && Array.isArray(data.message)) {
                         targetSelect.html(`<option selected disabled>${placeholder}</option>`);
                         data.message.forEach(item => {
-                            const option = $('<option></option>').val(item.id).text(item.name || item.first_name + ' ' + item.last_name);
+                            const option = $('<option></option>').val(item.id).text(item
+                                .name || item.first_name + ' ' + item.last_name);
                             if (item.id == selectedId) {
                                 option.attr('selected', 'selected');
                             }
@@ -88,7 +89,8 @@
 
         // Fetch supplier and location data
         fetchDropdownData('/supplier-get-all', $('#supplier-id'), "Select Supplier");
-        fetchDropdownData('/location-get-all', $('#location-id'), "Select Location", 2); // Default to location with ID 2
+        fetchDropdownData('/location-get-all', $('#location-id'), "Select Location",
+            2); // Default to location with ID 2
 
         // Supplier change handler
         $('#supplier-id').change(function() {
@@ -124,7 +126,8 @@
                     }
                 },
                 error: function(xhr) {
-                    const message = xhr.status === 404 ? 'No purchases found for this supplier.' : 'An error occurred while fetching purchase products.';
+                    const message = xhr.status === 404 ? 'No purchases found for this supplier.' :
+                        'An error occurred while fetching purchase products.';
                     alert(message);
                 }
             });
@@ -135,7 +138,8 @@
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = products.filter(product => product.name && product.name.toLowerCase().includes(searchTerm));
+                    const filteredProducts = products.filter(product => product.name && product.name
+                        .toLowerCase().includes(searchTerm));
                     response(filteredProducts.map(product => ({
                         label: `${product.name}`,
                         value: product.name,
@@ -169,7 +173,8 @@
                 let newQuantity = parseInt(quantityInput.val()) + 1;
 
                 if (newQuantity > maxQuantity) {
-                    toastr.warning(`Cannot enter more than ${maxQuantity} for this product.`, 'Quantity Limit Exceeded');
+                    toastr.warning(`Cannot enter more than ${maxQuantity} for this product.`,
+                        'Quantity Limit Exceeded');
                     newQuantity = maxQuantity;
                 }
 
@@ -181,29 +186,23 @@
                 const quantity = 1; // Initial quantity set to 1 (can be changed later)
                 const subtotal = product.price * quantity;
 
-                // Check if the product has batch information
-                if (!product.batches || product.batches.length === 0) {
-                    toastr.warning('Selected product does not have batch information.', 'Warning');
-                    return;
-                }
-
                 // Generate batch options
-                const batchOptions = product.batches.map(batch => `
-                    <option value="${batch.id}" data-unit-cost="${batch.unit_cost}">${batch.batch_no} - Qty: ${batch.qty} - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date}</option>
-                `).join('');
+                const batchOptions = (product.batches || []).map(batch => `
+                <option value="${batch.id}" data-unit-cost="${batch.unit_cost}">${batch.batch_no} - Qty: ${batch.qty} - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date}</option>
+            `).join('');
 
                 // Generate the new row
                 const newRow = `
-                    <tr data-id="${product.id}">
-                        <td>${product.id}</td>
-                        <td>${product.name || '-'}</td>
-                        <td><select class="form-control batch-select">${batchOptions}</select></td>
-                        <td><input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${product.quantity}"></td>
-                        <td class="unit-price">${product.price || '0'}</td>
-                        <td class="sub-total">${subtotal.toFixed(2)}</td>
-                        <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `;
+                <tr data-id="${product.id}">
+                    <td>${product.id}</td>
+                    <td>${product.name || '-'}</td>
+                    <td><select class="form-control batch-select">${batchOptions}</select></td>
+                    <td><input type="number" class="form-control purchase-quantity" value="${quantity}" min="1" max="${product.quantity}"></td>
+                    <td class="unit-price">${product.price || '0'}</td>
+                    <td class="sub-total">${subtotal.toFixed(2)}</td>
+                    <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `;
 
                 // Add the new row to the DataTable
                 const $newRow = $(newRow);
@@ -312,7 +311,8 @@
             formData.set('return_date', formattedReturnDate);
 
             // Determine the URL and request type based on whether we're updating or creating
-            const url = purchaseReturnId ? `/purchase_returns/update/${purchaseReturnId}` : '/purchase_returns/store';
+            const url = purchaseReturnId ? `/purchase_returns/update/${purchaseReturnId}` :
+                '/purchase_returns/store';
             const requestType = purchaseReturnId ? 'POST' : 'POST';
 
             $.ajax({
@@ -336,8 +336,11 @@
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error(purchaseReturnId ? 'Error updating purchase return:' : 'Error adding purchase return:', error);
-                    toastr.error(`Something went wrong while ${purchaseReturnId ? 'updating' : 'adding'} the purchase return.`, 'Error');
+                    console.error(purchaseReturnId ? 'Error updating purchase return:' :
+                        'Error adding purchase return:', error);
+                    toastr.error(
+                        `Something went wrong while ${purchaseReturnId ? 'updating' : 'adding'} the purchase return.`,
+                        'Error');
                 }
             });
         });
@@ -377,16 +380,22 @@
         // Fetch data with AJAX
         function fetchData() {
             $.ajax({
-                url: '/purchase-returns/get-All', // API endpoint
+                url: 'purchase-returns/get-All', // API endpoint
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
                     if (response && response.purchases_Return) {
                         let tableData = response.purchases_Return.map(purchase => {
-                            let supplierName = purchase.supplier ? `${purchase.supplier.first_name} ${purchase.supplier.last_name}` : 'Unknown Supplier';
-                            let locationName = purchase.location ? purchase.location.name : 'Unknown Location';
-                            let grandTotal = purchase.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
-                            let paymentDue = grandTotal - parseFloat(purchase.final_total || 0);
+                            let supplierName = purchase.supplier ?
+                                `${purchase.supplier.first_name} ${purchase.supplier.last_name}` :
+                                'Unknown Supplier';
+                            let locationName = purchase.location ? purchase.location.name :
+                                'Unknown Location';
+                            let grandTotal = purchase.purchase_return_products.reduce((
+                                total, product) => total + parseFloat(product
+                                .subtotal), 0);
+                            let paymentDue = grandTotal - parseFloat(purchase.final_total ||
+                                0);
 
                             return [
                                 purchase.return_date,
@@ -398,16 +407,16 @@
                                 grandTotal.toFixed(2), // Format to 2 decimal places
                                 paymentDue.toFixed(2), // Format to 2 decimal places
                                 `<div class="dropdown dropdown-action">
-                                    <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                    </a>
-                                    <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item view-btn" href="#" data-id="${purchase.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                        <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                        <a class="dropdown-item edit-link" href="/purchase-returns/edit/${purchase.id}" data-id="${purchase.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                        <a class="dropdown-item add-payment-btn" href="#" data-id="${purchase.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
-                                    </div>
-                                </div>`
+                                <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <a class="dropdown-item view-btn" href="#" data-id="${purchase.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
+                                    <a class="dropdown-item edit-link" href="/purchase-returns/edit/${purchase.id}" data-id="${purchase.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
+                                    <a class="dropdown-item add-payment-btn" href="#" data-id="${purchase.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
+                                </div>
+                            </div>`
                             ];
                         });
 
@@ -430,68 +439,75 @@
 
             // Fetch purchase details using AJAX
             $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
+                url: `purchase-returns/get-Details/${purchaseId}`,
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
                     if (response && response.purchase_return) {
                         const purchaseReturn = response.purchase_return;
-                        const supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        const location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
+                        const supplier = purchaseReturn.supplier ?
+                            `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` :
+                            'Unknown Supplier';
+                        const location = purchaseReturn.location ? purchaseReturn.location
+                            .name : 'Unknown Location';
 
                         // Dynamically generate products table
-                        const productsHtml = purchaseReturn.purchase_return_products.length > 0 ?
+                        const productsHtml = purchaseReturn.purchase_return_products
+                            .length > 0 ?
                             purchaseReturn.purchase_return_products.map((product, index) => `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${product.product.product_name}</td>
-                                    <td>$ ${parseFloat(product.unit_price).toFixed(2)}</td>
-                                    <td>${product.quantity} Pc(s)</td>
-                                    <td>$ ${parseFloat(product.subtotal).toFixed(2)}</td>
-                                </tr>
-                            `).join('') :
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${product.product.product_name}</td>
+                                <td>$ ${parseFloat(product.unit_price).toFixed(2)}</td>
+                                <td>${product.quantity} Pc(s)</td>
+                                <td>$ ${parseFloat(product.subtotal).toFixed(2)}</td>
+                            </tr>
+                        `).join('') :
                             `<tr><td colspan="5" class="text-center">No products found for this purchase return.</td></tr>`;
 
-                        const netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
+                        const netTotal = purchaseReturn.purchase_return_products.reduce((
+                                total, product) => total + parseFloat(product.subtotal),
+                            0);
                         const returnTax = parseFloat(purchaseReturn.tax_amount || 0);
                         const returnTotal = netTotal + returnTax;
 
                         // Inject content into modal
                         const modalContent = `
-                            <span class="close-btn" id="closeBtn">&times;</span>
-                            <h2>Purchase Return Details</h2>
-                            <h2>Reference No: ${purchaseReturn.reference_no}</h2>
-                           <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
-                            <p><b>Supplier:</b> ${supplier}</p>
-                            <p><b>Business Location:</b> ${location}</p>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Product Name</th>
-                                        <th>Unit Price</th>
-                                        <th>Return Quantity</th>
-                                        <th>Return Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${productsHtml}
-                                </tbody>
-                            </table>
-                            <div class="footer">
-                                <div>
-                                    <p><b>Net Total Amount:</b> $${netTotal.toFixed(2)}</p>
-                                    <p><b>Net Total Return Tax:</b> $${returnTax.toFixed(2)}</p>
-                                    <p><b>Return Total:</b> $${returnTotal.toFixed(2)}</p>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button class="button print-btn">Print</button>
-                                    <button class="button close">Close</button>
-                                </div>
-                            </div>
-                        `;
+                        <span class="close-btn" id="closeBtn">&times;</span>
+                        <h2>Purchase Return Details</h2>
+                        <h2>Reference No: ${purchaseReturn.reference_no}</h2>
+                        <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
+                        <p><b>Supplier:</b> ${supplier}</p>
+                        <p><b>Business Location:</b> ${location}</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Product Name</th>
+                                    <th>Unit Price</th>
+                                    <th>Return Quantity</th>
+                                    <th>Return Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${productsHtml}
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <div>
+                            <p><b>Net Total Amount:</b> $${netTotal.toFixed(2)}</p>
+                            <p><b>Net Total Return Tax:</b> $${returnTax.toFixed(2)}</p>
+                            <p><b>Return Total:</b> $${returnTotal.toFixed(2)}</p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="button print-btn">Print</button>
+                            <button class="button close">Close</button>
+                        </div>
+                    </div>
+                `;
 
-                        $('#myModal .modal-content').html(modalContent); // Inject content into modal
+                        $('#myModal .modal-content').html(
+                            modalContent); // Inject content into modal
                         $('#myModal').css("display", "block");
 
                         var modal = document.getElementById("myModal");
@@ -528,15 +544,20 @@
 
             // Fetch purchase return details using AJAX
             $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
+                url: `purchase-returns/get-Details/${purchaseId}`,
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
                     if (response && response.purchase_return) {
                         let purchaseReturn = response.purchase_return;
-                        let supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        let location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
-                        let netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
+                        let supplier = purchaseReturn.supplier ?
+                            `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` :
+                            'Unknown Supplier';
+                        let location = purchaseReturn.location ? purchaseReturn.location
+                            .name : 'Unknown Location';
+                        let netTotal = purchaseReturn.purchase_return_products.reduce((
+                                total, product) => total + parseFloat(product.subtotal),
+                            0);
 
                         // Populate modal fields
                         $('#supplierDetails').text(supplier);
@@ -569,7 +590,6 @@
                 success: function(response) {
                     if (response.purchase_return) {
                         populateForm(response.purchase_return);
-                        $('#productSearchInput').prop('disabled', true);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -586,13 +606,7 @@
 
                 // Populate products
                 data.purchase_return_products.forEach(product => {
-                    addProductToTable({
-                        id: product.product.id,
-                        name: product.product.product_name,
-                        quantity: product.quantity,
-                        price: product.unit_price,
-                        batches: product.product.batches || []
-                    });
+                    addProductToTable(product);
                 });
 
                 // Show the attached document if exists
@@ -606,220 +620,110 @@
             }
         }
 
-        function formatDate(inputDate) {
-            const dateParts = inputDate.split("-");
-            if (dateParts.length === 3) {
-                return `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        function addProductToTable(product) {
+        const existingRow = $(`#purchase_return tbody tr[data-id="${product.product_id}"]`);
+
+        if (existingRow.length > 0) {
+            const quantityInput = existingRow.find('.purchase-quantity');
+            const maxQuantity = parseInt(quantityInput.attr('max')) || 0;
+            let newQuantity = parseInt(quantityInput.val()) + parseInt(product.quantity);
+
+            if (newQuantity > maxQuantity) {
+                toastr.warning(`Cannot enter more than ${maxQuantity} for this product.`, 'Quantity Limit Exceeded');
+                newQuantity = maxQuantity;
             }
-            return inputDate;
-        }
 
-        function resetFormAndValidation() {
-            // Reset the form
-            $('#addAndUpdatePurchaseReturnForm')[0].reset();
-            $('#addAndUpdatePurchaseReturnForm').validate().resetForm();
-            $('#addAndUpdatePurchaseReturnForm').find('.is-invalid').removeClass('is-invalid');
+            quantityInput.val(newQuantity);
+            updateRow(existingRow);
+            updateFooter();
+        } else {
+            const subtotal = product.unit_price * product.quantity;
+            const batchOptions = (product.product.batches || []).map(batch => `
+                <option value="${batch.id}" data-unit-cost="${batch.unit_cost}" ${batch.id == product.batch_no ? 'selected' : ''}>
+                    ${batch.batch_no} - Qty: ${batch.qty} - Unit Price: ${batch.unit_cost} - Exp: ${batch.expiry_date}
+                </option>
+            `).join('');
 
-            // Clear the DataTable
-            $('#purchase_return').DataTable().clear().draw();
+            const newRow = `
+                <tr data-id="${product.product_id}">
+                    <td>${product.product_id}</td>
+                    <td>${product.product.product_name || '-'} </td>
+                    <td>
+                        <select class="form-control batch-select">
+                           ${batchOptions}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="form-control purchase-quantity" value="${product.quantity}" min="1" max="${product.quantity}">
+                    </td>
+                    <td class="unit-price">${product.unit_price || '0'}</td>
+                    <td class="sub-total">${subtotal.toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm delete-product">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
 
-            // Reset the footer values
-            $('#total-items').text('0.00');
-            $('#net-total-amount').text('0.00');
+            const $newRow = $(newRow);
+            $('#purchase_return').DataTable().row.add($newRow).draw();
 
-            // Disable the product search input
-            $('#productSearchInput').prop('disabled', true);
+            updateFooter();
+            toastr.success('New product added to the table!', 'Success');
 
-            // Hide file preview
-            $("#pdfViewer").hide();
-            $("#selectedImage").hide();
-        }
+            $newRow.find('.purchase-quantity').on('input', function() {
+                updateRow($newRow);
+                updateFooter();
+            });
 
-        // Initialize DataTable
-        var table = $('#purchase_return_list').DataTable();
-
-        // Fetch data with AJAX
-        function fetchData() {
-            $.ajax({
-                url: '/purchase-returns/get-All', // API endpoint
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.purchases_Return) {
-                        let tableData = response.purchases_Return.map(purchase => {
-                            let supplierName = purchase.supplier ? `${purchase.supplier.first_name} ${purchase.supplier.last_name}` : 'Unknown Supplier';
-                            let locationName = purchase.location ? purchase.location.name : 'Unknown Location';
-                            let grandTotal = purchase.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
-                            let paymentDue = grandTotal - parseFloat(purchase.final_total || 0);
-
-                            return [
-                                purchase.return_date,
-                                purchase.reference_no,
-                                purchase.id,
-                                locationName,
-                                supplierName,
-                                'Due', // Assuming 'Due' as a static value for Payment Status
-                                grandTotal.toFixed(2), // Format to 2 decimal places
-                                paymentDue.toFixed(2), // Format to 2 decimal places
-                                `<div class="dropdown dropdown-action">
-                                    <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                    </a>
-                                    <div class="dropdown-menu dropdown-menu-end">
-                                        <a class="dropdown-item view-btn" href="#" data-id="${purchase.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                        <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                        <a class="dropdown-item edit-link" href="/purchase-returns/edit/${purchase.id}" data-id="${purchase.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                        <a class="dropdown-item add-payment-btn" href="#" data-id="${purchase.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
-                                    </div>
-                                </div>`
-                            ];
-                        });
-
-                        // Initialize or update the DataTable
-                        table.clear().rows.add(tableData).draw();
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching purchases:', error);
-                }
+            $newRow.find('.batch-select').on('change', function() {
+                const selectedOption = $(this).find('option:selected');
+                const unitCost = parseFloat(selectedOption.data('unit-cost')) || 0;
+                $newRow.find('.unit-price').text(unitCost.toFixed(2));
+                updateRow($newRow);
+                updateFooter();
             });
         }
 
-        fetchData();
+        function updateRow($row) {
+            const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+            const price = parseFloat($row.find('.unit-price').text()) || 0;
+            const subTotal = quantity * price;
 
-        // View button click to show modal
-        $('#purchase_return_list tbody').on('click', '.view-btn', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            const purchaseId = $(this).data('id'); // Get purchase ID directly from data attribute
+            $row.find('.sub-total').text(subTotal.toFixed(2));
+        }
+    }
 
-            // Fetch purchase details using AJAX
-            $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.purchase_return) {
-                        const purchaseReturn = response.purchase_return;
-                        const supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        const location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
+    function formatDate(inputDate) {
+        const dateParts = inputDate.split("-");
+        if (dateParts.length === 3) {
+            const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+            return formattedDate;
+        }
+        return inputDate;
+    }
 
-                        // Dynamically generate products table
-                        const productsHtml = purchaseReturn.purchase_return_products.length > 0 ?
-                            purchaseReturn.purchase_return_products.map((product, index) => `
-                                <tr>
-                                    <td>${index + 1}</td>
-                                    <td>${product.product.product_name}</td>
-                                    <td>$ ${parseFloat(product.unit_price).toFixed(2)}</td>
-                                    <td>${product.quantity} Pc(s)</td>
-                                    <td>$ ${parseFloat(product.subtotal).toFixed(2)}</td>
-                                </tr>
-                            `).join('') :
-                            `<tr><td colspan="5" class="text-center">No products found for this purchase return.</td></tr>`;
+    function updateFooter() {
+        let totalItems = 0;
+        let netTotalAmount = 0;
 
-                        const netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
-                        const returnTax = parseFloat(purchaseReturn.tax_amount || 0);
-                        const returnTotal = netTotal + returnTax;
+        $('#purchase_return tbody tr').each(function() {
+            const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+            const price = parseFloat($(this).find('.unit-price').text()) || 0;
+            const subtotal = quantity * price;
 
-                        // Inject content into modal
-                        const modalContent = `
-                            <span class="close-btn" id="closeBtn">&times;</span>
-                            <h2>Purchase Return Details</h2>
-                            <h2>Reference No: ${purchaseReturn.reference_no}</h2>
-                            <p><b>Return Date:</b> ${purchaseReturn.return_date}</p>
-                            <p><b>Supplier:</b> ${supplier}</p>
-                            <p><b>Business Location:</b> ${location}</p>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Product Name</th>
-                                        <th>Unit Price</th>
-                                        <th>Return Quantity</th>
-                                        <th>Return Subtotal</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${productsHtml}
-                                </tbody>
-                            </table>
-                            <div class="footer">
-                                <div>
-                                    <p><b>Net Total Amount:</b> $${netTotal.toFixed(2)}</p>
-                                    <p><b>Net Total Return Tax:</b> $${returnTax.toFixed(2)}</p>
-                                    <p><b>Return Total:</b> $${returnTotal.toFixed(2)}</p>
-                                </div>
-                                <div style="display: flex; gap: 10px;">
-                                    <button class="button print-btn">Print</button>
-                                    <button class="button close">Close</button>
-                                </div>
-                            </div>
-                        `;
+            $(this).find('.sub-total').text(subtotal.toFixed(2));
 
-                        $('#myModal .modal-content').html(modalContent); // Inject content into modal
-                        $('#myModal').css("display", "block");
-
-                        var modal = document.getElementById("myModal");
-                        var span = document.getElementById("closeBtn");
-                        span.onclick = function() {
-                            modal.style.display = "none";
-                        }
-
-                        // Modal close button
-                        $('#myModal').on('click', '.close', function() {
-                            $('#myModal').hide();
-                        });
-
-                        // Print button
-                        $('#myModal').off('click').on('click', '.print-btn', function() {
-                            window.print();
-                        });
-
-                    } else {
-                        alert("No details found for this purchase.");
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching purchase details:', error);
-                    alert("Error fetching purchase details.");
-                }
-            });
+            totalItems += quantity;
+            netTotalAmount += subtotal;
         });
 
-        // Add Payment button click to show modal
-        $('#purchase_return_list tbody').on('click', '.add-payment-btn', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            const purchaseId = $(this).data('id'); // Get purchase ID directly from data attribute
+        $('#total-items').text(totalItems.toFixed(2));
+        $('#net-total-amount').text(netTotalAmount.toFixed(2));
+    }
 
-            // Fetch purchase return details using AJAX
-            $.ajax({
-                url: `/purchase-returns/get-Details/${purchaseId}`,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.purchase_return) {
-                        let purchaseReturn = response.purchase_return;
-                        let supplier = purchaseReturn.supplier ? `${purchaseReturn.supplier.first_name} ${purchaseReturn.supplier.last_name}` : 'Unknown Supplier';
-                        let location = purchaseReturn.location ? purchaseReturn.location.name : 'Unknown Location';
-                        let netTotal = purchaseReturn.purchase_return_products.reduce((total, product) => total + parseFloat(product.subtotal), 0);
 
-                        // Populate modal fields
-                        $('#supplierDetails').text(supplier);
-                        $('#referenceNo').text(purchaseReturn.reference_no);
-                        $('#locationDetails').text(location);
-                        $('#totalAmount').text(netTotal.toFixed(2));
-                        $('#payAmount').text(netTotal.toFixed(2));
 
-                        // Open the modal
-                        $('#paymentModal').modal('show');
-                    } else {
-                        alert("No details found for this purchase return.");
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching purchase return details:', error);
-                    alert("Error fetching purchase return details.");
-                }
-            });
-        });
     });
 </script>
