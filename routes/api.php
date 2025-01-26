@@ -233,13 +233,23 @@ Route::get('/search/sales', [SaleController::class, 'searchSales']);
 
 
 
-
-Route::post('/stock-transfer/store', [StockTransferController::class, 'store'])->name('stock-transfer.store');
+  //start Stock transfer route
+  Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
+  Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
+  // For creating a new stock transfer
+  Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
+  Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
+  Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
 use App\Http\Controllers\StockAdjustmentController;
 
-Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
+// Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
 Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
 Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
-Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'update'])->name('stock-adjustments.update');
+// Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'update'])->name('stock-adjustments.update');
 Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
+// For creating a new stock adjustment
+Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
+
+// For updating an existing stock adjustment
+Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);

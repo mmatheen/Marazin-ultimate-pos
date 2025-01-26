@@ -81,7 +81,7 @@ require __DIR__ . '/auth.php';
 
 
 
-  Route::middleware(['auth', 'check.session'])->group(function () {
+Route::middleware(['auth', 'check.session'])->group(function () {
 
     Route::group(['middleware' => function ($request, $next) {
 
@@ -317,10 +317,15 @@ require __DIR__ . '/auth.php';
 
     //stop  PurchaseReturn route
 
-    //start Stock transfer route
-    Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTranfer'])->name('list-stock-transfer');
+    //start Stock transfer route\
+    // Fetch all stock transfers
+    Route::get('/stock-transfers', [StockTransferController::class, 'index']);
+    Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
     Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
-    Route::post('/stock-transfer/store', [StockTransferController::class, 'store'])->name('stock-transfer.store');
+    // For creating a new stock transfer
+    Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
+    Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
+    Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
     //stop  Stock transfer route
 
@@ -400,36 +405,36 @@ require __DIR__ . '/auth.php';
     Route::get('/invoice/{id}/download', [SellController::class, 'downloadInvoice'])->name('invoice.download');
     Route::get('/getAllPosDetails', [SellController::class, 'getAllPosDetails']);
 
-      // Store a new purchase
-      Route::post('/purchases/store', [PurchaseController::class, 'store']);
-      Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
-      Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchaseProduct']);
-      Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
+    // Store a new purchase
+    Route::post('/purchases/store', [PurchaseController::class, 'store']);
+    Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+    Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchaseProduct']);
+    Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
 
 
-      Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
+    Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
 
 
-Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
-Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
-Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
-Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
-Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.update');
+    Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
+    Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
+    Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
+    Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
+    Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.update');
 
 
-//add stock adjustment
-Route::get('/add-stock-adjustment', [StockAdjustmentController::class, 'addStockAdjustment'])->name('add-stock-adjustment');
-Route::get('/list-stock-adjustment', [StockAdjustmentController::class, 'stockAdjustmentList'])->name('list-stock-adjustment');
+    //add stock adjustment
+    Route::get('/add-stock-adjustment', [StockAdjustmentController::class, 'addStockAdjustment'])->name('add-stock-adjustment');
+    Route::get('/list-stock-adjustment', [StockAdjustmentController::class, 'stockAdjustmentList'])->name('list-stock-adjustment');
 
-Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
-Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
-Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
-Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'update'])->name('stock-adjustments.update');
-Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
+    // Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
+    Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
+    Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
+    // Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'storeOrUpdate'])->name('stock-adjustments.update');
+    Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
 
+    // For creating a new stock adjustment
+    Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
+
+    // For updating an existing stock adjustment
+    Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
 });
-
-
-
-
-

@@ -14,18 +14,17 @@ use Illuminate\Support\Facades\DB;
 
 class StockAdjustmentController extends Controller
 {
-
     public function index()
     {
         // Fetch all stock adjustments with related products and location
         $stockAdjustments = StockAdjustment::with('adjustmentProducts.product', 'location')->get();
-
 
         return response()->json([
             'status' => 200,
             'stockAdjustment' => $stockAdjustments
         ]);
     }
+
     public function addStockAdjustment()
     {
         return view('stock_adjustment.add_stock_adjustment');
@@ -36,11 +35,10 @@ class StockAdjustmentController extends Controller
         return view('stock_adjustment.stock_adjustment');
     }
 
-    // Store a new stock adjustment
-
-    public function store(Request $request)
+    // Store or update stock adjustment
+    public function storeOrUpdate(Request $request, $id = null)
     {
-        // Validate the request (excluding reference_no since it will be auto-generated)
+        // Validate the request
         $request->validate([
             'date' => 'required|date',
             'location_id' => 'required|exists:locations,id',
@@ -55,19 +53,27 @@ class StockAdjustmentController extends Controller
         ]);
 
         // Use DB::transaction to handle the transaction
-        DB::transaction(function () use ($request) {
-            // Generate the reference number
-            $referenceNo = $this->generateReferenceNumber();
+        DB::transaction(function () use ($request, $id) {
+            // Determine if we are updating or creating a new stock adjustment
+            $stockAdjustment = $id ? StockAdjustment::findOrFail($id) : new StockAdjustment();
 
-            // Create the stock adjustment
-            $stockAdjustment = StockAdjustment::create([
-                'reference_no' => $referenceNo, // Auto-generated reference number
+            // Generate the reference number if creating a new adjustment
+            $referenceNo = $id ? $stockAdjustment->reference_no : $this->generateReferenceNumber();
+
+            // Update or create the stock adjustment
+            $stockAdjustment->fill([
+                'reference_no' => $referenceNo,
                 'date' => $request->date,
                 'location_id' => $request->location_id,
                 'adjustment_type' => $request->adjustment_type,
                 'total_amount_recovered' => $request->total_amount_recovered,
                 'reason' => $request->reason,
-            ]);
+            ])->save();
+
+            // Delete existing adjustment products if updating
+            if ($id) {
+                $stockAdjustment->adjustmentProducts()->delete();
+            }
 
             // Add products to the stock adjustment
             foreach ($request->products as $product) {
@@ -117,7 +123,7 @@ class StockAdjustmentController extends Controller
         // Return success response
         return response()->json([
             'status' => 200,
-            'message' => 'Stock adjustment created successfully!',
+            'message' => $id ? 'Stock adjustment updated successfully!' : 'Stock adjustment created successfully!',
         ]);
     }
 
@@ -143,15 +149,12 @@ class StockAdjustmentController extends Controller
         return view('stock_adjustments.show', compact('stockAdjustment'));
     }
 
-
     public function edit($id)
     {
         // Find the stock adjustment by ID
         $stockAdjustment = StockAdjustment::with('adjustmentProducts.product', 'location')->findOrFail($id);
 
         if (request()->ajax() || request()->is('api/*')) {
-
-
             return response()->json([
                 'status' => 200,
                 'stockAdjustment' => $stockAdjustment,
@@ -159,90 +162,5 @@ class StockAdjustmentController extends Controller
         }
 
         return view('stock_adjustment.add_stock_adjustment');
-     }
-
-    public function update(Request $request, $id)
-    {
-        // Validate the request
-        $request->validate([
-            'date' => 'required|date',
-            'location_id' => 'required|exists:locations,id',
-            'adjustment_type' => 'required|in:increase,decrease',
-            'total_amount_recovered' => 'nullable|numeric',
-            'reason' => 'nullable|string',
-            'products' => 'required|array',
-            'products.*.product_id' => 'required|exists:products,id',
-            'products.*.batch_id' => 'required|exists:batches,id',
-            'products.*.quantity' => 'required|numeric|min:1',
-            'products.*.unit_price' => 'required|numeric|min:0',
-        ]);
-
-        // Use DB::transaction to handle the transaction
-        DB::transaction(function () use ($request, $id) {
-            // Find the stock adjustment by ID
-            $stockAdjustment = StockAdjustment::findOrFail($id);
-
-            // Update the stock adjustment
-            $stockAdjustment->update([
-                'date' => $request->date,
-                'location_id' => $request->location_id,
-                'adjustment_type' => $request->adjustment_type,
-                'total_amount_recovered' => $request->total_amount_recovered,
-                'reason' => $request->reason,
-            ]);
-
-            // Delete existing adjustment products
-            $stockAdjustment->adjustmentProducts()->delete();
-
-            // Add updated products to the stock adjustment
-            foreach ($request->products as $product) {
-                $subtotal = $product['quantity'] * $product['unit_price'];
-
-                AdjustmentProduct::create([
-                    'stock_adjustment_id' => $stockAdjustment->id,
-                    'product_id' => $product['product_id'],
-                    'batch_id' => $product['batch_id'],
-                    'quantity' => $product['quantity'],
-                    'unit_price' => $product['unit_price'],
-                    'subtotal' => $subtotal,
-                ]);
-
-                // Update stock history and location batch quantity
-                $locationBatch = LocationBatch::where('batch_id', $product['batch_id'])
-                    ->where('location_id', $request->location_id)
-                    ->first();
-
-                if ($locationBatch) {
-                    $newQuantity = $request->adjustment_type === 'increase'
-                        ? $locationBatch->qty + $product['quantity']
-                        : $locationBatch->qty - $product['quantity'];
-
-                    $locationBatch->update(['qty' => $newQuantity]);
-
-                    // Record stock history
-                    StockHistory::create([
-                        'loc_batch_id' => $locationBatch->id,
-                        'quantity' => -$product['quantity'],
-                        'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
-                    ]);
-
-                    // Update the total quantity in the batches table
-                    $batch = Batch::find($product['batch_id']);
-                    if ($batch) {
-                        $newBatchQuantity = $request->adjustment_type === 'increase'
-                            ? $batch->qty + $product['quantity']
-                            : $batch->qty - $product['quantity'];
-
-                        $batch->update(['qty' => $newBatchQuantity]);
-                    }
-                }
-            }
-        });
-
-        // Return JSON response
-        return response()->json([
-            'status' => 200,
-            'message' => 'Stock adjustment updated successfully!',
-        ]);
     }
 }

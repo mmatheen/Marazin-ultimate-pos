@@ -12,19 +12,6 @@ use Illuminate\Support\Facades\DB;
 
 class StockTransferController extends Controller
 {
-     // Fetch all stock transfers
-     public function index()
-     {
-         // Fetch all stock transfers with related data (e.g., fromLocation, toLocation, products)
-         $stockTransfers = StockTransfer::with(['fromLocation', 'toLocation', 'stockTransferProducts.product'])
-             ->orderBy('created_at', 'desc')
-             ->get();
-
-         return response()->json([
-             'status' => 200,
-             'stockTransfers' => $stockTransfers,
-         ]);
-     }
     public function stockTransfer()
     {
         return view('stock_tranfer.stock_transfer');
@@ -154,22 +141,4 @@ class StockTransferController extends Controller
             'stockTransfer' => $stockTransfer,
         ]);
     }
-
-    public function destroy($id)
-{
-    try {
-        $stockTransfer = StockTransfer::findOrFail($id);
-        $stockTransfer->delete();
-
-        return response()->json([
-            'status' => 200,
-            'message' => 'Stock transfer deleted successfully.',
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 500,
-            'message' => 'Failed to delete stock transfer.',
-        ]);
-    }
-}
 }

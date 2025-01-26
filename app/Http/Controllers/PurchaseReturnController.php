@@ -106,6 +106,7 @@ class PurchaseReturnController extends Controller
         $quantityToReturn = $productData['quantity'];
         $batchId = $productData['batch_id'];
 
+        
         if (empty($batchId)) {
             // Handle FIFO return (no specific batch)
             $this->reduceStockFIFO($productData['product_id'], $locationId, $quantityToReturn);

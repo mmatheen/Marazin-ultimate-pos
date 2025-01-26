@@ -188,10 +188,7 @@
             errorPlacement: function(error, element) {
                 error.appendTo(element.closest('td').find('.error-message'));
             },
-            submitHandler: function(form, event) {
-                console.log("Form submission intercepted by jQuery validation plugin.");
-                event.preventDefault(); // Prevent the default form submission
-
+            submitHandler: function(form) {
                 const fromLocationId = $('#from_location_id').val();
                 const toLocationId = $('#to_location_id').val();
 
@@ -214,27 +211,16 @@
                 const url = stockTransferId ? `/api/stock-transfer/update/${stockTransferId}` : '/api/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
 
-                // Serialize the form data
-                const formData = $(form).serialize();
-
-                // Send the AJAX request
                 $.ajax({
                     url: url,
                     method: method,
-                    data: formData,
+                    data: $(form).serialize(),
                     success: function(response) {
                         toastr.success(response.message);
                         location.reload();
                     },
                     error: function(response) {
-                        if (response.responseJSON && response.responseJSON.errors) {
-                            // Display validation errors
-                            for (const [key, value] of Object.entries(response.responseJSON.errors)) {
-                                toastr.error(value.join(', '));
-                            }
-                        } else {
-                            toastr.error(response.responseJSON.message || 'An error occurred. Please try again.');
-                        }
+                        alert('Error: ' + response.responseJSON.message);
                     }
                 });
             }
@@ -263,85 +249,6 @@
                     console.error(`Error fetching data: ${error}`);
                 }
             });
-        }
-
-
-        fetchStockTransferList();
-
-        function fetchStockTransferList() {
-            $.ajax({
-                url: '/stock-transfers', // Route to fetch stock transfers
-                method: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        populateStockTransferTable(response.stockTransfers);
-                    } else {
-                        console.error('Error fetching stock transfers:', response.message);
-                        toastr.error('Failed to fetch stock transfers. Please try again.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching stock transfers:', error);
-                    toastr.error('An error occurred. Please try again.');
-                }
-            });
-        }
-
-        function populateStockTransferTable(data) {
-            const tableBody = $('#stockTransferTableBody');
-            tableBody.empty(); // Clear existing rows
-
-            data.forEach(transfer => {
-                // Calculate the total amount from the products
-                const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
-                    return sum + (product.quantity * product.unit_price);
-                }, 0);
-
-                const row = `
-                    <tr>
-                        <td>${transfer.reference_no}</td>
-                        <td>${transfer.transfer_date}</td>
-                        <td>${transfer.from_location.name}</td>
-                        <td>${transfer.to_location.name}</td>
-                        <td>${transfer.status}</td>
-                        <td>${totalAmount.toFixed(2)}</td>
-                        <td>
-                            <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                tableBody.append(row);
-            });
-        }
-
-        // Delete stock transfer
-        function deleteStockTransfer(id) {
-            if (confirm('Are you sure you want to delete this stock transfer?')) {
-                $.ajax({
-                    url: `/stock-transfers/${id}`,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                    },
-                    success: function(response) {
-                        if (response.status === 200) {
-                            toastr.success('Stock transfer deleted successfully.');
-                            fetchStockTransferList(); // Refresh the table
-                        } else {
-                            toastr.error('Failed to delete stock transfer.');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error deleting stock transfer:', error);
-                        toastr.error('An error occurred. Please try again.');
-                    }
-                });
-            }
         }
     });
 </script>

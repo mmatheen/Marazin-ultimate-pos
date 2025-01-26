@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <form class="px-3" id="stockAdjustmentForm">
+        <form class="px-3" id="stockTransferForm"> <!-- Updated form ID -->
             @csrf
 
             <!-- Section 1: Selected/Input Fields -->
