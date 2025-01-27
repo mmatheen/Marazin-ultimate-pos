@@ -177,5 +177,5 @@
         </form>
     </div>
 
-    @include('stock_tranfer.stock_transfer_ajax')
+    @include('stock_transfer.stock_transfer_ajax')
 @endsection

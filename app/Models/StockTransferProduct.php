@@ -28,8 +28,8 @@ class StockTransferProduct extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function batch()
+    public function batches()
     {
-        return $this->belongsTo(Batch::class);
+        return $this->belongsTo(Batch::class,'batch_id');
     }
 }

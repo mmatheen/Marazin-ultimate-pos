@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('attached_document')->nullable();
             $table->decimal('total', 15, 2);
             $table->enum('discount_type', ['percent', 'fixed'])->nullable();
-            $table->decimal('discount_amount', 15, 2)->default(0);
+            $table->decimal('discount_amount', 15, 2)-> nullable();
             $table->decimal('final_total', 15, 2);
             $table->enum('payment_status', ['Paid', 'Due', 'Partial'])->default('Due');
             $table->timestamps();

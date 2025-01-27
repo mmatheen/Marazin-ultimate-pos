@@ -181,7 +181,7 @@ class PurchaseController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'total' => 'required|numeric|min:0',
             'final_total' => 'required|numeric|min:0',
-            'payment_status' => 'required|in:Paid,Due,Partial',
+            'payment_status' => 'nullable|in:Paid,Due,Partial',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',

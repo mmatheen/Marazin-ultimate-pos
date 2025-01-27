@@ -351,11 +351,12 @@ class SaleController extends Controller
         ]);
 
         try {
-            $sale = DB::transaction(function () use ($request, $id) {
+            DB::transaction(function () use ($request, $id) {
                 // Determine if we are updating or creating a new sale
                 $sale = $id ? Sale::findOrFail($id) : new Sale();
 
                 // Generate the reference number if creating a new sale
+
                 $referenceNo = $id ? $sale->reference_no : $this->generateReferenceNo();
 
                 // Calculate the final total
@@ -386,34 +387,9 @@ class SaleController extends Controller
                 foreach ($request->products as $productData) {
                     $this->processProductSale($productData, $sale->id, $request->location_id);
                 }
-
-                return $sale;
             });
 
-            // Fetch the customer object from the database
-            $customer = Customer::findOrFail($sale->customer_id);
-
-            // Fetch the sale products with their related product details
-            $invoiceItems = $sale->products()->with('product')->get();
-
-            // Calculate the net total
-            $netTotal = $invoiceItems->sum(function ($item) {
-                return $item->subtotal;
-            });
-
-            // Render the invoice view
-            $html = view('sell.invoice1', [
-                'invoice' => $sale,
-                'customer' => $customer,
-                'items' => $invoiceItems,
-                'amount' => $netTotal,
-                'payment_mode' => $request->payment_mode,
-                'payment_status' => $request->payment_status,
-                'payment_reference' => $request->payment_reference,
-                'payment_date' => now(),
-            ])->render();
-
-            return response()->json(['message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 'invoice_html' => $html], 200);
+            return response()->json(['message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.'], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }

@@ -27,12 +27,12 @@ class StockTransferController extends Controller
      }
     public function stockTransfer()
     {
-        return view('stock_tranfer.stock_transfer');
+        return view('stock_transfer.stock_transfer');
     }
 
     public function addStockTransfer()
     {
-        return view('stock_tranfer.add_stock_transfer');
+        return view('stock_transfer.add_stock_transfer');
     }
 
     private function generateReferenceNumber()
@@ -148,11 +148,18 @@ class StockTransferController extends Controller
 
     public function edit($id)
     {
-        $stockTransfer = StockTransfer::with('stockTransferProducts.product', 'fromLocation', 'toLocation')->findOrFail($id);
-        return response()->json([
-            'status' => 200,
-            'stockTransfer' => $stockTransfer,
-        ]);
+        $stockTransfer = StockTransfer::with('stockTransferProducts.product.batches', 'fromLocation', 'toLocation')->findOrFail($id);
+
+
+        if (request()->ajax() || request()->is('api/*')) {
+            return response()->json([
+                'status' => 200,
+                'stockTransfer' => $stockTransfer,
+            ]);
+        }
+
+        return view('stock_transfer.add_stock_transfer');
+
     }
 
     public function destroy($id)

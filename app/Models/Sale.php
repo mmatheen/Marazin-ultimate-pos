@@ -54,4 +54,10 @@ class Sale extends Model
 
         return $totalSoldQuantity - $totalReturnedQuantity;
     }
+
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
 }

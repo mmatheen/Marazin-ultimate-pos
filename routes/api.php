@@ -209,7 +209,6 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
   Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
   Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
 
-  Route::post('/sell-details/store', [SellController::class, 'store']);
 
   // Store a new purchase
 Route::post('/purchases/store', [PurchaseController::class, 'store']);
@@ -223,13 +222,23 @@ Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit'
 Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
 Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.store');
 
-Route::post('/sales/store', [SaleController::class, 'store']);
+Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+// Update an existing sale
+Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 
 
 Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
 Route::get('/search/sales', [SaleController::class, 'searchSales']);
+
+
+
+Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
+Route::get('sales_details/{id}', [SaleController::class, 'selesDetails']);
+Route::get('sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
+Route::put('sales/{id}', [SaleController::class, 'update'])->name('sales.update');
+Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
 
 

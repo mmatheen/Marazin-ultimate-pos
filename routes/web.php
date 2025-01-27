@@ -335,7 +335,17 @@ Route::middleware(['auth', 'check.session'])->group(function () {
     Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
     Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
     Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
-    Route::post('/sales/store', [SaleController::class, 'store']);
+
+    Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+// Update an existing sale
+Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+
+Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+Route::get('/sales_details/{id}', [SaleController::class, 'selesDetails']);
+
+ Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
+Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
+Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
     //stop  Sale transfer route
 
     //start expense-parent route
@@ -401,9 +411,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
     // Route::post('/opening-stock-store/{product-id}', [OpeningStockController::class, 'stockAdd'])->name('opening-stock.store');
 
 
-    Route::post('/sell-details/store', [SellController::class, 'store']);
-    Route::get('/invoice/{id}/download', [SellController::class, 'downloadInvoice'])->name('invoice.download');
-    Route::get('/getAllPosDetails', [SellController::class, 'getAllPosDetails']);
 
     // Store a new purchase
     Route::post('/purchases/store', [PurchaseController::class, 'store']);

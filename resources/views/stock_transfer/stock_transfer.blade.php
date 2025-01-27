@@ -35,7 +35,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="example1">
+                            <table class="datatable table table-stripped" style="width:100%" id="stockTransfer">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
@@ -50,7 +50,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                 
+                                    <!-- Rows will be populated here -->
                                 </tbody>
                             </table>
                         </div>
@@ -60,5 +60,7 @@
         </div>
 
     </div>
+
+    @include('stock_transfer.stock_transfer_ajax')
 
 @endsection

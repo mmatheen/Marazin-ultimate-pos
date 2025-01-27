@@ -308,9 +308,9 @@
                                                 <div class="form-group local-forms days">
                                                     <label>Discount Type<span class="login-danger">*</span></label>
                                                     <select class="form-control form-select select" id="discount-type" name="discount_type">
-                                                        <option selected value="none">None</option>
+                                                        <option selected value="">None</option>
                                                         <option value="fixed">Fixed</option>
-                                                        <option value="percentage">Percentage</option>
+                                                        <option value="percent">Percentage</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -381,7 +381,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="form-group local-forms calendar-icon">
-                                                <label>Purchase Date<span class="login-danger">*</span></label>
+                                                <label>Paid Date<span class="login-danger">*</span></label>
                                                 <input class="form-control datetimepicker" type="text" name="paid_date" id="payment-date" placeholder="DD-MM-YYYY">
                                             </div>
                                         </div>

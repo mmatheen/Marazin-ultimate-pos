@@ -612,7 +612,7 @@ fetch('/customer-get-all')
         console.error('Error fetching customer data:', error);
     });
 
-$(document).ready(function () {
+    $(document).ready(function () {
     $('#cashButton').on('click', function () {
         // Generate a unique invoice number
         function generateCode(prefix, number) {
@@ -671,19 +671,24 @@ $(document).ready(function () {
             return;
         }
 
+        // Determine if we are updating or storing a new sale
+        const saleId = $('#sale_id').val(); // Assuming there's a hidden input field with the sale ID
+        const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
+        const method = 'POST'; // POST is used for both storing and updating
+
         // Send the data via AJAX POST request
         $.ajax({
-            url: '/sales/store',
-            type: 'POST',
+            url: url,
+            type: method,
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
             },
             data: JSON.stringify(saleData),
             success: function (response) {
-                if (response.status === 200) {
+                if (response.message) {
                     document.getElementsByClassName('successSound')[0].play();
-                    toastr.success('Sale recorded successfully!');
+                    toastr.success(response.message);
                     var printWindow = window.open('', '_blank');
                     printWindow.document.write(response.invoice_html);
                     printWindow.document.close();
