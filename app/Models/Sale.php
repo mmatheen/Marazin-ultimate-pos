@@ -32,6 +32,11 @@ class Sale extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
     // Function to get the total quantity of items sold for a specific product in this sale
     public function getTotalSoldQuantity($productId)
     {
@@ -55,9 +60,29 @@ class Sale extends Model
         return $totalSoldQuantity - $totalReturnedQuantity;
     }
 
-
-    public function location()
+    public static function getAvailableStock($batchId, $locationId)
     {
-        return $this->belongsTo(Location::class);
+        $locationBatch = LocationBatch::where('batch_id', $batchId)
+            ->where('location_id', $locationId)
+            ->first();
+
+        return $locationBatch ? $locationBatch->qty : 0;
     }
+
+    public function getBatchQuantityPlusSold($batchId, $locationId, $productId)
+    {
+        // Get available stock from the batch in the location
+        $availableStock = self::getAvailableStock($batchId, $locationId);
+
+        // Get sold quantity for this product and batch from the sale
+        $soldQuantity = $this->products()
+            ->where('product_id', $productId)
+            ->where('batch_id', $batchId)
+            ->sum('quantity');
+
+        return $availableStock + $soldQuantity;
+    }
+
+
+
 }

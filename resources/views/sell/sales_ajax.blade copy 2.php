@@ -19,24 +19,24 @@
                 },
                 invoice_no: {
                     required: true
-                }
-                // discount_type: {
-                //     required: true
-                // },
-                // discount_amount: {
-                //     required: true,
-                //     number: true
-                // },
+                },
+                discount_type: {
+                    required: true
+                },
+                discount_amount: {
+                    required: true,
+                    number: true
+                },
 
-                // payment_method: {
-                //     required: true
-                // },
-                // payment_account: {
-                //     required: true
-                // },
-                // payment_note: {
-                //     required: false
-                // }
+                payment_method: {
+                    required: true
+                },
+                payment_account: {
+                    required: true
+                },
+                payment_note: {
+                    required: false
+                }
             },
             messages: {
                 customer_id: {
@@ -53,23 +53,23 @@
                 },
                 invoice_no: {
                     required: "Invoice No is required"
+                },
+                discount_type: {
+                    required: "Discount Type is required"
+                },
+                discount_amount: {
+                    required: "Discount Amount is required",
+                    number: "Please enter a valid number"
+                },
+                payment_method: {
+                    required: "Payment Method is required"
+                },
+                payment_account: {
+                    required: "Payment Account is required"
+                },
+                payment_note: {
+                    required: "Payment Note is required"
                 }
-                // discount_type: {
-                //     required: "Discount Type is required"
-                // },
-                // discount_amount: {
-                //     required: "Discount Amount is required",
-                //     number: "Please enter a valid number"
-                // },
-                // payment_method: {
-                //     required: "Payment Method is required"
-                // },
-                // payment_account: {
-                //     required: "Payment Account is required"
-                // },
-                // payment_note: {
-                //     required: "Payment Note is required"
-                // }
             },
             errorElement: 'span',
             errorPlacement: function(error, element) {
@@ -124,10 +124,11 @@
         const table = $('#salesTable').DataTable();
 
         // Apply validation to forms
-        function fetchData() {
+        function fetchData(filters = {}) {
             $.ajax({
                 url: '/sales',
                 type: 'GET',
+                data: filters,
                 dataType: 'json',
                 success: function(response) {
                     table.clear().draw();
@@ -161,8 +162,6 @@
                 }
             });
         }
-
-
 
         function updateCalculations() {
             let totalItems = 0;
@@ -369,61 +368,33 @@
             })
             .catch(err => console.error('Error fetching product data:', err));
 
-           // Function to initialize autocomplete functionality
-    function initAutocomplete() {
-        if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
-            console.error('jQuery UI Autocomplete is not loaded.');
-            return;
+        // Function to initialize autocomplete functionality
+        function initAutocomplete() {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = allProducts.filter(product =>
+                        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                    );
+                    response(filteredProducts.map(product => ({
+                        label: `${product.name} (${product.sku || 'No SKU'})`,
+                        value: product.name,
+                        product: product
+                    })));
+                },
+                select: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    addProductToTable(ui.item.product);
+                    return false;
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                return $("<li>")
+                    .append(`<div>${item.label}</div>`)
+                    .appendTo(ul);
+            };
         }
 
-        $("#productSearchInput").autocomplete({
-            source: function(request, response) {
-                const searchTerm = request.term.toLowerCase();
-                const filteredProducts = allProducts.filter(product =>
-                    (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                );
-                response(filteredProducts.map(product => ({
-                    label: `${product.name} (${product.sku || 'No SKU'})`,
-                    value: product.name,
-                    product: product
-                })));
-            },
-            select: function(event, ui) {
-                $("#productSearchInput").val(ui.item.value);
-                ui.item.product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
-                addProductToTable(ui.item.product);
-                return false;
-            }
-        }).autocomplete("instance")._renderItem = function(ul, item) {
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    }
-
-        function getBatches(product, selectedBatchId, isEditing) {
-            if (!Array.isArray(product.batches)) {
-                return [];
-            }
-
-            if (isEditing) {
-                return product.batches.map(batch => ({
-                    batch_id: batch.id,
-                    batch_price: parseFloat(batch.retail_price) || 0,
-                    batch_quantity: batch.qty || 0,
-                    batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product.quantity : 0) // Adjust batch quantity if editing
-                }));
-            } else {
-                return product.batches.flatMap(batch =>
-                    Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_price: parseFloat(batch.retail_price) || 0,
-                        batch_quantity: locationBatch.quantity || 0
-                    })) : []
-                );
-            }
-         }
         function addProductToTable(product, selectedBatchId = null, isEditing = false) {
     // Validate product data
     if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
@@ -431,14 +402,15 @@
         return;
     }
 
-    // Set default quantity if it's not provided
-    if (typeof product.quantity === 'undefined') {
-        product.quantity = 1;
-    }
+    // Check if product.batches exists and is an array
+    const batches = Array.isArray(product.batches) ? product.batches.map(batch => ({
+        batch_id: batch.id,
+        batch_price: parseFloat(batch.retail_price) || 0,
+        batch_quantity: batch.qty || 0,
+        batch_quantity_plus_sold: isEditing ? (batch.qty + (batch.id === selectedBatchId ? product.quantity : 0)) : batch.qty // Adjust batch quantity if editing
+    })) : [];
 
-    const batches = getBatches(product, selectedBatchId, isEditing);
-
-    const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
+    const totalQuantity = batches.reduce((total, batch) => total + batch.batch_quantity_plus_sold, 0); // Calculate total quantity correctly
     const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
 
     // Generate batch options
@@ -446,9 +418,9 @@
         <option value="${batch.batch_id}"
                 data-price="${batch.batch_price}"
                 data-quantity="${batch.batch_quantity}"
-                ${isEditing ? `data-quantity-plus-sold="${batch.batch_quantity_plus_sold}"` : ''}
+                data-quantity-plus-sold="${batch.batch_quantity_plus_sold}"
                 ${selectedBatchId === batch.batch_id ? 'selected' : ''}>
-            Batch ${batch.batch_id} - Qty: ${isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity} - Price: ${batch.batch_price}
+            Batch ${batch.batch_id} - Qty: ${batch.batch_quantity_plus_sold} - Price: ${batch.batch_price}
         </option>
     `).join('');
 
@@ -463,7 +435,7 @@
                 </select>
             </td>
             <td>
-                <input type="number" class="form-control quantity-input" value="${product.quantity}" min="1">
+                <input type="number" class="form-control quantity-input" value="${product.quantity || 1}" min="1">
             </td>
             <td>
                 <input type="number" class="form-control price-input" value="${finalPrice.toFixed(2)}" min="0">
@@ -472,7 +444,7 @@
                 <input type="number" class="form-control discount-percent" value="${product.discount || 0}" min="0" max="100">
             </td>
             <td class="retail-price">${finalPrice.toFixed(2)}</td>
-            <td class="subtotal">${(finalPrice * product.quantity).toFixed(2)}</td>
+            <td class="subtotal">${(finalPrice * (product.quantity || 1)).toFixed(2)}</td>
             <td>
                 <button class="btn btn-danger btn-sm remove-btn">
                     <i class="fas fa-trash"></i>
@@ -510,7 +482,7 @@
     $newRow.find('.quantity-plus').on('click', () => {
         let newQuantity = parseInt(quantityInput.val(), 10) + 1;
         const selectedOption = batchDropdown.find(':selected');
-        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
+        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold'), 10);
 
         if (newQuantity > maxQuantity) {
             document.getElementsByClassName('errorSound')[0].play();
@@ -524,7 +496,7 @@
     quantityInput.on('input', () => {
         const quantityValue = parseInt(quantityInput.val(), 10);
         const selectedOption = batchDropdown.find(':selected');
-        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
+        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold'), 10);
 
         if (quantityValue > maxQuantity) {
             quantityInput.val(maxQuantity);
@@ -541,7 +513,7 @@
     batchDropdown.on('change', () => {
         const selectedOption = batchDropdown.find(':selected');
         const batchPrice = parseFloat(selectedOption.data('price')) || 0;
-        const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
+        const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold'), 10);
 
         if (quantityInput.val() > batchQuantity) {
             quantityInput.val(batchQuantity);
@@ -639,7 +611,8 @@
             }
 
             // Determine if we are updating or storing a new sale
-            const saleId = $('#sale_id').val(); // Assuming there's a hidden input field with the sale ID
+            const saleId = $('#sale_id')
+        .val(); // Assuming there's a hidden input field with the sale ID
             const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
             const method = 'POST';
             $.ajax({
@@ -656,7 +629,6 @@
                     if (response.message) {
                         toastr.success(response.message, 'Success');
                         resetFormAndValidation();
-                        window.location.href = '/list-sale';
                         // Display the invoice if it exists
                         if (response.invoice_html) {
                             $('#invoiceContainer').html(response.invoice_html);
@@ -796,12 +768,6 @@
             // location.reload();  // Reload the page to restore the original content and bindings
         };
 
-
-        // // Use event delegation for the action buttons and stop event propagation
-        $(document).on('click', '.edit_btn', function(event) {
-            var id = $(this).val();
-            window.location.href = `/sales/edit/${id}`;
-        });
 
         // Extract the sale ID from the URL and fetch data if editing
         const pathSegments = window.location.pathname.split('/');

@@ -52,7 +52,7 @@
 
     <div class="container">
         <form id="addSalesForm">
-            <input id="sale_id" name="sale_id" type="text">
+            <input id="sale_id" name="sale_id" type="hidden">
             <div class="row">
                 <div class="page-header">
                     <div class="row align-items-center">

@@ -212,6 +212,9 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
 
   // Store a new purchase
 Route::post('/purchases/store', [PurchaseController::class, 'store']);
+Route::post('/purchases/update/{id}', [PurchaseController::class, 'update']);
+
+// http://localhost:8000/api/purchases/store
 // web.php
 Route::get('/purchase-returns/get-product-details/{purchaseId}/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
 
