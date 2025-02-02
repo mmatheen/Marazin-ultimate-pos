@@ -54,28 +54,42 @@
         // Apply validation to forms
         $('#addForm').validate(addAndUpdateValidationOptions);
 
-        // Function to format the product data into table rows
-       // Function to format the product data into table rows
-       function formatProductData(product) {
-            let locationName = product.batches.length > 0 && product.batches[0].location_batches.length > 0 ? product.batches[0].location_batches[0].location_name : 'N/A';
-            return `
-                <tr>
-                    <td><input type="checkbox" class="checked" /></td>
-                    <td><img src="/assets/images/${product.product_image}" alt="${product.product_name}" width="50" height="50"></td>
-                    <td>
-                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</button>
-                    </td>
-                    <td>${product.product_name}</td>
-                    <td>${locationName}</td>
-                    <td>${product.retail_price}</td>
-                    <td>${product.total_stock}</td>
-                    <td>${product.product_type}</td>
-                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                    <td>${product.sku}</td>
-                </tr>
-            `;
-        }
+      // Function to format the product data into table rows
+function formatProductData(product) {
+    let locationName = product.batches.length > 0 && product.batches[0].location_batches.length > 0 ? product.batches[0].location_batches[0].location_name : 'N/A';
+    let imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg'; // Default image if product image is not available
+    return `
+        <tr>
+            <td><input type="checkbox" class="checked" /></td>
+            <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+            <td>
+                <div class="dropdown">
+                    <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" id="actionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        Actions
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="actionsDropdown">
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-clone"></i> Duplicate Product</a></li>
+                    </ul>
+                </div>
+            </td>
+            <td>${product.product_name}</td>
+            <td>${locationName}</td>
+            <td>${product.retail_price}</td>
+            <td>${product.total_stock}</td>
+            <td>${product.product_type}</td>
+            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+            <td>${brandMap[product.brand_id] || 'N/A'}</td>
+            <td>${product.sku}</td>
+        </tr>
+    `;
+}
+
+
 
         // Function to populate filter dropdowns
         function populateProductFilter() {
@@ -521,7 +535,7 @@
             });
         });
 
-        
+
     $('#summernote').summernote({
         placeholder: 'Enter your description...',
         tabsize: 2,
@@ -801,7 +815,7 @@
                     alert('An error occurred while fetching product details.');
                 }
             });
-      
+
 
         // Populate product details in the form
         function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
@@ -935,75 +949,73 @@
             });
         });
 
+// Fetch and show product details in the modal
+$('#viewProductModal').on('show.bs.modal', function(event) {
+    var button = $(event.relatedTarget); // Button that triggered the modal
+    var productId = button.data('product-id'); // Extract product ID from data-product-id attribute
 
-        // Fetch and show product details in the modal
-    $('#viewProductModal').on('show.bs.modal', function(event) {
-        var button = $(event.relatedTarget); // Button that triggered the modal
-        var productId = button.data('id'); // Extract product ID from data-id attribute
-
-        // Fetch product details by ID
-        $.ajax({
-            url: '/product-get-details/' + productId,
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 200) {
-                    var product = response.message;
-                    var details = `
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-striped">
-                            <tbody>
-                                <tr>
-                                    <td rowspan="8" class="text-center align-middle">
-                                        <img src='/assets/images/${product.product_image}' width='150' height='200' class="rounded img-fluid" />
-                                    </td>
-                                    <th scope="row">Product Name</th>
-                                    <td>${product.product_name}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">SKU</th>
-                                    <td>${product.sku}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Category</th>
-                                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Brand</th>
-                                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Locations</th>
-                                    <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Price</th>
-                                    <td>$${product.retail_price}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Alert Quantity</th>
-                                    <td>${product.alert_quantity}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Product Type</th>
-                                    <td>${product.product_type}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
+    // Fetch product details by ID
+    $.ajax({
+        url: '/product-get-details/' + productId,
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === 200) {
+                var product = response.message;
+                var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg'; // Default image if product image is not available
+                var details = `
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <tbody>
+                            <tr>
+                                <td rowspan="8" class="text-center align-middle">
+                                    <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
+                                </td>
+                                <th scope="row">Product Name</th>
+                                <td>${product.product_name}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">SKU</th>
+                                <td>${product.sku}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Category</th>
+                                <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Brand</th>
+                                <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Locations</th>
+                                <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Price</th>
+                                <td>$${product.retail_price}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Alert Quantity</th>
+                                <td>${product.alert_quantity}</td>
+                            </tr>
+                            <tr>
+                                <th scope="row">Product Type</th>
+                                <td>${product.product_type}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
                 `;
-                    $('#productDetails').html(details);
-                } else {
-                    console.error('Failed to load product details. Status: ' + response.status);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching product details:', error);
+                $('#productDetails').html(details);
+            } else {
+                console.error('Failed to load product details. Status: ' + response.status);
             }
-        });
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching product details:', error);
+        }
     });
-
+});
 
         // Fetch product data when the page is ready
         $(document).ready(function() {

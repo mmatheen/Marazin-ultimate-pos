@@ -419,85 +419,85 @@ class ProductController extends Controller
     // }
 
     public function getAllProductStocks()
-{
-    $user = auth()->user();
-    $userRole = $user->role_name;
-    $userLocationId = $user->location_id;
+        {
+            $user = auth()->user();
+            $userRole = $user->role_name;
+            $userLocationId = $user->location_id;
 
-    // Retrieve products based on the user's role
-    if ($userRole === 'Super Admin') {
-        $products = Product::with('batches.locationBatches.location')->get();
-    } else {
-        $products = Product::with(['batches.locationBatches' => function ($query) use ($userLocationId) {
-            $query->where('location_id', $userLocationId);
-        }])->get();
-    }
+            // Retrieve products based on the user's role
+            if ($userRole === 'Super Admin') {
+                $products = Product::with('batches.locationBatches.location')->get();
+            } else {
+                $products = Product::with(['batches.locationBatches' => function ($query) use ($userLocationId) {
+                    $query->where('location_id', $userLocationId);
+                }])->get();
+            }
 
-    // Prepare the response
-    $productStocks = $products->map(function ($product) use ($userRole) {
-        // Calculate total stock
-        $totalStock = $product->batches->sum(function ($batch) {
-            return $batch->locationBatches->sum('qty');
-        });
+            // Prepare the response
+            $productStocks = $products->map(function ($product) use ($userRole) {
+                // Calculate total stock
+                $totalStock = $product->batches->sum(function ($batch) {
+                    return $batch->locationBatches->sum('qty');
+                });
 
-        // Map through batches
-        $batches = $product->batches->map(function ($batch) {
-            // Map through location batches
-            $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+                // Map through batches
+                $batches = $product->batches->map(function ($batch) {
+                    // Map through location batches
+                    $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+                        return [
+                            'batch_id' => $locationBatch->batch_id ?? 'N/A',
+                            'location_id' => $locationBatch->location_id ?? 'N/A',
+                            'location_name' => $locationBatch->location->name ?? 'N/A',
+                            'quantity' => $locationBatch->qty,
+                        ];
+                    });
+
+                    return [
+                        'id' => $batch->id,
+                        'batch_no' => $batch->batch_no,
+                        'unit_cost' => $batch->unit_cost,
+                        'wholesale_price' => $batch->wholesale_price,
+                        'special_price' => $batch->special_price,
+                        'retail_price' => $batch->retail_price,
+                        'max_retail_price' => $batch->max_retail_price,
+                        'expiry_date' => $batch->expiry_date,
+                        'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+                        'location_batches' => $locationBatches,
+                    ];
+                });
+
+                // Return the product structure
                 return [
-                    'batch_id' => $locationBatch->batch_id ?? 'N/A',
-                    'location_id' => $locationBatch->location_id ?? 'N/A',
-                    'location_name' => $locationBatch->location->name ?? 'N/A',
-                    'quantity' => $locationBatch->qty,
+                    'product' => [
+                        'id' => $product->id,
+                        'product_name' => $product->product_name,
+                        'sku' => $product->sku,
+                        'unit_id' => $product->unit_id,
+                        'brand_id' => $product->brand_id,
+                        'main_category_id' => $product->main_category_id,
+                        'sub_category_id' => $product->sub_category_id,
+                        'stock_alert' => $product->stock_alert,
+                        'alert_quantity' => $product->alert_quantity,
+                        'product_image' => $product->product_image,
+                        'description' => $product->description,
+                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                        'is_for_selling' => $product->is_for_selling,
+                        'product_type' => $product->product_type,
+                        'pax' => $product->pax,
+                        'original_price' => $product->original_price,
+                        'retail_price' => $product->retail_price,
+                        'whole_sale_price' => $product->whole_sale_price,
+                        'special_price' => $product->special_price,
+                        'max_retail_price' => $product->max_retail_price,
+                    ],
+                    'total_stock' => $totalStock,
+                    'batches' => $batches,
                 ];
             });
 
-            return [
-                'id' => $batch->id,
-                'batch_no' => $batch->batch_no,
-                'unit_cost' => $batch->unit_cost,
-                'wholesale_price' => $batch->wholesale_price,
-                'special_price' => $batch->special_price,
-                'retail_price' => $batch->retail_price,
-                'max_retail_price' => $batch->max_retail_price,
-                'expiry_date' => $batch->expiry_date,
-                'total_batch_quantity' => $batch->locationBatches->sum('qty'),
-                'location_batches' => $locationBatches,
-            ];
-        });
-
-        // Return the product structure
-        return [
-            'product' => [
-                'id' => $product->id,
-                'product_name' => $product->product_name,
-                'sku' => $product->sku,
-                'unit_id' => $product->unit_id,
-                'brand_id' => $product->brand_id,
-                'main_category_id' => $product->main_category_id,
-                'sub_category_id' => $product->sub_category_id,
-                'stock_alert' => $product->stock_alert,
-                'alert_quantity' => $product->alert_quantity,
-                'product_image' => $product->product_image,
-                'description' => $product->description,
-                'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                'is_for_selling' => $product->is_for_selling,
-                'product_type' => $product->product_type,
-                'pax' => $product->pax,
-                'original_price' => $product->original_price,
-                'retail_price' => $product->retail_price,
-                'whole_sale_price' => $product->whole_sale_price,
-                'special_price' => $product->special_price,
-                'max_retail_price' => $product->max_retail_price,
-            ],
-            'total_stock' => $totalStock,
-            'batches' => $batches,
-        ];
-    });
-
-    // Return the response
-    return response()->json(['status' => 200, 'data' => $productStocks]);
-}
+            // Return the response
+            return response()->json(['status' => 200, 'data' => $productStocks]);
+        }
 
 
 // public function getStocks(Request $request)

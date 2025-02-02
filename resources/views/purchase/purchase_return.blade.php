@@ -197,8 +197,5 @@
     </div>
 </div>
 
-
-
-
-  @include('purchase.purchase_return_ajax')
+@include('purchase.purchase_return_ajax')
 @endsection

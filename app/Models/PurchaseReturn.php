@@ -13,7 +13,6 @@ class PurchaseReturn extends Model
         'supplier_id',
         'reference_no',
         'location_id',
-
         'return_date',
         'attach_document',
     ];
@@ -38,6 +37,8 @@ public function purchaseReturnProducts()
 {
     return $this->hasMany(PurchaseReturnProduct::class, 'purchase_return_id', 'id');
 }
+
+
 
 
 }

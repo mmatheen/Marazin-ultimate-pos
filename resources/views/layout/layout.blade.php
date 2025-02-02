@@ -286,6 +286,37 @@
             color: white;
         }
 
+        /* Sticky Search and Pagination */
+.dataTables_wrapper {
+    position: relative;
+}
+
+.dataTables_filter {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: white;
+    padding: 10px;
+    z-index: 10;
+}
+
+.dataTables_paginate {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: white;
+    padding: 10px;
+    z-index: 10;
+}
+
+/* Make table wrapper scrollable */
+.table-responsive {
+    overflow-x: auto;
+    position: relative;
+    max-width: 100%;
+}
+
+
     </style>
 
 </head>

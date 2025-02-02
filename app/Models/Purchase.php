@@ -38,10 +38,7 @@ class Purchase extends Model
     }
 
     // Relationship with PaymentInfo
-    public function paymentInfo()
-    {
-        return $this->hasOne(PaymentInfo::class); // Assuming one-to-one relationship
-    }
+
     // Define the relationship with the PurchasePayment model
     public function payments()
     {

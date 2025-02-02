@@ -119,6 +119,28 @@
         .table-primary {
             background-color: #f2f2f2;
         }
+
+        #purchase_product tbody td {
+    vertical-align: middle;
+}
+
+#purchase_product input[type="number"],
+#purchase_product input[type="date"],
+#purchase_product input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px;
+}
+
+#purchase_product .form-control {
+    margin-bottom: 10px;
+}
+
+#purchase_product .text-muted {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.875em;
+}
         </style>
 
         <div class="row">
@@ -272,12 +294,12 @@
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
                                                 <th>Unit<br>Cost</th>
-                                                <th>Retail<br>Price</th>
                                                 <th>Wholesale<br>Price</th>
                                                 <th>Special<br>Price</th>
                                                 <th>Max Retail<br>Price</th>
                                                 <th>Sub<br>Total</th>
                                                 <th>Profit<br>Margin%</th>
+                                                <th>Retail<br>Price</th>
                                                 <th>Expiry<br>Date</th>
                                                 <th>Batch</th>
                                                 <th><i class="fas fa-trash-alt"></i></th>
@@ -371,25 +393,29 @@
                         <div class="card card-table">
                             <div class="card-body">
                                 <div class="page-header">
-                                    <h5>Add Payment</h5>
-                                    <div class="row">
+                                    <h5 class="mb-4">Add Payment</h5>
+                                    <div class="row g-3">
                                         <div class="col-md-4">
-                                            <div class="input-group mb-3">
-                                                <span class="input-group-text" id="basic-addon1"><i class="fas fa-money-bill-alt"></i></span>
-                                                <input type="text" class="form-control" placeholder="Advance Balance" id="advance-payment" name="advance_balance" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                            <div class="form-group">
+                                                <label for="advance-payment">Advance Balance</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-money-bill-alt"></i></span>
+                                                    <input type="text" class="form-control" placeholder="Advance Balance" id="advance-payment" name="advance_balance">
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="form-group local-forms calendar-icon">
-                                                <label>Paid Date<span class="login-danger">*</span></label>
+                                            <div class="form-group">
+                                                <label for="payment-date">Paid Date <span class="text-danger">*</span></label>
                                                 <input class="form-control datetimepicker" type="text" name="paid_date" id="payment-date" placeholder="DD-MM-YYYY">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
-                                                    <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
-                                                    <select class="form-control form-select" id="payment-method" name="payment_method" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                            <div class="form-group">
+                                                <label for="payment-method">Payment Method</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                    <select class="form-control form-select" id="payment-method" name="payment_method">
                                                         <option selected disabled>Payment Method</option>
                                                         <option>Cash</option>
                                                         <option>Advance</option>
@@ -400,42 +426,42 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <!-- Payment Status Field -->
-                                        <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="payment-status">Payment Status <span class="text-danger">*</span></label>
-                                            <div class="input-group">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="payment-status">Payment Status <span class="text-danger">*</span></label>
                                                 <select class="form-select" id="payment-status" name="payment_status">
                                                     <option selected disabled>Please Select</option>
                                                     <option value="Paid">Paid</option>
                                                     <option value="Due">Due</option>
                                                     <option value="Partial">Partial</option>
                                                 </select>
+                                                <span class="text-danger small" id="payment_status_error"></span>
                                             </div>
-                                            <span class="text-danger small" id="payment_status_error"></span>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="input-group local-forms">
-                                                <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
-                                                <select class="form-control form-select" id="payment-account" name="payment_account" aria-label="Example text with button addon" aria-describedby="button-addon1">
-                                                    <option selected disabled>Payment Account</option>
-                                                    <option>None</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-12">
-                                            <div class="mt-4">
-                                                <div class="form-group local-forms">
-                                                    <label>Payment note<span class="login-danger"></span></label>
-                                                    <textarea class="form-control" id="payment-note" name="payment_note" type="text" placeholder="Payment note"></textarea>
+                                            <div class="form-group">
+                                                <label for="payment-account">Payment Account</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                    <select class="form-control form-select" id="payment-account" name="payment_account">
+                                                        <option selected disabled>Payment Account</option>
+                                                        <option>None</option>
+                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
-                                        <hr>
+                                        <div class="col-md-12">
+                                            <div class="form-group">
+                                                <label for="payment-note">Payment Note</label>
+                                                <textarea class="form-control" id="payment-note" name="payment_note" placeholder="Payment note" rows="3"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
+                                    <hr class="my-4">
                                     <div class="row justify-content-end">
-                                        <div class="col-4 text-end">
+                                        <div class="col-md-4 text-end">
                                             <b>Payment Due:</b>
-                                            <p class="payment-due">0.00</p>
+                                            <p class="payment-due">Rs 399.00</p>
                                         </div>
                                     </div>
                                 </div>
@@ -443,23 +469,23 @@
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <button class="btn btn-primary btn-lg" type="submit" id="purchaseButton">Save</button>
-                </div>
+                    <div class="row justify-content-center mt-2">
+                        <button class="btn btn-primary" type="submit" id="purchaseButton" style="width: auto;">Save</button>
+                    </div>
             </form>
         </div>
 
-        @include('product.add_product_modal')
-        @include('product.product_ajax')
+        {{-- @include('product.add_product_modal')
+        @include('product.product_ajax') --}}
         @include('purchase.purchase_ajax')
         @include('contact.supplier.supplier_ajax')
         @include('contact.supplier.add_supplier_modal')
-        @include('brand.brand_modal')
+        {{-- @include('brand.brand_modal')
         @include('brand.brand_ajax')
         @include('unit.unit_modal')
-        @include('unit.unit_ajax')
-        @include('category.main_category.main_category_ajax')
+        @include('unit.unit_ajax') --}}
+        {{-- @include('category.main_category.main_category_ajax')
         @include('category.main_category.main_category_modal')
         @include('category.sub_category.sub_category_modal')
-        @include('category.sub_category.sub_category_ajax')
+        @include('category.sub_category.sub_category_ajax') --}}
     @endsection

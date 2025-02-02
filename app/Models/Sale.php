@@ -81,6 +81,7 @@ class Sale extends Model
             ->sum('quantity');
 
         return $availableStock + $soldQuantity;
+
     }
 
 

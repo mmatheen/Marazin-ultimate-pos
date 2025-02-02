@@ -211,22 +211,25 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
 
 
   // Store a new purchase
-Route::post('/purchases/store', [PurchaseController::class, 'store']);
-Route::post('/purchases/update/{id}', [PurchaseController::class, 'update']);
+  // Store a new purchase
+  Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
+  Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
+  Route::get('/purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
+  Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+  Route::get('/get-all-purchases-product/{id }', [PurchaseController::class, 'getAllPurchaseProduct']);
+  Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
 
-// http://localhost:8000/api/purchases/store
-// web.php
 Route::get('/purchase-returns/get-product-details/{purchaseId}/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
 
 
 Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
 Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
 Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
-Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
-Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.store');
+Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
+Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
+
 
 Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
-// Update an existing sale
 Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 

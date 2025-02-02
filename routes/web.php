@@ -5,49 +5,39 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Request;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\UnitController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\ContactController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\LocationController;
-use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\SupplierController;
-use App\Http\Controllers\WarrantyController;
-use App\Http\Controllers\VariationController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\PrintLabelController;
-use App\Http\Controllers\SubCategoryController;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\OpeningStockController;
-use App\Http\Controllers\CustomerGroupController;
-use App\Http\Controllers\StockTransferController;
-use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\PurchaseReturnController;
-use App\Http\Controllers\VariationTitleController;
-use App\Http\Controllers\SellingPriceGroupController;
+use App\Http\Controllers\{
+    SaleController,
+    UnitController,
+    UserController,
+    BrandController,
+    ContactController,
+    ProductController,
+    ProfileController,
+    CustomerController,
+    LocationController,
+    PurchaseController,
+    SupplierController,
+    WarrantyController,
+    VariationController,
+    DashboardController,
+    PrintLabelController,
+    SubCategoryController,
+    MainCategoryController,
+    OpeningStockController,
+    CustomerGroupController,
+    StockTransferController,
+    AuthenticationController,
+    PurchaseReturnController,
+    VariationTitleController,
+    SellingPriceGroupController,
+    ExpenseSubCategoryController,
+    ExpenseParentCategoryController,
+    SaleReturnController,
+    SalesCommissionAgentsController,
+    SellController,
+    StockAdjustmentController
+};
 
-
-use App\Http\Controllers\ExpenseSubCategoryController;
-use App\Http\Controllers\ExpenseParentCategoryController;
-use App\Http\Controllers\SaleReturnController;
-use App\Http\Controllers\SalesCommissionAgentsController;
-use App\Http\Controllers\SellController;
-use App\Http\Controllers\StockAdjustmentController;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
 
 function set_active($route)
 {
@@ -58,13 +48,9 @@ function set_active($route)
 }
 
 Route::get('/testing', function () {
-    //     return view('welcome');
-    // $adminRole = Role::findByName('Admin'); // Or 'Super Admin', 'Manager', 'Cashier' as appropriate
-    // dd($adminRole->permissions->pluck('name'));
     $role = Auth::user()->location_id;
     dd($role);
 });
-
 
 Route::get('/dashboard', function () {
     return view('includes.dashboards.dashboard');
@@ -72,20 +58,9 @@ Route::get('/dashboard', function () {
 
 require __DIR__ . '/auth.php';
 
-// without login you can't go to the any page and auth middleware will manage this task
-
-//    Route::group(['middleware' => ['role:Super Admin']], function () {
-
-//});
-
-
-
-
 Route::middleware(['auth', 'check.session'])->group(function () {
 
     Route::group(['middleware' => function ($request, $next) {
-
-        // Define your routes with a dynamic role
         $role = Auth::user()->role_name ?? null;
         if ($role) {
             $request->route()->middleware("role:$role");
@@ -93,355 +68,247 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         return $next($request);
     }], function () {
 
-
         require __DIR__ . '/role_permission.php';
 
-        //start user route
+        // User Routes
         Route::get('/user', [UserController::class, 'user'])->name('user');
         Route::get('/user-edit/{id}', [UserController::class, 'edit']);
         Route::get('/user-get-all', [UserController::class, 'index']);
         Route::post('/user-store', [UserController::class, 'store']);
         Route::post('/user-update/{id}', [UserController::class, 'update']);
         Route::delete('/user-delete/{id}', [UserController::class, 'destroy']);
-        //stop user route
 
-        //start warranty route
+        // Dashboard Routes
+        Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
+
+        // Warranty Routes
         Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
         Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
         Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
         Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
         Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
         Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
-        //stop warranty route
 
+        // Guard Routes
+        Route::get('/get-all-details-using-guard', [AuthenticationController::class, 'getDetailsFromGuardDetailsUsingLoginUer']);
+        Route::get('/update-location', [AuthenticationController::class, 'updateLocation']);
+        Route::get('/user-location-get-all', [AuthenticationController::class, 'getAlluserDetails']);
+
+        // Profile Routes
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+        // Brand Routes
+        Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
+        Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
+        Route::get('/brand-get-all', [BrandController::class, 'index']);
+        Route::post('/brand-store', [BrandController::class, 'store']);
+        Route::post('/brand-update/{id}', [BrandController::class, 'update']);
+        Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
+
+        // Unit Routes
+        Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
+        Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
+        Route::get('/unit-get-all', [UnitController::class, 'index']);
+        Route::post('/unit-store', [UnitController::class, 'store']);
+        Route::post('/unit-update/{id}', [UnitController::class, 'update']);
+        Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
+
+        // Product Routes
+        Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
+        Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
+        Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
+        Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
+        Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
+        Route::get('/product-get-all', [ProductController::class, 'index']);
+        Route::post('/product-store', [ProductController::class, 'store']);
+        Route::post('/product-update/{id}', [ProductController::class, 'update']);
+        Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
+        Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
+        Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
+        Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+        Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
+        Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
+        Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
+        Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
+
+        // SubCategory Routes
+        Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
+
+        // Dropdown Routes
+        Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
+        Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
+
+        // SalesCommissionAgents Routes
+        Route::get('/sales-commission-agent', [SalesCommissionAgentsController::class, 'SalesCommissionAgents'])->name('sales-commission-agent');
+        Route::get('/sales-commission-agent-edit/{id}', [SalesCommissionAgentsController::class, 'edit']);
+        Route::get('/sales-commission-agent-get-all', [SalesCommissionAgentsController::class, 'index']);
+        Route::post('/sales-commission-agent-store', [SalesCommissionAgentsController::class, 'store'])->name('sales-commission-agent-store');
+        Route::post('/sales-commission-agent-update/{id}', [SalesCommissionAgentsController::class, 'update']);
+        Route::delete('/sales-commission-agent-delete/{id}', [SalesCommissionAgentsController::class, 'destroy']);
+
+        // PrintLabel Routes
+        Route::get('/print-label', [PrintLabelController::class, 'printLabel'])->name('print-label');
+
+        // Variation Routes
+        Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
+        Route::get('/variation-edit/{id}', [VariationController::class, 'edit']);
+        Route::get('/variation-get-all', [VariationController::class, 'index']);
+        Route::post('/variation-store', [VariationController::class, 'store'])->name('variation-title-store');
+        Route::post('/variation-update/{id}', [VariationController::class, 'update']);
+        Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
+
+        // Selling Price Group Routes
+        Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
+        Route::get('/selling-price-group-edit/{id}', [SellingPriceGroupController::class, 'edit']);
+        Route::get('/selling-price-group-get-all', [SellingPriceGroupController::class, 'index']);
+        Route::post('/selling-price-group-store', [SellingPriceGroupController::class, 'store'])->name('selling-price-group-store');
+        Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
+        Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
+
+        // Main Category Routes
+        Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');
+        Route::get('/main-category-edit/{id}', [MainCategoryController::class, 'edit']);
+        Route::get('/main-category-get-all', [MainCategoryController::class, 'index']);
+        Route::post('/main-category-store', [MainCategoryController::class, 'store'])->name('main-category-store');
+        Route::post('/main-category-update/{id}', [MainCategoryController::class, 'update']);
+        Route::delete('/main-category-delete/{id}', [MainCategoryController::class, 'destroy']);
+
+        // Sub Category Routes
+        Route::get('/sub-category', [SubCategoryController::class, 'SubCategory'])->name('sub-category');
+        Route::get('/sub-category-edit/{id}', [SubCategoryController::class, 'edit']);
+        Route::get('/sub-category-get-all', [SubCategoryController::class, 'index']);
+        Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->name('sub-category-store');
+        Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update']);
+        Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
+
+        // Supplier Routes
+        Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');
+        Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
+        Route::get('/supplier-get-all', [SupplierController::class, 'index']);
+        Route::post('/supplier-store', [SupplierController::class, 'store']);
+        Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
+        Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
+
+        // Customer Routes
+        Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
+        Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+        Route::get('/customer-get-all', [CustomerController::class, 'index']);
+        Route::post('/customer-store', [CustomerController::class, 'store']);
+        Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+        Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+
+        // Customer Group Routes
+        Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
+        Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);
+        Route::get('/customer-group-get-all', [CustomerGroupController::class, 'index']);
+        Route::post('/customer-group-store', [CustomerGroupController::class, 'store'])->name('customer-group-store');
+        Route::post('/customer-group-update/{id}', [CustomerGroupController::class, 'update']);
+        Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'destroy']);
+
+        // Import Contacts Routes
+        Route::get('/import-contact', [ContactController::class, 'importContact'])->name('import-contact');
+
+        // Purchase Routes
+        Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
+        Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
+        // Route::resource('purchases', PurchaseController::class);
+        Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
+        Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
+        Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+        Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchasesProduct']);
+        Route::get('purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
+        Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
+
+        // Purchase Return Routes
+        Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');
+        Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchaseReturn'])->name('add-purchase-return');
+        Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
+        Route::get('/purchase-returns/get-All', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
+        Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
+        Route::get('/purchase-return/edit/{id}', [PurchaseReturnController::class, 'edit']);
+        Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
+        Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
+
+        // Sale Return Routes
+        Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
+        Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
+
+        // Stock Transfer Routes
+        Route::get('/stock-transfers', [StockTransferController::class, 'index']);
+        Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
+        Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
+        Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
+        Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
+        Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
+
+        // Sale Routes
+        Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
+        Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
+        Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
+        Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
+        Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+        Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+        Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+        Route::get('/sales_details/{id}', [SaleController::class, 'selesDetails']);
+        Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
+        Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
+        Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
+
+        // Expense Parent Category Routes
+        Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
+        Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
+        Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
+        Route::post('/expense-parent-catergory-store', [ExpenseParentCategoryController::class, 'store'])->name('expense-parent-catergory-store');
+        Route::post('/expense-parent-catergory-update/{id}', [ExpenseParentCategoryController::class, 'update']);
+        Route::delete('/expense-parent-catergory-delete/{id}', [ExpenseParentCategoryController::class, 'destroy']);
+
+        // Expense Sub Category Routes
+        Route::get('/sub-expense-category', [ExpenseSubCategoryController::class, 'SubCategory'])->name('sub-expense-category');
+        Route::get('/sub-expense-category-edit/{id}', [ExpenseSubCategoryController::class, 'edit']);
+        Route::get('/sub-expense-category-get-all', [ExpenseSubCategoryController::class, 'index']);
+        Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class, 'store'])->name('sub-expense-category-store');
+        Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
+        Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
+
+        // Variation Title Routes
+        Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');
+        Route::get('/variation-title-edit/{id}', [VariationTitleController::class, 'edit']);
+        Route::get('/variation-title-get-all', [VariationTitleController::class, 'index']);
+        Route::post('/variation-title-store', [VariationTitleController::class, 'store'])->name('variation-title-store');
+        Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'update']);
+        Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
+
+        // Location Routes
+        Route::get('/location', [LocationController::class, 'location'])->name('location');
+        Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
+        Route::get('/location-get-all', [LocationController::class, 'index']);
+        Route::post('/location-store', [LocationController::class, 'store']);
+        Route::post('/location-update/{id}', [LocationController::class, 'update']);
+        Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+
+        // Import Opening Stock Routes
+        Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
+        Route::get('/import-opening-stock-edit/{id}', [OpeningStockController::class, 'edit']);
+        Route::get('/import-opening-stock-get-all', [OpeningStockController::class, 'index']);
+        Route::post('/import-opening-stock-store', [OpeningStockController::class, 'store']);
+        Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class, 'update']);
+        Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
+
+        // Excel Import/Export Routes
+        Route::get('/excel-export-student', [OpeningStockController::class, 'export'])->name('excel-export-student');
+        Route::get('/excel-blank-template-export', [OpeningStockController::class, 'exportBlankTemplate'])->name('excel-blank-template-export');
+        Route::post('/import-opening-stck-excel-store', [OpeningStockController::class, 'importOpeningStockStore']);
+        Route::post('/opening-stock-store', [OpeningStockController::class, 'store'])->name('opening-stock.store');
+
+        // Stock Adjustment Routes
+        Route::get('/add-stock-adjustment', [StockAdjustmentController::class, 'addStockAdjustment'])->name('add-stock-adjustment');
+        Route::get('/list-stock-adjustment', [StockAdjustmentController::class, 'stockAdjustmentList'])->name('list-stock-adjustment');
+        Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
+        Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
+        Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
+        Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
+        Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
     });
-
-    //start Guard route start
-    Route::get('/get-all-details-using-guard', [AuthenticationController::class, 'getDetailsFromGuardDetailsUsingLoginUer']);
-    Route::get('/update-location', [AuthenticationController::class, 'updateLocation']);
-    Route::get('/user-location-get-all', [AuthenticationController::class, 'getAlluserDetails']);
-    //start Guard route end
-
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    //start brand route
-    Route::get('/brand', [BrandController::class, 'brand'])->name('brand');
-    Route::get('/brand-edit/{id}', [BrandController::class, 'edit']);
-    Route::get('/brand-get-all', [BrandController::class, 'index']);
-    Route::post('/brand-store', [BrandController::class, 'store']);
-    Route::post('/brand-update/{id}', [BrandController::class, 'update']);
-    Route::delete('/brand-delete/{id}', [BrandController::class, 'destroy']);
-    //stop  brand route
-
-    //start unit route
-    Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
-    Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
-    Route::get('/unit-get-all', [UnitController::class, 'index']);
-    Route::post('/unit-store', [UnitController::class, 'store']);
-    Route::post('/unit-update/{id}', [UnitController::class, 'update']);
-    Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
-    //stop  brand route
-
-    //start product route
-    Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
-    Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
-    Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
-    Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
-    Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
-    Route::get('/product-get-all', [ProductController::class, 'index']);
-    Route::post('/product-store', [ProductController::class, 'store']);
-    Route::post('/product-update/{id}', [ProductController::class, 'update']);
-    Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
-    Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
-
-    Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
-    Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
-
-    Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
-    Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
-    Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
-    Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
-
-
-
-
-
-
-
-
-
-    //stop product route
-
-    Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
-
-    Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
-    Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
-
-
-
-    //start SalesCommissionAgents route
-    Route::get('/sales-commission-agent', [SalesCommissionAgentsController::class, 'SalesCommissionAgents'])->name('sales-commission-agent');
-    Route::get('/sales-commission-agent-edit/{id}', [SalesCommissionAgentsController::class, 'edit']);
-    Route::get('/sales-commission-agent-get-all', [SalesCommissionAgentsController::class, 'index']);
-    Route::post('/sales-commission-agent-store', [SalesCommissionAgentsController::class, 'store'])->name('sales-commission-agent-store');
-    Route::post('/sales-commission-agent-update/{id}', [SalesCommissionAgentsController::class, 'update']);
-    Route::delete('/sales-commission-agent-delete/{id}', [SalesCommissionAgentsController::class, 'destroy']);
-    //stop  SalesCommissionAgents route
-
-    //start Print Label route
-    Route::get('/print-label', [PrintLabelController::class, 'printLabel'])->name('print-label');
-    //stop  Print Label route
-
-    //start variation route
-    Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
-    //stop  variation route
-
-    //start selling price route
-    Route::get('/selling-price-group', [SellingPriceGroupController::class, 'sellingPrice'])->name('selling-price-group');
-    Route::get('/selling-price-group-edit/{id}', [SellingPriceGroupController::class, 'edit']);
-    Route::get('/selling-price-group-get-all', [SellingPriceGroupController::class, 'index']);
-    Route::post('/selling-price-group-store', [SellingPriceGroupController::class, 'store'])->name('selling-price-group-store');
-    Route::post('/selling-price-group-update/{id}', [SellingPriceGroupController::class, 'update']);
-    Route::delete('/selling-price-group-delete/{id}', [SellingPriceGroupController::class, 'destroy']);
-    //stop  selling price route
-
-    //start unit route
-    Route::get('/unit', [UnitController::class, 'unit'])->name('unit');
-    //stop  unit route
-
-    //start main catergories route
-    Route::get('/main-category', [MainCategoryController::class, 'mainCategory'])->name('main-category');
-    Route::get('/main-category-edit/{id}', [MainCategoryController::class, 'edit']);
-    Route::get('/main-category-get-all', [MainCategoryController::class, 'index']);
-    Route::post('/main-category-store', [MainCategoryController::class, 'store'])->name('main-category-store');
-    Route::post('/main-category-update/{id}', [MainCategoryController::class, 'update']);
-    Route::delete('/main-category-delete/{id}', [MainCategoryController::class, 'destroy']);
-    //stop  main catergories route
-
-    //start sub catergories route
-    Route::get('/sub-category', [SubCategoryController::class, 'SubCategory'])->name('sub-category');
-    Route::get('/sub-category-edit/{id}', [SubCategoryController::class, 'edit']);
-    Route::get('/sub-category-get-all', [SubCategoryController::class, 'index']);
-    Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->name('sub-category-store');
-    Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update']);
-    Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
-    //stop  sub catergories route
-
-    //start Supplier route
-    Route::get('/supplier', [SupplierController::class, 'supplier'])->name('supplier');
-    Route::get('/supplier-edit/{id}', [SupplierController::class, 'edit']);
-    Route::get('/supplier-get-all', [SupplierController::class, 'index']);
-    Route::post('/supplier-store', [SupplierController::class, 'store']);
-    Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
-    Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
-    //stop  Supplier route
-
-    //start Customer route
-    Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
-    Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
-    Route::get('/customer-get-all', [CustomerController::class, 'index']);
-    Route::post('/customer-store', [CustomerController::class, 'store']);
-    Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
-    Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
-    //stop  Customer route
-
-    //start sub catergories route
-    Route::get('/sub-category', [SubCategoryController::class, 'SubCategory'])->name('sub-category');
-    Route::get('/sub-category-edit/{id}', [SubCategoryController::class, 'edit']);
-    Route::get('/sub-category-get-all', [SubCategoryController::class, 'index']);
-    Route::post('/sub-category-store', [SubCategoryController::class, 'store'])->name('sub-category-store');
-    Route::post('/sub-category-update/{id}', [SubCategoryController::class, 'update']);
-    Route::delete('/sub-category-delete/{id}', [SubCategoryController::class, 'destroy']);
-    //stop  sub catergories route
-
-    //start CustomerGroup route
-    Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');
-    Route::get('/customer-group-edit/{id}', [CustomerGroupController::class, 'edit']);
-    Route::get('/customer-group-get-all', [CustomerGroupController::class, 'index']);
-    Route::post('/customer-group-store', [CustomerGroupController::class, 'store'])->name('customer-group-store');
-    Route::post('/customer-group-update/{id}', [CustomerGroupController::class, 'update']);
-    Route::delete('/customer-group-delete/{id}', [CustomerGroupController::class, 'destroy']);
-    //stop  CustomerGroup route
-
-    //start Import Contacts route
-    Route::get('/import-contact', [ContactController::class, 'importContact'])->name('import-contact');
-    //stop  Import Contacts route
-
-    //start Purchase route
-    Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
-    Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
-    //purchase
-    Route::resource('purchases', PurchaseController::class);
-
-    // // Display the list of purchases
-    // Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
-
-    // // Show the form to create a new purchase
-    // Route::get('/purchases/create', [PurchaseController::class, 'create'])->name('purchases.create');
-
-    // // Store a new purchase
-    // Route::post('/purchases', [PurchaseController::class, 'store'])->name('purchases.store');
-
-    // // Show a single purchase (if needed)
-    // Route::get('/purchases/{purchase}', [PurchaseController::class, 'show'])->name('purchases.show');
-
-    // // Show the form to edit an existing purchase
-    // Route::get('/purchases/{purchase}/edit', [PurchaseController::class, 'edit'])->name('purchases.edit');
-
-    // // Update an existing purchase
-    // Route::put('/purchases/{purchase}', [PurchaseController::class, 'update'])->name('purchases.update');
-
-    // // Delete a purchase
-    // Route::delete('/purchases/{purchase}', [PurchaseController::class, 'destroy'])->name('purchases.destroy');
-    //stop  Purchase route
-
-    //start PurchaseReturn route
-    Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');
-    Route::get('/add-purchase-return', [PurchaseReturnController::class, 'addPurchaseReturn'])->name('add-purchase-return');
-
-    Route::post('/purchase-return/store', [PurchaseReturnController::class, 'store']);
-    Route::get('/purchase-returns/get-All', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
-    Route::get('/purchase-returns/get-Details/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
-    Route::get('/purchase-returns/edit/{id}', [PurchaseReturnController::class, 'edit']);
-
-
-    Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
-    Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
-
-
-
-
-
-
-    //stop  PurchaseReturn route
-
-    //start Stock transfer route\
-    // Fetch all stock transfers
-    Route::get('/stock-transfers', [StockTransferController::class, 'index']);
-    Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
-    Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
-    // For creating a new stock transfer
-    Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
-    Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
-    Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
-
-    //stop  Stock transfer route
-
-
-    //start Sale transfer route
-    Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
-    Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
-    Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
-    Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
-
-    Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
-// Update an existing sale
-Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
-
-Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
-Route::get('/sales_details/{id}', [SaleController::class, 'selesDetails']);
-
- Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
-Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
-Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
-    //stop  Sale transfer route
-
-    //start expense-parent route
-    Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
-    Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
-    Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
-    Route::post('/expense-parent-catergory-store', [ExpenseParentCategoryController::class, 'store'])->name('expense-parent-catergory-store');
-    Route::post('/expense-parent-catergory-update/{id}', [ExpenseParentCategoryController::class, 'update']);
-    Route::delete('/expense-parent-catergory-delete/{id}', [ExpenseParentCategoryController::class, 'destroy']);
-    //stop  expense-parent route
-
-    //start sub Expense Category route
-    Route::get('/sub-expense-category', [ExpenseSubCategoryController::class, 'SubCategory'])->name('sub-expense-category');
-    Route::get('/sub-expense-category-edit/{id}', [ExpenseSubCategoryController::class, 'edit']);
-    Route::get('/sub-expense-category-get-all', [ExpenseSubCategoryController::class, 'index']);
-    Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class, 'store'])->name('sub-expense-category-store');
-    Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
-    Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
-    //stop  sub Expense Category route
-
-    //start variation title  route
-    Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');
-    Route::get('/variation-title-edit/{id}', [VariationTitleController::class, 'edit']);
-    Route::get('/variation-title-get-all', [VariationTitleController::class, 'index']);
-    Route::post('/variation-title-store', [VariationTitleController::class, 'store'])->name('variation-title-store');
-    Route::post('/variation-title-update/{id}', [VariationTitleController::class, 'update']);
-    Route::delete('/variation-title-delete/{id}', [VariationTitleController::class, 'destroy']);
-    //stop  variation title  route
-
-    //start variation route
-    Route::get('/variation', [VariationController::class, 'variation'])->name('variation');
-    Route::get('/variation-edit/{id}', [VariationController::class, 'edit']);
-    Route::get('/variation-get-all', [VariationController::class, 'index']);
-    Route::post('/variation-store', [VariationController::class, 'store'])->name('variation-title-store');
-    Route::post('/variation-update/{id}', [VariationController::class, 'update']);
-    Route::delete('/variation-delete/{id}', [VariationController::class, 'destroy']);
-    //stop  variation route
-
-    //start location route
-    Route::get('/location', [LocationController::class, 'location'])->name('location');
-    Route::get('/location-edit/{id}', [LocationController::class, 'edit']);
-    Route::get('/location-get-all', [LocationController::class, 'index']);
-    Route::post('/location-store', [LocationController::class, 'store']);
-    Route::post('/location-update/{id}', [LocationController::class, 'update']);
-    Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
-    //stop  location route
-
-    //start import-opening-stock route
-    Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
-    Route::get('/import-opening-stock-edit/{id}', [OpeningStockController::class, 'edit']);
-    Route::get('/import-opening-stock-get-all', [OpeningStockController::class, 'index']);
-    Route::post('/import-opening-stock-store', [OpeningStockController::class, 'store']);
-    Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class, 'update']);
-    Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
-    //stop  import-opening-stock route
-
-    // Excel import/export routes
-    Route::get('/excel-export-student', [OpeningStockController::class, 'export'])->name('excel-export-student');
-    Route::get('/excel-blank-template-export', [OpeningStockController::class, 'exportBlankTemplate'])->name('excel-blank-template-export');
-    Route::post('/import-opening-stck-excel-store', [OpeningStockController::class, 'importOpeningStockStore']);
-
-    Route::post('/opening-stock-store', [OpeningStockController::class, 'store'])->name('opening-stock.store');
-    // Route::post('/opening-stock-store/{product-id}', [OpeningStockController::class, 'stockAdd'])->name('opening-stock.store');
-
-
-
-    // Store a new purchase
-    Route::post('/purchases/store', [PurchaseController::class, 'store']);
-    Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
-    Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchaseProduct']);
-    Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
-
-
-    Route::get('/purchase-returns/get-product-details/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
-
-
-    Route::get('purchase_returns', [PurchaseReturnController::class, 'getAllPurchaseReturns']);
-    Route::get('purchase_returns/{id}', [PurchaseReturnController::class, 'getPurchaseReturns']);
-    Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit']);
-    Route::post('purchase_returns/store', [PurchaseReturnController::class, 'store'])->name('purchase_returns.store');
-    Route::post('purchase_returns/update/{id}', [PurchaseReturnController::class, 'update'])->name('purchase_returns.update');
-
-
-    //add stock adjustment
-    Route::get('/add-stock-adjustment', [StockAdjustmentController::class, 'addStockAdjustment'])->name('add-stock-adjustment');
-    Route::get('/list-stock-adjustment', [StockAdjustmentController::class, 'stockAdjustmentList'])->name('list-stock-adjustment');
-
-    // Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
-    Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
-    Route::get('/edit-stock-adjustment/{id}', [StockAdjustmentController::class, 'edit'])->name('stock-adjustments.edit');
-    // Route::put('/stock-adjustments/{id}', [StockAdjustmentController::class, 'storeOrUpdate'])->name('stock-adjustments.update');
-    Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
-
-    // For creating a new stock adjustment
-    Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
-
-    // For updating an existing stock adjustment
-    Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
 });

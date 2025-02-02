@@ -30,6 +30,6 @@ class PurchaseReturnProduct extends Model
 
     public function batch()
     {
-        return $this->belongsTo(Batch::class, 'batch_no');
+        return $this->belongsTo(Batch::class, 'batch_no', 'id'); // Ensure that 'id' is the correct column in the Batch model
     }
 }
