@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,8 +36,8 @@ class Product extends Model
         return $this->belongsToMany(Location::class)->withPivot('qty');
     }
 
-    // Relationship to category (belongsTo)
-    public function category()
+    // Relationship to main category (belongsTo)
+    public function mainCategory()
     {
         return $this->belongsTo(MainCategory::class, 'main_category_id');
     }
@@ -66,11 +65,4 @@ class Product extends Model
     {
         return $this->hasMany(StockHistory::class);
     }
-
-    // Relationship to opening stocks (hasMany)
-    public function openingStocks()
-    {
-        return $this->hasMany(OpeningStock::class);
-    }
 }
- 

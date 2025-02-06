@@ -61,7 +61,5 @@
         </div>
     </div>
 
-   @include('stock_adjustment.stock_adjustment_ajax');
-
-
+    @include('stock_adjustment.stock_adjustment_ajax');
 @endsection

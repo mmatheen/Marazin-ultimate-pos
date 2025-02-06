@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +26,6 @@ class LocationBatch extends Model
 
     public function stockHistories()
     {
-        return $this->hasMany(StockHistory::class);
+        return $this->hasMany(StockHistory::class, 'loc_batch_id');
     }
 }

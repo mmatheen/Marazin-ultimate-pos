@@ -122,20 +122,24 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
         Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
         Route::get('/product-get-all', [ProductController::class, 'index']);
-        Route::post('/product-store', [ProductController::class, 'store']);
-        Route::post('/product-update/{id}', [ProductController::class, 'update']);
+        Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
+        Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
         Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
         Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
         Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
         Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
-        Route::post('/opening-stock-store/{productId}', [ProductController::class, 'openingStockStore']);
+
         Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
         Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
-
+        Route::get('/opening-stocks-get-all', [ProductController::class, 'OpeningStockGetAll']);
         // SubCategory Routes
         Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
 
+        Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
+        // Route::post('/opening-stock-store/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+        // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
+        Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
         // Dropdown Routes
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
         Route::get('/get-unit', [UnitController::class, 'unitDropdown']);

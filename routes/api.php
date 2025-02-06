@@ -207,9 +207,19 @@ Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionControll
   //stop  brand route
 
   Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
-  Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
+  Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct']);
 
 
+
+
+  Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
+Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
+Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
+
+// Route::post('/opening-stock-store/{productId}', [OpeningStockController::class, 'storeOrUpdateOpeningStock'])->name('opening-stock.store');
+// Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
+// Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
   // Store a new purchase
   // Store a new purchase
   Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,7 +32,7 @@ class Batch extends Model
 
     public function stockHistories()
     {
-        return $this->hasMany(StockHistory::class);
+        return $this->hasMany(StockHistory::class, 'batch_id');
     }
 
     public function locationBatches()
@@ -58,6 +57,6 @@ class Batch extends Model
         return 'BATCH' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
     }
 
-      // If the primary key is different from 'id', specify it
-      protected $primaryKey = 'id'; // Change 'id' to your actual primary key column if different
+    // If the primary key is different from 'id', specify it
+    protected $primaryKey = 'id'; // Change 'id' to your actual primary key column if different
 }

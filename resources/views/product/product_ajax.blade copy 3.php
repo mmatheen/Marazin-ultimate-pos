@@ -73,7 +73,7 @@
                                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                                <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus" data-product-id="${product.id}">></i> Add or Edit Opening Stock</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
                                 <li><a class="dropdown-item" href="#"><i class="fas fa-clone"></i> Duplicate Product</a></li>
                             </ul>
@@ -224,6 +224,7 @@
         $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
 
         // Initialize fetching categories and brands
+        fetchCategoriesAndBrands();
 
         // Other functions and event handlers...
 
@@ -497,177 +498,120 @@
         });
 
         // Global flag to track submission state
-let isSubmitting = false;
+        let isSubmitting = false;
 
-// Function to get the form action URL based on whether we are adding or updating
-function getFormActionUrl() {
-    const productId = $('#product_id').val();
-    return productId ? `/product/update/${productId}` : '/product/store';
-}
-
-// Handle form submission
-$('#openingStockAndProduct').click(function(e) {
-    e.preventDefault(); // Prevent default form submission
-
-    // Check if the form is already being submitted
-    if (isSubmitting) {
-        toastr.error('Form is already being submitted. Please wait.', 'Warning');
-        return; // Prevent further execution
-    }
-
-    // Set the flag to indicate that the form is being submitted
-    isSubmitting = true;
-
-    let form = $('#addForm')[0];
-    let formData = new FormData(form);
-
-    // Add Summernote content to form data
-    formData.append('description', $('#summernote').val());
-
-    // Validate the form before submitting
-    if (!$('#addForm').valid()) {
-        document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
-        toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-        isSubmitting = false;
-        return; // Return if form is not valid
-    }
-
-    $.ajax({
-        url: getFormActionUrl(),
-        type: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            if (response.status == 400) {
-                $.each(response.errors, function(key, err_value) {
-                    $('#' + key + '_error').html(err_value);
-                });
-            } else {
-                document.getElementsByClassName('successSound')[0].play(); // Play success sound
-                toastr.success(response.message, 'Added');
-
-                // Determine redirection based on whether we are adding or updating
+                // Function to get the form action URL based on whether we are adding or updating
+            function getFormActionUrl() {
                 const productId = $('#product_id').val();
-                if (productId) {
-                    // Updating product
-                    window.location.href = `/edit-opening-stock/${response.product_id}`;
-                } else {
-                    // Adding new product
-                    window.location.href = `/opening-stock/${response.product_id}`;
-                }
+                return productId ? `/api/productupdate/${productId}` : '/api/product/store';
             }
-        },
-        error: function(xhr) {
-            toastr.error('Failed to add product. Please try again.', 'Error');
-        },
-        complete: function() {
-            isSubmitting = false; // Reset the flag after the request completes (success or failure)
-        }
-    });
-});
 
-$(document).ready(function() {
-    const currentPath = window.location.pathname;
-    const productId = $('#product_id').val();
-    const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
-    // Update the page title and button text dynamically
-    if (isEditMode) {
-        $('#pageTitle').text('Edit Opening Stock for Product');
-        $('#breadcrumbTitle').text('Edit Opening Stock');
-        $('#submitOpeningStock').text('Update');
+        // Handle form submission
+        $('#openingStockAndProduct').click(function(e) {
+            e.preventDefault(); // Prevent default form submission
 
-        // Fetch existing stock data
-        fetchOpeningStockData(productId);
-    }
-
-    $('#submitOpeningStock').click(function(e) {
-        e.preventDefault();
-        handleFormSubmission(isEditMode, productId);
-    });
-
-    function fetchOpeningStockData(productId) {
-        $.ajax({
-            url: `/api/edit-opening-stock/${productId}`,
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    let batches = response.openingStock.batches;
-
-                    // Debugging - Check response
-                    console.log("Fetched Batches:", batches);
-
-                    batches.forEach(function(batch) {
-                        let row = $(`tr[data-location-id="${batch.location_id}"]`);
-                        if (row.length > 0) {
-                            row.find('input[name^="locations"][name$="[qty]"]').val(batch.quantity);
-                            row.find('input[name^="locations"][name$="[batch_no]"]').val(batch.batch_no);
-                            row.find('input[name^="locations"][name$="[expiry_date]"]').val(batch.expiry_date);
-                        }
-                    });
-                }
-            },
-            error: function(xhr) {
-                toastr.error('Failed to fetch existing stock data.', 'Error');
+            // Check if the form is already being submitted
+            if (isSubmitting) {
+                toastr.error('Form is already being submitted. Please wait.', 'Warning');
+                return; // Prevent further execution
             }
+
+            // Set the flag to indicate that the form is being submitted
+            isSubmitting = true;
+
+            let form = $('#addForm')[0];
+            let formData = new FormData(form);
+
+            // Add Summernote content to form data
+            formData.append('description', $('#summernote').val());
+
+            // Validate the form before submitting
+            if (!$('#addForm').valid()) {
+                document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
+                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+                isSubmitting = false;
+                return; // Return if form is not valid
+            }
+
+            $.ajax({
+                url: getFormActionUrl(),
+                type: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status == 400) {
+                        $.each(response.errors, function(key, err_value) {
+                            $('#' + key + '_error').html(err_value);
+                        });
+                    } else {
+                        document.getElementsByClassName('successSound')[0].play(); // Play success sound
+                        toastr.success(response.message, 'Added');
+                        resetFormAndValidation();
+                        window.location.href = `/opening-stock/${response.product_id}`;
+                    }
+                },
+                error: function(xhr) {
+                    toastr.error('Failed to add product. Please try again.', 'Error');
+                },
+                complete: function() {
+                    isSubmitting = false; // Reset the flag after the request completes (success or failure)
+                }
+            });
         });
-    }
 
-    function handleFormSubmission(isEditMode, productId) {
-        let form = $('#openingStockForm')[0];
-        let formData = new FormData(form);
+        $('#submitOpeningStock').click(function(e) {
+            e.preventDefault();
 
-        // Additional validation for batch numbers
-        if (!validateBatchNumbers()) {
-            document.getElementsByClassName('warningSound')[0].play();
-            toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
-            return;
-        }
+            let form = $('#openingStockForm')[0];
+            let formData = new FormData(form);
 
-        let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-        $.ajax({
-            url: url,
-            type: 'POST',
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 200) {
-                    toastr.success(response.message, 'Success');
-                    window.location.href = '/add-product';
-                } else {
-                    toastr.error(response.message, 'Error');
+            // Additional validation for batch numbers
+            let isValidBatchNo = true;
+
+            $('.batch-no-input').each(function() {
+                let batchNo = $(this).val();
+                if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
+                    isValidBatchNo = false;
                 }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    let errors = xhr.responseJSON.errors;
-                    $.each(errors, function(key, val) {
-                        $(`#${key}_error`).text(val[0]);
-                    });
-                } else {
-                    toastr.error('Unexpected error occurred', 'Error');
-                }
-            }
-        });
-    }
+            });
 
-    function validateBatchNumbers() {
-        let isValid = true;
-        $('.batch-no-input').each(function() {
-            let batchNo = $(this).val();
-            if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
-                isValid = false;
+            // If any batch number is invalid, show the error and stop submission
+            if (!isValidBatchNo) {
+                document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
+                toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
+                return; // Stop submission
             }
+
+            $.ajax({
+                url: `/opening-stock-store/${$('#product_id').val()}`, // Pass the product ID dynamically
+                type: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                data: formData,
+                contentType: false,
+                processData: false,
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        toastr.success(response.message, 'Success');
+                        window.location.href = '/add-product';
+                    } else {
+                        toastr.error(response.message, 'Error');
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422) {
+                        let errors = xhr.responseJSON.errors;
+                    } else {
+                        toastr.error('Unexpected error occurred', 'Error');
+                    }
+                }
+            });
         });
-        return isValid;
-    }
-});
+
         // Helper function to populate a dropdown
         function populateDropdown(selector, items, displayProperty) {
             const selectElement = $(selector).empty();
@@ -687,8 +631,6 @@ $(document).ready(function() {
 
         // Populate product details in the form
         function populateProductDetails(product, mainCategories, brands, units, locations) {
-
-            $('#product_id').val(product.id);
             $('#edit_product_name').val(product.product_name);
             $('#edit_sku').val(product.sku || "");
             $('#edit_pax').val(product.pax || 0);
@@ -898,6 +840,12 @@ $(document).ready(function() {
                     console.error('Error fetching product details:', error);
                 }
             });
+        });
+
+        // Fetch product data when the page is ready
+        $(document).ready(function() {
+            fetchProductData();
+            fetchCategoriesAndBrands();
         });
     });
 </script>

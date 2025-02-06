@@ -148,18 +148,10 @@ class ProductController extends Controller
     }
 
 
-    public function editProduct($id)
+    public function EditProduct($id)
     {
         // Fetch the product and related data
-        $product = Product::with(['locations', 'mainCategory', 'brand', 'unit'])->find($id);
-
-        // Check if the product exists
-        if (!$product) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'Product not found'
-            ], 404);
-        }
+        $product = Product::with(['locations', 'category', 'brand'])->find($id);
 
         $mainCategories = MainCategory::all();
         $subCategories = SubCategory::all();
@@ -168,7 +160,7 @@ class ProductController extends Controller
         $locations = Location::all();
 
         // Check if the request is AJAX
-        if (request()->ajax() || request()->is('api/*')) {
+        if (request()->ajax()) {
             return response()->json([
                 'status' => 200,
                 'message' => [
@@ -183,50 +175,54 @@ class ProductController extends Controller
         }
 
         // Render the edit product view for non-AJAX requests
-        return view('product.add_product', compact('product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
+        return view('product.edit_product', compact('id', 'product', 'mainCategories', 'subCategories', 'brands', 'units', 'locations'));
     }
 
 
-    public function storeOrUpdate(Request $request, $id = null)
+    public function store(Request $request)
     {
-        $rules = [
-            'sku' => [
-                'nullable', 'string', 'max:255', 'unique:products,sku,'.$id,
-                function ($attribute, $value, $fail) {
-                    if (!preg_match('/^SKU\d{4}$/', $value)) {
-                        $fail('The ' . $attribute . ' must be in the format SKU followed by 4 digits. eg: SKU0001');
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'sku' => [
+                    'nullable', 'string', 'max:255', 'unique:products',
+                    function ($attribute, $value, $fail) {
+                        if (!preg_match('/^SKU\d{4}$/', $value)) {
+                            $fail('The ' . $attribute . ' must be in the format SKU followed by 4 digits. eg: SKU0001');
+                        }
                     }
-                }
-            ],
-            'product_name' => 'required|string|max:255',
-            'unit_id' => 'required|integer|exists:units,id',
-            'brand_id' => 'required|integer|exists:brands,id',
-            'main_category_id' => 'required|integer|exists:main_categories,id',
-            'sub_category_id' => 'required|integer|exists:sub_categories,id',
-            'locations' => 'required|array',
-            'locations.*' => 'required|integer|exists:locations,id',
-            'stock_alert' => 'nullable|boolean',
-            'alert_quantity' => 'nullable|numeric|min:0',
-            'product_image' => 'nullable|mimes:jpeg,png,jpg,gif|max:5120',
-            'description' => 'nullable|string',
-            'is_imei_or_serial_no' => 'nullable|boolean',
-            'is_for_selling' => 'required|boolean',
-            'product_type' => 'required|string',
-            'pax' => 'nullable|integer',
-            'retail_price' => 'required|numeric|min:0',
-            'whole_sale_price' => 'required|numeric|min:0',
-            'special_price' => 'required|numeric|min:0',
-            'original_price' => 'required|numeric|min:0',
-            'max_retail_price' => 'required|numeric|min:0',
-        ];
-
-        $validator = Validator::make($request->all(), $rules);
+                ],
+                'product_name' => 'required|string|max:255',
+                'unit_id' => 'required|integer|exists:units,id',
+                'brand_id' => 'required|integer|exists:brands,id',
+                'main_category_id' => 'required|integer|exists:main_categories,id',
+                'sub_category_id' => 'required|integer|exists:sub_categories,id',
+                'locations' => 'required|array',
+                'locations.*' => 'required|integer|exists:locations,id',
+                'stock_alert' => 'nullable|boolean',
+                'alert_quantity' => 'nullable|numeric|min:0',
+                'product_image' => 'nullable|mimes:jpeg,png,jpg,gif|max:5120',
+                'description' => 'nullable|string',
+                'is_imei_or_serial_no' => 'nullable|boolean',
+                'is_for_selling' => 'required|boolean',
+                'product_type' => 'required|string',
+                'pax' => 'nullable|integer',
+                'retail_price' => 'required|numeric|min:0',
+                'whole_sale_price' => 'required|numeric|min:0',
+                'special_price' => 'required|numeric|min:0',
+                'original_price' => 'required|numeric|min:0',
+                'max_retail_price' => 'required|numeric|min:0',
+            ]
+        );
 
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        // File upload logic
+        // Auto-generate SKU
+        $sku = $request->sku ?: 'SKU' . sprintf("%04d", Product::count() + 1);
+
+        // File upload
         $fileName = null;
         if ($request->hasFile('product_image')) {
             $file = $request->file('product_image');
@@ -234,18 +230,8 @@ class ProductController extends Controller
             $file->move(public_path('/assets/images'), $fileName);
         }
 
-        // Retrieve or create the product
-        $product = $id ? Product::find($id) : new Product;
-
-        if (!$product) {
-            return response()->json(['status' => 404, 'message' => 'Product not found!']);
-        }
-
-        // Auto-generate SKU
-        $sku = $request->sku ?: 'SKU' . sprintf("%04d", Product::count() + 1);
-
-        // Update product details
-        $product->fill([
+        // Create product
+        $product = Product::create([
             'product_name' => $request->product_name,
             'sku' => $sku,
             'unit_id' => $request->unit_id,
@@ -254,7 +240,7 @@ class ProductController extends Controller
             'sub_category_id' => $request->sub_category_id,
             'stock_alert' => $request->stock_alert,
             'alert_quantity' => $request->alert_quantity,
-            'product_image' => $fileName ? $fileName : $product->product_image,
+            'product_image' => $fileName,
             'description' => $request->description,
             'is_imei_or_serial_no' => $request->is_imei_or_serial_no,
             'is_for_selling' => $request->is_for_selling,
@@ -265,16 +251,18 @@ class ProductController extends Controller
             'special_price' => $request->special_price,
             'original_price' => $request->original_price,
             'max_retail_price' => $request->max_retail_price,
-        ])->save();
+        ]);
 
-        // Sync locations
-        $product->locations()->sync($request->locations);
+        // Attach locations to the product
+        foreach ($request->locations as $locationId) {
+            $product->locations()->attach($locationId, ['qty' => 0]);
+        }
 
-        $message = $id ? 'Product Details Updated Successfully!' : 'New Product Details Created Successfully!';
-        return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
+        return response()->json(['status' => 200, 'message' => "New Product Details Created Successfully!", 'product_id' => $product->id]);
     }
 
-    public function storeOrUpdateOpeningStock(Request $request, $productId)
+
+    public function openingStockStore(Request $request, $productId)
     {
         $validator = Validator::make($request->all(), [
             'locations' => 'required|array',
@@ -300,27 +288,20 @@ class ProductController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $product, &$message) {
-                $isUpdate = false; // Flag to check if we're updating existing stock
-
+            DB::transaction(function () use ($request, $product) {
                 foreach ($request->locations as $locationData) {
-                    // Format expiry date if provided
+                    // // Validate batch_no format
+                    // if (!empty($locationData['batch_no']) && !preg_match('/^BATCH[0-4]{3,}$/', $locationData['batch_no'])) {
+                    //     throw new \Exception("Invalid batch number: " . $locationData['batch_no']);
+                    // }
+
+                    // Parse and format expiry date
                     $formattedExpiryDate = $locationData['expiry_date']
                         ? \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d')
                         : null;
 
-                    // Check if a batch exists for this product at the location
-                    $existingBatch = Batch::where('batch_no', $locationData['batch_no'] ?? '')
-                        ->where('product_id', $product->id)
-                        ->first();
-
-                    // If batch exists, mark as an update
-                    if ($existingBatch) {
-                        $isUpdate = true;
-                    }
-
-                    // Find or create batch
-                    $batch = Batch::updateOrCreate(
+                    // Determine the batch ID
+                    $batch = Batch::firstOrCreate(
                         [
                             'batch_no' => $locationData['batch_no'] ?? Batch::generateNextBatchNo(),
                             'product_id' => $product->id,
@@ -329,179 +310,42 @@ class ProductController extends Controller
                             'qty' => $locationData['qty'],
                             'unit_cost' => $locationData['unit_cost'],
                             'wholesale_price' => $product->whole_sale_price,
-                            'special_price' => $product->special_price,
+                             'special_price' => $product->special_price,
                             'retail_price' => $product->retail_price,
                             'max_retail_price' => $product->max_retail_price,
                             'expiry_date' => $formattedExpiryDate,
                         ]
                     );
 
-                    // Update or create location batch
-                    $locationBatch = LocationBatch::updateOrCreate(
-                        [
-                            'batch_id' => $batch->id,
-                            'location_id' => $locationData['id'],
-                        ],
-                        [
-                            'qty' => $locationData['qty'],
-                        ]
-                    );
+                    // Create location batch
+                    $locationBatch = LocationBatch::create([
+                        'batch_id' => $batch->id,
+                        'location_id' => $locationData['id'],
+                        'qty' => $locationData['qty'],
+                    ]);
 
                     // Update location_product table
                     $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $locationData['qty']]);
 
                     // Record stock history
-                    StockHistory::updateOrCreate(
-                        [
-                            'loc_batch_id' => $locationBatch->id,
-                            'stock_type' => 'opening_stock',
-                        ],
-                        [
-                            'quantity' => $locationData['qty'],
-                        ]
-                    );
+                    StockHistory::create([
+                        'loc_batch_id' => $locationBatch->id,
+                        'quantity' => $locationData['qty'],
+                        'stock_type' => 'opening_stock',
+                    ]);
                 }
-
-                // Set the appropriate message based on update flag
-                $message = $isUpdate ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
             });
 
-            return response()->json(['status' => 200, 'message' => $message]);
+            return response()->json(['status' => 200, 'message' => 'Opening Stock added successfully!']);
         } catch (\Exception $e) {
-            return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
+
+            $error =$e->getMessage();
+
+
+            // Return detailed error message
+            return response()->json(['status' => 500, 'message' => 'An error occurred while processing the request. ',$error]);
         }
     }
-
-
-    public function showOpeningStock($productId)
-    {
-        $product = Product::with('locations')->findOrFail($productId);
-        $locations = $product->locations;
-
-        // Initialize openingStock with an empty array or default values
-        $openingStock = [
-            'batches' => [],
-        ];
-
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json([
-                'product' => $product,
-                'locations' => $locations,
-                'openingStock' => $openingStock
-            ]);
-        }
-
-        return view('product.opening_stock', [
-            'product' => $product,
-            'locations' => $locations,
-            'openingStock' => $openingStock,
-            'editing' => false
-        ]);
-    }
-
-    public function editOpeningStock($productId)
-    {
-        // Fetch the product along with its locations
-        $product = Product::with('locations')->findOrFail($productId);
-
-        // Fetch all available locations
-        $locations = Location::all();
-
-        // Fetch the batches with stock type 'opening_stock'
-        $batches = Batch::where('product_id', $productId)
-            ->whereHas('locationBatches.stockHistories', function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            })
-            ->with(['locationBatches.stockHistories' => function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            }])
-            ->get();
-
-        // Prepare response data with only the required details
-        $openingStock = [
-            'product_id' => $product->id,
-            'batches' => $batches->flatMap(function ($batch) {
-                return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
-                    return [
-                        'batch_id' => $locationBatch->batch_id,
-                        'location_id' => $locationBatch->location_id,
-                        'quantity' => $locationBatch->qty,
-                        'batch_no' => $batch->batch_no,
-                        'expiry_date' => $batch->expiry_date,
-                        'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
-                            return [
-                                'stock_history_id' => $stockHistory->id,
-                                'quantity' => $stockHistory->quantity,
-                                'stock_type' => $stockHistory->stock_type,
-                            ];
-                        })->values(),
-                    ];
-                });
-            })->values(),
-        ];
-
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
-        }
-
-        // Pass the product, locations, and openingStock to the view
-        return view('product.opening_stock', [
-            'product' => $product,
-            'locations' => $locations,
-            'openingStock' => $openingStock,
-            'editing' => true
-        ]);
-    }
-
-
-    public function OpeningStockGetAll()
-{
-    // Fetch all products with their locations
-    $products = Product::with('locations')->get();
-
-    // Prepare the opening stock response
-    $openingStock = [];
-
-    foreach ($products as $product) {
-        // Fetch all batches related to the product that have stock type 'opening_stock'
-        $batches = Batch::where('product_id', $product->id)
-            ->whereHas('locationBatches.stockHistories', function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            })
-            ->with(['locationBatches.stockHistories' => function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            }])
-            ->get();
-
-        // Prepare data structure
-        $openingStock[] = [
-            'products' => $products,
-            'batches' => $batches->flatMap(function ($batch) {
-                return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
-                    return [
-                        'batch_id' => $locationBatch->batch_id,
-                        'location_id' => $locationBatch->location_id,
-                        'quantity' => $locationBatch->qty,
-                        'batch_no' => $batch->batch_no,
-                        'expiry_date' => $batch->expiry_date,
-                        'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
-                            return [
-                                'stock_history_id' => $stockHistory->id,
-                                'quantity' => $stockHistory->quantity,
-                                'stock_type' => $stockHistory->stock_type,
-                            ];
-                        })->values(),
-                    ];
-                });
-            })->values(),
-        ];
-    }
-
-    return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
-}
-
-
-
 
     // public function getAllProductStocks()
     // {
@@ -674,6 +518,22 @@ class ProductController extends Controller
 
 //     return response()->json($data);
 // }
+
+
+    public function showOpeningStock($productId)
+    {
+        $product = Product::with('locations')->findOrFail($productId);
+        $locations = $product->locations;
+
+        return response()->json([
+            'status' => 404,
+            'product' => $product,
+            'locations'=>$locations
+        ]);
+
+        // return view('product.opening_stock', compact('product', 'locations'));
+    }
+
 
 
 

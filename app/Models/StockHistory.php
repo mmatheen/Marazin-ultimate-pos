@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,10 +28,9 @@ class StockHistory extends Model
     const STOCK_TYPE_TRANSFER_OUT = 'transfer_out';
     const STOCK_TYPE_ADJUSTMENT = 'adjustment';
 
-
     public function locationBatch()
     {
-        return $this->belongsTo(LocationBatch::class);
+        return $this->belongsTo(LocationBatch::class, 'loc_batch_id');
     }
 
     /**

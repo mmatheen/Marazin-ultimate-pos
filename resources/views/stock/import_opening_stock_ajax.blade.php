@@ -107,34 +107,45 @@
             $('#addAndEditOpeningStockModal').modal('show');
         });
 
-        // Fetch and Display Data
-        function showFetchData() {
-            $.ajax({
-                url: '/import-opening-stock-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    var table = $('#openingStock').DataTable();
-                    table.clear().draw();
-                    var counter = 1;
-                    response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter  + '</td>');
-                        row.append('<td>' + item.sku + '</td>');
-                        row.append('<td>' + item.location.name + '</td>');
-                        row.append('<td>' + item.product.product_name + '</td>');
-                        row.append('<td>' + item.quantity + '</td>');
-                        row.append('<td>' + item.unit_cost + '</td>');
-                        row.append('<td>' + item.batch_id + '</td>');
-                        row.append('<td>' + item.expiry_date + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
-                        // row.append(actionDropdown);
-                        table.row.add(row).draw(false);
-                        counter++;
-                    });
-                },
+       // Fetch and Display Data
+function showFetchData() {
+    $.ajax({
+        url: '/opening-stocks-get-all',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            var table = $('#openingStock').DataTable();
+            table.clear().draw();
+            var counter = 1;
+
+            response.openingStock.forEach(function(item) {
+                if (item.products.length > 0 && item.batches.length > 0) {
+                    let product = item.products[0]; // Get first product
+                    let batch = item.batches[0]; // Get first batch
+                    let location = product.locations.length > 0 ? product.locations[0] : null;
+
+                    let row = $('<tr>');
+                    row.append('<td>' + counter + '</td>');
+                    row.append('<td>' + product.sku + '</td>');
+                    row.append('<td>' + (location ? location.name : 'N/A') + '</td>');
+                    row.append('<td>' + product.product_name + '</td>');
+                    row.append('<td>' + batch.quantity + '</td>');
+                    row.append('<td>' + (product.original_price || 'N/A') + '</td>'); // Assuming unit_cost exists
+                    row.append('<td>' + batch.batch_no + '</td>');
+                    row.append('<td>' + batch.expiry_date + '</td>');
+                    row.append('<td><button type="button" value="' + product.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + product.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button></td>');
+
+                    table.row.add(row).draw(false);
+                    counter++;
+                }
             });
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching data:', error);
         }
+    });
+}
+
 
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {

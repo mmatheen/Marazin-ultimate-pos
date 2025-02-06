@@ -19,10 +19,14 @@ class StockAdjustmentController extends Controller
         // Fetch all stock adjustments with related products and location
         $stockAdjustments = StockAdjustment::with('adjustmentProducts.product', 'location')->get();
 
-        return response()->json([
-            'status' => 200,
-            'stockAdjustment' => $stockAdjustments
-        ]);
+                // Get the authenticated user
+            $user = auth()->user();
+
+            return response()->json([
+                'status' => 200,
+                'stockAdjustment' => $stockAdjustments,
+                'userName' => $user->name, // Add the user's name to the response
+            ]);
     }
 
     public function addStockAdjustment()

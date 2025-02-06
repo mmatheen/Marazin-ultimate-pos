@@ -289,68 +289,67 @@
 
         // Submit form data via AJAX
 
-
         fetchStockAdjustmentList();
 
-        function fetchStockAdjustmentList() {
-            $.ajax({
-                url: '/stock-adjustments', // API endpoint
-                method: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        populateStockAdjustmentTable(response.stockAdjustment);
-                    } else {
-                        console.error('Error fetching stock adjustments:', response.message);
-                        toastr.error('Failed to fetch stock adjustments. Please try again.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching stock adjustments:', error);
-                    toastr.error('An error occurred. Please try again.');
-                }
-            });
+function fetchStockAdjustmentList() {
+    $.ajax({
+        url: '/stock-adjustments', // API endpoint
+        method: 'GET',
+        success: function(response) {
+            if (response.status === 200) {
+                populateStockAdjustmentTable(response.stockAdjustment, response.userName);
+            } else {
+                console.error('Error fetching stock adjustments:', response.message);
+                toastr.error('Failed to fetch stock adjustments. Please try again.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching stock adjustments:', error);
+            toastr.error('An error occurred. Please try again.');
         }
+    });
+}
 
-        function populateStockAdjustmentTable(data) {
-            $('#stockAdjustmentTable').DataTable({
-                destroy: true, // Destroy existing table to reinitialize
-                data: data,
-                columns: [
-                    { data: 'date' },
-                    { data: 'reference_no' },
-                    { data: 'location.name' }, // Access nested location name
-                    { data: 'adjustment_type' },
-                    {
-                        data: 'adjustment_products',
-                        render: function(data, type, row) {
-                            // Calculate total amount from adjustment_products
-                            let totalAmount = data.reduce((sum, product) => sum + parseFloat(product.subtotal), 0);
-                            return totalAmount.toFixed(2);
-                        }
-                    },
-                    { data: 'total_amount_recovered' },
-                    { data: 'reason' },
-                    { data: 'added_by' }, // Assuming 'added_by' is part of the response
-                    {
-                        data: 'id',
-                        render: function(data, type, row) {
-                            // Add action buttons (Edit, Delete, etc.)
-                            return `
-                                <a href="/edit-stock-adjustment/${data}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <button onclick="deleteStockAdjustment(${data})" class="btn btn-sm btn-outline-danger">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            `;
-                        }
-                    }
-                ],
-                columnDefs: [
-                    { targets: [8], orderable: false } // Disable sorting for the action column
-                ]
-            });
-        }
+function populateStockAdjustmentTable(data, userName) {
+    $('#stockAdjustmentTable').DataTable({
+        destroy: true, // Destroy existing table to reinitialize
+        data: data,
+        columns: [
+            { data: 'date' },
+            { data: 'reference_no' },
+            { data: 'location.name' }, // Access nested location name
+            { data: 'adjustment_type' },
+            {
+                data: 'adjustment_products',
+                render: function(data, type, row) {
+                    // Calculate total amount from adjustment_products
+                    let totalAmount = data.reduce((sum, product) => sum + parseFloat(product.subtotal), 0);
+                    return totalAmount.toFixed(2);
+                }
+            },
+            { data: 'total_amount_recovered' },
+            { data: 'reason' },
+            { data: 'userName' }, // Assuming 'userName' is part of the response
+            {
+                data: 'id',
+                render: function(data, type, row) {
+                    // Add action buttons (Edit, Delete, etc.)
+                    return `
+                        <a href="/edit-stock-adjustment/${data}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button onclick="deleteStockAdjustment(${data})" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+            }
+        ],
+        columnDefs: [
+            { targets: [8], orderable: false } // Disable sorting for the action column
+        ]
+    });
+}
 
         // Delete stock adjustment
         function deleteStockAdjustment(id) {

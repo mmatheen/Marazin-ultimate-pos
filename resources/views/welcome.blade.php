@@ -138,3 +138,15 @@
         </div>
     </body>
 </html>
+<!-- resources/views/welcome.blade.php -->
+@extends('layouts.app')
+
+@section('content')
+    <x-alert type="danger">
+        This is an error alert!
+    </x-alert>
+
+    <x-alert type="success">
+        This is a success alert!
+    </x-alert>
+@endsection

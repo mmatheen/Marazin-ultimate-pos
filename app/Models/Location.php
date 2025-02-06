@@ -8,18 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 class Location extends Model
 {
     use HasFactory;
-    protected $table='locations';
-    protected $fillable=[
+    protected $table = 'locations';
+    protected $fillable = [
 
-              'name',
-              'location_id',
-              'address',
-              'province',
-              'district',
-              'city',
-              'email',
-              'mobile',
-              'telephone_no',
+        'name',
+        'location_id',
+        'address',
+        'province',
+        'district',
+        'city',
+        'email',
+        'mobile',
+        'telephone_no',
     ];
 
     public function purchaseProducts()
@@ -32,11 +32,8 @@ class Location extends Model
         return $this->hasMany(OpeningStock::class);
     }
 
-    public function stocks()
+    public function locationBatches()
     {
-        return $this->hasMany(Stock::class);
+        return $this->hasMany(LocationBatch::class);
     }
-
-
-
 }

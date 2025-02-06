@@ -13,10 +13,10 @@
             <div class="row align-items-center">
                 <div class="col-sm-12">
                     <div class="page-sub-header">
-                        <h3 class="page-title">Edit product</h3>
+                        <h3 class="page-title">Add new product</h3>
                         <ul class="breadcrumb">
                             <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                            <li class="breadcrumb-item active">Edit product</li>
+                            <li class="breadcrumb-item active">Add new product</li>
                         </ul>
                     </div>
                 </div>
@@ -25,110 +25,121 @@
     </div>
 
     <div class="container">
-        <form id="UpdateForm">
-            <input type="hidden" id="product_id" value="{{ $product->id }}">
-
+        <form id="addForm">
             <div class="row">
                 <div class="col-md-12">
                     <div class="card card-table">
                         <div class="card-body">
                             <div class="page-header">
                                 <div class="row align-items-center">
-
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product Name <span class="login-danger">*</span></label>
-                                                    <input class="form-control" id="edit_product_name1"  name="product_name" type="text" placeholder="Product Name">
+                                                    <input class="form-control" id="edit_product_name" name="product_name" type="text" placeholder="Product Name">
                                                     <span class="text-danger" id="product_name_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
-
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product SKU <span class="login-danger">*</span></label>
-                                                    <input class="form-control" id="edit_sku1" name="sku" type="text" placeholder="Product SKU">
+                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU">
                                                     <span class="text-danger" id="sku_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex ">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_unit_id1" name="unit_id">
-                                                    
+                                                    <select class="form-control form-select" id="edit_unit_id" name="unit_id">
                                                     </select>
-                                                    <span class="text-danger" id="unit_id_error"></span>
+                                                    <button type="button" class="btn btn-outline-info" id="addUnitButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
+
+                                                <span class="text-danger" id="unit_id_error"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex" >
                                                     <label>Product Brand <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_brand_id1" name="brand_id">
-
+                                                    <select class="form-control form-select" id="edit_brand_id" name="brand_id">
                                                     </select>
-                                                    <span class="text-danger" id="brand_id_error"></span>
+                                                    <button type="button" class="btn btn-outline-info " id="addBrandButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
+                                                <span class="text-danger" id="brand_id_error"></span>
                                             </div>
                                         </div>
+
+
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="input-group local-forms">
+                                                <div class="form-group local-forms d-flex">
                                                     <label>Main Category <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_main_category_id1" name="main_category_id">
-
+                                                    <select class="form-control form-select" id="edit_main_category_id" name="main_category_id">
                                                     </select>
-                                                    <span class="text-danger" id="main_category_id_error"></span>
+                                                    <button type="button" class="btn btn-outline-info" id="addMainCategoryButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
+
+
                                             </div>
+
                                         </div>
 
+
+
                                         <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <div class="input-group local-forms">
+                                            <div class="mb-3 ">
+                                                <div class="input-group local-forms d-flex">
                                                     <label>Sub Category <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_sub_category_id1" name="sub_category_id">
-
+                                                    <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
                                                     </select>
-                                                    <span class="text-danger" id="sub_category_id_error"></span>
+                                                    <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
+                                                        <i class="fas fa-plus-circle"></i>
+                                                    </button>
                                                 </div>
+                                                <span class="text-danger" id="sub_category_id_error"></span>
+
+
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 mt-4">
+                                            <div class="mt-4 mb-3">
                                                 <div class="input-group local-forms">
                                                     <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="location_id[]"  multiple="multiple">
-                                                        {{-- it will load dynamcaly using ajax --}}
+                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="locations[]" multiple="multiple">
+
                                                     </select>
-                                                    <span class="text-danger" id="location_id_error"></span>
+                                                    <span class="text-danger" id="locations_error"></span>
                                                 </div>
                                             </div>
                                         </div>
-
 
                                         <script>
                                             $(document).ready(function () {
                                                 $('.multiple-location').select2({
-                                                    placeholder: "  Business Location",
+                                                    placeholder: "Select Business Locations",
                                                     allowClear: true
                                                 });
                                             });
                                         </script>
 
-
                                     </div>
 
-                                    <div class="row mt-3">
+                                    <div class="mt-3 row">
                                         <div class="col-md-4">
                                             <div class="mb-5">
                                                 <div class="form-check">
@@ -165,21 +176,20 @@
                                                 // Function to toggle the alert quantity field based on checkbox status
                                                 function toggleAlertQuantity() {
                                                     if ($('#edit_stock_alert').is(':checked')) {
-                                                        $('#alert_quantity_container').show(); // Show the alert quantity field when checkbox is checked
-                                                        $('#stock_alert_label').text('Show Alert Stock'); // Change label to "Hide Alert Stock"
+                                                        $('#alert_quantity_container').show();
+                                                        $('#stock_alert_label').text('Show Alert Stock');
                                                     } else {
-                                                        $('#alert_quantity_container').hide(); // Hide the alert quantity field when unchecked
-                                                        $('#stock_alert_label').text('Hide Alert Stock'); // Change label to "Show Alert Stock"
+                                                        $('#alert_quantity_container').hide();
+                                                        $('#stock_alert_label').text('Hide Alert Stock');
                                                     }
                                                 }
                                             });
-
                                         </script>
                                     </div>
                                     <div class="row">
 
                                         <div class="col-md-8">
-                                            <div id="summernote"></div>
+                                            <div id="summernote" name="description"></div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="row">
@@ -193,8 +203,9 @@
                                                     <span>Max File size: 5MB </span>
                                                 </div>
 
-                                                <div class="col-md-12 my-4 d-flex justify-content-center">
+                                                <div class="my-4 col-md-12 d-flex justify-content-center">
                                                     <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
+
                                                 </div>
                                             </div>
                                         </div>
@@ -211,7 +222,7 @@
                             <div class="card-body">
                                 <div class="page-header">
                                     <div class="row align-items-center">
-                                        <div class="row mt-2">
+                                        <div class="mt-2 row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="form-check ms-3">
@@ -236,11 +247,11 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="row mt-4">
+                                        <div class="mt-4 row">
                                             <div class="col-md-6">
                                                 <div class="mb-3">
                                                     <div class="input-group local-forms">
-                                                        <select class="form-control form-select select" name="product_type" id="edit_product_type"  aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                                        <select class="form-control form-select select" name="product_type" aria-label="Example text with button addon" aria-describedby="button-addon1">
                                                             <option selected disabled>Product Type</option>
                                                             <option value="Box">Box</option>
                                                             <option value="Bundle">Bundle</option>
@@ -254,7 +265,7 @@
                                                     <div class="mb-3">
                                                         <div class="form-group local-forms">
                                                             <label>Pax<span class="login-danger"></span></label>
-                                                            <input class="form-control" name="pax" id="edit_pax" type="number" placeholder="0">
+                                                            <input class="form-control" name="pax" type="number" placeholder="0">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -284,6 +295,7 @@
                                                                 <th scope="col">Retail Price</th>
                                                                 <th scope="col">Whole Sale Price</th>
                                                                 <th scope="col">Special Price</th>
+                                                                <th scope="col">Max Retail Price</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -315,6 +327,12 @@
                                                                         <span class="text-danger" id="special_price_error"></span>
                                                                     </div>
                                                                 </td>
+                                                                <td>
+                                                                    <div class="form-group">
+                                                                        <input type="text" id="edit_max_retail_price" name="max_retail_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="max_retail_price_error"></span>
+                                                                    </div>
+                                                                </td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -328,23 +346,39 @@
                     </div>
                 </div>
 
-
-                <div class="row mb-4">
+                <div class="mb-4 row">
                     <div class="gap-4 d-flex justify-content-center">
-                      
                         <div>
-                            <button type="submit" class="btn btn-outline-primary" id="onlyUpdateProductButton">Update</button>
+                            <button type="submit" class="btn btn-outline-primary" id="openingStockAndProduct">Save & Add Opening Stock</button>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-outline-danger" id="SaveProductButtonAndAnother">Save And Add Another</button>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-outline-primary" id="onlySaveProductButton">Save</button>
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <!-- Button trigger modal -->
         </form>
     </div>
 
-</div>
-{{-- 
-@include('product.add_product_ajax') --}}
+
+
 @include('product.product_ajax')
+@include('brand.brand_modal')
+@include('brand.brand_ajax')
+@include('unit.unit_modal')
+@include('unit.unit_ajax')
+@include('category.main_category.main_category_ajax')
+@include('category.main_category.main_category_modal')
+@include('category.sub_category.sub_category_modal')
+@include('category.sub_category.sub_category_ajax')
+
+
+
 {{-- @include('stock.import_opening_stock_ajax') --}}
+
 @endsection
