@@ -10,7 +10,7 @@
                             class="menu-arrow"></span></a>
                     <ul>
                         <li><a href="index.html" class="active">Admin Dashboard</a></li>
-                     
+
                     </ul>
                 </li>
                 <li class="submenu {{ set_active(['user'])}}">
@@ -71,7 +71,8 @@
                     <ul>
                         <li><a href={{ route('list-sale') }} class="{{ set_active(['list-sale'])}}">All Sales</a></li>
                         <li><a href={{ route('add-sale') }} class="{{ set_active(['add-sale'])}}">Add Sale</a></li>
-                        <li><a href={{ route('sales-returns') }} class="{{ set_active(['sales-returns'])}}">Add Sale Return</a></li>
+                        <li><a href="{{ route('sale-return/list') }}" class="{{ set_active(['sale-return/list']) }}">List Sale Return</a></li>
+                        <li><a href="{{ route('sale-return/add') }}" class="{{ set_active(['sale-return/add']) }}">Add Sale Return</a></li>
 
                         <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a></li>
                         <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>

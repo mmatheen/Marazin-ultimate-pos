@@ -28,22 +28,22 @@
                 required: true,
 
             },
-            contact_id: {
-                required: true,
+            // contact_id: {
+            //     required: true,
 
-            },
-            contact_type: {
-                required: true,
+            // },
+            // contact_type: {
+            //     required: true,
 
-            },
-            date: {
-                required: true,
+            // },
+            // date: {
+            //     required: true,
 
-            },
-            assign_to: {
-                required: true,
+            // },
+            // assign_to: {
+            //     required: true,
 
-            },
+            // },
             opening_balance: {
                 required: true,
 
@@ -68,18 +68,18 @@
             email: {
                 required: "Email  is required",
             },
-            contact_id: {
-                required: "Contact ID  is required",
-            },
-            contact_type: {
-                required: "Contact Type  is required",
-            },
-            date: {
-                required: "Date  is required",
-            },
-            assign_to: {
-                required: "Assign To  is required",
-            },
+            // contact_id: {
+            //     required: "Contact ID  is required",
+            // },
+            // contact_type: {
+            //     required: "Contact Type  is required",
+            // },
+            // date: {
+            //     required: "Date  is required",
+            // },
+            // assign_to: {
+            //     required: "Assign To  is required",
+            // },
             opening_balance: {
                 required: "Opening Balance  is required",
             },
@@ -147,10 +147,10 @@
                         row.append('<td>' + item.last_name + '</td>');
                         row.append('<td>' + item.mobile_no + '</td>');
                         row.append('<td>' + item.email + '</td>');
-                        row.append('<td>' + item.contact_id + '</td>');
-                        row.append('<td>' + item.contact_type + '</td>');
-                        row.append('<td>' + item.date + '</td>');
-                        row.append('<td>' + item.assign_to + '</td>');
+                        // row.append('<td>' + item.contact_id + '</td>');
+                        // row.append('<td>' + item.contact_type + '</td>');
+                        // row.append('<td>' + item.date + '</td>');
+                        // row.append('<td>' + item.assign_to + '</td>');
                         row.append('<td>' + item.opening_balance + '</td>');
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
@@ -183,10 +183,10 @@
                         $('#edit_last_name').val(response.message.last_name);
                         $('#edit_mobile_no').val(response.message.mobile_no);
                         $('#edit_email').val(response.message.email);
-                        $('#edit_contact_id').val(response.message.contact_id);
-                        $('#edit_contact_type').val(response.message.contact_type);
-                        $('#edit_date').val(response.message.date);
-                        $('#edit_assign_to').val(response.message.assign_to);
+                        // $('#edit_contact_id').val(response.message.contact_id);
+                        // $('#edit_contact_type').val(response.message.contact_type);
+                        // $('#edit_date').val(response.message.date);
+                        // $('#edit_assign_to').val(response.message.assign_to);
                         $('#edit_opening_balance').val(response.message.opening_balance);
                         $('#addAndEditSupplierModal').modal('show');
                     }

@@ -5,7 +5,8 @@
         let categoryMap = {};
         let brandMap = {};
         let locationMap = {};
-
+        fetchProductData();
+        fetchCategoriesAndBrands();
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {

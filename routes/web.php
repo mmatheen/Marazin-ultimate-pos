@@ -35,7 +35,8 @@ use App\Http\Controllers\{
     SaleReturnController,
     SalesCommissionAgentsController,
     SellController,
-    StockAdjustmentController
+    StockAdjustmentController,
+    CartController
 };
 
 
@@ -221,6 +222,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
         Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
         Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+        Route::get('/get-purchase/{id}', [PurchaseController::class, 'getPurchase']);
         Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchasesProduct']);
         Route::get('purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
         Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
@@ -236,8 +238,16 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
 
         // Sale Return Routes
-        Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
-        Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
+        // Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
+        // Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
+
+            Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
+            Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
+            Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
+            Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
+            Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
+            Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
+            Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
         // Stock Transfer Routes
         Route::get('/stock-transfers', [StockTransferController::class, 'index']);
@@ -314,5 +324,11 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/stock-adjustments/{id}', [StockAdjustmentController::class, 'show'])->name('stock-adjustments.show');
         Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'storeOrUpdate']);
         Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
+
+        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+        Route::delete('/cart/remove/{rowId}', [CartController::class, 'remove'])->name('cart.remove');
+        Route::put('/cart/update/{rowId}', [CartController::class, 'update'])->name('cart.update');
+
     });
 });

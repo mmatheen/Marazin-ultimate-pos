@@ -766,7 +766,7 @@ function fetchSaleProducts(invoiceNo) {
                     jsonData.products.push(product);
                 });
 
-                fetch("/api/sales-returns/store", {
+                fetch("/sale-return/store", {
                     method: "POST",
                     headers: {
                         'Content-Type': 'application/json',

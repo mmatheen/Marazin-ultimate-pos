@@ -10,15 +10,18 @@ class SalesReturn extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sale_id',          // If returning with an invoice
-        'customer_id',      // Nullable for walk-in returns
-        'location_id',      // Location of the return
-        'return_date',      // Date of the return
-        'return_total',     // Total value of the return
-        'notes',            // Additional notes or reason for return
+        'sale_id',
+        'customer_id',
+        'location_id',
+        'return_date',
+        'return_total',
+        'notes',
         'is_defective',
-        'invoice_number',     // Flag for defective items
-        'stock_type'
+        'invoice_number',
+        'stock_type',
+        'total_paid',
+        'total_due',
+        'payment_status'
     ];
 
     /**
@@ -67,5 +70,30 @@ class SalesReturn extends Model
         $latest = self::latest()->first();
         $number = $latest ? intval(substr($latest->invoice_number, -4)) + 1 : 1;
         return 'SR-' . str_pad($number, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function payments()
+    {
+        return $this->morphMany(Payment::class, 'payable');
+    }
+
+    public function updatePaymentStatus()
+    {
+        // Calculate total paid amount
+        $this->total_paid = $this->payments()->sum('amount');
+
+        // Calculate total due amount
+        $this->total_due = $this->return_total - $this->total_paid;
+
+        // Update payment status based on total due amount
+        if ($this->total_due <= 0) {
+            $this->payment_status = 'Paid';
+        } elseif ($this->total_paid > 0) {
+            $this->payment_status = 'Partial';
+        } else {
+            $this->payment_status = 'Due';
+        }
+
+        $this->save();
     }
 }

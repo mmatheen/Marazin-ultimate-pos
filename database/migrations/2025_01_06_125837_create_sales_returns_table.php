@@ -19,6 +19,9 @@ return new class extends Migration
             $table->unsignedBigInteger('location_id');
             $table->date('return_date');
             $table->decimal('return_total', 12, 2); // Total value of the return
+            $table->decimal('total_paid', 15, 2)->default(0);
+            $table->decimal('total_due', 15, 2)->default(0);
+            $table->enum('payment_status', ['Paid', 'Partial', 'Due'])->default('Due');
             $table->text('notes')->nullable(); // Reason or additional details
             $table->boolean('is_defective')->default(false); // Indicates defective items
             $table->enum('stock_type', ['with_bill', 'without_bill']);

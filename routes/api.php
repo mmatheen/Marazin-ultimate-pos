@@ -244,10 +244,15 @@ Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 
 
-Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
 Route::get('/search/sales', [SaleController::class, 'searchSales']);
 
+Route::get('sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
+// Route::get('sale-return/{id}', [SaleReturnController::class, 'getSaleReturnById']);
+Route::get('sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
+Route::post('sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
+Route::put('sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
+Route::get('sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
 
 Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
@@ -267,6 +272,8 @@ Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.des
   Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\PaymentController;
 
 // Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
 Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
@@ -278,3 +285,12 @@ Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store
 
 // For updating an existing stock adjustment
 Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
+
+
+Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
+Route::delete('/cart/remove/{rowId}', [CartController::class, 'remove'])->name('cart.remove');
+Route::put('/cart/update/{rowId}', [CartController::class, 'update'])->name('cart.update');
+Route::get('/products/stocks', [ProductController::class, 'getAllStocks'])->name('products.stocks');
+
+Route::post('/payments', [PaymentController::class, 'storeOrUpdatePayment']);

@@ -10,9 +10,20 @@ class Purchase extends Model
     use HasFactory;
 
     protected $fillable = [
-        'supplier_id', 'reference_no', 'purchase_date', 'purchasing_status',
-        'location_id', 'pay_term', 'pay_term_type', 'attached_document',
-        'total', 'discount_type', 'discount_amount', 'final_total', 'payment_status', 'total_paid',
+        'supplier_id',
+        'reference_no',
+        'purchase_date',
+        'purchasing_status',
+        'location_id',
+        'pay_term',
+        'pay_term_type',
+        'attached_document',
+        'total',
+        'discount_type',
+        'discount_amount',
+        'final_total',
+        'payment_status',
+        'total_paid',
         'total_due'
     ];
 
@@ -26,30 +37,25 @@ class Purchase extends Model
         return $this->belongsTo(Location::class);
     }
 
-    public function products()
-    {
-        return $this->hasMany(Product::class);
-    }
-
-    // Relationship with PurchaseProduct
     public function purchaseProducts()
     {
         return $this->hasMany(PurchaseProduct::class);
     }
 
-    // Relationship with PaymentInfo
-
-    // Define the relationship with the PurchasePayment model
     public function payments()
     {
-        return $this->hasMany(PurchasePayment::class);
+        return $this->morphMany(Payment::class, 'payable');
     }
 
     public function updatePaymentStatus()
     {
+        // Calculate total paid amount
         $this->total_paid = $this->payments()->sum('amount');
+
+        // Calculate total due amount
         $this->total_due = $this->final_total - $this->total_paid;
 
+        // Update payment status based on total due amount
         if ($this->total_due <= 0) {
             $this->payment_status = 'Paid';
         } elseif ($this->total_paid > 0) {

@@ -144,18 +144,18 @@
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="paymentMethod" class="form-label">Payment Method</label>
-                                <select class="form-select" id="paymentMethod">
-                                    <option selected>Cash</option>
-                                    <option value="1">Credit Card</option>
-                                    <option value="2">Bank Transfer</option>
+                                <select class="form-select" id="paymentMethod" onchange="togglePaymentFields()">
+                                    <option value="cash" selected>Cash</option>
+                                    <option value="credit_card">Credit Card</option>
+                                    <option value="cheque">Cheque</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
                                 </select>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
                                 <label for="paidOn" class="form-label">Paid On</label>
-                                <input class="form-control datetimepicker" type="text" id="paidOn"
-                                placeholder="DD-MM-YYYY">
+                                <input class="form-control datetimepicker" type="text" id="paidOn" placeholder="DD-MM-YYYY">
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -165,6 +165,76 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Conditional Payment Fields -->
+                    <div id="creditCardFields" class="row mb-3 d-none">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="cardNumber" class="form-label">Card Number</label>
+                                <input type="text" class="form-control" id="cardNumber">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                                <input type="text" class="form-control" id="cardHolderName">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="cardType" class="form-label">Card Type</label>
+                                <select class="form-select" id="cardType">
+                                    <option value="visa">Visa</option>
+                                    <option value="mastercard">MasterCard</option>
+                                    <option value="amex">American Express</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="expiryMonth" class="form-label">Expiry Month</label>
+                                <input type="text" class="form-control" id="expiryMonth">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="expiryYear" class="form-label">Expiry Year</label>
+                                <input type="text" class="form-control" id="expiryYear">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="securityCode" class="form-label">Security Code</label>
+                                <input type="text" class="form-control" id="securityCode">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="chequeFields" class="row mb-3 d-none">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="chequeNumber" class="form-label">Cheque Number</label>
+                                <input type="text" class="form-control" id="chequeNumber">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bankBranch" class="form-label">Bank Branch</label>
+                                <input type="text" class="form-control" id="bankBranch">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="bankTransferFields" class="row mb-3 d-none">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
+                                <input type="text" class="form-control" id="bankAccountNumber">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Remaining Form Elements -->
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -196,6 +266,27 @@
         </div>
     </div>
 </div>
+
+<script>
+    function togglePaymentFields() {
+        const paymentMethod = document.getElementById('paymentMethod').value;
+        const creditCardFields = document.getElementById('creditCardFields');
+        const chequeFields = document.getElementById('chequeFields');
+        const bankTransferFields = document.getElementById('bankTransferFields');
+
+        creditCardFields.classList.add('d-none');
+        chequeFields.classList.add('d-none');
+        bankTransferFields.classList.add('d-none');
+
+        if (paymentMethod === 'credit_card') {
+            creditCardFields.classList.remove('d-none');
+        } else if (paymentMethod === 'cheque') {
+            chequeFields.classList.remove('d-none');
+        } else if (paymentMethod === 'bank_transfer') {
+            bankTransferFields.classList.remove('d-none');
+        }
+    }
+</script>
 
 @include('purchase.purchase_return_ajax')
 @endsection

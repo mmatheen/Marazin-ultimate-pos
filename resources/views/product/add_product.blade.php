@@ -25,7 +25,7 @@
 
     <div class="container">
         <form id="addForm">
-            <input type="text" id="product_id"  name="product_id">
+            <input type="hidden" id="product_id"  name="product_id">
             <div class="row">
                 <div class="col-md-12">
                     <div class="card card-table">

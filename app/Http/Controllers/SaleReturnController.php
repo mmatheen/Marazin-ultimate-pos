@@ -19,13 +19,17 @@ class SaleReturnController extends Controller
      */
     public function addSaleReturn()
     {
+        return view('saleReturn.add_sale_return');
+    }
+    public function listSaleReturn()
+    {
         return view('saleReturn.sale_return');
     }
 
     /**
      * Store a newly created sale return in the database.
      */
-    public function store(Request $request)
+    public function storeOrUpdate(Request $request, $id = null)
     {
         // Validate the request data
         $validator = Validator::make($request->all(), [
@@ -68,24 +72,32 @@ class SaleReturnController extends Controller
         }
 
         // Use transaction to ensure atomicity
-        DB::transaction(function () use ($request) {
+        DB::transaction(function () use ($request, $id) {
 
             $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
-            // Create the sales return
-            $salesReturn = SalesReturn::create([
-                'sale_id' => $request->sale_id,
-                'customer_id' => $request->customer_id,
-                'location_id' => $request->location_id,
-                'return_date' => $request->return_date,
-                'return_total' => $request->return_total,
-                'notes' => $request->notes,
-                'is_defective' => $request->is_defective,
-                'stock_type' => $stockType,
-            ]);
+            // Create or update the sales return
+            $salesReturn = SalesReturn::updateOrCreate(
+                ['id' => $id],
+                [
+                    'sale_id' => $request->sale_id,
+                    'customer_id' => $request->customer_id,
+                    'location_id' => $request->location_id,
+                    'return_date' => $request->return_date,
+                    'return_total' => $request->return_total,
+                    'notes' => $request->notes,
+                    'is_defective' => $request->is_defective,
+                    'stock_type' => $stockType,
+                ]
+            );
+
+            // Delete existing products for the sale return if updating
+            if ($id) {
+                SalesReturnProduct::where('sales_return_id', $id)->delete();
+            }
 
             // Process each returned product
             foreach ($request->products as $productData) {
-                $this->processProductReturn($productData, $salesReturn->id, $request->location_id,$stockType);
+                $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType);
             }
 
             return $salesReturn;
@@ -93,7 +105,50 @@ class SaleReturnController extends Controller
 
         return response()->json(['status' => 200, 'message' => 'Sales return recorded successfully!']);
     }
-    private function processProductReturn($productData, $salesReturnId, $locationId,$stockType)
+
+    /**
+     * Get all sale returns.
+     */
+    public function getAllSaleReturns()
+    {
+        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'payments'])->get();
+        $totalAmount = $salesReturns->sum('return_total');
+        $totalDue = $salesReturns->sum('total_due');
+
+        return response()->json([
+            'status' => 200,
+            'data' => $salesReturns,
+            'totalAmount' => $totalAmount,
+            'totalDue' => $totalDue
+        ]);
+    }
+
+    /**
+     * Get a sale return by ID.
+     */
+    public function getSaleReturnById($id)
+    {
+        $salesReturn = SalesReturn::with(['returnProducts', 'sale.customer', 'sale.location', 'payments'])->find($id);
+        if (!$salesReturn) {
+            return response()->json(['status' => 404, 'message' => 'Sale return not found']);
+        }
+        return response()->json(['status' => 200, 'data' => $salesReturn]);
+    }
+
+
+    /**
+     * Edit a sale return.
+     */
+    public function editSaleReturn($id)
+    {
+        $salesReturn = SalesReturn::find($id);
+        if (!$salesReturn) {
+            return response()->json(['status' => 404, 'message' => 'Sale return not found']);
+        }
+        return view('saleReturn.edit_sale_return', compact('salesReturn'));
+    }
+
+    private function processProductReturn($productData, $salesReturnId, $locationId, $stockType)
     {
         $quantityToRestock = $productData['quantity'];
         $batchId = $productData['batch_id'];
@@ -129,7 +184,7 @@ class SaleReturnController extends Controller
             ]);
         } else {
             // Restock specific batch
-            $this->restockBatchStock($batchId, $locationId, $quantityToRestock,$stockType);
+            $this->restockBatchStock($batchId, $locationId, $quantityToRestock, $stockType);
         }
 
         // Create sales return product record
@@ -148,7 +203,7 @@ class SaleReturnController extends Controller
         ]);
     }
 
-    private function restockBatchStock($batchId, $locationId, $quantity,$stockType)
+    private function restockBatchStock($batchId, $locationId, $quantity, $stockType)
     {
         $batch = Batch::findOrFail($batchId);
         $locationBatch = LocationBatch::where('batch_id', $batch->id)

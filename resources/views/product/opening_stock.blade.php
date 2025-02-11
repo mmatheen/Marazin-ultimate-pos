@@ -43,84 +43,44 @@
                                         </tr>
                                     </thead>
                                     <tbody id="locationRows">
-                                        @if(isset($editing) && $editing)
-                                            @foreach ($locations as $location)
-                                                @php
-                                                    // Check if this location has an existing batch
-                                                    $batch = isset($openingStock['batches']) ? collect($openingStock['batches'])->firstWhere('location_id', $location->id) : null;
-                                                @endphp
+                                        @foreach ($product->locations as $location)
+                                            @php
+                                                $batch = isset($openingStock['batches']) ? collect($openingStock['batches'])->firstWhere('location_id', $location->id) : null;
+                                            @endphp
 
-                                                @if($batch)
-                                                <tr data-location-id="{{ $location->id }}">
-                                                    <td>
-                                                        <input type="hidden" name="locations[{{ $loop->index }}][id]" value="{{ $location->id }}">
-                                                        <p>{{ $location->name }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <p>{{ $product->product_name }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <p>{{ $product->sku }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" class="form-control"
-                                                            name="locations[{{ $loop->index }}][qty]"
-                                                            value="{{ $batch['quantity'] }}" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control"
-                                                            name="locations[{{ $loop->index }}][unit_cost]"
-                                                            value="{{ $product->original_price }}" readonly>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control batch-no-input"
-                                                            name="locations[{{ $loop->index }}][batch_no]"
-                                                            value="{{ $batch['batch_no'] }}" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control datetimepicker"
-                                                            name="locations[{{ $loop->index }}][expiry_date]"
-                                                            value="{{ $batch['expiry_date'] }}" required>
-                                                    </td>
-                                                </tr>
-                                                @endif
-                                            @endforeach
-                                        @else
-                                            @foreach ($locations as $location)
-                                                <tr data-location-id="{{ $location->id }}">
-                                                    <td>
-                                                        <input type="hidden" name="locations[{{ $loop->index }}][id]" value="{{ $location->id }}">
-                                                        <p>{{ $location->name }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <p>{{ $product->product_name }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <p>{{ $product->sku }}</p>
-                                                    </td>
-                                                    <td>
-                                                        <input type="number" class="form-control"
-                                                            name="locations[{{ $loop->index }}][qty]"
-                                                            value="" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control"
-                                                            name="locations[{{ $loop->index }}][unit_cost]"
-                                                            value="{{ $product->original_price }}" readonly>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control batch-no-input"
-                                                            name="locations[{{ $loop->index }}][batch_no]"
-                                                            value="" required>
-                                                    </td>
-                                                    <td>
-                                                        <input type="text" class="form-control datetimepicker"
-                                                            name="locations[{{ $loop->index }}][expiry_date]"
-                                                            value="" required>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        @endif
+                                            <tr data-location-id="{{ $location->id }}">
+                                                <td>
+                                                    <input type="hidden" name="locations[{{ $loop->index }}][id]" value="{{ $location->id }}">
+                                                    <p>{{ $location->name }}</p>
+                                                </td>
+                                                <td>
+                                                    <p>{{ $product->product_name }}</p>
+                                                </td>
+                                                <td>
+                                                    <p>{{ $product->sku }}</p>
+                                                </td>
+                                                <td>
+                                                    <input type="number" class="form-control"
+                                                        name="locations[{{ $loop->index }}][qty]"
+                                                        value="{{ $batch['quantity'] ?? '' }}" required>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control"
+                                                        name="locations[{{ $loop->index }}][unit_cost]"
+                                                        value="{{ $product->original_price }}" readonly>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control batch-no-input"
+                                                        name="locations[{{ $loop->index }}][batch_no]"
+                                                        value="{{ $batch['batch_no'] ?? '' }}" required>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control datetimepicker"
+                                                        name="locations[{{ $loop->index }}][expiry_date]"
+                                                        value="{{ $batch['expiry_date'] ?? '' }}" required>
+                                                </td>
+                                            </tr>
+                                        @endforeach
                                     </tbody>
                                 </table>
                             </div>

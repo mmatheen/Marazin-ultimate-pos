@@ -9,13 +9,17 @@ class Sale extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'customer_id',
-        'sales_date',
-        'location_id',
-        'status',
-        'invoice_no',
-    ];
+        protected $fillable = [
+            'customer_id',
+            'sales_date',
+            'location_id',
+            'status',
+            'invoice_no',
+            'final_total',
+            'total_paid',
+            'total_due',
+            'payment_status'
+        ];
 
     public function products()
     {
@@ -24,7 +28,7 @@ class Sale extends Model
 
     public function payments()
     {
-        return $this->hasMany(SalesPayment::class);
+        return $this->morphMany(Payment::class, 'payable');
     }
 
     public function customer()
@@ -81,9 +85,25 @@ class Sale extends Model
             ->sum('quantity');
 
         return $availableStock + $soldQuantity;
-
     }
 
+    public function updatePaymentStatus()
+    {
+        // Calculate total paid amount
+        $this->total_paid = $this->payments()->sum('amount');
 
+        // Calculate total due amount
+        $this->total_due = $this->final_total - $this->total_paid;
 
+        // Update payment status based on total due amount
+        if ($this->total_due <= 0) {
+            $this->payment_status = 'Paid';
+        } elseif ($this->total_paid > 0) {
+            $this->payment_status = 'Partial';
+        } else {
+            $this->payment_status = 'Due';
+        }
+
+        $this->save();
+    }
 }

@@ -1,11 +1,10 @@
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
         let allProducts = [];
         let categoryMap = {};
         let brandMap = {};
         let locationMap = {};
-        let unitMap = {};
         let subCategories = [];
 
         // Validation options
@@ -35,7 +34,7 @@
                 original_price: { required: "Cost Price is required" }
             },
             errorElement: 'span',
-            errorPlacement: function(error, element) {
+            errorPlacement: function (error, element) {
                 error.addClass('text-danger');
                 if (element.is("select")) {
                     error.insertAfter(element.closest('div'));
@@ -45,10 +44,10 @@
                     error.insertAfter(element);
                 }
             },
-            highlight: function(element, errorClass, validClass) {
+            highlight: function (element, errorClass, validClass) {
                 $(element).addClass('is-invalidRed').removeClass('is-validGreen');
             },
-            unhighlight: function(element, errorClass, validClass) {
+            unhighlight: function (element, errorClass, validClass) {
                 $(element).removeClass('is-invalidRed').addClass('is-validGreen');
             }
         };
@@ -56,42 +55,7 @@
         // Apply validation to forms
         $('#addForm').validate(addAndUpdateValidationOptions);
 
-        // Function to format the product data into table rows
-        function formatProductData(product) {
-            let locationName = product.batches.length > 0 && product.batches[0].location_batches.length > 0 ?
-                product.batches[0].location_batches[0].location_name : 'N/A';
-            let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
-                '/assets/images/default.jpg'; // Default image if product image is not available
-            return `
-                <tr>
-                    <td><input type="checkbox" class="checked" /></td>
-                    <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
-                    <td>
-                        <div class="dropdown">
-                            <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" id="actionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
-                            <ul class="dropdown-menu" aria-labelledby="actionsDropdown">
-                                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                                <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus" data-product-id="${product.id}">></i> Add or Edit Opening Stock</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-clone"></i> Duplicate Product</a></li>
-                            </ul>
-                        </div>
-                    </td>
-                    <td>${product.product_name}</td>
-                    <td>${locationName}</td>
-                    <td>${product.retail_price}</td>
-                    <td>${product.total_stock}</td>
-                    <td>${product.product_type}</td>
-                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                    <td>${product.sku}</td>
-                </tr>
-            `;
-        }
-
-        // Function to fetch data from the server
+            // Helper function to populate a dropdown
         function fetchData(url, successCallback, errorCallback) {
             $.ajax({
                 url: url,
@@ -104,89 +68,187 @@
             });
         }
 
-        // Fetch main categories, subcategories, brands, locations, and units
-        function fetchCategoriesAndBrands() {
-            fetchData('/main-category-get-all', function(response) {
-                response.message.forEach(function(category) {
-                    categoryMap[category.id] = category.mainCategoryName;
-                });
-            });
-
-            fetchData('/brand-get-all', function(response) {
-                response.message.forEach(function(brand) {
-                    brandMap[brand.id] = brand.name;
-                });
-            });
-
-            fetchData('/location-get-all', function(response) {
-                if (response.status === 200) {
-                    response.message.forEach(function(location) {
-                        locationMap[location.id] = location.name;
-                    });
-                } else {
-                    console.error('Failed to load location data. Status: ' + response.status);
-                }
-            });
-
-            fetchData('/unit-get-all', function(response) {
-                response.message.forEach(function(unit) {
-                    unitMap[unit.id] = unit.name;
-                });
+        function populateDropdown(selector, items, displayProperty) {
+            const selectElement = $(selector).empty();
+            items.forEach(item => {
+                selectElement.append(new Option(item[displayProperty], item.id));
             });
         }
 
-        // Populate filter dropdowns
+        function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, callback) {
+            populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
+            populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
+            populateDropdown('#edit_brand_id', brands, 'name');
+            populateDropdown('#edit_unit_id', units, 'name');
+            populateDropdown('#edit_location_id', locations, 'name');
+            if (callback) callback();
+        }
+
+        function fetchInitialDropdowns(callback) {
+            fetchData('/initial-product-details', function(response) {
+                if (response.status === 200) {
+                    const brands = response.message.brands;
+                    const mainCategories = response.message.mainCategories;
+                    subCategories = response.message.subCategories; // Store subcategories globally
+                    const units = response.message.units;
+                    const locations = response.message.locations;
+
+                    populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, callback);
+                } else {
+                    console.error('Failed to load initial product details. Status:', response.status);
+                }
+            });
+        }
+
+        function populateSubCategories(selectedMainCategoryId) {
+            const subCategorySelect = $('#edit_sub_category_id').empty();
+            subCategorySelect.append('<option selected disabled>Sub Category</option>');
+
+            subCategories
+                .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
+                .forEach(subCategory => {
+                    subCategorySelect.append(new Option(subCategory.subCategoryname, subCategory.id));
+                });
+
+            subCategorySelect.trigger('change');
+        }
+
+        $('#edit_main_category_id').change(function() {
+            const selectedMainCategoryId = $(this).val();
+            populateSubCategories(selectedMainCategoryId);
+        });
+
+        function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
+        $('#product_id').val(product.id);
+        $('#edit_product_name').val(product.product_name);
+        $('#edit_sku').val(product.sku || "");
+        $('#edit_pax').val(product.pax || 0);
+        $('#edit_original_price').val(product.original_price || 0);
+        $('#edit_retail_price').val(product.retail_price || 0);
+        $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
+        $('#edit_special_price').val(product.special_price || 0);
+        $('#edit_max_retail_price').val(product.max_retail_price || 0);
+        $('#edit_alert_quantity').val(product.alert_quantity || 0);
+        $('#edit_product_type').val(product.product_type || "").trigger('change');
+        $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
+        $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
+
+        if (product.product_image) {
+            const imagePath = `/assets/images/${product.product_image}`;
+            $('#selectedImage').attr('src', imagePath).show();
+        }
+
+        // Populate initial dropdowns with callback to set selected values
+        populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, function() {
+            $('#edit_main_category_id').val(product.main_category_id).trigger('change');
+
+            setTimeout(() => {
+                populateSubCategories(product.main_category_id);
+                $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
+            }, 300);
+
+            $('#edit_brand_id').val(product.brand_id).trigger('change');
+            $('#edit_unit_id').val(product.unit_id).trigger('change');
+            const locationIds = product.locations.map(location => location.id);
+            $('#edit_location_id').val(locationIds).trigger('change');
+        });
+    }
+
+          // Function to format the product data into table rows
+    function formatProductData(product) {
+    let locationName = product.batches.length > 0 && product.batches[0].location_batches.length > 0 ? product.batches[0].location_batches[0].location_name : 'N/A';
+    let imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg'; // Default image if product image is not available
+    return `
+        <tr>
+            <td><input type="checkbox" class="checked" /></td>
+            <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+            <td>
+                <div class="dropdown">
+                    <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" id="actionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        Actions
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="actionsDropdown">
+                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-clone"></i> Duplicate Product</a></li>
+                    </ul>
+                </div>
+            </td>
+            <td>${product.product_name}</td>
+            <td>${locationName}</td>
+            <td>${product.retail_price}</td>
+            <td>${product.total_stock}</td>
+            <td>${product.product_type}</td>
+            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+            <td>${brandMap[product.brand_id] || 'N/A'}</td>
+            <td>${product.sku}</td>
+        </tr>
+    `;
+}
+
+
+
+        // Function to populate filter dropdowns
         function populateProductFilter() {
             const productNameFilter = $('#productNameFilter');
             const categoryFilter = $('#categoryFilter');
             const brandFilter = $('#brandFilter');
-            const unitFilter = $('#unitFilter');
-            const locationFilter = $('#locationFilter');
 
             const productNames = [...new Set(allProducts.map(item => item.product.product_name))];
             const categories = [...new Set(allProducts.map(item => item.product.main_category_id))];
             const brands = [...new Set(allProducts.map(item => item.product.brand_id))];
-            const units = [...new Set(allProducts.map(item => item.product.unit_id))];
-            const locations = [...new Set(allProducts.map(item => item.product.location_id))];
 
-            function populateDropdown(filterElement, items, map) {
-                filterElement.empty().append('<option value="">Select</option>');
-                items.forEach(item => {
-                    if (map[item]) {
-                        filterElement.append(`<option value="${item}">${map[item]}</option>`);
-                    }
-                });
-            }
+            productNameFilter.empty().append('<option value="">Select Product</option>');
+            categoryFilter.empty().append('<option value="">Select Category</option>');
+            brandFilter.empty().append('<option value="">Select Brand</option>');
 
-            populateDropdown(productNameFilter, productNames, {});
-            populateDropdown(categoryFilter, categories, categoryMap);
-            populateDropdown(brandFilter, brands, brandMap);
-            populateDropdown(unitFilter, units, unitMap);
-            populateDropdown(locationFilter, locations, locationMap);
+            productNames.forEach(name => {
+                productNameFilter.append(`<option value="${name}">${name}</option>`);
+            });
+
+            categories.forEach(category => {
+                if (categoryMap[category]) {
+                    categoryFilter.append(`<option value="${category}">${categoryMap[category]}</option>`);
+                }
+            });
+
+            brands.forEach(brand => {
+                if (brandMap[brand]) {
+                    brandFilter.append(`<option value="${brand}">${brandMap[brand]}</option>`);
+                }
+            });
         }
 
         // AJAX call to fetch the product data
         function fetchProductData() {
-            fetchData('/products/stocks', function(response) {
-                if (response.status === 200) {
-                    allProducts = response.data; // Store all data for filtering
-                    populateProductFilter(); // Populate filter options
+            $.ajax({
+                url: '/products/stocks',
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        allProducts = response.data; // Store all data for filtering
+                        populateProductFilter(); // Populate filter options
 
-                    // Initialize DataTable
-                    $('#productTable').DataTable({
-                        destroy: true
-                    });
-                    var productTableBody = $('#productTable tbody');
-                    productTableBody.empty(); // Clear existing data
+                        // Initialize DataTable
+                        $('#productTable').DataTable({ destroy: true });
+                        var productTableBody = $('#productTable tbody');
+                        productTableBody.empty(); // Clear existing data
 
-                    response.data.forEach(function(item) {
-                        var product = item.product;
-                        product.total_stock = item.total_stock;
-                        product.batches = item.batches;
-                        productTableBody.append(formatProductData(product));
-                    });
-                } else {
-                    console.error('Failed to fetch product data.');
+                        response.data.forEach(function(item) {
+                            var product = item.product;
+                            product.total_stock = item.total_stock;
+                            product.batches = item.batches;
+                            productTableBody.append(formatProductData(product));
+                        });
+                    } else {
+                        console.error('Failed to fetch product data.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching product data:', error);
                 }
             });
         }
@@ -216,18 +278,152 @@
             });
         }
 
-        // Fetch data on page load
-        fetchCategoriesAndBrands();
+        // Fetch product data on page load
         fetchProductData();
 
         // Apply filters on change
         $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
 
+        // Fetch main category, sub category, location, unit, brand details to select box
+        function fetchCategoriesAndBrands() {
+            $.ajax({
+                url: '/main-category-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    response.message.forEach(function(category) {
+                        categoryMap[category.id] = category.mainCategoryName;
+                    });
+                },
+                error: function() {
+                    console.error('Error loading categories');
+                }
+            });
+
+            $.ajax({
+                url: '/brand-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    response.message.forEach(function(brand) {
+                        brandMap[brand.id] = brand.name;
+                    });
+                },
+                error: function() {
+                    console.error('Error loading brands');
+                }
+            });
+
+           // Fetch location data
+           $.ajax({
+                url: '/location-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        response.message.forEach(function(location) {
+                            locationMap[location.id] = location
+                                .name; // Store location name with ID as key
+                        });
+                    } else {
+                        console.error('Failed to load location data. Status: ' + response.status);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching location data:', error);
+                }
+            });
+        }
+
         // Initialize fetching categories and brands
+        fetchCategoriesAndBrands();
 
-        // Other functions and event handlers...
 
-        // Function to reset form and validation errors
+// function fetchData(url, successCallback) {
+//     $.ajax({
+//         url: url,
+//         type: 'GET',
+//         dataType: 'json',
+//         success: successCallback,
+//         error: function(xhr, status, error) {
+//             console.error(`Error fetching data from ${url}:`, error);
+//         }
+//     });
+// }
+
+// function populateDropdown(selector, items, displayProperty) {
+//     const selectElement = $(selector).empty().append('<option value="">Select</option>');
+//     items.forEach(item => selectElement.append(new Option(item[displayProperty], item.id)));
+// }
+
+// function fetchInitialDropdowns(callback) {
+//     fetchData('/initial-product-details', function(response) {
+//         if (response.status === 200) {
+//             subCategories = response.message.subCategories;
+//             response.message.mainCategories.forEach(category => categoryMap[category.id] = category.mainCategoryName);
+//             response.message.brands.forEach(brand => brandMap[brand.id] = brand.name);
+//             response.message.locations.forEach(location => locationMap[location.id] = location.name);
+
+//             populateDropdown('#categoryFilter', response.message.mainCategories, 'mainCategoryName');
+//             populateDropdown('#brandFilter', response.message.brands, 'name');
+//             populateDropdown('#productNameFilter', response.message.products, 'product_name');
+//         }
+//         if (callback) callback();
+//     });
+// }
+
+function formatProductData(product) {
+    let locationName = product.batches?.[0]?.location_batches?.[0]?.location_name || 'N/A';
+    let imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
+    return `
+        <tr>
+            <td><input type="checkbox" class="checked" /></td>
+            <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+            <td><button class="btn btn-sm btn-outline-info">Actions</button></td>
+            <td>${product.product_name}</td>
+            <td>${locationName}</td>
+            <td>${product.retail_price}</td>
+            <td>${product.total_stock}</td>
+            <td>${product.product_type}</td>
+            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+            <td>${brandMap[product.brand_id] || 'N/A'}</td>
+            <td>${product.sku}</td>
+        </tr>`;
+}
+
+// function fetchProductData() {
+//     fetchData('/products/stocks', function(response) {
+//         if (response.status === 200) {
+//             allProducts = response.data;
+//             populateProductFilter();
+
+//             let productTableBody = $('#productTable tbody').empty();
+//             response.data.forEach(item => productTableBody.append(formatProductData(item.product)));
+//         }
+//     });
+// }
+
+function filterProducts() {
+    let selectedProduct = $('#productNameFilter').val();
+    let selectedCategory = $('#categoryFilter').val();
+    let selectedBrand = $('#brandFilter').val();
+
+    let filteredProducts = allProducts.filter(item => {
+        let product = item.product;
+        return (!selectedProduct || product.product_name === selectedProduct) &&
+               (!selectedCategory || product.main_category_id == selectedCategory) &&
+               (!selectedBrand || product.brand_id == selectedBrand);
+    });
+
+    let table = $('#productTable').DataTable();
+    table.clear();
+    filteredProducts.forEach(item => table.row.add($(formatProductData(item.product))));
+    table.draw();
+}
+
+fetchInitialDropdowns(fetchProductData);
+$('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
+
         function resetFormAndValidation() {
             $('#addForm')[0].reset();
             $('#addForm').validate().resetForm();
@@ -236,46 +432,99 @@
             $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png');
         }
 
-        // Submit the only product
-        $('#onlySaveProductButton').click(function(e) {
-            e.preventDefault(); // Prevent default form submission
+        // Global flag to track submission state
+        let isSubmitting = false;
+
+        // Function to get the form action URL based on whether we are adding or updating
+        function getFormActionUrl() {
+            const productId = $('#product_id').val();
+            return productId ? `/product/update/${productId}` : '/product/store';
+        }
+
+        // Function to handle form submission
+        function handleFormSubmit(buttonType) {
+            if (isSubmitting) {
+                toastr.error('Form is already being submitted. Please wait.', 'Warning');
+                return; // Prevent further execution
+            }
+
+            isSubmitting = true; // Set the flag to indicate that the form is being submitted
 
             let form = $('#addForm')[0];
             let formData = new FormData(form);
 
+            // Add Summernote content to form data if necessary
+            if ($('#summernote').length) {
+                formData.append('description', $('#summernote').val());
+            }
+
             // Validate the form before submitting
             if (!$('#addForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play(); // for sound
+                document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+                isSubmitting = false;
                 return; // Return if form is not valid
             }
 
             $.ajax({
-                url: 'product-store',
+                url: getFormActionUrl(),
                 type: 'POST',
                 headers: { 'X-CSRF-TOKEN': csrfToken },
                 data: formData,
                 contentType: false,
                 processData: false,
                 dataType: 'json',
-                success: function(response) {
+                success: function (response) {
                     if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
+                        $.each(response.errors, function (key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
                     } else {
-                        document.getElementsByClassName('successSound')[0].play(); // for sound
+                        document.getElementsByClassName('successSound')[0].play(); // Play success sound
                         toastr.success(response.message, 'Added');
-                        resetFormAndValidation();
-                        fetchLastAddedProducts();
+
+                        if (buttonType === 'onlySave') {
+                            resetFormAndValidation();
+                            fetchLastAddedProducts();
+                        } else if (buttonType === 'saveAndAnother') {
+                            resetFormAndValidation();
+                        } else if (buttonType === 'saveAndOpeningStock') {
+                            const productId = $('#product_id').val();
+                            if (productId) {
+                                window.location.href = `/edit-opening-stock/${response.product_id}`;
+                            } else {
+                                window.location.href = `/opening-stock/${response.product_id}`;
+                            }
+                        }
                     }
+                },
+                error: function (xhr) {
+                    toastr.error('Failed to add product. Please try again.', 'Error');
+                },
+                complete: function () {
+                    isSubmitting = false; // Reset the flag after the request completes (success or failure)
                 }
             });
+        }
+
+        // Button click event handlers
+        $('#onlySaveProductButton').click(function (e) {
+            e.preventDefault();
+            handleFormSubmit('onlySave');
         });
 
-        // Fetch last added products
+        $('#SaveProductButtonAndAnother').click(function (e) {
+            e.preventDefault();
+            handleFormSubmit('saveAndAnother');
+        });
+
+        $('#openingStockAndProduct').click(function (e) {
+            e.preventDefault();
+            handleFormSubmit('saveAndOpeningStock');
+        });
+
         function fetchLastAddedProducts() {
-            fetchData('get-last-product', function(response) {
+            fetchData('get-last-product', function (response) {
                 if (response.status === 200) {
                     const product = response.product;
                     addProductToTable(product);
@@ -286,23 +535,22 @@
             });
         }
 
-        // Add product to table
         function addProductToTable(product) {
             const table = $("#purchase_product").DataTable();
             let existingRow = null;
 
-            $('#purchase_product tbody tr').each(function() {
+            $('#purchase_product tbody tr').each(function () {
                 const rowProductId = $(this).data('id');
                 if (rowProductId === product.id) {
                     existingRow = $(this);
-                    return false; // Break the loop
+                    return false;
                 }
             });
 
             if (existingRow) {
                 const quantityInput = existingRow.find('.purchase-quantity');
                 const newQuantity = parseFloat(quantityInput.val()) + 1;
-                quantityInput.val(newQuantity).trigger('input'); // Update and trigger input event
+                quantityInput.val(newQuantity).trigger('input');
             } else {
                 const price = parseFloat(product.original_price) || 0;
                 const retailPrice = parseFloat(product.retail_price) || 0;
@@ -331,23 +579,22 @@
                 `;
 
                 const $newRow = $(newRow);
-                table.row.add($newRow).draw(); // Add new row to DataTable
-                updateRow($newRow); // Update calculations for the new row
-                updateFooter(); // Update footer after adding new row
+                table.row.add($newRow).draw();
+                updateRow($newRow);
+                updateFooter();
 
-                $newRow.find(".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price").on("input", function() {
-                    updateRow($newRow); // Update calculations when values change
-                    updateFooter(); // Update footer
+                $newRow.find(".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price").on("input", function () {
+                    updateRow($newRow);
+                    updateFooter();
                 });
 
-                $newRow.find(".delete-product").on("click", function() {
-                    table.row($newRow).remove().draw(); // Remove row from table
-                    updateFooter(); // Update footer
+                $newRow.find(".delete-product").on("click", function () {
+                    table.row($newRow).remove().draw();
+                    updateFooter();
                 });
             }
         }
 
-        // Update row calculations
         function updateRow($row) {
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const unitPrice = parseFloat($row.find(".unit-price").val()) || 0;
@@ -359,12 +606,11 @@
             $row.find(".sub-total").text(subTotal.toFixed(2));
         }
 
-        // Update footer (total items and net total)
         function updateFooter() {
             let totalItems = 0;
             let netTotalAmount = 0;
 
-            $('#purchase_product tbody tr').each(function() {
+            $('#purchase_product tbody tr').each(function () {
                 const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
                 const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
 
@@ -374,7 +620,7 @@
 
             $('#total-items').text(totalItems.toFixed(2));
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#total').val(netTotalAmount.toFixed(2)); // Update hidden total input
+            $('#total').val(netTotalAmount.toFixed(2));
 
             const discountType = $('#discount-type').val();
             const discountInput = parseFloat($('#discount-amount').val()) || 0;
@@ -398,7 +644,7 @@
             const finalTotal = netTotalAmount - discountAmount + taxAmount;
 
             $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
-            $('#final-total').val(finalTotal.toFixed(2)); // Update hidden final total input
+            $('#final-total').val(finalTotal.toFixed(2));
             $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
             $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
 
@@ -407,18 +653,16 @@
             $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
         }
 
-        // Update footer when discount or tax values change
         $('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
 
-        // Show picture when added or edited
-        $(".show-picture").on("change", function() {
+        $(".show-picture").on("change", function () {
             const input = this;
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
 
                 if (file.type.startsWith("image/")) {
-                    reader.onload = function(e) {
+                    reader.onload = function (e) {
                         $("#selectedImage").attr("src", e.target.result);
                         $("#selectedImage").show();
                         $("#pdfViewer").hide();
@@ -428,8 +672,7 @@
             }
         });
 
-        // Clear and reset the Sub Category dropdown by Main Category ID
-        $('#edit_main_category_id').change(function() {
+        $('#edit_main_category_id').change(function () {
             var main_category_id = $(this).val();
             $('#edit_sub_category_id').empty().append('<option selected disabled>Sub Category</option>');
 
@@ -450,348 +693,138 @@
                 },
                 error: function(xhr, status, error) {
                     console.log('AJAX Error: ', error);
-                }
-            });
-        });
 
-        // Handle form submission for adding a new product
-        $('#SaveProductButtonAndAnother').click(function(e) {
-            e.preventDefault();
-
-            let form = $('#addForm')[0];
-            let formData = new FormData(form);
-
-            // Validate the form before submitting
-            if (!$('#addForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play();
-                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                return;
-            }
-
-            $.ajax({
-                url: 'product-store',
-                type: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken },
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-                    } else {
-                        document.getElementsByClassName('successSound')[0].play();
-                        toastr.success(response.message, 'Added');
-                        resetFormAndValidation();
                     }
-                }
-            });
-        });
-
-        $('#summernote').summernote({
-            placeholder: 'Enter your description...',
-            tabsize: 2,
-            height: 40
-        });
-
-        // Global flag to track submission state
-let isSubmitting = false;
-
-// Function to get the form action URL based on whether we are adding or updating
-function getFormActionUrl() {
-    const productId = $('#product_id').val();
-    return productId ? `/product/update/${productId}` : '/product/store';
-}
-
-// Handle form submission
-$('#openingStockAndProduct').click(function(e) {
-    e.preventDefault(); // Prevent default form submission
-
-    // Check if the form is already being submitted
-    if (isSubmitting) {
-        toastr.error('Form is already being submitted. Please wait.', 'Warning');
-        return; // Prevent further execution
-    }
-
-    // Set the flag to indicate that the form is being submitted
-    isSubmitting = true;
-
-    let form = $('#addForm')[0];
-    let formData = new FormData(form);
-
-    // Add Summernote content to form data
-    formData.append('description', $('#summernote').val());
-
-    // Validate the form before submitting
-    if (!$('#addForm').valid()) {
-        document.getElementsByClassName('warningSound')[0].play(); // Play warning sound
-        toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-        isSubmitting = false;
-        return; // Return if form is not valid
-    }
-
-    $.ajax({
-        url: getFormActionUrl(),
-        type: 'POST',
-        headers: { 'X-CSRF-TOKEN': csrfToken },
-        data: formData,
-        contentType: false,
-        processData: false,
-        dataType: 'json',
-        success: function(response) {
-            if (response.status == 400) {
-                $.each(response.errors, function(key, err_value) {
-                    $('#' + key + '_error').html(err_value);
                 });
-            } else {
-                document.getElementsByClassName('successSound')[0].play(); // Play success sound
-                toastr.success(response.message, 'Added');
+            });
 
-                // Determine redirection based on whether we are adding or updating
-                const productId = $('#product_id').val();
-                if (productId) {
-                    // Updating product
-                    window.location.href = `/edit-opening-stock/${response.product_id}`;
-                } else {
-                    // Adding new product
-                    window.location.href = `/opening-stock/${response.product_id}`;
-                }
+        $(document).ready(function() {
+            const currentPath = window.location.pathname;
+            const productId = $('#product_id').val();
+            const isEditMode = currentPath.startsWith('/edit-opening-stock/');
+
+            // Update the page title and button text dynamically
+            if (isEditMode) {
+                $('#pageTitle').text('Edit Opening Stock for Product');
+                $('#breadcrumbTitle').text('Edit Opening Stock');
+                $('#submitOpeningStock').text('Update');
+
+                // Fetch existing stock data
+                fetchOpeningStockData(productId);
             }
-        },
-        error: function(xhr) {
-            toastr.error('Failed to add product. Please try again.', 'Error');
-        },
-        complete: function() {
-            isSubmitting = false; // Reset the flag after the request completes (success or failure)
-        }
-    });
-});
 
-$(document).ready(function() {
-    const currentPath = window.location.pathname;
-    const productId = $('#product_id').val();
-    const isEditMode = currentPath.startsWith('/edit-opening-stock/');
+            $('#submitOpeningStock').click(function(e) {
+                e.preventDefault();
+                handleFormSubmission(isEditMode, productId);
+            });
 
-    // Update the page title and button text dynamically
-    if (isEditMode) {
-        $('#pageTitle').text('Edit Opening Stock for Product');
-        $('#breadcrumbTitle').text('Edit Opening Stock');
-        $('#submitOpeningStock').text('Update');
+            function fetchOpeningStockData(productId) {
+                $.ajax({
+                    url: `/api/edit-opening-stock/${productId}`,
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.status === 200) {
+                            let batches = response.openingStock.batches;
 
-        // Fetch existing stock data
-        fetchOpeningStockData(productId);
-    }
+                            // Debugging - Check response
+                            console.log("Fetched Batches:", batches);
 
-    $('#submitOpeningStock').click(function(e) {
-        e.preventDefault();
-        handleFormSubmission(isEditMode, productId);
-    });
-
-    function fetchOpeningStockData(productId) {
-        $.ajax({
-            url: `/api/edit-opening-stock/${productId}`,
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    let batches = response.openingStock.batches;
-
-                    // Debugging - Check response
-                    console.log("Fetched Batches:", batches);
-
-                    batches.forEach(function(batch) {
-                        let row = $(`tr[data-location-id="${batch.location_id}"]`);
-                        if (row.length > 0) {
-                            row.find('input[name^="locations"][name$="[qty]"]').val(batch.quantity);
-                            row.find('input[name^="locations"][name$="[batch_no]"]').val(batch.batch_no);
-                            row.find('input[name^="locations"][name$="[expiry_date]"]').val(batch.expiry_date);
+                            batches.forEach(function(batch) {
+                                let row = $(`tr[data-location-id="${batch.location_id}"]`);
+                                if (row.length > 0) {
+                                    row.find('input[name^="locations"][name$="[qty]"]').val(batch.quantity);
+                                    row.find('input[name^="locations"][name$="[batch_no]"]').val(batch.batch_no);
+                                    row.find('input[name^="locations"][name$="[expiry_date]"]').val(batch.expiry_date);
+                                }
+                            });
                         }
-                    });
-                }
-            },
-            error: function(xhr) {
-                toastr.error('Failed to fetch existing stock data.', 'Error');
-            }
-        });
-    }
-
-    function handleFormSubmission(isEditMode, productId) {
-        let form = $('#openingStockForm')[0];
-        let formData = new FormData(form);
-
-        // Additional validation for batch numbers
-        if (!validateBatchNumbers()) {
-            document.getElementsByClassName('warningSound')[0].play();
-            toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
-            return;
-        }
-
-        let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-        $.ajax({
-            url: url,
-            type: 'POST',
-            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: 'json',
-            success: function(response) {
-                if (response.status === 200) {
-                    toastr.success(response.message, 'Success');
-                    window.location.href = '/add-product';
-                } else {
-                    toastr.error(response.message, 'Error');
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    let errors = xhr.responseJSON.errors;
-                    $.each(errors, function(key, val) {
-                        $(`#${key}_error`).text(val[0]);
-                    });
-                } else {
-                    toastr.error('Unexpected error occurred', 'Error');
-                }
-            }
-        });
-    }
-
-    function validateBatchNumbers() {
-        let isValid = true;
-        $('.batch-no-input').each(function() {
-            let batchNo = $(this).val();
-            if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
-                isValid = false;
-            }
-        });
-        return isValid;
-    }
-});
-        // Helper function to populate a dropdown
-        function populateDropdown(selector, items, displayProperty) {
-            const selectElement = $(selector).empty();
-            items.forEach(item => {
-                selectElement.append(new Option(item[displayProperty], item.id));
-            });
-        }
-
-        // Function to populate initial dropdown options
-        function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations) {
-            populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
-            populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
-            populateDropdown('#edit_brand_id', brands, 'name');
-            populateDropdown('#edit_unit_id', units, 'name');
-            populateDropdown('#edit_location_id', locations, 'name');
-        }
-
-        // Populate product details in the form
-        function populateProductDetails(product, mainCategories, brands, units, locations) {
-
-            $('#product_id').val(product.id);
-            $('#edit_product_name').val(product.product_name);
-            $('#edit_sku').val(product.sku || "");
-            $('#edit_pax').val(product.pax || 0);
-            $('#edit_original_price').val(product.original_price || 0);
-            $('#edit_retail_price').val(product.retail_price || 0);
-            $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
-            $('#edit_special_price').val(product.special_price || 0);
-            $('#edit_max_retail_price').val(product.max_retail_price || 0);
-            $('#edit_alert_quantity').val(product.alert_quantity || 0);
-            $('#edit_product_type').val(product.product_type || "").trigger('change');
-            $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
-            $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
-
-            if (product.product_image) {
-                const imagePath = `/assets/images/${product.product_image}`;
-                $('#selectedImage').attr('src', imagePath).show();
-            }
-
-            const locationIds = product.locations.map(location => location.id);
-            $('#edit_location_id').val(locationIds).trigger('change');
-
-            // Populate dropdowns with initial data
-            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations);
-
-            // Set main category and populate subcategories
-            $('#edit_main_category_id').val(product.main_category_id).trigger('change');
-            setTimeout(() => {
-                populateSubCategories(product.main_category_id);
-                $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
-            }, 300);
-
-            // Ensure brand and unit dropdowns are correctly set
-            $('#edit_brand_id').val(product.brand_id).trigger('change');
-            $('#edit_unit_id').val(product.unit_id).trigger('change');
-        }
-
-        // Populate subcategories based on the selected main category
-        function populateSubCategories(selectedMainCategoryId) {
-            const subCategorySelect = $('#edit_sub_category_id').empty();
-            subCategorySelect.append('<option selected disabled>Sub Category</option>');
-
-            subCategories
-                .filter(subCategory => subCategory.main_category_id == selectedMainCategoryId)
-                .forEach(subCategory => {
-                    subCategorySelect.append(new Option(subCategory.subCategoryname, subCategory.id));
+                    },
+                    error: function(xhr) {
+                        toastr.error('Failed to fetch existing stock data.', 'Error');
+                    }
                 });
+            }
 
-            subCategorySelect.trigger('change');
-        }
+            function handleFormSubmission(isEditMode, productId) {
+                let form = $('#openingStockForm')[0];
+                let formData = new FormData(form);
 
-        // Event listener for main category change
-        $('#edit_main_category_id').change(function() {
-            const selectedMainCategoryId = $(this).val();
-            populateSubCategories(selectedMainCategoryId);
+                // Additional validation for batch numbers
+                if (!validateBatchNumbers()) {
+                    document.getElementsByClassName('warningSound')[0].play();
+                    toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
+                    return;
+                }
+
+                let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 200) {
+                            toastr.success(response.message, 'Success');
+                            window.location.href = '/add-product';
+                        } else {
+                            toastr.error(response.message, 'Error');
+                        }
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, val) {
+                                $(`#${key}_error`).text(val[0]);
+                            });
+                        } else {
+                            toastr.error('Unexpected error occurred', 'Error');
+                        }
+                    }
+                });
+            }
+
+            function validateBatchNumbers() {
+                let isValid = true;
+                $('.batch-no-input').each(function() {
+                    let batchNo = $(this).val();
+                    if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
+                        isValid = false;
+                    }
+                });
+                return isValid;
+            }
         });
 
-        // Fetch initial product details for dropdowns
-        function fetchInitialDropdowns() {
-            fetchData('/initial-product-details', function(response) {
-                if (response.status === 200) {
-                    const brands = response.message.brands;
-                    const mainCategories = response.message.mainCategories;
-                    subCategories = response.message.subCategories; // Store subcategories globally
-                    const units = response.message.units;
-                    const locations = response.message.locations;
 
-                    populateInitialDropdowns(mainCategories, subCategories, brands, units, locations);
-                } else {
-                    alert('Error: ' + response.message);
-                }
-            });
-        }
-
-        // Fetch initial dropdowns data
-        fetchInitialDropdowns();
-
-        // Fetch product details for editing
         const productId = window.location.pathname.split('/').pop();
 
-        $.ajax({
-            url: `/edit-product/${productId}`,
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    const product = response.message.product;
-                    const mainCategories = response.message.mainCategories;
-                    subCategories = response.message.subCategories; // Store subcategories globally
-                    const brands = response.message.brands;
-                    const units = response.message.units;
-                    const locations = response.message.locations;
+        fetchInitialDropdowns(() => {
+            $.ajax({
+                url: `/edit-product/${productId}`,
+                type: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        const product = response.message.product;
+                        const mainCategories = response.message.mainCategories;
+                        subCategories = response.message.subCategories;
+                        const brands = response.message.brands;
+                        const units = response.message.units;
+                        const locations = response.message.locations;
 
-                    populateProductDetails(product, mainCategories, brands, units, locations);
-                } else {
-                    alert('Error: ' + response.message);
+                        populateProductDetails(product, mainCategories, subCategories, brands, units, locations);
+                    } else {
+                        console.error('Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    console.error('An error occurred while fetching product details.');
                 }
-            },
-            error: function() {
-                alert('An error occurred while fetching product details.');
-            }
+            });
         });
 
-
-        // Handle row click events to show product details
         $('#productTable').on('click', 'tr', function(e) {
             if (!$(e.target).closest('button').length) {
                 const productId = $(this).data('id');
@@ -800,12 +833,10 @@ $(document).ready(function() {
             }
         });
 
-        // Prevent row click event when clicking on buttons inside the rows
         $('#productTable').on('click', '.view_btn, .edit-product, .delete_btn', function(e) {
             e.stopPropagation();
         });
 
-        // Handle product deletion
         $(document).on('click', '.delete_btn', function() {
             var id = $(this).data('id');
             $('#deleteModal').modal('show');
@@ -832,12 +863,10 @@ $(document).ready(function() {
             });
         });
 
-        // Fetch and show product details in the modal
         $('#viewProductModal').on('show.bs.modal', function(event) {
-            var button = $(event.relatedTarget); // Button that triggered the modal
-            var productId = button.data('product-id'); // Extract product ID from data-product-id attribute
+            var button = $(event.relatedTarget);
+            var productId = button.data('product-id');
 
-            // Fetch product details by ID
             $.ajax({
                 url: '/product-get-details/' + productId,
                 type: 'GET',
@@ -845,7 +874,7 @@ $(document).ready(function() {
                 success: function(response) {
                     if (response.status === 200) {
                         var product = response.message;
-                        var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg'; // Default image if product image is not available
+                        var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
                         var details = `
                             <div class="table-responsive">
                                 <table class="table table-bordered table-striped">
@@ -899,5 +928,68 @@ $(document).ready(function() {
                 }
             });
         });
+
+        function fetchProductDetails(productId) {
+            $.ajax({
+                url: '/product-get-details/' + productId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        var product = response.message;
+                        var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
+                        var details = `
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped">
+                                    <tbody>
+                                        <tr>
+                                            <td rowspan="8" class="text-center align-middle">
+                                                <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
+                                            </td>
+                                            <th scope="row">Product Name</th>
+                                            <td>${product.product_name}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">SKU</th>
+                                            <td>${product.sku}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Category</th>
+                                            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Brand</th>
+                                            <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Locations</th>
+                                            <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Price</th>
+                                            <td>$${product.retail_price}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Alert Quantity</th>
+                                            <td>${product.alert_quantity}</td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row">Product Type</th>
+                                            <td>${product.product_type}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                        $('#productDetails').html(details);
+                    } else {
+                        console.error('Failed to load product details. Status: ' + response.status);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching product details:', error);
+                }
+            });
+        }
     });
-</script>
+    </script>

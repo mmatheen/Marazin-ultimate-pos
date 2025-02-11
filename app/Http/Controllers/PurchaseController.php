@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 use App\Models\LocationBatch;
+use App\Models\Payment;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
@@ -483,19 +484,29 @@ class PurchaseController extends Controller
             // Process products
             $this->processProducts($request, $purchase);
 
+            // Update supplier's current balance after purchase
+            $supplier = Supplier::find($request->supplier_id);
+            $supplier->updateBalance($request->total);
+
             // Handle advance balance payment
             if ($request->advance_balance > 0) {
-                PurchasePayment::updateOrCreate(
-                    ['purchase_id' => $purchase->id],
-                    [
-                        'supplier_id' => $request->supplier_id,
-                        'amount' => $request->advance_balance,
-                        'payment_method' => $request->payment_method,
-                        'payment_account' => $request->payment_account,
-                        'payment_date' => $request->paid_date,
-                        'payment_note' => $request->payment_note,
-                    ]
-                );
+                $dueAmount = $purchase->final_total - $request->advance_balance;
+
+                Payment::create([
+                    'payable_type' => "Purchase",
+                    'payable_id' => $purchase->id,
+                    'entity_id' => $request->supplier_id,
+                    'entity_type' => 'Supplier',
+                    'amount' => $request->advance_balance,
+                    'payment_method' => $request->payment_method,
+                    'payment_account' => $request->payment_account,
+                    'payment_date' => $request->paid_date,
+                    'payment_note' => $request->payment_note,
+                    'due_amount' => $dueAmount,
+                ]);
+
+                // Update supplier's current balance after payment
+                $supplier->updateBalance(-$request->advance_balance);
             }
 
             $purchase->updatePaymentStatus();
@@ -503,6 +514,7 @@ class PurchaseController extends Controller
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
     }
+
 
     private function processProducts($request, $purchase)
     {
@@ -689,6 +701,12 @@ class PurchaseController extends Controller
 
         // Return the purchase along with related purchase products and payment info
         return response()->json(['purchase' => $purchase], 200);
+    }
+
+    public function getPurchase($id)
+    {
+        $purchase = Purchase::with('supplier', 'location')->find($id);
+        return response()->json($purchase);
     }
 
 

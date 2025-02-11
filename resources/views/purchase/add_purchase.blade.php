@@ -417,11 +417,12 @@
                                                     <span class="input-group-text"><i class="fas fa-user"></i></span>
                                                     <select class="form-control form-select" id="payment-method" name="payment_method">
                                                         <option selected disabled>Payment Method</option>
-                                                        <option>Cash</option>
-                                                        <option>Advance</option>
-                                                        <option>Cheque</option>
-                                                        <option>Bank Transfer</option>
-                                                        <option>Other</option>
+                                                        <option value="Cash">Cash</option>
+                                                        <option value="Advance">Advance</option>
+                                                        <option value="Cheque">Cheque</option>
+                                                        <option value="Bank Transfer">Bank Transfer</option>
+                                                        <option value="Card">Card</option>
+                                                        <option value="Other">Other</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -450,6 +451,54 @@
                                                 </div>
                                             </div>
                                         </div>
+                                         <!-- Cheque Details -->
+                                <div class="payment-fields" id="cheque-details" style="display: none;">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="cheque-no">Cheque No.</label>
+                                            <input type="text" class="form-control" id="cheque-no" name="cheque_no">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="cheque-date">Cheque Date</label>
+                                            <input type="text" class="form-control" id="cheque-date" name="cheque_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="branch-name">Branch Name</label>
+                                            <input type="text" class="form-control" id="branch-name" name="branch_name">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Card Details -->
+                                <div class="payment-fields" id="card-details" style="display: none;">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="card-number">Card Number</label>
+                                            <input type="text" class="form-control" id="card-number" name="card_number">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="card-expiry">Card Expiry</label>
+                                            <input type="text" class="form-control" id="card-expiry" name="card_expiry">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Bank Details -->
+                                <div class="payment-fields" id="bank-details" style="display: none;">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="bank-account">Bank Account No.</label>
+                                            <input type="text" class="form-control" id="bank-account" name="bank_account">
+                                        </div>
+                                    </div>
+                                </div>
+
                                         <div class="col-md-12">
                                             <div class="form-group">
                                                 <label for="payment-note">Payment Note</label>
@@ -488,4 +537,20 @@
         @include('category.main_category.main_category_modal')
         @include('category.sub_category.sub_category_modal')
         @include('category.sub_category.sub_category_ajax') --}}
+
+        <script>
+            $(document).ready(function() {
+                $('#payment-method').change(function() {
+                    var method = $(this).val();
+                    $('.payment-fields').hide();
+                    if (method === 'Cheque') {
+                        $('#cheque-details').show();
+                    } else if (method === 'Card') {
+                        $('#card-details').show();
+                    } else if (method === 'Bank Transfer') {
+                        $('#bank-details').show();
+                    }
+                });
+            });
+        </script>
     @endsection

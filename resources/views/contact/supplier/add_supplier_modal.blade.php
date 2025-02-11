@@ -72,28 +72,14 @@
                                 <div class="mb-3">
                                     <div class="input-group mb-3">
                                         <span class="input-group-text" id="basic-addon1"><i class="fas fa-address-book"></i></span>
-                                        <input type="text" class="form-control" id="edit_contact_id" name="contact_id" placeholder="Contact ID" aria-label="Example text with button addon" aria-describedby="button-addon1">
-                                        <span class="text-danger" id="contact_id_error"></span>
+                                        <input type="text" class="form-control" id="edit_address" name="address" placeholder="Address" aria-label="Example text with button addon" aria-describedby="button-addon1">
+                                        <span class="text-danger" id="address_error"></span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="mb-3 mt-3">
-                                    <div class="input-group local-forms">
-                                        <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
-                                        <select class="form-control form-select" id="edit_contact_type" name="contact_type" aria-label="Example text with button addon" aria-describedby="button-addon1">
-                                            <option selected disabled>Contact type</option>
-                                            <option>Suppliers</option>
-                                            <option>Customers</option>
-                                            <option>Both (Supplier & Customer)</option>
-                                        </select>
-                                        <span class="text-danger" id="contact_type_error"></span>
-                                    </div>
-                                </div>
 
-                            </div>
-                            <div class="col-md-4">
+                            {{-- <div class="col-md-4">
                                 <div class="mb-3 mt-3">
                                     <div class="form-group local-forms calendar-icon">
                                         <label>Date <span class="login-danger">*</span></label>
@@ -101,9 +87,9 @@
                                         <span class="text-danger" id="date_error"></span>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
 
-                            <div class="col-md-4">
+                            {{-- <div class="col-md-4">
                                 <div class="mb-3 mt-3">
                                     <div class="input-group local-forms">
                                         <span class="input-group-text" id="basic-addon1"><i class="fas fa-user"></i></span>
@@ -116,7 +102,8 @@
                                         <span class="text-danger" id="assign_to_error"></span>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
+                            
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <div class="input-group mb-3">

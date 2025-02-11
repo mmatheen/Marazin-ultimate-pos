@@ -34,7 +34,7 @@
                         <div class="row">
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
-                                    <label>Product <span class="login-danger">*</span></label>
+                                    <label>Product <span class="login-danger"></span></label>
                                     <select class="form-control select" id="productNameFilter">
                                         <option value="">Select Product</option>
                                         <!-- Populate with product options -->
@@ -43,7 +43,7 @@
                             </div>
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
-                                    <label>Category <span class="login-danger">*</span></label>
+                                    <label>Category <span class="login-danger"></span></label>
                                     <select class="form-control select" id="categoryFilter">
                                         <option value="">Select Category</option>
                                         <!-- Populate with category options -->
@@ -52,10 +52,19 @@
                             </div>
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
-                                    <label>Brand <span class="login-danger">*</span></label>
+                                    <label>Brand <span class="login-danger"></span></label>
                                     <select class="form-control select" id="brandFilter">
                                         <option value="">Select Brand</option>
                                         <!-- Populate with brand options -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-lg-3 col-md-6">
+                                <div class="form-group local-forms">
+                                    <label>Location <span class="login-danger"></span></label>
+                                    <select class="form-control select" id="locationFilter">
+                                        <option value="">Select Location</option>
+                                        <!-- Populate with location options -->
                                     </select>
                                 </div>
                             </div>
@@ -161,43 +170,36 @@
             </div>
         </div>
 
-
-
-         {{-- Delete modal --}}
-    <div id="deleteModal" class="modal custom-modal fade" role="dialog">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="form-header">
-                        <h3 id="deleteName"></h3>
-                        <p>Are you sure want to delete?</p>
-                    </div>
-                    <div class="modal-btn delete-action">
-                        <div class="row">
-                            <input type="hidden" id="deleting_id">
+        {{-- Delete modal --}}
+        <div id="deleteModal" class="modal custom-modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="form-header">
+                            <h3 id="deleteName"></h3>
+                            <p>Are you sure want to delete?</p>
+                        </div>
+                        <div class="modal-btn delete-action">
                             <div class="row">
-                                <div class="col-6">
-                                    <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
-                                </div>
-                                <div class="col-6">
-                                    <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel
-                                    </a>
+                                <input type="hidden" id="deleting_id">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                    </div>
+                                    <div class="col-6">
+                                        <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel</a>
+                                    </div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
     </div>
-
 
     {{-- Edit modal row --}}
-    </div>
-
     <div class="modal fade" id="viewProductModal" tabindex="-1" aria-labelledby="viewProductModalLabel" aria-hidden="true">
         <div class="modal-dialog lg">
             <div class="modal-content" id="modalContent">
@@ -215,20 +217,5 @@
         </div>
     </div>
 
-    <script>
-        function toggleLoginFields(propertyId, actionClass) {
-            var checkBox = document.getElementById(propertyId);
-            var loginFields = document.querySelectorAll(actionClass);
-            loginFields.forEach(function(field) {
-                // console.log(checkBox.checked);
-                field.checked = checkBox
-                    .checked; // field.checked --> All checkbox fields are currently which state
-                //then it attache the value from which selected box was checked
-            });
-        }
-    </script>
-
-
-@include('product.product_ajax')
+   @include('product.product_ajax')
 @endsection
-

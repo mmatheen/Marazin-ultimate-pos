@@ -25,79 +25,85 @@ class PurchaseReturnController extends Controller
         return view('purchase.add_purchase_return');
     }
 
-    public function storeOrUpdate(Request $request, $purchaseReturnId = null)
-{
-    // Validate the request data
-    $validator = Validator::make($request->all(), [
-        'supplier_id' => 'required|integer|exists:suppliers,id',
-        'location_id' => 'required|integer|exists:locations,id',
-        'return_date' => 'required|date',
-        'attach_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
-        'products' => 'required|array',
-        'products.*.product_id' => 'required|integer|exists:products,id',
-        'products.*.quantity' => 'required|integer|min:1',
-        'products.*.unit_price' => 'required|numeric|min:0',
-        'products.*.subtotal' => 'required|numeric|min:0',
-        'products.*.batch_id' => 'nullable|integer|exists:batches,id',
-    ]);
+        public function storeOrUpdate(Request $request, $purchaseReturnId = null)
+    {
+        // Validate the request data
+        $validator = Validator::make($request->all(), [
+            'supplier_id' => 'required|integer|exists:suppliers,id',
+            'location_id' => 'required|integer|exists:locations,id',
+            'return_date' => 'required|date',
+            'attach_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
+            'products' => 'required|array',
+            'products.*.product_id' => 'required|integer|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.unit_price' => 'required|numeric|min:0',
+            'products.*.subtotal' => 'required|numeric|min:0',
+            'products.*.batch_id' => 'nullable|integer|exists:batches,id',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    }
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
 
-    try {
-        DB::transaction(function () use ($request, $purchaseReturnId) {
-            $attachDocument = $this->handleAttachedDocument($request);
-            $referenceNo = $purchaseReturnId ? null : $this->generateReferenceNo();
+        try {
+            DB::transaction(function () use ($request, $purchaseReturnId) {
+                $attachDocument = $this->handleAttachedDocument($request);
+                $referenceNo = $purchaseReturnId ? null : $this->generateReferenceNo();
 
-            // Create or update the purchase return record
-            $purchaseReturn = PurchaseReturn::updateOrCreate(
-                ['id' => $purchaseReturnId],
-                [
-                    'supplier_id' => $request->supplier_id,
-                    'reference_no' => $referenceNo,
-                    'location_id' => $request->location_id,
-                    'return_date' => $request->return_date,
-                    'attach_document' => $attachDocument,
-                ]
-            );
+                $totalReturnAmount = collect($request->products)->sum(fn($product) => $product['subtotal']);
 
-            // If updating, reverse stock adjustments for existing products
-            if ($purchaseReturnId) {
-                $existingProducts = $purchaseReturn->purchaseReturnProducts;
-                foreach ($existingProducts as $existingProduct) {
-                    $quantity = $existingProduct->quantity;
-                    $batchId = $existingProduct->batch_id;
+                // Create or update the purchase return record
+                $purchaseReturn = PurchaseReturn::updateOrCreate(
+                    ['id' => $purchaseReturnId],
+                    [
+                        'supplier_id' => $request->supplier_id,
+                        'reference_no' => $referenceNo,
+                        'location_id' => $request->location_id,
+                        'return_date' => $request->return_date,
+                        'attach_document' => $attachDocument,
+                        'return_total' => $totalReturnAmount, // Ensure this is set
+                        'total_paid' => 0, // Initialize as zero
+                        'total_due' => $totalReturnAmount, // Initially equal to return total
+                        'payment_status' => 'Due', // Default to Due
+                    ]
+                );
 
-                    // Restore batch or FIFO stock
-                    $this->restoreStock($existingProduct->product_id, $purchaseReturn->location_id, $quantity, $batchId);
+                // If updating, reverse stock adjustments for existing products
+                if ($purchaseReturnId) {
+                    $existingProducts = $purchaseReturn->purchaseReturnProducts;
+                    foreach ($existingProducts as $existingProduct) {
+                        $quantity = $existingProduct->quantity;
+                        $batchId = $existingProduct->batch_id;
 
-                    // Delete existing purchase return products
-                    $existingProduct->delete();
-                }
-            }
+                        // Restore batch or FIFO stock
+                        $this->restoreStock($existingProduct->product_id, $purchaseReturn->location_id, $quantity, $batchId);
 
-            // Process each product in the request
-            foreach ($request->products as $productData) {
-                $validProduct = PurchaseProduct::where('product_id', $productData['product_id'])
-                    ->whereHas('purchase', function ($query) use ($request) {
-                        $query->where('supplier_id', $request->supplier_id);
-                    })->exists();
-
-                if (!$validProduct) {
-                    throw new \Exception("Product ID {$productData['product_id']} does not belong to the selected supplier's purchase.");
+                        // Delete existing purchase return products
+                        $existingProduct->delete();
+                    }
                 }
 
-                $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
-            }
-        });
+                // Process each product in the request
+                foreach ($request->products as $productData) {
+                    $validProduct = PurchaseProduct::where('product_id', $productData['product_id'])
+                        ->whereHas('purchase', function ($query) use ($request) {
+                            $query->where('supplier_id', $request->supplier_id);
+                        })->exists();
 
-        $message = $purchaseReturnId ? 'Purchase return updated successfully!' : 'Purchase return recorded successfully!';
-        return response()->json(['status' => 200, 'message' => $message]);
-    } catch (\Exception $e) {
-        return response()->json(['status' => 400, 'message' => $e->getMessage()]);
+                    if (!$validProduct) {
+                        throw new \Exception("Product ID {$productData['product_id']} does not belong to the selected supplier's purchase.");
+                    }
+
+                    $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
+                }
+            });
+
+            $message = $purchaseReturnId ? 'Purchase return updated successfully!' : 'Purchase return recorded successfully!';
+            return response()->json(['status' => 200, 'message' => $message]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 400, 'message' => $e->getMessage()]);
+        }
     }
-}
 
 private function restoreStock($productId, $locationId, $quantity, $batchId = null)
 {
