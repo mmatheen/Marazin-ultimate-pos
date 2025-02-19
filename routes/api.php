@@ -261,6 +261,16 @@ Route::get('sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit
 Route::put('sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
+        // Route to fetch all suspended sales
+        Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
+
+        // Route to resume a suspended sale
+         // Route to resume a suspended sale
+         Route::get('/pos/sales/edit/{id}', [SaleController::class, 'editSale']);
+
+        // Route to delete a suspended sale
+        Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
+
 
 
   //start Stock transfer route
@@ -293,4 +303,8 @@ Route::delete('/cart/remove/{rowId}', [CartController::class, 'remove'])->name('
 Route::put('/cart/update/{rowId}', [CartController::class, 'update'])->name('cart.update');
 Route::get('/products/stocks', [ProductController::class, 'getAllStocks'])->name('products.stocks');
 
-Route::post('/payments', [PaymentController::class, 'storeOrUpdatePayment']);
+Route::get('payments', [PaymentController::class, 'index']);
+Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
+Route::get('payments/{payment}', [PaymentController::class, 'show']);
+Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
+Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);

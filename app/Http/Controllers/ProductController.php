@@ -92,7 +92,7 @@ class ProductController extends Controller
     public function getProductDetails($id)
     {
         // Fetch the product details by ID
-        $product = Product::with(['locations', 'category', 'brand']) // Assuming relationships are set up in the model
+        $product = Product::with(['locations', 'mainCategory', 'brand']) // Using the correct relationship names
                           ->find($id);
 
         // Check if the product exists

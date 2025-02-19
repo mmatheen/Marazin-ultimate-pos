@@ -9,26 +9,21 @@ class Sale extends Model
 {
     use HasFactory;
 
-        protected $fillable = [
-            'customer_id',
-            'sales_date',
-            'location_id',
-            'status',
-            'invoice_no',
-            'final_total',
-            'total_paid',
-            'total_due',
-            'payment_status'
-        ];
+    protected $fillable = [
+        'customer_id',
+        'sales_date',
+        'location_id',
+        'status',
+        'invoice_no',
+        'final_total',
+        'total_paid',
+        'total_due',
+        'payment_status'
+    ];
 
     public function products()
     {
         return $this->hasMany(SalesProduct::class);
-    }
-
-    public function payments()
-    {
-        return $this->morphMany(Payment::class, 'payable');
     }
 
     public function customer()
@@ -87,23 +82,25 @@ class Sale extends Model
         return $availableStock + $soldQuantity;
     }
 
-    public function updatePaymentStatus()
+    public function payments()
     {
-        // Calculate total paid amount
-        $this->total_paid = $this->payments()->sum('amount');
+        return $this->hasMany(Payment::class, 'reference_id', 'id')->where('payment_type', 'sale');
+    }
 
-        // Calculate total due amount
+    public function getTotalPaidAttribute()
+    {
+        return $this->payments()->sum('amount');
+    }
+
+    public function getTotalDueAttribute()
+    {
+        return $this->final_total - $this->total_paid;
+    }
+
+    // Update the total due amount
+    public function updateTotalDue()
+    {
         $this->total_due = $this->final_total - $this->total_paid;
-
-        // Update payment status based on total due amount
-        if ($this->total_due <= 0) {
-            $this->payment_status = 'Paid';
-        } elseif ($this->total_paid > 0) {
-            $this->payment_status = 'Partial';
-        } else {
-            $this->payment_status = 'Due';
-        }
-
         $this->save();
     }
 }

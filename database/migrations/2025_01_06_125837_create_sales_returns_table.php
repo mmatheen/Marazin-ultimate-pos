@@ -20,10 +20,15 @@ return new class extends Migration
             $table->date('return_date');
             $table->decimal('return_total', 12, 2); // Total value of the return
             $table->decimal('total_paid', 15, 2)->default(0);
-            $table->decimal('total_due', 15, 2)->default(0);
+
+            // Adding total_due as a generated column
+            $table->decimal('total_due', 15, 2)
+                ->generatedAs('return_total - total_paid')
+                ->stored(); // Use 'stored' to persist the result
+
             $table->enum('payment_status', ['Paid', 'Partial', 'Due'])->default('Due');
             $table->text('notes')->nullable(); // Reason or additional details
-            $table->boolean('is_defective')->default(false); // Indicates defective items
+            $table->boolean('is_defective')->default(false)->nullable(); // Indicates defective items
             $table->enum('stock_type', ['with_bill', 'without_bill']);
             $table->timestamps();
 

@@ -2,26 +2,47 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
-        'payable_type', 'payable_id', 'entity_id', 'entity_type', 'amount', 'due_amount', 'payment_method',
-        'transaction_no', 'payment_date', 'cheque_number', 'cheque_date', 'bank_branch',
-        'bank_account_number', 'card_number', 'card_holder_name', 'card_type',
-        'expiry_month', 'expiry_year', 'security_code',
+        'payment_date',
+        'amount',
+        'payment_method',
+        'reference_no',
+        'notes',
+        'payment_type',
+        'reference_id',
+        'supplier_id',
+        'customer_id',
+        'card_number',
+        'card_holder_name',
+        'card_expiry_month',
+        'card_expiry_year',
+        'card_security_code',
+        'cheque_number',
+        'cheque_bank_branch',
+        'cheque_received_date',
+        'cheque_valid_date',
+        'cheque_given_by',
     ];
 
-    // Polymorphic relation with sales, purchases, or returns
-    public function payable()
+    public function reference()
     {
         return $this->morphTo();
     }
 
-    // The customer or supplier related to this payment
-    public function entity()
+    public function supplier()
     {
-        return $this->morphTo();
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
     }
 }

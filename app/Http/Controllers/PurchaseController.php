@@ -19,10 +19,12 @@ use App\Models\Payment;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
+use App\Models\Transaction;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
 {
@@ -36,390 +38,6 @@ class PurchaseController extends Controller
         return view('purchase.add_purchase');
     }
 
-    //     public function store(Request $request)
-    //     {
-    //         $validator = Validator::make($request->all(), [
-    //             'supplier_id' => 'required|integer|exists:suppliers,id',
-    //             'purchase_date' => 'required|date',
-    //             'purchasing_status' => 'required|in:Received,Pending,Ordered',
-    //             'location_id' => 'required|integer|exists:locations,id',
-    //             'pay_term' => 'nullable|integer|min:0',
-    //             'pay_term_type' => 'nullable|in:days,months',
-    //             'attached_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
-    //             'discount_type' => 'nullable|in:percent,fixed',
-    //             'discount_amount' => 'nullable|numeric|min:0',
-    //             'total' => 'required|numeric|min:0',
-    //             'final_total' => 'required|numeric|min:0',
-    //             'payment_status' => 'nullable|in:Paid,Due,Partial',
-    //             'products' => 'required|array',
-    //             'products.*.product_id' => 'required|integer|exists:products,id',
-    //             'products.*.quantity' => 'required|integer|min:1',
-    //             'products.*.unit_cost' => 'required|numeric|min:0',
-    //             'products.*.wholesale_price' => 'required|numeric|min:0',
-    //             'products.*.special_price' => 'required|numeric|min:0',
-    //             'products.*.retail_price' => 'required|numeric|min:0',
-    //             'products.*.max_retail_price' => 'required|numeric|min:0',
-    //             'products.*.price' => 'required|numeric|min:0',
-    //             'products.*.total' => 'required|numeric|min:0',
-    //             'products.*.batch_no' => 'nullable|string|max:255',
-    //             'products.*.expiry_date' => 'nullable|date',
-    //             'advance_balance' => 'nullable|numeric|min:0',
-    //             'payment_method' => 'nullable|string',
-    //             'payment_account' => 'nullable|string',
-    //             'payment_note' => 'nullable|string',
-    //             'paid_date' => 'nullable|date',
-    //         ]);
-
-    //         if ($validator->fails()) {
-    //             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //         }
-
-    //         DB::transaction(function () use ($request) {
-    //             $attachedDocument = $this->handleAttachedDocument($request);
-    //             $referenceNo = $this->generateReferenceNo();
-
-    //             // Create the purchase record
-    //             $purchase = Purchase::create([
-    //                 'supplier_id' => $request->supplier_id,
-    //                 'reference_no' => $referenceNo,
-    //                 'purchase_date' => $request->purchase_date,
-    //                 'purchasing_status' => $request->purchasing_status,
-    //                 'location_id' => $request->location_id,
-    //                 'pay_term' => $request->pay_term,
-    //                 'pay_term_type' => $request->pay_term_type,
-    //                 'attached_document' => $attachedDocument,
-    //                 'total' => $request->total,
-    //                 'discount_type' => $request->discount_type,
-    //                 'discount_amount' => $request->discount_amount,
-    //                 'final_total' => $request->final_total,
-    //                 'payment_status' => 'Due', // Initial status
-    //             ]);
-
-    //             // Process each product in the purchase
-    //             foreach ($request->products as $productData) {
-    //                 // Fetch the product details
-    //                 $product = Product::find($productData['product_id']);
-    //                 $batch = Batch::firstOrCreate(
-    //                     [
-    //                         'batch_no' => $productData['batch_no'] ?? Batch::generateNextBatchNo(),
-    //                         'product_id' => $productData['product_id'],
-    //                         'unit_cost' => $productData['unit_cost'],
-    //                         'expiry_date' => $productData['expiry_date'],
-    //                     ],
-    //                     [
-    //                         'qty' => $productData['quantity'],
-    //                         'wholesale_price' => $productData['wholesale_price'],
-    //                         'special_price' => $productData['special_price'],
-    //                         'retail_price' => $productData['retail_price'],
-    //                         'max_retail_price' => $productData['max_retail_price'],
-    //                     ]
-    //                 );
-
-    //                 // Update the quantity in the batch table
-    //                 if (!$batch->wasRecentlyCreated) {
-    //                     $batch->increment('qty', $productData['quantity']);
-    //                 }
-
-    //                 // Check if the location batch already exists or create a new one
-    //                 $locationBatch = LocationBatch::firstOrCreate(
-    //                     [
-    //                         'batch_id' => $batch->id,
-    //                         'location_id' => $request->location_id,
-    //                     ],
-    //                     [
-    //                         'qty' => $productData['quantity'],
-    //                     ]
-    //                 );
-
-    //                 // Update the quantity in the location batch if it already exists
-    //                 if (!$locationBatch->wasRecentlyCreated) {
-    //                     $locationBatch->increment('qty', $productData['quantity']);
-    //                 }
-
-    //                 // Update location_product table
-    //                 $product->locations()->updateExistingPivot($request->location_id, ['qty' => DB::raw('qty + ' . $productData['quantity'])]);
-
-    //                 // Record stock history as purchase stock
-    //                 StockHistory::create([
-    //                     'loc_batch_id' => $locationBatch->id,
-    //                     'batch_id' => $batch->id, // Add batch_id to stock history
-    //                     'quantity' => $productData['quantity'],
-    //                     'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-    //                 ]);
-
-    //                 // Create the purchase product record
-    //                 PurchaseProduct::create([
-    //                     'purchase_id' => $purchase->id,
-    //                     'product_id' => $productData['product_id'],
-    //                     'batch_id' => $batch->id,
-    //                     'location_id' => $request->location_id,
-    //                     'quantity' => $productData['quantity'],
-    //                     'unit_cost' => $productData['unit_cost'],
-    //                     'wholesale_price' => $productData['wholesale_price'],
-    //                     'special_price' => $productData['special_price'],
-    //                     'retail_price' => $productData['retail_price'],
-    //                     'max_retail_price' => $productData['max_retail_price'],
-    //                     'price' => $productData['price'],
-    //                     'total' => $productData['total'],
-    //                 ]);
-
-    //                 // Handle initial payment if provided
-    //                 if ($request->advance_balance > 0) {
-    //                     PurchasePayment::create([
-    //                         'purchase_id' => $purchase->id,
-    //                         'supplier_id' => $request->supplier_id,
-    //                         'amount' => $request->advance_balance,
-    //                         'payment_method' => $request->payment_method,
-    //                         'payment_account' => $request->payment_account,
-    //                         'payment_date' => $request->paid_date,
-    //                         'payment_note' => $request->payment_note,
-    //                     ]);
-    //                 }
-    //             }
-
-    //             // Update purchase payment status and due amount
-    //             $purchase->updatePaymentStatus();
-    //         });
-
-    //         return response()->json(['status' => 200, 'message' => 'Purchase recorded successfully!']);
-    //     }
-
-    //     private function generateReferenceNo()
-    //     {
-    //         return 'PUR-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
-    //     }
-
-    //     private function handleAttachedDocument($request)
-    //     {
-    //         $fileName = null;
-    //         if ($request->hasFile('attached_document')) {
-    //             $file = $request->file('attached_document');
-    //             $fileName = time() . '.' . $file->getClientOriginalExtension();
-    //             $file->move(public_path('/assets/documents'), $fileName);
-    //             return  $fileName;
-    //         }
-    //         return null;
-    //     }
-
-    //     // private function generateBatchNo($productId)
-    //     // {
-    //     //     return 'batch-' . ($productId + 1);
-    //     // }
-
-    //     public function update(Request $request, $purchaseId)
-    //     {
-    //         // Validation
-    //         $validator = Validator::make($request->all(), [
-    //             'supplier_id' => 'required|integer|exists:suppliers,id',
-    //             'purchase_date' => 'required|date',
-    //             'purchasing_status' => 'required|in:Received,Pending,Ordered',
-    //             'location_id' => 'required|integer|exists:locations,id',
-    //             'pay_term' => 'nullable|integer|min:0',
-    //             'pay_term_type' => 'nullable|in:days,months',
-    //             'attached_document' => 'nullable|file|max:5120|mimes:pdf,csv,zip,doc,docx,jpeg,jpg,png',
-    //             'discount_type' => 'nullable|in:percent,fixed',
-    //             'discount_amount' => 'nullable|numeric|min:0',
-    //             'total' => 'required|numeric|min:0',
-    //             'final_total' => 'required|numeric|min:0',
-    //             'payment_status' => 'nullable|in:Paid,Due,Partial',
-    //             'products' => 'required|array',
-    //             'products.*.product_id' => 'required|integer|exists:products,id',
-    //             'products.*.quantity' => 'required|integer|min:1',
-    //             'products.*.unit_cost' => 'required|numeric|min:0',
-    //             'products.*.wholesale_price' => 'required|numeric|min:0',
-    //             'products.*.special_price' => 'required|numeric|min:0',
-    //             'products.*.retail_price' => 'required|numeric|min:0',
-    //             'products.*.max_retail_price' => 'required|numeric|min:0',
-    //             'products.*.price' => 'required|numeric|min:0',
-    //             'products.*.total' => 'required|numeric|min:0',
-    //             'products.*.batch_no' => 'nullable|string|max:255',
-    //             'products.*.expiry_date' => 'nullable|date',
-    //             'advance_balance' => 'nullable|numeric|min:0',
-    //             'payment_method' => 'nullable|string',
-    //             'payment_account' => 'nullable|string',
-    //             'payment_note' => 'nullable|string',
-    //             'paid_date' => 'nullable|date',
-    //         ]);
-
-    //         if ($validator->fails()) {
-    //             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //         }
-
-    //         DB::transaction(function () use ($request, $purchaseId) {
-    //             $purchase = Purchase::findOrFail($purchaseId);
-    //             $existingProducts = $purchase->purchaseProducts->keyBy('product_id');
-
-    //             // Update purchase details
-    //             $purchase->update([
-    //                 'supplier_id' => $request->supplier_id,
-    //                 'purchase_date' => $request->purchase_date,
-    //                 'purchasing_status' => $request->purchasing_status,
-    //                 'location_id' => $request->location_id,
-    //                 'pay_term' => $request->pay_term,
-    //                 'pay_term_type' => $request->pay_term_type,
-    //                 'attached_document' => $this->handleAttachedDocument($request),
-    //                 'total' => $request->total,
-    //                 'discount_type' => $request->discount_type,
-    //                 'discount_amount' => $request->discount_amount,
-    //                 'final_total' => $request->final_total,
-    //                 'payment_status' => $request->payment_status,
-    //             ]);
-
-    //             // Process products in chunks (if needed)
-    //             collect($request->products)->chunk(100)->each(function ($productsChunk) use ($purchase, $existingProducts, $request) {
-    //                 foreach ($productsChunk as $productData) {
-    //                     $productId = $productData['product_id'];
-    //                     $existingProduct = $existingProducts->get($productId);
-
-    //                     if ($existingProduct) {
-    //                         // Update existing product
-    //                         $quantityDifference = $productData['quantity'] - $existingProduct->quantity;
-    //                         $this->updateProductStock($existingProduct, $quantityDifference, $request->location_id);
-
-    //                         $existingProduct->update([
-    //                             'quantity' => $productData['quantity'],
-    //                             'unit_cost' => $productData['unit_cost'],
-    //                             'wholesale_price' => $productData['wholesale_price'],
-    //                             'special_price' => $productData['special_price'],
-    //                             'retail_price' => $productData['retail_price'],
-    //                             'max_retail_price' => $productData['max_retail_price'],
-    //                             'price' => $productData['price'],
-    //                             'total' => $productData['total'],
-    //                         ]);
-    //                     } else {
-    //                         // Add new product
-    //                         $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
-    //                     }
-    //                 }
-    //             });
-
-    //             // Remove products not present in the request
-    //             $requestProductIds = collect($request->products)->pluck('product_id')->toArray();
-    //             $productsToRemove = $existingProducts->whereNotIn('product_id', $requestProductIds);
-
-    //             foreach ($productsToRemove as $productToRemove) {
-    //                 $this->removeProductFromPurchase($productToRemove, $request->location_id);
-    //             }
-
-    //             // Handle advance balance payment
-    //             if ($request->advance_balance > 0) {
-    //                 PurchasePayment::updateOrCreate(
-    //                     ['purchase_id' => $purchase->id],
-    //                     [
-    //                         'supplier_id' => $request->supplier_id,
-    //                         'amount' => $request->advance_balance,
-    //                         'payment_method' => $request->payment_method,
-    //                         'payment_account' => $request->payment_account,
-    //                         'payment_date' => $request->paid_date,
-    //                         'payment_note' => $request->payment_note,
-    //                     ]
-    //                 );
-    //             }
-
-    //             $purchase->updatePaymentStatus();
-    //         });
-
-    //         return response()->json(['status' => 200, 'message' => 'Purchase updated successfully!']);
-    //     }
-
-    //     /**
-    //      * Update product stock when quantity changes.
-    //      */
-    //     private function updateProductStock($existingProduct, $quantityDifference, $locationId)
-    //     {
-    //         $batch = Batch::find($existingProduct->batch_id);
-    //         $locationBatch = LocationBatch::where('batch_id', $batch->id)
-    //             ->where('location_id', $locationId)
-    //             ->first();
-
-    //         if ($locationBatch) {
-    //             if ($locationBatch->qty + $quantityDifference < 0) {
-    //                 throw new Exception("Stock quantity cannot be reduced below zero");
-    //             }
-    //             $locationBatch->increment('qty', $quantityDifference);
-    //         }
-
-    //         if ($batch->qty + $quantityDifference < 0) {
-    //             throw new Exception("Batch stock quantity cannot be reduced below zero");
-    //         }
-    //         $batch->increment('qty', $quantityDifference);
-
-    //         StockHistory::create([
-    //             'loc_batch_id' => $locationBatch->id,
-    //             'quantity' => $quantityDifference,
-    //             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-    //         ]);
-    //     }
-
-    //     /**
-    //      * Add a new product to the purchase.
-    //      */
-    // private function addNewProductToPurchase($purchase, $productData, $locationId)
-    // {
-    //     $product = Product::find($productData['product_id']);
-    //     $batch = Batch::create([
-    //         'product_id' => $product->id,
-    //         'qty' => $productData['quantity'],
-    //         'batch_no' => $productData['batch_no'] ?? null,
-    //         'expiry_date' => $productData['expiry_date'] ?? null,
-    //         'unit_cost' => $productData['unit_cost'], // Include unit_cost here
-    //         'wholesale_price' => $productData['wholesale_price'],
-    //         'special_price' => $productData['special_price'],
-    //         'retail_price' => $productData['retail_price'],
-    //         'max_retail_price' => $productData['max_retail_price'],
-    //     ]);
-
-    //     $locationBatch = LocationBatch::create([
-    //         'batch_id' => $batch->id,
-    //         'location_id' => $locationId,
-    //         'qty' => $productData['quantity'],
-    //     ]);
-
-    //     $purchase->purchaseProducts()->create([
-    //         'product_id' => $product->id,
-    //         'quantity' => $productData['quantity'],
-    //         'unit_cost' => $productData['unit_cost'],
-    //         'wholesale_price' => $productData['wholesale_price'],
-    //         'special_price' => $productData['special_price'],
-    //         'retail_price' => $productData['retail_price'],
-    //         'max_retail_price' => $productData['max_retail_price'],
-    //         'price' => $productData['price'],
-    //         'total' => $productData['total'],
-    //         'batch_id' => $batch->id,
-    //         'location_id' => $locationId, // Include location_id here
-    //     ]);
-
-    //     StockHistory::create([
-    //         'loc_batch_id' => $locationBatch->id,
-    //         'quantity' => $productData['quantity'],
-    //         'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-    //     ]);
-    // }
-
-    //     /**
-    //      * Remove a product from the purchase.
-    //      */
-    //     private function removeProductFromPurchase($productToRemove, $locationId)
-    //     {
-    //         $batch = Batch::find($productToRemove->batch_id);
-    //         $locationBatch = LocationBatch::where('batch_id', $batch->id)
-    //             ->where('location_id', $locationId)
-    //             ->first();
-
-    //         if ($locationBatch) {
-    //             $locationBatch->decrement('qty', $productToRemove->quantity);
-    //         }
-
-    //         $batch->decrement('qty', $productToRemove->quantity);
-
-    //         StockHistory::create([
-    //             'loc_batch_id' => $locationBatch->id,
-    //             'quantity' => -$productToRemove->quantity,
-    //             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
-    //         ]);
-
-    //         $productToRemove->delete();
-    //     }
 
     public function storeOrUpdate(Request $request, $purchaseId = null)
     {
@@ -448,7 +66,7 @@ class PurchaseController extends Controller
             'products.*.total' => 'required|numeric|min:0',
             'products.*.batch_no' => 'nullable|string|max:255',
             'products.*.expiry_date' => 'nullable|date',
-            'advance_balance' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|string',
             'payment_account' => 'nullable|string',
             'payment_note' => 'nullable|string',
@@ -477,44 +95,23 @@ class PurchaseController extends Controller
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $request->discount_amount,
                     'final_total' => $request->final_total,
-                    'payment_status' => $purchaseId ? $request->payment_status : 'Due',
                 ]
             );
 
             // Process products
             $this->processProducts($request, $purchase);
 
-            // Update supplier's current balance after purchase
-            $supplier = Supplier::find($request->supplier_id);
-            $supplier->updateBalance($request->total);
-
-            // Handle advance balance payment
-            if ($request->advance_balance > 0) {
-                $dueAmount = $purchase->final_total - $request->advance_balance;
-
-                Payment::create([
-                    'payable_type' => "Purchase",
-                    'payable_id' => $purchase->id,
-                    'entity_id' => $request->supplier_id,
-                    'entity_type' => 'Supplier',
-                    'amount' => $request->advance_balance,
-                    'payment_method' => $request->payment_method,
-                    'payment_account' => $request->payment_account,
-                    'payment_date' => $request->paid_date,
-                    'payment_note' => $request->payment_note,
-                    'due_amount' => $dueAmount,
-                ]);
-
-                // Update supplier's current balance after payment
-                $supplier->updateBalance(-$request->advance_balance);
+            // Handle payment if paid_amount is provided
+            if ($request->paid_amount > 0) {
+                $this->handlePayment($request, $purchase);
             }
 
-            $purchase->updatePaymentStatus();
+            // Update supplier's balance
+            $this->updateSupplierBalance($purchase->supplier_id);
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
     }
-
 
     private function processProducts($request, $purchase)
     {
@@ -675,18 +272,85 @@ class PurchaseController extends Controller
         $productToRemove->delete();
     }
 
-    public function getAllPurchase()
+    private function handlePayment($request, $purchase)
     {
-        // Fetch all purchases with related products and payment info
-        $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->get();
+        // Calculate the total due and total paid for the purchase
+        $totalPaid = Payment::where('reference_id', $purchase->id)->sum('amount');
+        $totalDue = $purchase->final_total - $totalPaid;
 
-        // Check if purchases are found
-        if ($purchases->isEmpty()) {
-            return response()->json(['message' => 'No purchases found.'], 404);
+        // If the paid amount exceeds total due, adjust it
+        $paidAmount = min($request->paid_amount, $totalDue);
+
+        $payment = Payment::create([
+            'payment_date' => $request->paid_date ?? now(),
+            'amount' => $paidAmount,
+            'payment_method' => $request->payment_method,
+            'reference_no' => $purchase->reference_no,
+            'notes' => $request->payment_note,
+            'payment_type' => 'purchase',
+            'reference_id' => $purchase->id,
+            'supplier_id' => $purchase->supplier_id,
+            'card_number' => $request->card_number,
+            'card_holder_name' => $request->card_holder_name,
+            'card_expiry_month' => $request->card_expiry_month,
+            'card_expiry_year' => $request->card_expiry_year,
+            'card_security_code' => $request->card_security_code,
+            'cheque_number' => $request->cheque_number,
+            'cheque_bank_branch' => $request->cheque_bank_branch,
+            'cheque_received_date' => $request->cheque_received_date,
+            'cheque_valid_date' => $request->cheque_valid_date,
+            'cheque_given_by' => $request->cheque_given_by,
+        ]);
+
+        Transaction::create([
+            'transaction_date' => $payment->payment_date,
+            'amount' => $payment->amount,
+            'transaction_type' => $payment->payment_type,
+            'reference_id' => $payment->id,
+        ]);
+
+        // Update purchase payment status based on total due
+        if ($totalDue - $paidAmount <= 0) {
+            $purchase->payment_status = 'Paid';
+        } elseif ($totalPaid + $paidAmount < $purchase->final_total) {
+            $purchase->payment_status = 'Partial';
+        } else {
+            $purchase->payment_status = 'Due';
         }
 
-        // Return the purchases along with related purchase products and payment info
-        return response()->json(['purchases' => $purchases], 200);
+        $purchase->save();
+    }
+
+    private function updateSupplierBalance($supplierId)
+    {
+        $supplier = Supplier::find($supplierId);
+
+        $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
+        $totalPayments = Payment::where('supplier_id', $supplierId)->where('payment_type', 'purchase')->sum('amount');
+
+        $supplier->current_balance = $supplier->opening_balance + $totalPurchases - $totalPayments;
+        $supplier->save();
+    }
+
+
+    public function getAllPurchase()
+    {
+        try {
+            // Fetch all purchases with related products and payment info
+            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->get();
+
+            // Check if purchases are found
+            if ($purchases->isEmpty()) {
+                return response()->json(['message' => 'No purchases found.'], 404);
+            }
+
+            // Return the purchases along with related purchase products and payment info
+            return response()->json(['purchases' => $purchases], 200);
+        } catch (\Exception $e) {
+            // Log the exception and return a generic error message
+            Log::error('Error fetching purchases: ' . $e->getMessage());
+            return response()->json(['message' => 'An error occurred while fetching purchases. Please try again later.'], 500);
+        }
     }
 
     public function getAllPurchasesProduct(int $id)
@@ -705,10 +369,14 @@ class PurchaseController extends Controller
 
     public function getPurchase($id)
     {
-        $purchase = Purchase::with('supplier', 'location')->find($id);
+        $purchase = Purchase::with('supplier', 'location', 'payments')->find($id);
+
+        if (!$purchase) {
+            return response()->json(['message' => 'Purchase not found.'], 404);
+        }
+
         return response()->json($purchase);
     }
-
 
     public function getPurchaseProductsBySupplier($supplierId)
     {
@@ -753,7 +421,6 @@ class PurchaseController extends Controller
             return response()->json(['message' => 'An error occurred while fetching purchase products.'], 500);
         }
     }
-
 
     public function editPurchase($id)
     {

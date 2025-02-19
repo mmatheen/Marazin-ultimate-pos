@@ -179,7 +179,8 @@
 
                                     <div class="row">
                                         <div class="col-md-8">
-                                            <div id="summernote" name="description"></div>
+                                            {{-- <div id="summernote" name="description"></div> --}}
+                                            <textarea id="summernote" name="description"></textarea>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="row">

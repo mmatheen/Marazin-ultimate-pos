@@ -119,7 +119,7 @@
                 resetFormAndValidation();
             });
 
-        // Show Add Warranty Modal
+        // Show Add supplier model Modal
         $('#addSupplierButton').click(function() {
             $('#modalTitle').text('New Supplier');
             $('#modalButton').text('Save');

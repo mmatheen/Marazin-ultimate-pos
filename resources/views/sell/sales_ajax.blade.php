@@ -120,50 +120,279 @@
             }
         });
 
-        // Initialize DataTable
-        const table = $('#salesTable').DataTable();
+// Initialize DataTable
+const table = $('#salesTable').DataTable();
 
-        // Apply validation to forms
-        function fetchData() {
-            $.ajax({
-                url: '/sales',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    table.clear().draw();
-                    if (response.sales && Array.isArray(response.sales)) {
-                        var counter = 1;
-                        response.sales.forEach(function(item) {
-                            let row = $('<tr>');
-                            row.append('<td>' + counter + '</td>');
-                            row.append('<td>' + item.sales_date + '</td>');
-                            row.append('<td>' + item.invoice_no + '</td>');
-                            row.append('<td>' + item.customer.first_name + ' ' + item
-                                .customer.last_name + '</td>');
-                            row.append('<td>' + item.location.name + '</td>');
-                            row.append('<td>' + item.status + '</td>');
-                            row.append('<td><button type="button" value="' + item.id +
-                                '" class="view-details btn btn-outline-info btn-sm me-2"><i class="feather-eye text-info"></i> View</button><button type="button" value="' +
-                                item.id +
-                                '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' +
-                                item.id +
-                                '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>'
-                                );
-                            table.row.add(row).draw(false);
-                            counter++;
-                        });
-                    } else {
-                        console.error('Sales data is not in the expected format.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching sales data:', error);
-                }
-            });
+// Apply validation to forms
+function fetchData() {
+    $.ajax({
+        url: '/sales',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            table.clear().draw();
+            if (response.sales && Array.isArray(response.sales)) {
+                var counter = 1;
+                response.sales.forEach(function(item) {
+                    let row = $('<tr>');
+                    row.append('<td>' +
+                        '<div class="btn-group">' +
+                            '<button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
+                                '<i class="feather-menu"></i> Actions' +
+                            '</button>' +
+                            '<ul class="dropdown-menu">' +
+                                '<li><button type="button" value="' + item.id + '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
+                                '<li><button type="button" value="' + item.id + '" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>' +
+                                '<li><button type="button" value="' + item.id + '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>' +
+                                '<li><button type="button" value="' + item.id + '" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>' +
+                                '<li><button type="button" value="' + item.id + '" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>' +
+                                '<li><button type="button" value="' + item.id + '" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>' +
+                            '</ul>' +
+                        '</div>' +
+                    '</td>');
+                    row.append('<td>' + item.sales_date + '</td>');
+                    row.append('<td>' + item.invoice_no + '</td>');
+                    row.append('<td>' + item.customer.first_name + ' ' + item.customer.last_name + '</td>');
+                    row.append('<td>' + item.customer.mobile_no + '</td>');
+                    row.append('<td>' + item.location.name + '</td>');
+                    row.append('<td>' + item.payment_status + '</td>');
+                    row.append('<td>' + item.payments[0].payment_method + '</td>');
+                    row.append('<td>' + item.final_total + '</td>');
+                    row.append('<td>' + item.total_paid + '</td>');
+                    row.append('<td>' + item.total_due + '</td>');
+                    row.append('<td>' + item.status + '</td>');
+                    row.append('<td>' + item.products.length + '</td>');
+                    row.append('<td>' + 'Added By User' + '</td>'); // Replace with actual user data if available
+
+                    table.row.add(row).draw(false);
+                    counter++;
+                });
+            } else {
+                console.error('Sales data is not in the expected format.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching sales data:', error);
         }
+    });
+}
 
+// Call fetchData to load the data initially
+fetchData();
 
+// Event handler for view details button
+$('#salesTable tbody').on('click', 'button.view-details', function() {
+    var saleId = $(this).val();
+    $.ajax({
+        url: '/sales_details/' + saleId,
+        type: 'GET',
+        success: function(response) {
+            if (response.salesDetails) {
+                const saleDetails = response.salesDetails;
+                const customer = saleDetails.customer;
+                const location = saleDetails.location;
+                const products = saleDetails.products;
 
+                // Populate modal fields
+                $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails.invoice_no);
+                $('#customerDetails').text(customer.first_name + ' ' + customer.last_name);
+                $('#locationDetails').text(location.name);
+                $('#salesDetails').text('Date: ' + saleDetails.sales_date + ', Status: ' + saleDetails.status);
+
+                // Populate products table
+                const productsTableBody = $('#productsTable tbody');
+                productsTableBody.empty();
+                if (products && Array.isArray(products)) {
+                    products.forEach((product, index) => {
+                        const productRow = $('<tr>');
+                        productRow.append('<td>' + (index + 1) + '</td>');
+                        productRow.append('<td>' + product.product.product_name + '</td>');
+                        productRow.append('<td>' + product.product.sku + '</td>');
+                        productRow.append('<td>' + product.quantity + '</td>');
+                        productRow.append('<td>' + product.price + '</td>');
+                        productRow.append('<td>' + (product.quantity * product.price).toFixed(2) + '</td>');
+                        productsTableBody.append(productRow);
+                    });
+                }
+
+                // Populate payment info table
+                const paymentInfoTableBody = $('#paymentInfoTable tbody');
+                paymentInfoTableBody.empty();
+                if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
+                    saleDetails.payments.forEach((payment) => {
+                        const paymentRow = $('<tr>');
+                        paymentRow.append('<td>' + payment.payment_date + '</td>');
+                        paymentRow.append('<td>' + payment.reference_no + '</td>');
+                        paymentRow.append('<td>' + payment.amount + '</td>');
+                        paymentRow.append('<td>' + payment.payment_method + '</td>');
+                        paymentRow.append('<td>' + payment.notes + '</td>');
+                        paymentInfoTableBody.append(paymentRow);
+                    });
+                }
+
+                // Populate amount details table
+                const amountDetailsTableBody = $('#amountDetailsTable tbody');
+                amountDetailsTableBody.empty();
+                amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' + saleDetails.final_total + '</td></tr>');
+                amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' + saleDetails.total_paid + '</td></tr>');
+                amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' + saleDetails.total_due + '</td></tr>');
+
+                $('#saleDetailsModal').modal('show');
+            } else {
+                console.error('Sales details data is not in the expected format.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching sales details:', error);
+        }
+    });
+});
+
+// Event handler for add payment button
+$('#salesTable tbody').on('click', 'button.add-payment', function() {
+    var saleId = $(this).val();
+    $.ajax({
+        url: '/sales_details/' + saleId,
+        type: 'GET',
+        success: function(response) {
+            if (response.salesDetails) {
+                const saleDetails = response.salesDetails;
+                const customer = saleDetails.customer;
+                const location = saleDetails.location;
+
+                // Populate payment modal fields
+                $('#paymentModalLabel').text('Add Payment - Invoice No: ' + saleDetails.invoice_no);
+                $('#paymentCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
+                $('#paymentLocationDetails').text(location.name);
+                $('#totalAmount').text(saleDetails.final_total);
+                $('#totalPaidAmount').text(saleDetails.total_paid);
+
+                $('#saleId').val(saleDetails.id);
+                $('#payment_type').val('sale');
+                $('#customer_id').val(customer.id);
+                $('#reference_no').val(saleDetails.invoice_no);
+                  // Set default date to today
+                  $('#paidOn').val(new Date().toISOString().split('T')[0]);
+
+                $('#paymentModal').modal('show');
+            } else {
+                console.error('Sales details data is not in the expected format.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching sales details:', error);
+        }
+    });
+});
+
+// Event handler for view payments button
+$('#salesTable tbody').on('click', 'button.view-payments', function() {
+    var saleId = $(this).val();
+    $('#viewPaymentModal').data('sale-id', saleId);
+    $.ajax({
+        url: '/sales_details/' + saleId,
+        type: 'GET',
+        success: function(response) {
+            if (response.salesDetails) {
+                const saleDetails = response.salesDetails;
+                const customer = saleDetails.customer;
+
+                // Populate view payments modal fields
+                $('#viewPaymentModalLabel').text('View Payments ( Reference No: ' + saleDetails.invoice_no + ' )');
+                $('#viewCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
+                $('#viewBusinessDetail').text(saleDetails.location.name);
+                $('#viewReferenceNo').text(saleDetails.invoice_no);
+                $('#viewDate').text(saleDetails.sales_date);
+                $('#viewPurchaseStatus').text(saleDetails.status);
+                $('#viewPaymentStatus').text(saleDetails.payment_status);
+
+                const paymentsTableBody = $('#viewPaymentModal table tbody');
+                paymentsTableBody.empty();
+                if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
+                    saleDetails.payments.forEach((payment) => {
+                        const paymentRow = $('<tr>');
+                        paymentRow.append('<td>' + payment.payment_date + '</td>');
+                        paymentRow.append('<td>' + payment.reference_no + '</td>');
+                        paymentRow.append('<td>' + payment.amount + '</td>');
+                        paymentRow.append('<td>' + payment.payment_method + '</td>');
+                        paymentRow.append('<td>' + payment.notes + '</td>');
+                        paymentRow.append('<td>' + 'Account Name' + '</td>'); // Replace with actual account name
+                        paymentRow.append('<td><button type="button" value="' + payment.id + '" class="btn btn-outline-danger btn-sm delete-payment"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        paymentsTableBody.append(paymentRow);
+                    });
+                } else {
+                    paymentsTableBody.append('<tr><td colspan="7" class="text-center">No records found</td></tr>');
+                }
+
+                $('#viewPaymentModal').modal('show');
+            } else {
+                console.error('Sales details data is not in the expected format.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching sales details:', error);
+        }
+    });
+});
+
+// Function to print the modal content
+window.printModal = function() {
+    var printContents = document.getElementById('saleDetailsModal').innerHTML;
+    var originalContents = document.body.innerHTML;
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    // location.reload();  // Reload the page to restore the original content and bindings
+};
+
+// Function to toggle payment fields based on payment method
+function togglePaymentFields() {
+    const paymentMethod = $('#paymentMethod').val();
+    if (paymentMethod === 'card') {
+        $('#creditCardFields').removeClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    } else if (paymentMethod === 'cheque') {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').removeClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    } else if (paymentMethod === 'bank_transfer') {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').removeClass('d-none');
+    } else {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    }
+}
+
+// Define the openPaymentModal function
+function openPaymentModal(event, saleId) {
+    // Implement the logic to open the payment modal
+    $('#paymentModal').modal('show');
+}
+
+$('#savePayment').click(function() {
+    var formData = new FormData($('#paymentForm')[0]);
+
+    $.ajax({
+        url: '/api/payments',
+        type: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function(response) {
+            $('#paymentModal').modal('hide');
+            fetchsales();
+            document.getElementsByClassName('successSound')[0].play();
+            toastr.success(response.message, 'Payment Added');
+        },
+        error: function(xhr, status, error) {
+            console.error('Error adding payment:', error);
+        }
+    });
+});
         function updateCalculations() {
             let totalItems = 0;
             let netTotalAmount = 0;
@@ -307,7 +536,7 @@
                             .val(customer.id)
                             .text(
                                 `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
-                                )
+                            )
                             .data('details', customer);
                         customerSelect.append(option);
                     });
@@ -369,38 +598,39 @@
             })
             .catch(err => console.error('Error fetching product data:', err));
 
-           // Function to initialize autocomplete functionality
-    function initAutocomplete() {
-        if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
-            console.error('jQuery UI Autocomplete is not loaded.');
-            return;
-        }
-
-        $("#productSearchInput").autocomplete({
-            source: function(request, response) {
-                const searchTerm = request.term.toLowerCase();
-                const filteredProducts = allProducts.filter(product =>
-                    (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                );
-                response(filteredProducts.map(product => ({
-                    label: `${product.name} (${product.sku || 'No SKU'})`,
-                    value: product.name,
-                    product: product
-                })));
-            },
-            select: function(event, ui) {
-                $("#productSearchInput").val(ui.item.value);
-                ui.item.product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
-                addProductToTable(ui.item.product);
-                return false;
+        // Function to initialize autocomplete functionality
+        function initAutocomplete() {
+            if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
+                console.error('jQuery UI Autocomplete is not loaded.');
+                return;
             }
-        }).autocomplete("instance")._renderItem = function(ul, item) {
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    }
+
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = allProducts.filter(product =>
+                        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                    );
+                    response(filteredProducts.map(product => ({
+                        label: `${product.name} (${product.sku || 'No SKU'})`,
+                        value: product.name,
+                        product: product
+                    })));
+                },
+                select: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    ui.item.product.quantity =
+                        1; // Ensure quantity is set to 1 when adding a new product
+                    addProductToTable(ui.item.product);
+                    return false;
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                return $("<li>")
+                    .append(`<div>${item.label}</div>`)
+                    .appendTo(ul);
+            };
+        }
 
         function getBatches(product, selectedBatchId, isEditing) {
             if (!Array.isArray(product.batches)) {
@@ -412,7 +642,8 @@
                     batch_id: batch.id,
                     batch_price: parseFloat(batch.retail_price) || 0,
                     batch_quantity: batch.qty || 0,
-                    batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product.quantity : 0) // Adjust batch quantity if editing
+                    batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product
+                        .quantity : 0) // Adjust batch quantity if editing
                 }));
             } else {
                 return product.batches.flatMap(batch =>
@@ -423,7 +654,8 @@
                     })) : []
                 );
             }
-         }
+        }
+
         function addProductToTable(product, selectedBatchId = null, isEditing = false) {
     // Validate product data
     if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
@@ -554,47 +786,63 @@
         updateTotals();
     });
 }
-        // Function to update row totals
-        function updateRow($row) {
-            const batchElement = $row.find('.batch-dropdown option:selected');
-            const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-            const price = parseFloat(batchElement.data('price')) || 0;
-            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-            const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
 
-            if (quantity > batchQuantity) {
-                alert('Requested quantity exceeds available batch quantity.');
-                $row.find('.quantity-input').val(batchQuantity);
-                quantity = batchQuantity;
-            }
+// Function to update row totals
+function updateRow($row) {
+    const batchElement = $row.find('.batch-dropdown option:selected');
+    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+    const price = parseFloat(batchElement.data('price')) || 0;
+    const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+    const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
 
-            const subTotal = quantity * price;
-            const discountAmount = subTotal * (discountPercent / 100);
-            const netCost = subTotal - discountAmount;
-            const lineTotal = netCost;
+    if (quantity > batchQuantity) {
+        alert('Requested quantity exceeds available batch quantity.');
+        $row.find('.quantity-input').val(batchQuantity);
+        quantity = batchQuantity;
+    }
 
-            $row.find('.subtotal').text(subTotal.toFixed(2));
-            $row.find('.net-cost').text(netCost.toFixed(2));
-            $row.find('.line-total').text(lineTotal.toFixed(2));
-            $row.find('.retail-price').text(price.toFixed(2));
+    const subTotal = quantity * price;
+    const discountAmount = subTotal * (discountPercent / 100);
+    const netCost = subTotal - discountAmount;
+    const lineTotal = netCost;
 
-            // Update batch quantity if the quantity is updated
-            batchElement.data('quantity', batchQuantity - quantity);
-        }
+    $row.find('.subtotal').text(subTotal.toFixed(2));
+    $row.find('.net-cost').text(netCost.toFixed(2));
+    $row.find('.line-total').text(lineTotal.toFixed(2));
+    $row.find('.retail-price').text(price.toFixed(2));
 
-        function updateTotals() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
+    // Update batch quantity if the quantity is updated
+    batchElement.data('quantity', batchQuantity - quantity);
+}
 
-            $('#addSaleProduct tbody tr').each(function() {
-                totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
-                netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
-            });
+function updateTotals() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
 
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#discount-net-total-amount').text(netTotalAmount.toFixed(2));
-        }
+    $('#addSaleProduct tbody tr').each(function() {
+        totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
+        netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
+    });
+
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+
+    const discountType = $('#discount_type').val();
+    const discountAmount = parseFloat($('#discount_amount').val()) || 0;
+    let discountNetTotalAmount = netTotalAmount;
+
+    if (discountType === 'percentage') {
+        discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
+    } else if (discountType === 'fixed') {
+        discountNetTotalAmount -= discountAmount;
+    }
+
+    $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
+
+    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+    const paymentDue = discountNetTotalAmount - paidAmount;
+    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+}
 
         $('#addSalesForm').on('submit', function(event) {
             event.preventDefault();
@@ -612,7 +860,7 @@
                 const discount = parseFloat($(this).find('.discount-percent').val()) || 0;
                 const tax = parseFloat($(this).find('.product-tax').val()) || 0;
                 const priceType = $(this).find('.price-type').val() ||
-                'retail'; // Assuming there's a hidden or default input for price_type
+                    'retail'; // Assuming there's a hidden or default input for price_type
 
                 // Calculate the subtotal
                 const subtotal = (quantity * unitPrice) - discount + tax;
@@ -626,7 +874,7 @@
                 formData.append(`products[${index}][batch_id]`, $(this).find('.batch-dropdown')
                     .val());
                 formData.append(`products[${index}][price_type]`,
-                priceType); // Add price_type to form data
+                    priceType); // Add price_type to form data
             });
 
             console.log("Sales data:", formData);
@@ -639,7 +887,8 @@
             }
 
             // Determine if we are updating or storing a new sale
-            const saleId = $('#sale_id').val(); // Assuming there's a hidden input field with the sale ID
+            const saleId = $('#sale_id')
+                .val(); // Assuming there's a hidden input field with the sale ID
             const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
             const method = 'POST';
             $.ajax({
@@ -687,114 +936,118 @@
             $('#addSalesForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
-        $('#salesTable tbody').on('click', 'button.view-details', function() {
-            var saleId = $(this).val();
-            $.ajax({
-                url: '/sales_details/' + saleId,
-                type: 'GET',
-                success: function(response) {
-                    if (response.salesDetails) {
-                        const saleDetails = response.salesDetails;
-                        const customer = saleDetails.customer;
-                        const location = saleDetails.location;
-                        const products = saleDetails.products;
+        function updateFooter() {
+    updateTotals();
+}
 
-                        // Populate modal fields
-                        $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
-                            .invoice_no);
-                        $('#customerDetails').text(customer.first_name + ' ' + customer
-                            .last_name);
-                        $('#locationDetails').text(location.name);
-                        $('#salesDetails').text('Date: ' + saleDetails.sales_date +
-                            ', Status: ' + saleDetails.status);
+        // $('#salesTable tbody').on('click', 'button.view-details', function() {
+        //     var saleId = $(this).val();
+        //     $.ajax({
+        //         url: '/sales_details/' + saleId,
+        //         type: 'GET',
+        //         success: function(response) {
+        //             if (response.salesDetails) {
+        //                 const saleDetails = response.salesDetails;
+        //                 const customer = saleDetails.customer;
+        //                 const location = saleDetails.location;
+        //                 const products = saleDetails.products;
 
-                        // Populate products table
-                        const productsTableBody = $('#productsTable tbody');
-                        productsTableBody.empty();
-                        if (products && Array.isArray(products)) {
-                            products.forEach((product, index) => {
-                                const productRow = $('<tr>');
-                                productRow.append('<td>' + (index + 1) + '</td>');
-                                productRow.append('<td>' + product.product
-                                    .product_name + '</td>');
-                                productRow.append('<td>' + product.product.sku +
-                                    '</td>');
-                                productRow.append('<td>' + product.quantity +
-                                    '</td>');
-                                productRow.append('<td>' + product.price + '</td>');
-                                productRow.append('<td>' + (product.quantity *
-                                    product.price).toFixed(2) + '</td>');
-                                productsTableBody.append(productRow);
-                            });
-                        }
+        //                 // Populate modal fields
+        //                 $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
+        //                     .invoice_no);
+        //                 $('#customerDetails').text(customer.first_name + ' ' + customer
+        //                     .last_name);
+        //                 $('#locationDetails').text(location.name);
+        //                 $('#salesDetails').text('Date: ' + saleDetails.sales_date +
+        //                     ', Status: ' + saleDetails.status);
 
-                        // Populate payment info table
-                        const paymentInfoTableBody = $('#paymentInfoTable tbody');
-                        paymentInfoTableBody.empty();
-                        if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
-                            saleDetails.payments.forEach((payment) => {
-                                const paymentRow = $('<tr>');
-                                paymentRow.append('<td>' + payment.date + '</td>');
-                                paymentRow.append('<td>' + payment.reference_no +
-                                    '</td>');
-                                paymentRow.append('<td>' + payment.amount +
-                                '</td>');
-                                paymentRow.append('<td>' + payment.payment_mode +
-                                    '</td>');
-                                paymentRow.append('<td>' + payment.payment_note +
-                                    '</td>');
-                                paymentInfoTableBody.append(paymentRow);
-                            });
-                        }
+        //                 // Populate products table
+        //                 const productsTableBody = $('#productsTable tbody');
+        //                 productsTableBody.empty();
+        //                 if (products && Array.isArray(products)) {
+        //                     products.forEach((product, index) => {
+        //                         const productRow = $('<tr>');
+        //                         productRow.append('<td>' + (index + 1) + '</td>');
+        //                         productRow.append('<td>' + product.product
+        //                             .product_name + '</td>');
+        //                         productRow.append('<td>' + product.product.sku +
+        //                             '</td>');
+        //                         productRow.append('<td>' + product.quantity +
+        //                             '</td>');
+        //                         productRow.append('<td>' + product.price + '</td>');
+        //                         productRow.append('<td>' + (product.quantity *
+        //                             product.price).toFixed(2) + '</td>');
+        //                         productsTableBody.append(productRow);
+        //                     });
+        //                 }
 
-                        // Populate amount details table
-                        const amountDetailsTableBody = $('#amountDetailsTable tbody');
-                        amountDetailsTableBody.empty();
-                        amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' +
-                            saleDetails.total_amount + '</td></tr>');
-                        amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' +
-                            saleDetails.paid_amount + '</td></tr>');
-                        amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
-                            saleDetails.due_amount + '</td></tr>');
+        //                 // Populate payment info table
+        //                 const paymentInfoTableBody = $('#paymentInfoTable tbody');
+        //                 paymentInfoTableBody.empty();
+        //                 if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
+        //                     saleDetails.payments.forEach((payment) => {
+        //                         const paymentRow = $('<tr>');
+        //                         paymentRow.append('<td>' + payment.date + '</td>');
+        //                         paymentRow.append('<td>' + payment.reference_no +
+        //                             '</td>');
+        //                         paymentRow.append('<td>' + payment.amount +
+        //                             '</td>');
+        //                         paymentRow.append('<td>' + payment.payment_mode +
+        //                             '</td>');
+        //                         paymentRow.append('<td>' + payment.payment_note +
+        //                             '</td>');
+        //                         paymentInfoTableBody.append(paymentRow);
+        //                     });
+        //                 }
 
-                        // Populate activities table
-                        const activitiesTableBody = $('#activitiesTable tbody');
-                        activitiesTableBody.empty();
-                        if (saleDetails.activities && Array.isArray(saleDetails
-                            .activities)) {
-                            saleDetails.activities.forEach((activity) => {
-                                const activityRow = $('<tr>');
-                                activityRow.append('<td>' + activity.date +
-                                '</td>');
-                                activityRow.append('<td>' + activity.action +
-                                    '</td>');
-                                activityRow.append('<td>' + activity.by + '</td>');
-                                activityRow.append('<td>' + activity.note +
-                                '</td>');
-                                activitiesTableBody.append(activityRow);
-                            });
-                        }
+        //                 // Populate amount details table
+        //                 const amountDetailsTableBody = $('#amountDetailsTable tbody');
+        //                 amountDetailsTableBody.empty();
+        //                 amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' +
+        //                     saleDetails.total_amount + '</td></tr>');
+        //                 amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' +
+        //                     saleDetails.paid_amount + '</td></tr>');
+        //                 amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
+        //                     saleDetails.due_amount + '</td></tr>');
 
-                        $('#saleDetailsModal').modal('show');
-                    } else {
-                        console.error('Sales details data is not in the expected format.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching sales details:', error);
-                }
-            });
-        });
+        //                 // Populate activities table
+        //                 const activitiesTableBody = $('#activitiesTable tbody');
+        //                 activitiesTableBody.empty();
+        //                 if (saleDetails.activities && Array.isArray(saleDetails
+        //                         .activities)) {
+        //                     saleDetails.activities.forEach((activity) => {
+        //                         const activityRow = $('<tr>');
+        //                         activityRow.append('<td>' + activity.date +
+        //                             '</td>');
+        //                         activityRow.append('<td>' + activity.action +
+        //                             '</td>');
+        //                         activityRow.append('<td>' + activity.by + '</td>');
+        //                         activityRow.append('<td>' + activity.note +
+        //                             '</td>');
+        //                         activitiesTableBody.append(activityRow);
+        //                     });
+        //                 }
 
-        // Function to print the modal content
-        window.printModal = function() {
-            var printContents = document.getElementById('saleDetailsModal').innerHTML;
-            var originalContents = document.body.innerHTML;
-            document.body.innerHTML = printContents;
-            window.print();
-            document.body.innerHTML = originalContents;
-            // location.reload();  // Reload the page to restore the original content and bindings
-        };
+        //                 $('#saleDetailsModal').modal('show');
+        //             } else {
+        //                 console.error('Sales details data is not in the expected format.');
+        //             }
+        //         },
+        //         error: function(xhr, status, error) {
+        //             console.error('Error fetching sales details:', error);
+        //         }
+        //     });
+        // });
+
+        // // Function to print the modal content
+        // window.printModal = function() {
+        //     var printContents = document.getElementById('saleDetailsModal').innerHTML;
+        //     var originalContents = document.body.innerHTML;
+        //     document.body.innerHTML = printContents;
+        //     window.print();
+        //     document.body.innerHTML = originalContents;
+        //     // location.reload();  // Reload the page to restore the original content and bindings
+        // };
 
 
         // // Use event delegation for the action buttons and stop event propagation
@@ -861,7 +1114,7 @@
                         batches: product.product.batches || []
                     };
                     addProductToTable(productData, product.batch_id,
-                    true); // Pass true to indicate editing
+                        true); // Pass true to indicate editing
                 });
             }
 

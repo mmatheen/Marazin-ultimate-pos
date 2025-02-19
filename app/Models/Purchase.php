@@ -22,9 +22,7 @@ class Purchase extends Model
         'discount_type',
         'discount_amount',
         'final_total',
-        'payment_status',
-        'total_paid',
-        'total_due'
+        'payment_status'
     ];
 
     public function supplier()
@@ -44,26 +42,22 @@ class Purchase extends Model
 
     public function payments()
     {
-        return $this->morphMany(Payment::class, 'payable');
+        return $this->hasMany(Payment::class, 'reference_id', 'id')->where('payment_type', 'purchase');
     }
 
-    public function updatePaymentStatus()
+    public function getTotalPaidAttribute()
     {
-        // Calculate total paid amount
-        $this->total_paid = $this->payments()->sum('amount');
+        return $this->payments()->sum('amount');
+    }
 
-        // Calculate total due amount
+    public function getTotalDueAttribute()
+    {
+        return $this->final_total - $this->total_paid;
+    }
+    // Update the total due amount
+    public function updateTotalDue()
+    {
         $this->total_due = $this->final_total - $this->total_paid;
-
-        // Update payment status based on total due amount
-        if ($this->total_due <= 0) {
-            $this->payment_status = 'Paid';
-        } elseif ($this->total_paid > 0) {
-            $this->payment_status = 'Partial';
-        } else {
-            $this->payment_status = 'Due';
-        }
-
         $this->save();
     }
 }

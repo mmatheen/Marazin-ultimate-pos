@@ -397,10 +397,10 @@
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <div class="form-group">
-                                                <label for="advance-payment">Advance Balance</label>
+                                                <label for="advance-payment">Paid Amount</label>
                                                 <div class="input-group">
                                                     <span class="input-group-text"><i class="fas fa-money-bill-alt"></i></span>
-                                                    <input type="text" class="form-control" placeholder="Advance Balance" id="advance-payment" name="advance_balance">
+                                                    <input type="text" class="form-control" placeholder="Paid Amount" id="paid-amount" name="paid_amount">
                                                 </div>
                                             </div>
                                         </div>
@@ -425,18 +425,6 @@
                                                         <option value="Other">Other</option>
                                                     </select>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label for="payment-status">Payment Status <span class="text-danger">*</span></label>
-                                                <select class="form-select" id="payment-status" name="payment_status">
-                                                    <option selected disabled>Please Select</option>
-                                                    <option value="Paid">Paid</option>
-                                                    <option value="Due">Due</option>
-                                                    <option value="Partial">Partial</option>
-                                                </select>
-                                                <span class="text-danger small" id="payment_status_error"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -510,7 +498,7 @@
                                     <div class="row justify-content-end">
                                         <div class="col-md-4 text-end">
                                             <b>Payment Due:</b>
-                                            <p class="payment-due">Rs 399.00</p>
+                                            <p class="payment-due"></p>
                                         </div>
                                     </div>
                                 </div>
@@ -524,19 +512,19 @@
             </form>
         </div>
 
-        {{-- @include('product.add_product_modal')
-        @include('product.product_ajax') --}}
+        @include('product.add_product_modal')
+        @include('product.product_ajax')
         @include('purchase.purchase_ajax')
         @include('contact.supplier.supplier_ajax')
         @include('contact.supplier.add_supplier_modal')
-        {{-- @include('brand.brand_modal')
+        @include('brand.brand_modal')
         @include('brand.brand_ajax')
         @include('unit.unit_modal')
-        @include('unit.unit_ajax') --}}
-        {{-- @include('category.main_category.main_category_ajax')
+        @include('unit.unit_ajax')
+        @include('category.main_category.main_category_ajax')
         @include('category.main_category.main_category_modal')
         @include('category.sub_category.sub_category_modal')
-        @include('category.sub_category.sub_category_ajax') --}}
+        @include('category.sub_category.sub_category_ajax')
 
         <script>
             $(document).ready(function() {

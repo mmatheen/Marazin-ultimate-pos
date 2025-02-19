@@ -20,10 +20,13 @@ return new class extends Migration
             $table->string('invoice_no')->nullable();
             $table->decimal('final_total', 15, 2)->default(0);
             $table->decimal('total_paid', 15, 2)->default(0);
-            $table->decimal('total_due', 15, 2)->default(0);
+            // Using generated column for total_due
+            $table->decimal('total_due', 15, 2)
+                  ->generatedAs('final_total - total_paid')
+                  ->stored(); // Store the result
+
             $table->enum('payment_status', ['Paid', 'Partial', 'Due'])->default('Due');
             $table->timestamps();
-
 
             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });

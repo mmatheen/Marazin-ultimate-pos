@@ -186,7 +186,6 @@ function fetchBrands() {
         });
 }
 
-
 function fetchAllProducts() {
     showLoader();
     fetch('/products/stocks')
@@ -353,7 +352,6 @@ function addProductToTable(product) {
         return;
     }
 
-    // Check if stockEntry.batches is defined and is an array
     if (!Array.isArray(stockEntry.batches)) {
         console.error('No batches found for the product');
         return;
@@ -365,17 +363,8 @@ function addProductToTable(product) {
         return;
     }
 
-    let locationId = null; // Default location ID if none is found
-    if (locationBatches.length > 0) {
-        locationId = locationBatches[0].location_id; // Get the location ID from the first location batch
-    }
+    let locationId = locationBatches[0].location_id;
 
-    if (locationId === null) {
-        console.error('No valid location ID found');
-        return;
-    }
-
-    // Add the product to the table with the details
     addProductToTableWithDetails(product, totalQuantity, locationId, locationBatches, stockEntry);
 }
 
@@ -427,7 +416,6 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
 
         const row = document.createElement('tr');
 
-        // Ensure batches is an array before accessing its properties
         const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
             batch_id: batch.id,
             batch_price: parseFloat(batch.retail_price),
@@ -580,6 +568,8 @@ document.getElementById('discount').addEventListener('input', updateTotals);
 document.getElementById('order-tax').addEventListener('input', updateTotals);
 document.getElementById('shipping').addEventListener('input', updateTotals);
 
+
+
 // Fetch customer data and populate the customer dropdown
 fetch('/customer-get-all')
     .then(response => response.json())
@@ -587,14 +577,12 @@ fetch('/customer-get-all')
         const customerSelect = document.getElementById('customer-id');
 
         if (data.status === 200) {
-            // Sort the customers to ensure "Walk-In Customer" is first
             const sortedCustomers = data.message.sort((a, b) => {
                 if (a.first_name === 'Walk-In') return -1;
                 if (b.first_name === 'Walk-In') return 1;
                 return 0;
             });
 
-            // Loop through the sorted customer data and create an option for each customer
             sortedCustomers.forEach(customer => {
                 const option = document.createElement('option');
                 option.value = customer.id;
@@ -602,7 +590,6 @@ fetch('/customer-get-all')
                 customerSelect.appendChild(option);
             });
 
-            // Set the default selected option to "Walk-In Customer"
             customerSelect.value = sortedCustomers.find(customer => customer.first_name === 'Walk-In').id;
         } else {
             console.error('Failed to fetch customer data:', data.message);
@@ -612,19 +599,18 @@ fetch('/customer-get-all')
         console.error('Error fetching customer data:', error);
     });
 
-    $(document).ready(function () {
-    $('#cashButton').on('click', function () {
-        // Generate a unique invoice number
-        function generateCode(prefix, number) {
-            const numberStr = number.toString().padStart(4, '0');
-            return prefix + numberStr.slice(-4);
-        }
+$(document).ready(function () {
+    function generateCode(prefix, number) {
+        const numberStr = number.toString().padStart(4, '0');
+        return prefix + numberStr.slice(-4);
+    }
 
+    function gatherSaleData(status) {
         const uniqueNumber = new Date().getTime() % 10000;
         const invoiceNo = generateCode('INV', uniqueNumber);
         const customerId = $('#customer-id').val();
         const locationId = 2;
-        const salesDate = new Date().toISOString().slice(0, 10); // Sales date
+        const salesDate = new Date().toISOString().slice(0, 10);
 
         if (!locationId) {
             toastr.error('Location ID is required.');
@@ -635,7 +621,7 @@ fetch('/customer-get-all')
             customer_id: customerId,
             sales_date: salesDate,
             location_id: locationId,
-            status: 'completed', // Assuming the status is 'completed'
+            status: status,
             invoice_no: invoiceNo,
             additional_notes: $('#additional-notes').val(),
             shipping_details: $('#shipping-details').val(),
@@ -647,7 +633,6 @@ fetch('/customer-get-all')
             products: []
         };
 
-        // Gather the product details
         $('#billing-body tr').each(function () {
             const productRow = $(this);
             const batchDropdown = productRow.find('.batch-dropdown');
@@ -657,11 +642,11 @@ fetch('/customer-get-all')
                 batch_id: selectedBatch,
                 location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
                 quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
-                price_type: 'retail', // Assuming the price type is 'retail'
+                price_type: 'retail',
                 unit_price: parseFloat(productRow.find('.price-input').val().trim()),
                 subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
                 discount: parseFloat(productRow.find('.discount-data').data('amount')) || 0,
-                tax: 0 // Assuming tax is 0 or you can get it from the product data
+                tax: 0
             };
             saleData.products.push(productData);
         });
@@ -671,12 +656,13 @@ fetch('/customer-get-all')
             return;
         }
 
-        // Determine if we are updating or storing a new sale
-        const saleId = $('#sale_id').val(); // Assuming there's a hidden input field with the sale ID
-        const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
-        const method = 'POST'; // POST is used for both storing and updating
+        return saleData;
+    }
 
-        // Send the data via AJAX POST request
+    function sendSaleData(saleData, saleId = null) {
+        const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
+        const method = 'POST';
+
         $.ajax({
             url: url,
             type: method,
@@ -701,7 +687,127 @@ fetch('/customer-get-all')
                 toastr.error('An error occurred: ' + xhr.responseText);
             }
         });
+    }
+
+    $('#cashButton').on('click', function () {
+        const saleData = gatherSaleData('completed');
+        if (saleData) {
+            sendSaleData(saleData);
+        }
     });
+
+    $('#suspendModal').on('click', '#confirmSuspend', function () {
+        const saleData = gatherSaleData('suspend');
+        if (saleData) {
+            sendSaleData(saleData);
+            let modal = bootstrap.Modal.getInstance(document.getElementById("suspendModal"));
+            modal.hide();
+        }
+    });
+
+    $('#holdButton').on('click', function () {
+        const saleData = gatherSaleData('hold');
+        if (saleData) {
+            sendSaleData(saleData);
+        }
+    });
+
+    function fetchSuspendedSales() {
+        $.ajax({
+            url: '/sales/suspended',
+            type: 'GET',
+            success: function (response) {
+                displaySuspendedSales(response);
+                $('#suspendSalesModal').modal('show');
+            },
+            error: function (xhr, status, error) {
+                toastr.error('Failed to fetch suspended sales: ' + xhr.responseText);
+            }
+        });
+    }
+
+    function displaySuspendedSales(sales) {
+        const suspendedSalesContainer = $('#suspendedSalesContainer');
+        suspendedSalesContainer.empty();
+
+        sales.forEach(sale => {
+            const finalTotal = parseFloat(sale.final_total);
+            const saleRow = `
+                <tr>
+                    <td>${sale.invoice_no}</td>
+                    <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
+                    <td>${sale.customer ? sale.customer.name : 'Walk-In Customer'}</td>
+                    <td>${sale.products.length}</td>
+                    <td>$${finalTotal.toFixed(2)}</td>
+                    <td>
+                        <a href="pos/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
+                        <button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>
+                    </td>
+                </tr>
+            `;
+            suspendedSalesContainer.append(saleRow);
+        });
+
+        $('.editSaleButton').on('click', function () {
+            const saleId = $(this).data('sale-id');
+            // editSale(saleId);
+        });
+
+        $('.deleteSuspendButton').on('click', function () {
+            const saleId = $(this).data('sale-id');
+            deleteSuspendedSale(saleId);
+        });
+    }
+
+    const pathSegments = window.location.pathname.split('/');
+    const saleId = pathSegments[pathSegments.length - 1] === 'pos/create' ? null : pathSegments[pathSegments.length - 1];
+
+    if (saleId) {
+        editSale(saleId);
+    }
+
+    function editSale(saleId) {
+        $.ajax({
+            url: `/pos/sales/edit/${saleId}`,
+            type: 'GET',
+            success: function (response) {
+                toastr.success(response.message);
+                if (response.sale && response.sale.products) {
+                    response.sale.products.forEach(product => {
+                        addProductToTable(product);
+                    });
+                }
+                $('#suspendSalesModal').modal('hide');
+            },
+            error: function (xhr, status, error) {
+                toastr.error('Failed to resume sale: ' + xhr.responseText);
+            }
+        });
+    }
+
+    // Function to delete a suspended sale
+    function deleteSuspendedSale(saleId) {
+        $.ajax({
+            url: `/api/sales/delete-suspended/${saleId}`,
+            type: 'DELETE',
+            success: function (response) {
+                toastr.success(response.message);
+                // Code to update the POS page after deletion
+                fetchSuspendedSales(); // Refresh suspended sales list
+            },
+            error: function (xhr, status, error) {
+                toastr.error('Failed to delete suspended sale: ' + xhr.responseText);
+            }
+        });
+    }
+
+    // Event listener for the pause circle button to fetch and show suspended sales
+    $('#pauseCircleButton').on('click', function () {
+        fetchSuspendedSales();
+    });
+
+    // Fetch suspended sales when the POS page loads
+    // fetchSuspendedSales();
 });
     function resetForm() {
         document.getElementById('customer-id').value = 'Please Select';
@@ -720,24 +826,7 @@ fetch('/customer-get-all')
         });
     }
 
-    // function fetchUpdatedProductData() {
-    //     fetch('/product/stock')
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.status === 200 && Array.isArray(data.stocks)) {
-    //                 stockData = data.stocks;
-    //                 // Populate the global allProducts array
-    //                 allProducts = stockData.map(stock => stock.products);
-    //                 displayProducts(stockData);
-    //                 initAutocomplete();
-    //             } else {
-    //                 console.error('Invalid data:', data);
-    //             }
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching data:', error);
-    //         });
-    // }
+
     });
 
 

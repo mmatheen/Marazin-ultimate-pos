@@ -36,7 +36,8 @@ use App\Http\Controllers\{
     SalesCommissionAgentsController,
     SellController,
     StockAdjustmentController,
-    CartController
+    CartController,
+    PaymentController
 };
 
 
@@ -215,10 +216,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Import Contacts Routes
         Route::get('/import-contact', [ContactController::class, 'importContact'])->name('import-contact');
 
-        // Purchase Routes
         Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
         Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
-        // Route::resource('purchases', PurchaseController::class);
         Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
         Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
         Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
@@ -265,10 +264,19 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
-        Route::get('/sales_details/{id}', [SaleController::class, 'selesDetails']);
+        Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
         Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
+
+                // Route to fetch all suspended sales
+        Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
+
+        // Route to resume a suspended sale
+        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'editSale']);
+
+        // Route to delete a suspended sale
+        Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
 
         // Expense Parent Category Routes
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
@@ -329,6 +337,12 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
         Route::delete('/cart/remove/{rowId}', [CartController::class, 'remove'])->name('cart.remove');
         Route::put('/cart/update/{rowId}', [CartController::class, 'update'])->name('cart.update');
+
+        Route::get('payments', [PaymentController::class, 'index']);
+        Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
+        Route::get('payments/{payment}', [PaymentController::class, 'show']);
+        Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
+        Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 
     });
 });

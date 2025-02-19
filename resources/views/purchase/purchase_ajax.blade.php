@@ -183,16 +183,22 @@
                     $("#productSearchInput").val("");
                     return false;
                 },
-            }).data("ui-autocomplete")._renderItem = function(ul, item) {
-                if (!item.product) {
+            });
+
+            // Ensure the autocomplete widget is initialized before setting _renderItem
+            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            if (autocompleteInstance) {
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
                     return $("<li>")
-                        .append(`<div style="color: red;">${item.label}</div>`)
+                        .append(`<div>${item.label}</div>`)
                         .appendTo(ul);
-                }
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
-            };
+                };
+            }
         }
 
         function addProductToTable(product, isEditing = false, prices = {}) {
@@ -319,12 +325,12 @@
             $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
             $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
 
-            const advanceBalance = parseFloat($('#advance-payment').val()) || 0;
-            const paymentDue = finalTotal - advanceBalance;
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const paymentDue = finalTotal - paidAmount;
             $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
         }
 
-        $('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
+        $('#discount-type, #discount-amount, #tax-type, #paid-amount').on('change input', updateFooter);
 
         function formatDate(dateStr) {
             const [year, month, day] = dateStr.split('-');
@@ -511,12 +517,13 @@
 
         function handleAjaxError(action) {
             return function(xhr, status, error) {
-                toastr.error(`Something went wrong while ${action}.`, 'Error');
-                console.error('Error:', error);
-                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' :
-                    'Save Purchase');
+                const errorMessage = `Something went wrong while ${action}. Status: ${xhr.status} - ${xhr.statusText} Response: ${xhr.responseText}`;
+                // toastr.error(errorMessage, 'Error');
+                console.error('Error:', errorMessage, 'Response:', xhr.responseText);
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
             };
         }
+
 
         function resetFormAndValidation() {
             $('#purchaseForm')[0].reset();
@@ -647,192 +654,344 @@
         $(document).ready(function() {
             fetchPurchases();
 
-// Fetch and Display Data
-function fetchPurchases() {
-    $.ajax({
-        url: '/get-all-purchases',
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            var table = $('#purchase-list').DataTable();
-            table.clear().draw();
-            response.purchases.forEach(function(item) {
-                let row = $('<tr data-id="' + item.id + '">');
-                row.append(
-                    '<td><a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
-                    '<button type="button" class="btn btn-outline-info">' +
-                    'Actions &nbsp;<i class="fas fa-sort-down"></i>' +
-                    '</button>' +
-                    '</a>' +
-                    '<div class="dropdown-menu dropdown-menu-end">' +
-                    '<a class="dropdown-item" href="#" onclick="viewPurchase(' +
-                    item.id +
-                    ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>' +
-                    '<a class="dropdown-item" href="/purchase/edit/' +
-                    item.id +
-                    '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>' +
-                    '<a class="dropdown-item" href="#" onclick="openPaymentModal(' +
-                    item.id +
-                    ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-undo-alt"></i>&nbsp;&nbsp;Purchase Return</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Update Status</a>' +
-                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-envelope"></i>&nbsp;&nbsp;Item Received Notification</a>' +
-                    '</div></td>');
-                row.append('<td>' + item.purchase_date + '</td>');
-                row.append('<td>' + item.reference_no + '</td>');
-                row.append('<td>' + item.location.name + '</td>');
-                row.append('<td>' + item.supplier.first_name + ' ' + item.supplier.last_name + '</td>');
-                row.append('<td>' + item.purchasing_status + '</td>');
-                row.append('<td>' + item.payment_status + '</td>');
-                row.append('<td>' + item.final_total + '</td>');
-                row.append('<td>' + item.total_due + '</td>');
-                row.append('<td>' + item.supplier.assign_to + '</td>');
-                table.row.add(row).draw(false);
+            // Fetch and Display Data
+            function fetchPurchases() {
+                $.ajax({
+                    url: '/get-all-purchases',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        var table = $('#purchase-list').DataTable();
+                        table.clear().draw();
+                        response.purchases.forEach(function(item) {
+                            let row = $('<tr data-id="' + item.id + '">');
+                            row.append(
+                                '<td><a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
+                                '<button type="button" class="btn btn-outline-info">' +
+                                'Actions' +
+                                '</button>' +
+                                '</a>' +
+                                '<div class="dropdown-menu dropdown-menu-end">' +
+                                '<a class="dropdown-item" href="#" onclick="viewPurchase(' +
+                                item.id +
+                                ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>' +
+                                '<a class="dropdown-item" href="/purchase/edit/' +
+                                item.id +
+                                '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>' +
+                                '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' +
+                                item.id +
+                                ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
+                                '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' +
+                                item.id +
+                                ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-undo-alt"></i>&nbsp;&nbsp;Purchase Return</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Update Status</a>' +
+                                '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-envelope"></i>&nbsp;&nbsp;Item Received Notification</a>' +
+                                '</div></td>');
+                            row.append('<td>' + item.purchase_date + '</td>');
+                            row.append('<td>' + item.reference_no + '</td>');
+
+                            // Safely access location and supplier properties
+                            row.append('<td>' + (item.location?.name || 'Unknown') +
+                                '</td>');
+                            row.append('<td>' + (item.supplier?.first_name ||
+                                'Unknown') + ' ' + (item.supplier
+                                ?.last_name || '') + '</td>');
+
+                            row.append('<td>' + item.purchasing_status + '</td>');
+                            row.append('<td>' + item.payment_status + '</td>');
+                            row.append('<td>' + item.final_total + '</td>');
+                            row.append('<td>' + item.total_due + '</td>');
+                            row.append('<td>' + (item.supplier?.assign_to || '') +
+                                '</td>');
+                            table.row.add(row).draw(false);
+                        });
+
+                        // Initialize or reinitialize the DataTable after adding rows
+                        if ($.fn.dataTable.isDataTable('#purchase-list')) {
+                            $('#purchase-list').DataTable().destroy();
+                        }
+                        $('#purchase-list').DataTable();
+                    },
+                });
+            }
+
+            // Define the openPaymentModal function
+            window.openPaymentModal = function(event, purchaseId) {
+                event.preventDefault();
+                // Fetch purchase details and populate the modal
+                $.ajax({
+                    url: '/get-purchase/' + purchaseId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        $('#purchaseId').val(response.id);
+                        $('#payment_type').val('purchase');
+                        $('#supplier_id').val(response.supplier?.id || '');
+                        $('#reference_no').val(response.reference_no);
+                        $('#paymentSupplierDetail').text((response.supplier
+                            ?.first_name || 'Unknown') + ' ' + (response
+                            .supplier?.last_name || ''));
+                        $('#referenceNo').text(response.reference_no);
+                        $('#paymentLocationDetails').text(response.location?.name ||
+                            'Unknown');
+                        $('#totalAmount').text(response.final_total);
+                        $('#advanceBalance').text('Advance Balance : Rs. ' + response
+                            .total_due);
+                        $('#totalPaidAmount').text('Total Paid: Rs. ' + response
+                            .total_paid);
+
+                        // Set today's date as default in the "Paid On" field
+                        var today = new Date().toISOString().split('T')[0];
+                        $('#paidOn').val(today);
+
+                        // Set the amount field to the total due amount
+                        $('#payAmount').val(response.total_due);
+
+                        // Ensure the Add Payment modal is brought to the front
+                        $('#viewPaymentModal').modal('hide');
+                        $('#paymentModal').modal('show');
+
+                        // Validate the amount input
+                        $('#payAmount').off('input').on('input', function() {
+                            let amount = parseFloat($(this).val());
+                            let totalDue = parseFloat(response.total_due);
+                            if (amount > totalDue) {
+                                $('#amountError').text(
+                                    'The given amount exceeds the total due amount.'
+                                ).show();
+                                $(this).val(totalDue);
+                            } else {
+                                $('#amountError').hide();
+                            }
+                        });
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.message);
+                    }
+                });
+            }
+
+            // Define the openViewPaymentModal function
+            window.openViewPaymentModal = function(event, purchaseId) {
+                event.preventDefault();
+                // Set the purchaseId in the data attribute of the modal
+                $('#viewPaymentModal').data('purchase-id', purchaseId);
+
+                // Fetch payment details and populate the view payment modal
+                $.ajax({
+                    url: '/get-purchase/' + purchaseId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        $('#viewPaymentModal #referenceNo').text(response.reference_no);
+                        $('#viewPaymentModal #viewSupplierDetail').text((response
+                            .supplier?.prefix || '') + ' ' + (response.supplier
+                            ?.first_name || 'Unknown') + ' ' + (response
+                            .supplier?.last_name || '') + ' (' + (response
+                            .supplier?.mobile_no || '') + ')');
+                        $('#viewPaymentModal #viewBusinessDetail').text((response
+                            .location?.name || 'Unknown') + ', ' + (response
+                            .location?.address || ''));
+                        $('#viewPaymentModal #viewReferenceNo').text(response
+                            .reference_no);
+                        $('#viewPaymentModal #viewDate').text(response.purchase_date);
+                        $('#viewPaymentModal #viewPurchaseStatus').text(response
+                            .purchasing_status);
+                        $('#viewPaymentModal #viewPaymentStatus').text(response
+                            .payment_status);
+
+                        $('#viewPaymentModal .modal-body .table tbody').empty();
+
+                        if (Array.isArray(response.payments) && response.payments
+                            .length > 0) {
+                            response.payments.forEach(function(payment) {
+                                $('#viewPaymentModal .modal-body .table tbody')
+                                    .append(
+                                        '<tr>' +
+                                        '<td>' + payment.payment_date +
+                                        '</td>' +
+                                        '<td>' + payment.reference_no +
+                                        '</td>' +
+                                        '<td>' + payment.amount + '</td>' +
+                                        '<td>' + payment.payment_method +
+                                        '</td>' +
+                                        '<td>' + (payment.notes || '') +
+                                        '</td>' +
+                                        '<td>' + (payment.payment_account ||
+                                            '') + '</td>' +
+                                        '<td><button class="btn btn-sm btn-danger" onclick="deletePayment(' +
+                                        payment.id + ')">Delete</button></td>' +
+                                        '</tr>'
+                                    );
+                            });
+                        } else {
+                            $('#viewPaymentModal .modal-body .table tbody').append(
+                                '<tr><td colspan="7" class="text-center">No records found</td></tr>'
+                            );
+                        }
+
+                        $('#viewPaymentModal').modal('show');
+                    },
+                    error: function(xhr) {
+                        alert(xhr.responseJSON.message);
+                    }
+                });
+            }
+
+            function deletePayment(paymentId) {
+                // Implement the delete payment functionality here
+                if (confirm('Are you sure you want to delete this payment?')) {
+                    $.ajax({
+                        url: '/delete-payment/' + paymentId,
+                        type: 'DELETE',
+                        success: function(response) {
+                            alert('Payment deleted successfully.');
+                            $('#viewPaymentModal').modal('hide');
+                            fetchPurchases();
+                        },
+                        error: function(xhr) {
+                            alert(xhr.responseJSON.message);
+                        }
+                    });
+                }
+            }
+
+            // Reset the payment form when the modal is closed
+            $('#paymentModal').on('hidden.bs.modal', function() {
+                $('#paymentForm')[0].reset();
+                $('#amountError').hide();
+            });
+            $('#savePayment').click(function() {
+                var formData = new FormData($('#paymentForm')[0]);
+
+                $.ajax({
+                    url: '/api/payments',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        $('#paymentModal').modal('hide');
+                        fetchPurchases();
+                        document.getElementsByClassName('successSound')[0].play();
+                        toastr.success(response.message, 'Payment Added');
+                    },
+                    error: function(xhr) {
+                        var errors = xhr.responseJSON.errors;
+                        var errorMessage = '';
+                        for (var key in errors) {
+                            errorMessage += errors[key] + '\n';
+                            // Display errors below each input field
+                            if (key === 'amount') {
+                                $('#payAmount').addClass('is-invalid');
+                                $('#amountError').text(errors[key]).show();
+                            } else if (key === 'payment_date') {
+                                $('#paidOn').addClass('is-invalid');
+                                $('#paidOn').next('.invalid-feedback').text(errors[
+                                    key]).show();
+                            } else if (key === 'reference_no') {
+                                $('#referenceNo').addClass('is-invalid');
+                                $('#referenceNo').next('.invalid-feedback').text(
+                                    errors[key]).show();
+                            } else if (key === 'payment_type') {
+                                $('#paymentMethod').addClass('is-invalid');
+                                $('#paymentMethod').next('.invalid-feedback').text(
+                                    errors[key]).show();
+                            } else if (key === 'reference_id') {
+                                $('#referenceId').addClass('is-invalid');
+                                $('#referenceId').next('.invalid-feedback').text(
+                                    errors[key]).show();
+                            } else if (key === 'supplier_id') {
+                                $('#supplierId').addClass('is-invalid');
+                                $('#supplierId').next('.invalid-feedback').text(
+                                    errors[key]).show();
+                            }
+                        }
+                    }
+                });
             });
 
-            // Initialize or reinitialize the DataTable after adding rows
-            if ($.fn.dataTable.isDataTable('#purchase-list')) {
-                $('#purchase-list').DataTable().destroy();
-            }
-            $('#purchase-list').DataTable();
-        },
-    });
-}
-
-// Define the openPaymentModal function
-window.openPaymentModal = function(purchaseId) {
-    // Fetch purchase details and populate the modal
-    $.ajax({
-        url: '/get-purchase/' + purchaseId,
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            $('#purchaseId').val(response.id);
-            $('#payableType').val('Purchase');
-            $('#payableId').val(response.id);
-            $('#entityId').val(response.supplier.id);
-            $('#entityType').val('Supplier');
-            $('#paymentSupplierDetail').text(response.supplier.first_name + ' ' + response.supplier.last_name);
-            $('#referenceNo').text(response.reference_no);
-            $('#paymentLocationDetails').text(response.location.name);
-            $('#totalAmount').text(response.final_total);
-            $('#advanceBalance').text('Advance Balance : Rs. ' + response.total_due);
-            $('#paymentModal').modal('show');
-        }
-    });
-}
-
-$('#savePayment').click(function() {
-    var formData = new FormData($('#paymentForm')[0]);
-
-    $.ajax({
-        url: '/api/payments',
-        type: 'POST',
-        data: formData,
-        contentType: false,
-        processData: false,
-        success: function(response) {
-            $('#paymentModal').modal('hide');
-            fetchPurchases();
-            document.getElementsByClassName('successSound')[0].play();
-            toastr.success(response.message, 'Payment Added');
-
-        },
-        error: function(xhr) {
-            var errors = xhr.responseJSON.errors;
-            var errorMessage = '';
-            for (var key in errors) {
-                errorMessage += errors[key] + '\n';
-            }
-            alert(errorMessage);
-        }
-    });
-});
-
-
-
-
             // View Purchase Details
-            // // Row Click Event
-            // $('#purchase-list').on('click', 'tr', function(e) {
-            //     if (!$(e.target).closest('button').length) {
-            //         var purchaseId = $(this).data(
-            //             'id'); // Extract product ID from data-id attribute
-            //         $.ajax({
-            //             url: '/get-all-purchases-product/' + purchaseId,
-            //             type: 'GET',
-            //             dataType: 'json',
-            //             success: function(response) {
-            //                 var purchase = response.purchase;
-            //                 $('#modalTitle').text('Purchase Details - ' + purchase
-            //                     .reference_no);
-            //                 $('#supplierDetails').text(purchase.supplier
-            //                     .first_name + ' ' + purchase.supplier.last_name);
-            //                 $('#locationDetails').text(purchase.location.name);
-            //                 $('#purchaseDetails').text('Date: ' + purchase
-            //                     .purchase_date + ', Status: ' + purchase
-            //                     .purchasing_status);
+            // Row Click Event
+            $('#purchase-list').on('click', 'tr', function(e) {
+                if (!$(e.target).closest('.action-icon, .dropdown-menu').length) {
+                    var purchaseId = $(this).data(
+                        'id'); // Extract product ID from data-id attribute
+                    $.ajax({
+                        url: '/get-all-purchases-product/' + purchaseId,
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(response) {
+                            var purchase = response.purchase;
+                            $('#modalTitle').text('Purchase Details - ' + purchase
+                                .reference_no);
+                            $('#supplierDetails').text(purchase.supplier
+                                .first_name + ' ' + purchase.supplier.last_name);
+                            $('#locationDetails').text(purchase.location.name);
+                            $('#purchaseDetails').text('Date: ' + purchase
+                                .purchase_date + ', Status: ' + purchase
+                                .purchasing_status);
 
-            //                 var productsTable = $('#productsTable tbody');
-            //                 productsTable.empty();
-            //                 purchase.purchase_products.forEach(function(product,
-            //                     index) {
-            //                     let row = $('<tr>');
-            //                     row.append('<td>' + (index + 1) + '</td>');
-            //                     row.append('<td>' + product.product
-            //                         .product_name + '</td>');
-            //                     row.append('<td>' + product.product.sku +
-            //                         '</td>');
-            //                     row.append('<td>' + product.quantity +
-            //                         '</td>');
-            //                     row.append('<td>' + product.price +
-            //                         '</td>');
-            //                     row.append('<td>' + product.total +
-            //                         '</td>');
-            //                     productsTable.append(row);
-            //                 });
+                            var productsTable = $('#productsTable tbody');
+                            productsTable.empty();
+                            purchase.purchase_products.forEach(function(product,
+                                index) {
+                                let row = $('<tr>');
+                                row.append('<td>' + (index + 1) + '</td>');
+                                row.append('<td>' + product.product
+                                    .product_name + '</td>');
+                                row.append('<td>' + product.product.sku +
+                                    '</td>');
+                                row.append('<td>' + product.quantity +
+                                    '</td>');
+                                row.append('<td>' + product.price +
+                                    '</td>');
+                                row.append('<td>' + product.total +
+                                    '</td>');
+                                productsTable.append(row);
+                            });
 
-            //                 var paymentInfoTable = $('#paymentInfoTable tbody');
-            //                 paymentInfoTable.empty();
-            //                 purchase.payments.forEach(function(payment) {
-            //                     let row = $('<tr>');
-            //                     row.append('<td>' + payment.payment_date +
-            //                         '</td>');
-            //                     row.append('<td>' + payment.id + '</td>');
-            //                     row.append('<td>' + payment.amount +
-            //                         '</td>');
-            //                     row.append('<td>' + payment.payment_method +
-            //                         '</td>');
-            //                     row.append('<td>' + payment.payment_note +
-            //                         '</td>');
-            //                     paymentInfoTable.append(row);
-            //                 });
+                            var paymentInfoTable = $('#paymentInfoTable tbody');
+                            paymentInfoTable.empty();
+                            purchase.payments.forEach(function(payment) {
+                                let row = $('<tr>');
+                                row.append('<td>' + payment.payment_date +
+                                    '</td>');
+                                row.append('<td>' + payment.id + '</td>');
+                                row.append('<td>' + payment.amount +
+                                    '</td>');
+                                row.append('<td>' + payment.payment_method +
+                                    '</td>');
+                                row.append('<td>' + payment.payment_note +
+                                    '</td>');
+                                paymentInfoTable.append(row);
+                            });
 
-            //                 var amountDetailsTable = $('#amountDetailsTable tbody');
-            //                 amountDetailsTable.empty();
-            //                 amountDetailsTable.append('<tr><td>Total: ' + purchase
-            //                     .total + '</td></tr>');
-            //                 amountDetailsTable.append('<tr><td>Discount: ' +
-            //                     purchase.discount_amount + '</td></tr>');
-            //                 amountDetailsTable.append('<tr><td>Final Total: ' +
-            //                     purchase.final_total + '</td></tr>');
-            //                 amountDetailsTable.append('<tr><td>Total Paid: ' +
-            //                     purchase.total_paid + '</td></tr>');
-            //                 amountDetailsTable.append('<tr><td>Total Due: ' +
-            //                     purchase.total_due + '</td></tr>');
+                            var amountDetailsTable = $('#amountDetailsTable tbody');
+                            amountDetailsTable.empty();
+                            amountDetailsTable.append('<tr><td>Total: ' + purchase
+                                .total + '</td></tr>');
+                            amountDetailsTable.append('<tr><td>Discount: ' +
+                                purchase.discount_amount + '</td></tr>');
+                            amountDetailsTable.append('<tr><td>Final Total: ' +
+                                purchase.final_total + '</td></tr>');
+                            amountDetailsTable.append('<tr><td>Total Paid: ' +
+                                purchase.total_paid + '</td></tr>');
+                            amountDetailsTable.append('<tr><td>Total Due: ' +
+                                purchase.total_due + '</td></tr>');
 
-            //                 $('#viewPurchaseProductModal').modal('show');
-            //             }
-            //         });
-            //     }
-            // });
+                            $('#viewPurchaseProductModal').modal('show');
+                        },
+                        error: function(xhr) {
+                            alert(xhr.responseJSON.message);
+                        }
+                    });
+                }
+            });
         });
-
-       
-
     });
 </script>

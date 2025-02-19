@@ -19,9 +19,6 @@ class SalesReturn extends Model
         'is_defective',
         'invoice_number',
         'stock_type',
-        'total_paid',
-        'total_due',
-        'payment_status'
     ];
 
     /**
@@ -72,28 +69,4 @@ class SalesReturn extends Model
         return 'SR-' . str_pad($number, 4, '0', STR_PAD_LEFT);
     }
 
-    public function payments()
-    {
-        return $this->morphMany(Payment::class, 'payable');
-    }
-
-    public function updatePaymentStatus()
-    {
-        // Calculate total paid amount
-        $this->total_paid = $this->payments()->sum('amount');
-
-        // Calculate total due amount
-        $this->total_due = $this->return_total - $this->total_paid;
-
-        // Update payment status based on total due amount
-        if ($this->total_due <= 0) {
-            $this->payment_status = 'Paid';
-        } elseif ($this->total_paid > 0) {
-            $this->payment_status = 'Partial';
-        } else {
-            $this->payment_status = 'Due';
-        }
-
-        $this->save();
-    }
 }

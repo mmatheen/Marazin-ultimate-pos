@@ -1,6 +1,5 @@
 @extends('layout.layout')
 
-
 @section('content')
 <div class="content container-fluid">
     <style>
@@ -233,153 +232,130 @@
                 </div>
             </div>
 
-
-            {{-- Additional Details
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card card-table">
-                        <div class="card-body">
-                            <div class="page-header">
-                                <div class="row">
-
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Shipping Details</label>
-                                            <textarea class="form-control" id="shipping_details" name="shipping_details" placeholder="Shipping Details"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Shipping Address</label>
-                                            <textarea class="form-control" id="shipping_address" name="shipping_address" placeholder="Shipping Address"></textarea>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Shipping Charges</label>
-                                            <input class="form-control" id="shipping_charges" name="shipping_charges" type="text" placeholder="Shipping Charges">
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Shipping Status</label>
-                                            <select class="form-control form-select" id="shipping_status" name="shipping_status">
-                                                <option selected disabled>Please Select </option>
-                                                <option value="Ordered">Ordered</option>
-                                                <option value="Packed">Packed</option>
-                                                <option value="Shipped">Shipped</option>
-                                                <option value="Delivered">Delivered</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Delivered To</label>
-                                            <input class="form-control" id="delivered_to" name="delivered_to" type="text" placeholder="Delivered To">
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Delivery Person</label>
-                                            <select class="form-control form-select select2" id="delivery_person" name="delivery_person">
-                                                <option selected disabled>Please Select </option>
-                                                <option value="Mr Admin">Mr Admin</option>
-                                                <option value="Mr Demo Cashier">Mr Demo Cashier</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-3">
-                                        <div class="form-group local-forms">
-                                            <label>Attach Document</label>
-                                            <div class="invoices-upload-btn">
-                                                <input type="file" accept="image/*" name="image" id="file" class="hide-input">
-                                                <label for="file" class="upload"><i class="far fa-folder-open">&nbsp;</i> Browse..</label>
-                                            </div>
-                                            <span>Max File size: 5MB Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div> --}}
-
             {{-- Payment Details --}}
             <div class="row">
                 <div class="col-md-12">
                     <div class="card card-table">
                         <div class="card-body">
                             <div class="page-header">
-                                <h5>Add Payment</h5>
-                                <div class="row">
+                                <h5 class="mb-4">Add Payment</h5>
+                                <div class="row g-3">
                                     <div class="col-md-4">
-                                        <div class="form-group local-forms">
-                                            <label>Advance Balance</label>
-                                            <input type="text" class="form-control" id="advance_balance" name="advance_balance" placeholder="Advance Balance">
+                                        <div class="form-group">
+                                            <label for="advance-payment">Paid Amount</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-money-bill-alt"></i></span>
+                                                <input type="text" class="form-control" placeholder="Paid Amount" id="paid-amount" name="total_paid">
+                                            </div>
                                         </div>
                                     </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="payment-date">Paid Date <span class="text-danger">*</span></label>
+                                            <input class="form-control datetimepicker" type="text" name="payment_date" id="payment-date" placeholder="DD-MM-YYYY">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="payment-method">Payment Method</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                <select class="form-control form-select" id="payment-method" name="payment_mode">
+                                                    <option selected disabled>Payment Method</option>
+                                                    <option value="Cash">Cash</option>
+                                                    <option value="Advance">Advance</option>
+                                                    <option value="Cheque">Cheque</option>
+                                                    <option value="Bank Transfer">Bank Transfer</option>
+                                                    <option value="Card">Card</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="payment-account">Payment Account</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                                <select class="form-control form-select" id="payment-account" name="payment_account">
+                                                    <option selected disabled>Payment Account</option>
+                                                    <option>None</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                     <!-- Cheque Details -->
+                            <div class="payment-fields" id="cheque-details" style="display: none;">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cheque-no">Cheque No.</label>
+                                        <input type="text" class="form-control" id="cheque-no" name="cheque_number">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cheque-date">Cheque Date</label>
+                                        <input type="text" class="form-control" id="cheque-date" name="cheque_received_date">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="branch-name">Branch Name</label>
+                                        <input type="text" class="form-control" id="branch-name" name="cheque_bank_branch">
+                                    </div>
+                                </div>
+                            </div>
 
-                                    <div class="col-md-4">
-                                        <div class="form-group local-forms calendar-icon">
-                                            <label>Purchase Date<span class="login-danger">*</span></label>
-                                            <input class="form-control datetimepicker" id="purchase_date" name="purchase_date" type="text" placeholder="DD-MM-YYYY">
-                                        </div>
+                            <!-- Card Details -->
+                            <div class="payment-fields" id="card-details" style="display: none;">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="card-number">Card Number</label>
+                                        <input type="text" class="form-control" id="card-number" name="card_number">
                                     </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="card-expiry">Card Expiry</label>
+                                        <input type="text" class="form-control" id="card-expiry" name="card_expiry_month">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="card-expiry-year">Card Expiry Year</label>
+                                        <input type="text" class="form-control" id="card-expiry-year" name="card_expiry_year">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="card-security-code">Card Security Code</label>
+                                        <input type="text" class="form-control" id="card-security-code" name="card_security_code">
+                                    </div>
+                                </div>
+                            </div>
 
-                                    <div class="col-md-4">
-                                        <div class="form-group local-forms">
-                                            <label>Payment Method</label>
-                                            <select class="form-control form-select" id="payment_method" name="payment_method">
-                                                <option selected disabled>Payment Method</option>
-                                                <option value="Cash">Cash</option>
-                                                <option value="Advance">Advance</option>
-                                                <option value="Cheque">Cheque</option>
-                                                <option value="Bank Transfer">Bank Transfer</option>
-                                                <option value="Other">Other</option>
-                                                <option value="Custom Payment 1">Custom Payment 1</option>
-                                                <option value="Custom Payment 2">Custom Payment 2</option>
-                                                <option value="Custom Payment 3">Custom Payment 3</option>
-                                            </select>
-                                        </div>
+                            <!-- Bank Details -->
+                            <div class="payment-fields" id="bank-details" style="display: none;">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="bank-account">Bank Account No.</label>
+                                        <input type="text" class="form-control" id="bank-account" name="bank_account">
                                     </div>
-
-                                    <div class="col-md-4">
-                                        <div class="form-group local-forms">
-                                            <label>Payment Account</label>
-                                            <select class="form-control form-select" id="payment_account" name="payment_account">
-                                                <option selected disabled>Payment Account</option>
-                                                <option value="None">None</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                </div>
+                            </div>
 
                                     <div class="col-md-12">
-                                        <div class="form-group local-forms">
-                                            <label>Payment Note</label>
-                                            <textarea class="form-control" id="payment_note" name="payment_note" placeholder="Payment Note"></textarea>
+                                        <div class="form-group">
+                                            <label for="payment-note">Payment Note</label>
+                                            <textarea class="form-control" id="payment-note" name="payment_note" placeholder="Payment note" rows="3"></textarea>
                                         </div>
                                     </div>
                                 </div>
-                                <hr>
-                                <div class="row justify-content-start">
-                                    <div class="col-4">
-                                        <b>Change Return</b>
-                                        <p>0.00</p>
-                                    </div>
-                                </div>
-                                <hr>
+                                <hr class="my-4">
                                 <div class="row justify-content-end">
-                                    <div class="col-4">
-                                        <b>Balance</b>
-                                        <p>0.00</p>
+                                    <div class="col-md-4 text-end">
+                                        <b>Payment Due:</b>
+                                        <p class="payment-due">Rs. 0.00</p>
                                     </div>
                                 </div>
                             </div>
@@ -392,23 +368,40 @@
         </form>
     </div>
     <!-- Include this modal in your HTML -->
-<div class="modal fade" id="confirmRemoveModal" tabindex="-1" aria-labelledby="confirmRemoveModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmRemoveModalLabel">Confirm Remove</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to remove this product?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmRemoveButton">Remove</button>
+    <div class="modal fade" id="confirmRemoveModal" tabindex="-1" aria-labelledby="confirmRemoveModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmRemoveModalLabel">Confirm Remove</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to remove this product?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmRemoveButton">Remove</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     @include('sell.sales_ajax')
+
+    <script>
+        $(document).ready(function() {
+            $('#payment-method').change(function() {
+                var method = $(this).val();
+                $('.payment-fields').hide();
+                if (method === 'Cheque') {
+                    $('#cheque-details').show();
+                } else if (method === 'Card') {
+                    $('#card-details').show();
+                } else if (method === 'Bank Transfer') {
+                    $('#bank-details').show();
+                }
+            });
+
+        })
+    </script>
 @endsection

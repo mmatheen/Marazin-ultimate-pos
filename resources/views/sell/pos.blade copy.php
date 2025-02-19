@@ -483,61 +483,72 @@
         <div class="row mt-2">
             <div class="col-md-12">
                 <div class="card bg-white p-3">
-                    <div class="row align-items-center">
+                    <div class="row">
                         <!-- Location and Date Section -->
-                        <div class="col-md-6 d-flex align-items-center">
-                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                            <input type="text" class="form-control bg-light border-1 px-2 py-1" style="width: auto; color: #333;" value="{{ now()->format('Y-m-d H:i') }}" readonly/>
-                        </div>
-
-                        <!-- Action Buttons -->
                         <div class="col-md-6">
-                            <div class="d-flex justify-content-end gap-3">
-                                <button class="btn btn-light btn-sm"><i class="fas fa-backward"></i></button>
-                                <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
-                                <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
-                                <button class="btn btn-warning btn-sm"><i class="fas fa-calculator"></i></button>
-                                <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
-                                <button class="btn btn-primary btn-sm"><i class="fas fa-stop"></i></button>
-                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
-                                    <i class="fas fa-pause-circle"></i> Suspended Sales
-                                </button>
-
-                                <!-- Add Expense Button -->
-                                <button class="btn btn-dark btn-sm d-flex align-items-center">
-                                    <i class="fas fa-minus-circle me-2"></i> Add Expense
-                                </button>
-                            </div>
+                            <h5>Location: <strong>@if ($location) {{ $location->name }} @endif</strong></h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <input type="datetime-local" class="form-control d-inline-block w-auto" />
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <div class="row mt-2">
+            <div class="col-md-12">
+                <div class="card bg-white p-3">
+                    <div class="row">
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm" onclick="window.history.back();"><i class="fas fa-backward"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-window-close"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-business-time"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-calculator"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-redo-alt"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-wallet"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-light btn-sm"><i class="fas fa-pause-circle"></i></button>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-primary btn-sm d-flex align-items-center" style="width: 140px; padding: 5px 10px;">
+                                <i class="fas fa-minus-circle me-2"></i> Add Expense
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="row mt-2">
             <div class="col-md-7">
                 <div class="card bg-white p-3">
                     <div class="row">
                         <div class="col-md-4">
-
-                            <div class="input-group local-forms d-flex" >
-                                <label>Customer <span class="login-danger">*</span></label>
-                                <select class="form-control" id="customer-id" >
+                            <div class="form-group">
+                                <label>Customer Type<span class="login-danger">*</span></label>
+                                <select class="form-control" id="customer-id">
                                     <option selected disabled>Please Select</option>
                                     <!-- Options will be populated dynamically -->
                                 </select>
-                                <button type="button" class="btn btn-outline-info " id="addCustomerButton">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
                             </div>
-                            {{-- <span class="text-danger" id="brand_id_error"></span> --}}
                         </div>
                         <div class="col-md-8">
                             <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
-                            {{-- <input type="hidden" id="payment-mode" value="cash"/> --}}
-                            {{-- <input type="hidden" id="payment-status" value="paid"/>
-                            <input type="hidden" id="invoice-no" value="inv-00256"/> --}}
+                            <input type="hidden" id="payment-mode" value="cash"/>
+                            <input type="hidden" id="payment-status" value="paid"/>
+                            <input type="hidden" id="invoice-no" value="inv-00256"/>
                         </div>
                         <div class="col-md-12 mt-3">
                             <table class="table table-bordered">
@@ -659,78 +670,25 @@
         <!-- Bottom Fixed Section -->
         <div class="bottom-fixed mt-3">
             <div class="row align-items-center">
-                <!-- Left Side: Actions -->
+                <!-- Buttons Section -->
                 <div class="col-md-7">
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn btn-outline-primary"><i class="fas fa-edit"></i> Draft</button>
-                        <button class="btn btn-outline-warning"><i class="fas fa-file-alt"></i> Quotation</button>
-                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
-                            <i class="fas fa-pause"></i> Suspend
-                        </button>
-                        <button class="btn btn-outline-success"><i class="fas fa-check"></i> Credit Sale</button>
-                        <button class="btn btn-outline-pink"><i class="fas fa-credit-card"></i> Card</button>
-                        <button class="btn btn-dark"><i class="fas fa-list"></i> Multiple Pay</button>
-                        <button class="btn btn-success" id="cashButton"><i class="fas fa-money-bill-wave"></i> Cash</button>
-                        <button class="btn btn-danger"><i class="fas fa-times"></i> Cancel</button>
+                    <div class="d-flex gap-4">
+                        <button class="btn btn-primary" id="cart">Cart</button>
+                        <button class="btn btn-primary" id="multiple-pay">Multiple Pay</button>
+                        <button class="btn btn-warning" id="cashButton">Cash</button>
+                        <button class="btn btn-danger" id="cancel">Cancel</button>
                     </div>
                 </div>
 
-                <!-- Right Side: Total Payable -->
-                <div class="col-md-5 text-end">
-                    <h4 class="d-inline">Total Payable:</h4>
-                    <span id="total" class="text-success fs-4 fw-bold">Rs 0.00</span>
-                    <button class="btn btn-primary ms-3"><i class="fas fa-clock"></i> Recent Transactions</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bootstrap Modal for Suspend -->
-        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
-                        <textarea class="form-control" id="suspendNote" rows="3" placeholder="Write reason..."></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" id="confirmSuspend">Suspend</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bootstrap Modal for Suspended Sales -->
-        <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="suspendSalesModalLabel">Suspended Sales</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Reference No</th>
-                                    <th>Date</th>
-                                    <th>Customer</th>
-                                    <th>Total Items</th>
-                                    <th>Total</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="suspendedSalesContainer">
-                                <!-- Suspended sales will be dynamically inserted here -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <!-- Total Payable Section -->
+                <div class="col-md-5 total-payable-section text-start">
+                    <div class="row">
+                        <div class="col">
+                            <h4>Total Payable:</h4>
+                        </div>
+                        <div class="col">
+                            <h5 id="total" class="text-danger">Rs 0.00</h5>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -738,8 +696,7 @@
     </div>
 
     <!-- Include Bootstrap JS -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
     @include('sell.pos_ajax')
-    @include('contact.customer.customer_ajax')
-    @include('contact.customer.add_customer_modal')
 </body>
 </html>

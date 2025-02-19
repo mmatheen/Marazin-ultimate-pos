@@ -1,5 +1,5 @@
 <script>
-    $(document).ready(function () {
+    $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
         let allProducts = [];
         let categoryMap = {};
@@ -10,31 +10,71 @@
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {
-                product_name: { required: true },
-                unit_id: { required: true },
-                brand_id: { required: true },
-                main_category_id: { required: true },
-                sub_category_id: { required: true },
-                'locations[]': { required: true },
-                retail_price: { required: true },
-                whole_sale_price: { required: true },
-                special_price: { required: true },
-                original_price: { required: true }
+                product_name: {
+                    required: true
+                },
+                unit_id: {
+                    required: true
+                },
+                brand_id: {
+                    required: true
+                },
+                main_category_id: {
+                    required: true
+                },
+                sub_category_id: {
+                    required: true
+                },
+                'locations[]': {
+                    required: true
+                },
+                retail_price: {
+                    required: true
+                },
+                whole_sale_price: {
+                    required: true
+                },
+                special_price: {
+                    required: true
+                },
+                original_price: {
+                    required: true
+                }
             },
             messages: {
-                product_name: { required: "Product Name is required" },
-                unit_id: { required: "Product Unit is required" },
-                brand_id: { required: "Product Brand is required" },
-                main_category_id: { required: "Main Category is required" },
-                sub_category_id: { required: "Sub Category is required" },
-                'locations[]': { required: "Business Location is required" },
-                retail_price: { required: "Retail Price is required" },
-                whole_sale_price: { required: "Whole Sale Price is required" },
-                special_price: { required: "Special Price is required" },
-                original_price: { required: "Cost Price is required" }
+                product_name: {
+                    required: "Product Name is required"
+                },
+                unit_id: {
+                    required: "Product Unit is required"
+                },
+                brand_id: {
+                    required: "Product Brand is required"
+                },
+                main_category_id: {
+                    required: "Main Category is required"
+                },
+                sub_category_id: {
+                    required: "Sub Category is required"
+                },
+                'locations[]': {
+                    required: "Business Location is required"
+                },
+                retail_price: {
+                    required: "Retail Price is required"
+                },
+                whole_sale_price: {
+                    required: "Whole Sale Price is required"
+                },
+                special_price: {
+                    required: "Special Price is required"
+                },
+                original_price: {
+                    required: "Cost Price is required"
+                }
             },
             errorElement: 'span',
-            errorPlacement: function (error, element) {
+            errorPlacement: function(error, element) {
                 error.addClass('text-danger');
                 if (element.is("select")) {
                     error.insertAfter(element.closest('div'));
@@ -44,10 +84,10 @@
                     error.insertAfter(element);
                 }
             },
-            highlight: function (element, errorClass, validClass) {
+            highlight: function(element, errorClass, validClass) {
                 $(element).addClass('is-invalidRed').removeClass('is-validGreen');
             },
-            unhighlight: function (element, errorClass, validClass) {
+            unhighlight: function(element, errorClass, validClass) {
                 $(element).removeClass('is-invalidRed').addClass('is-validGreen');
             }
         };
@@ -55,7 +95,7 @@
         // Apply validation to forms
         $('#addForm').validate(addAndUpdateValidationOptions);
 
-            // Helper function to populate a dropdown
+        // Helper function to populate a dropdown
         function fetchData(url, successCallback, errorCallback) {
             $.ajax({
                 url: url,
@@ -93,7 +133,8 @@
                     const units = response.message.units;
                     const locations = response.message.locations;
 
-                    populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, callback);
+                    populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
+                        callback);
                 } else {
                     console.error('Failed to load initial product details. Status:', response.status);
                 }
@@ -119,61 +160,62 @@
         });
 
         function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
-        $('#product_id').val(product.id);
-        $('#edit_product_name').val(product.product_name);
-        $('#edit_sku').val(product.sku || "");
-        $('#edit_pax').val(product.pax || 0);
-        $('#edit_original_price').val(product.original_price || 0);
-        $('#edit_retail_price').val(product.retail_price || 0);
-        $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
-        $('#edit_special_price').val(product.special_price || 0);
-        $('#edit_max_retail_price').val(product.max_retail_price || 0);
-        $('#edit_alert_quantity').val(product.alert_quantity || 0);
-        $('#edit_product_type').val(product.product_type || "").trigger('change');
-        $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
-        $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
+            $('#product_id').val(product.id);
+            $('#edit_product_name').val(product.product_name);
+            $('#summernote').summernote('code', product.description || ''); // Use Summernote API to set content
+            $('#edit_sku').val(product.sku || "");
+            $('#edit_pax').val(product.pax || 0);
+            $('#edit_original_price').val(product.original_price || 0);
+            $('#edit_retail_price').val(product.retail_price || 0);
+            $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
+            $('#edit_special_price').val(product.special_price || 0);
+            $('#edit_max_retail_price').val(product.max_retail_price || 0);
+            $('#edit_alert_quantity').val(product.alert_quantity || 0);
+            $('#edit_product_type').val(product.product_type || "").trigger('change');
+            $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);
+            $('#Not_for_selling').prop('checked', product.is_for_selling === "1");
 
-        if (product.product_image) {
-            const imagePath = `/assets/images/${product.product_image}`;
-            $('#selectedImage').attr('src', imagePath).show();
+            if (product.product_image) {
+                const imagePath = `/assets/images/${product.product_image}`;
+                $('#selectedImage').attr('src', imagePath).show();
+            }
+
+            // Populate initial dropdowns with callback to set selected values
+            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, function() {
+                $('#edit_main_category_id').val(product.main_category_id).trigger('change');
+
+                setTimeout(() => {
+                    populateSubCategories(product.main_category_id);
+                    $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
+                }, 300);
+
+                $('#edit_brand_id').val(product.brand_id).trigger('change');
+                $('#edit_unit_id').val(product.unit_id).trigger('change');
+                const locationIds = product.locations.map(location => location.id);
+                $('#edit_location_id').val(locationIds).trigger('change');
+            });
         }
 
-        // Populate initial dropdowns with callback to set selected values
-        populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, function() {
-            $('#edit_main_category_id').val(product.main_category_id).trigger('change');
-
-            setTimeout(() => {
-                populateSubCategories(product.main_category_id);
-                $('#edit_sub_category_id').val(product.sub_category_id).trigger('change');
-            }, 300);
-
-            $('#edit_brand_id').val(product.brand_id).trigger('change');
-            $('#edit_unit_id').val(product.unit_id).trigger('change');
-            const locationIds = product.locations.map(location => location.id);
-            $('#edit_location_id').val(locationIds).trigger('change');
-        });
-    }
-
-          // Function to format the product data into table rows
-    function formatProductData(product) {
-    let locationName = product.batches.length > 0 && product.batches[0].location_batches.length > 0 ? product.batches[0].location_batches[0].location_name : 'N/A';
-    let imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg'; // Default image if product image is not available
-    return `
-        <tr>
+        // Format product data into table rows
+        function formatProductData(product) {
+            let locationName = product.batches?.[0]?.location_batches?.[0]?.location_name || 'N/A';
+            let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
+                '/assets/images/default.jpg';
+            return `
+        <tr data-product-id="${product.id}">
             <td><input type="checkbox" class="checked" /></td>
             <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
             <td>
                 <div class="dropdown">
-                    <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" id="actionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
                         Actions
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="actionsDropdown">
-                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#viewProductModal" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                    <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
+                        <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+                        <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+                        <li><a class="dropdown-item delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                        <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
                         <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-clone"></i> Duplicate Product</a></li>
                     </ul>
                 </div>
             </td>
@@ -185,13 +227,10 @@
             <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
             <td>${brandMap[product.brand_id] || 'N/A'}</td>
             <td>${product.sku}</td>
-        </tr>
-    `;
-}
+        </tr>`;
+        }
 
-
-
-        // Function to populate filter dropdowns
+        // Populate product filter dropdowns
         function populateProductFilter() {
             const productNameFilter = $('#productNameFilter');
             const categoryFilter = $('#categoryFilter');
@@ -211,7 +250,8 @@
 
             categories.forEach(category => {
                 if (categoryMap[category]) {
-                    categoryFilter.append(`<option value="${category}">${categoryMap[category]}</option>`);
+                    categoryFilter.append(
+                        `<option value="${category}">${categoryMap[category]}</option>`);
                 }
             });
 
@@ -222,38 +262,66 @@
             });
         }
 
-        // AJAX call to fetch the product data
+        // Fetch product data and populate the table
         function fetchProductData() {
-            $.ajax({
-                url: '/products/stocks',
-                method: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        allProducts = response.data; // Store all data for filtering
-                        populateProductFilter(); // Populate filter options
+            fetchData('/products/stocks', function(response) {
+                if (response.status === 200) {
+                    allProducts = response.data; // Store all data for filtering
+                    populateProductFilter(); // Populate filter options
 
-                        // Initialize DataTable
-                        $('#productTable').DataTable({ destroy: true });
-                        var productTableBody = $('#productTable tbody');
-                        productTableBody.empty(); // Clear existing data
+                    // Initialize DataTable
+                    let table = $('#productTable').DataTable({
+                        destroy: true
+                    });
+                    let productTableBody = $('#productTable tbody').empty(); // Clear existing data
 
-                        response.data.forEach(function(item) {
-                            var product = item.product;
-                            product.total_stock = item.total_stock;
-                            product.batches = item.batches;
-                            productTableBody.append(formatProductData(product));
-                        });
-                    } else {
-                        console.error('Failed to fetch product data.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching product data:', error);
+                    response.data.forEach(function(item) {
+                        let product = item.product;
+                        product.total_stock = item.total_stock;
+                        product.batches = item.batches;
+                        productTableBody.append(formatProductData(product));
+                    });
+
+                    // Prevent modal from opening when clicking on table header
+                    $('#productTable thead').on('click', 'th', function(event) {
+                        event.stopImmediatePropagation();
+                    });
+
+                    // Prevent modal from opening when clicking on action buttons
+                    $('#productTable tbody').on('click', '.dropdown-item', function(event) {
+                        event.stopPropagation();
+                    });
+
+                    // Show modal on clicking 'View' action
+                    $('#productTable tbody').on('click', '.view-product', function(event) {
+                        event.preventDefault();
+                        var productId = $(this).data('product-id');
+                        if (productId) {
+                            fetchProductDetails(productId);
+                            $('#viewProductModal').modal('show');
+                        }
+                    });
+
+                    // Stop propagation on action button click
+                    $('#productTable tbody').on('click', '.action-button', function(event) {
+                        event.stopPropagation();
+                    });
+
+                    // Show modal on row click
+                    $('#productTable tbody').on('click', 'tr', function() {
+                        var productId = $(this).data('product-id');
+                        if (productId) {
+                            fetchProductDetails(productId);
+                            $('#viewProductModal').modal('show');
+                        }
+                    });
+                } else {
+                    console.error('Failed to fetch product data.');
                 }
             });
         }
 
-        // Function to filter products based on selected filters
+        // Filter products based on selected filters
         function filterProducts() {
             const selectedProduct = $('#productNameFilter').val();
             const selectedCategory = $('#categoryFilter').val();
@@ -261,76 +329,47 @@
 
             const filteredProducts = allProducts.filter(item => {
                 const product = item.product;
-                const matchesProduct = selectedProduct ? product.product_name === selectedProduct : true;
-                const matchesCategory = selectedCategory ? product.main_category_id == selectedCategory : true;
+                const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
+                true;
+                const matchesCategory = selectedCategory ? product.main_category_id ==
+                    selectedCategory : true;
                 const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
                 return matchesProduct && matchesCategory && matchesBrand;
             });
 
-            var table = $('#productTable').DataTable();
+            let table = $('#productTable').DataTable();
             table.clear().draw();
 
             filteredProducts.forEach(function(item) {
-                var product = item.product;
+                let product = item.product;
                 product.total_stock = item.total_stock;
                 product.batches = item.batches;
                 table.row.add($(formatProductData(product))).draw();
             });
         }
 
-        // Fetch product data on page load
-        fetchProductData();
-
-        // Apply filters on change
-        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
-
         // Fetch main category, sub category, location, unit, brand details to select box
         function fetchCategoriesAndBrands() {
-            $.ajax({
-                url: '/main-category-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    response.message.forEach(function(category) {
-                        categoryMap[category.id] = category.mainCategoryName;
-                    });
-                },
-                error: function() {
-                    console.error('Error loading categories');
-                }
+            fetchData('/main-category-get-all', function(response) {
+                response.message.forEach(function(category) {
+                    categoryMap[category.id] = category.mainCategoryName;
+                });
             });
 
-            $.ajax({
-                url: '/brand-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    response.message.forEach(function(brand) {
-                        brandMap[brand.id] = brand.name;
-                    });
-                },
-                error: function() {
-                    console.error('Error loading brands');
-                }
+            fetchData('/brand-get-all', function(response) {
+                response.message.forEach(function(brand) {
+                    brandMap[brand.id] = brand.name;
+                });
             });
 
-           // Fetch location data
-           $.ajax({
-                url: '/location-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 200) {
-                        response.message.forEach(function(location) {
-                            locationMap[location.id] = location
-                                .name; // Store location name with ID as key
-                        });
-                    } else {
-                        console.error('Failed to load location data. Status: ' + response.status);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching location data:', error);
+            fetchData('/location-get-all', function(response) {
+                if (response.status === 200) {
+                    response.message.forEach(function(location) {
+                        locationMap[location.id] = location
+                        .name; // Store location name with ID as key
+                    });
+                } else {
+                    console.error('Failed to load location data. Status: ' + response.status);
                 }
             });
         }
@@ -338,91 +377,11 @@
         // Initialize fetching categories and brands
         fetchCategoriesAndBrands();
 
+        // Fetch initial dropdown data and product data on page load
+        fetchInitialDropdowns(fetchProductData);
 
-// function fetchData(url, successCallback) {
-//     $.ajax({
-//         url: url,
-//         type: 'GET',
-//         dataType: 'json',
-//         success: successCallback,
-//         error: function(xhr, status, error) {
-//             console.error(`Error fetching data from ${url}:`, error);
-//         }
-//     });
-// }
-
-// function populateDropdown(selector, items, displayProperty) {
-//     const selectElement = $(selector).empty().append('<option value="">Select</option>');
-//     items.forEach(item => selectElement.append(new Option(item[displayProperty], item.id)));
-// }
-
-// function fetchInitialDropdowns(callback) {
-//     fetchData('/initial-product-details', function(response) {
-//         if (response.status === 200) {
-//             subCategories = response.message.subCategories;
-//             response.message.mainCategories.forEach(category => categoryMap[category.id] = category.mainCategoryName);
-//             response.message.brands.forEach(brand => brandMap[brand.id] = brand.name);
-//             response.message.locations.forEach(location => locationMap[location.id] = location.name);
-
-//             populateDropdown('#categoryFilter', response.message.mainCategories, 'mainCategoryName');
-//             populateDropdown('#brandFilter', response.message.brands, 'name');
-//             populateDropdown('#productNameFilter', response.message.products, 'product_name');
-//         }
-//         if (callback) callback();
-//     });
-// }
-
-function formatProductData(product) {
-    let locationName = product.batches?.[0]?.location_batches?.[0]?.location_name || 'N/A';
-    let imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
-    return `
-        <tr>
-            <td><input type="checkbox" class="checked" /></td>
-            <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
-            <td><button class="btn btn-sm btn-outline-info">Actions</button></td>
-            <td>${product.product_name}</td>
-            <td>${locationName}</td>
-            <td>${product.retail_price}</td>
-            <td>${product.total_stock}</td>
-            <td>${product.product_type}</td>
-            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-            <td>${brandMap[product.brand_id] || 'N/A'}</td>
-            <td>${product.sku}</td>
-        </tr>`;
-}
-
-// function fetchProductData() {
-//     fetchData('/products/stocks', function(response) {
-//         if (response.status === 200) {
-//             allProducts = response.data;
-//             populateProductFilter();
-
-//             let productTableBody = $('#productTable tbody').empty();
-//             response.data.forEach(item => productTableBody.append(formatProductData(item.product)));
-//         }
-//     });
-// }
-
-function filterProducts() {
-    let selectedProduct = $('#productNameFilter').val();
-    let selectedCategory = $('#categoryFilter').val();
-    let selectedBrand = $('#brandFilter').val();
-
-    let filteredProducts = allProducts.filter(item => {
-        let product = item.product;
-        return (!selectedProduct || product.product_name === selectedProduct) &&
-               (!selectedCategory || product.main_category_id == selectedCategory) &&
-               (!selectedBrand || product.brand_id == selectedBrand);
-    });
-
-    let table = $('#productTable').DataTable();
-    table.clear();
-    filteredProducts.forEach(item => table.row.add($(formatProductData(item.product))));
-    table.draw();
-}
-
-fetchInitialDropdowns(fetchProductData);
-$('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
+        // Apply filters on change
+        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
 
         function resetFormAndValidation() {
             $('#addForm')[0].reset();
@@ -469,23 +428,27 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             $.ajax({
                 url: getFormActionUrl(),
                 type: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrfToken },
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
                 data: formData,
                 contentType: false,
                 processData: false,
                 dataType: 'json',
-                success: function (response) {
+                success: function(response) {
                     if (response.status == 400) {
-                        $.each(response.errors, function (key, err_value) {
+                        $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
                     } else {
-                        document.getElementsByClassName('successSound')[0].play(); // Play success sound
+                        document.getElementsByClassName('successSound')[0]
+                    .play(); // Play success sound
                         toastr.success(response.message, 'Added');
 
                         if (buttonType === 'onlySave') {
                             resetFormAndValidation();
                             fetchLastAddedProducts();
+                            // window.location.href = '/list-product';
                         } else if (buttonType === 'saveAndAnother') {
                             resetFormAndValidation();
                         } else if (buttonType === 'saveAndOpeningStock') {
@@ -498,37 +461,38 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         }
                     }
                 },
-                error: function (xhr) {
+                error: function(xhr) {
                     toastr.error('Failed to add product. Please try again.', 'Error');
                 },
-                complete: function () {
-                    isSubmitting = false; // Reset the flag after the request completes (success or failure)
+                complete: function() {
+                    isSubmitting =
+                    false; // Reset the flag after the request completes (success or failure)
                 }
             });
         }
 
         // Button click event handlers
-        $('#onlySaveProductButton').click(function (e) {
+        $('#onlySaveProductButton').click(function(e) {
             e.preventDefault();
             handleFormSubmit('onlySave');
         });
 
-        $('#SaveProductButtonAndAnother').click(function (e) {
+        $('#SaveProductButtonAndAnother').click(function(e) {
             e.preventDefault();
             handleFormSubmit('saveAndAnother');
         });
 
-        $('#openingStockAndProduct').click(function (e) {
+        $('#openingStockAndProduct').click(function(e) {
             e.preventDefault();
             handleFormSubmit('saveAndOpeningStock');
         });
 
         function fetchLastAddedProducts() {
-            fetchData('get-last-product', function (response) {
+            fetchData('get-last-product', function(response) {
                 if (response.status === 200) {
                     const product = response.product;
                     addProductToTable(product);
-                    toastr.success('New product added to the table!', 'Success');
+                    // toastr.success('New product added to the table!', 'Success');
                 } else {
                     toastr.error(response.message || 'Unable to fetch product details.', 'Error');
                 }
@@ -539,7 +503,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             const table = $("#purchase_product").DataTable();
             let existingRow = null;
 
-            $('#purchase_product tbody tr').each(function () {
+            $('#purchase_product tbody tr').each(function() {
                 const rowProductId = $(this).data('id');
                 if (rowProductId === product.id) {
                     existingRow = $(this);
@@ -583,12 +547,14 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 updateRow($newRow);
                 updateFooter();
 
-                $newRow.find(".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price").on("input", function () {
+                $newRow.find(
+                    ".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price"
+                    ).on("input", function() {
                     updateRow($newRow);
                     updateFooter();
                 });
 
-                $newRow.find(".delete-product").on("click", function () {
+                $newRow.find(".delete-product").on("click", function() {
                     table.row($newRow).remove().draw();
                     updateFooter();
                 });
@@ -610,7 +576,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             let totalItems = 0;
             let netTotalAmount = 0;
 
-            $('#purchase_product tbody tr').each(function () {
+            $('#purchase_product tbody tr').each(function() {
                 const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
                 const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
 
@@ -655,14 +621,14 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
 
         $('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
 
-        $(".show-picture").on("change", function () {
+        $(".show-picture").on("change", function() {
             const input = this;
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
 
                 if (file.type.startsWith("image/")) {
-                    reader.onload = function (e) {
+                    reader.onload = function(e) {
                         $("#selectedImage").attr("src", e.target.result);
                         $("#selectedImage").show();
                         $("#pdfViewer").hide();
@@ -672,9 +638,10 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             }
         });
 
-        $('#edit_main_category_id').change(function () {
+        $('#edit_main_category_id').change(function() {
             var main_category_id = $(this).val();
-            $('#edit_sub_category_id').empty().append('<option selected disabled>Sub Category</option>');
+            $('#edit_sub_category_id').empty().append(
+            '<option selected disabled>Sub Category</option>');
 
             $.ajax({
                 url: 'sub_category-details-get-by-main-category-id/' + main_category_id,
@@ -694,12 +661,13 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 error: function(xhr, status, error) {
                     console.log('AJAX Error: ', error);
 
-                    }
-                });
+                }
             });
+        });
 
         $(document).ready(function() {
             const currentPath = window.location.pathname;
+            console.log(currentPath   );
             const productId = $('#product_id').val();
             const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
@@ -730,11 +698,19 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                             console.log("Fetched Batches:", batches);
 
                             batches.forEach(function(batch) {
-                                let row = $(`tr[data-location-id="${batch.location_id}"]`);
+                                let row = $(
+                                    `tr[data-location-id="${batch.location_id}"]`
+                                    );
                                 if (row.length > 0) {
-                                    row.find('input[name^="locations"][name$="[qty]"]').val(batch.quantity);
-                                    row.find('input[name^="locations"][name$="[batch_no]"]').val(batch.batch_no);
-                                    row.find('input[name^="locations"][name$="[expiry_date]"]').val(batch.expiry_date);
+                                    row.find(
+                                        'input[name^="locations"][name$="[qty]"]'
+                                        ).val(batch.quantity);
+                                    row.find(
+                                        'input[name^="locations"][name$="[batch_no]"]'
+                                        ).val(batch.batch_no);
+                                    row.find(
+                                        'input[name^="locations"][name$="[expiry_date]"]'
+                                        ).val(batch.expiry_date);
                                 }
                             });
                         }
@@ -752,7 +728,9 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 // Additional validation for batch numbers
                 if (!validateBatchNumbers()) {
                     document.getElementsByClassName('warningSound')[0].play();
-                    toastr.error('Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.', 'Warning');
+                    toastr.error(
+                        'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
+                        'Warning');
                     return;
                 }
 
@@ -760,7 +738,9 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 $.ajax({
                     url: url,
                     type: 'POST',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
                     data: formData,
                     contentType: false,
                     processData: false,
@@ -768,7 +748,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                     success: function(response) {
                         if (response.status === 200) {
                             toastr.success(response.message, 'Success');
-                            window.location.href = '/add-product';
+                            window.location.href = '/list-product';
                         } else {
                             toastr.error(response.message, 'Error');
                         }
@@ -814,7 +794,8 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         const units = response.message.units;
                         const locations = response.message.locations;
 
-                        populateProductDetails(product, mainCategories, subCategories, brands, units, locations);
+                        populateProductDetails(product, mainCategories, subCategories,
+                            brands, units, locations);
                     } else {
                         console.error('Error: ' + response.message);
                     }
@@ -849,7 +830,9 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             $.ajax({
                 url: '/delete-product/' + id,
                 type: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': csrfToken },
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
                 success: function(response) {
                     if (response.status == 404) {
                         toastr.error(response.message, 'Error');
@@ -863,70 +846,13 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             });
         });
 
+
+
         $('#viewProductModal').on('show.bs.modal', function(event) {
             var button = $(event.relatedTarget);
             var productId = button.data('product-id');
 
-            $.ajax({
-                url: '/product-get-details/' + productId,
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status === 200) {
-                        var product = response.message;
-                        var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
-                        var details = `
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-striped">
-                                    <tbody>
-                                        <tr>
-                                            <td rowspan="8" class="text-center align-middle">
-                                                <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
-                                            </td>
-                                            <th scope="row">Product Name</th>
-                                            <td>${product.product_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">SKU</th>
-                                            <td>${product.sku}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Category</th>
-                                            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Brand</th>
-                                            <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Locations</th>
-                                            <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Price</th>
-                                            <td>$${product.retail_price}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Alert Quantity</th>
-                                            <td>${product.alert_quantity}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Product Type</th>
-                                            <td>${product.product_type}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        `;
-                        $('#productDetails').html(details);
-                    } else {
-                        console.error('Failed to load product details. Status: ' + response.status);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching product details:', error);
-                }
-            });
+            fetchProductDetails(productId);
         });
 
         function fetchProductDetails(productId) {
@@ -937,50 +863,52 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 success: function(response) {
                     if (response.status === 200) {
                         var product = response.message;
-                        var imagePath = product.product_image ? `/assets/images/${product.product_image}` : '/assets/images/default.jpg';
+                        var imagePath = product.product_image ?
+                            `/assets/images/${product.product_image}` :
+                            '/assets/images/default.jpg';
                         var details = `
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-striped">
-                                    <tbody>
-                                        <tr>
-                                            <td rowspan="8" class="text-center align-middle">
-                                                <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
-                                            </td>
-                                            <th scope="row">Product Name</th>
-                                            <td>${product.product_name}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">SKU</th>
-                                            <td>${product.sku}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Category</th>
-                                            <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Brand</th>
-                                            <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Locations</th>
-                                            <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Price</th>
-                                            <td>$${product.retail_price}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Alert Quantity</th>
-                                            <td>${product.alert_quantity}</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">Product Type</th>
-                                            <td>${product.product_type}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        `;
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <tbody>
+                                <tr>
+                                    <td rowspan="8" class="text-center align-middle">
+                                        <img src='${imagePath}' width='150' height='200' class="rounded img-fluid" />
+                                    </td>
+                                    <th scope="row">Product Name</th>
+                                    <td>${product.product_name}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">SKU</th>
+                                    <td>${product.sku}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Category</th>
+                                    <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Brand</th>
+                                    <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Locations</th>
+                                    <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Price</th>
+                                    <td>$${product.retail_price}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Alert Quantity</th>
+                                    <td>${product.alert_quantity}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Product Type</th>
+                                    <td>${product.product_type}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
                         $('#productDetails').html(details);
                     } else {
                         console.error('Failed to load product details. Status: ' + response.status);
@@ -991,5 +919,10 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 }
             });
         }
+
+        // Initialize the product data fetching
+        $(document).ready(function() {
+            fetchProductData();
+        });
     });
-    </script>
+</script>
