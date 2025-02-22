@@ -427,14 +427,14 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="cheque_received_date" class="form-label">Check Recieved Date</label>
+                                        <label for="cheque_received_date" class="form-label">Check Received Date</label>
                                         <input type="text" class="form-control datetimepicker"
                                             id="cheque_received_date" name="cheque_received_date">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="cheque_valid_date" class="form-label">cheque valid date</label>
+                                        <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
                                         <input type="text" class="form-control datetimepicker" id="cheque_valid_date"
                                             name="cheque_valid_date">
                                     </div>
@@ -492,6 +492,7 @@
             </div>
         </div>
 
+        <!-- View Payment Modal -->
         <div class="modal fade" id="viewPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
             aria-labelledby="viewPaymentModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
@@ -559,9 +560,109 @@
         <script>
             // Define the openPaymentModal function
             function openPaymentModal(event, saleId) {
-                // Implement the logic to open the payment modal
-                $('#paymentModal').modal('show');
+        // Implement the logic to open the payment modal
+        $('#paymentModal').modal('show');
+        fetchSaleDetailsForPayment(saleId);
+    }
+
+    // Function to toggle payment fields based on payment method
+    function togglePaymentFields() {
+        const paymentMethod = $('#paymentMethod').val();
+        if (paymentMethod === 'card') {
+            $('#creditCardFields').removeClass('d-none');
+            $('#chequeFields').addClass('d-none');
+            $('#bankTransferFields').addClass('d-none');
+        } else if (paymentMethod === 'cheque') {
+            $('#creditCardFields').addClass('d-none');
+            $('#chequeFields').removeClass('d-none');
+            $('#bankTransferFields').addClass('d-none');
+        } else if (paymentMethod === 'bank_transfer') {
+            $('#creditCardFields').addClass('d-none');
+            $('#chequeFields').addClass('d-none');
+            $('#bankTransferFields').removeClass('d-none');
+        } else {
+            $('#creditCardFields').addClass('d-none');
+            $('#chequeFields').addClass('d-none');
+            $('#bankTransferFields').addClass('d-none');
+        }
+    }
+
+    // Function to fetch sale details for payment modal
+    function fetchSaleDetailsForPayment(saleId) {
+        $.ajax({
+            url: '/sales_details/' + saleId,
+            type: 'GET',
+            success: function(response) {
+                if (response.salesDetails) {
+                    const saleDetails = response.salesDetails;
+                    const customer = saleDetails.customer;
+                    const location = saleDetails.location;
+
+                    // Populate payment modal fields
+                    $('#paymentModalLabel').text('Add Payment - Invoice No: ' + saleDetails.invoice_no);
+                    $('#paymentCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
+                    $('#paymentLocationDetails').text(location.name);
+                    $('#totalAmount').text(saleDetails.final_total);
+                    $('#totalPaidAmount').text(saleDetails.total_paid);
+
+                    $('#saleId').val(saleDetails.id);
+                    $('#payment_type').val('sale');
+                    $('#customer_id').val(customer.id);
+                    $('#reference_no').val(saleDetails.invoice_no);
+                    // Set default date to today
+                    $('#paidOn').val(new Date().toISOString().split('T')[0]);
+
+                    // Set the amount field to the total due amount
+                    $('#payAmount').val(saleDetails.total_due);
+
+                    // Ensure the Add Payment modal is brought to the front
+                    $('#viewPaymentModal').modal('hide');
+                    $('#paymentModal').modal('show');
+
+                    // Validate the amount input
+                    $('#payAmount').off('input').on('input', function() {
+                        let amount = parseFloat($(this).val());
+                        let totalDue = parseFloat(saleDetails.total_due);
+                        if (amount > totalDue) {
+                            $('#amountError').text('The given amount exceeds the total due amount.').show();
+                            $(this).val(totalDue);
+                        } else {
+                            $('#amountError').hide();
+                        }
+                    });
+
+                    $('#paymentModal').modal('show');
+                } else {
+                    console.error('Sales details data is not in the expected format.');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching sales details:', error);
             }
+        });
+    }
+            // Function to toggle payment fields based on payment method
+function togglePaymentFields() {
+    const paymentMethod = $('#paymentMethod').val();
+    if (paymentMethod === 'card') {
+        $('#creditCardFields').removeClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    } else if (paymentMethod === 'cheque') {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').removeClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    } else if (paymentMethod === 'bank_transfer') {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').removeClass('d-none');
+    } else {
+        $('#creditCardFields').addClass('d-none');
+        $('#chequeFields').addClass('d-none');
+        $('#bankTransferFields').addClass('d-none');
+    }
+}
+
         </script>
 
 

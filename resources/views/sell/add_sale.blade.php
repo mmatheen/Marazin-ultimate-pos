@@ -84,9 +84,7 @@
                             <select class="form-control form-select select2Box" id="customer-id" name="customer_id">
                                 <option selected disabled>Customer*</option>
                             </select>
-                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal"
-                                data-bs-target="#addModal" id="button-addon1"><i class="fas fa-plus-circle"></i>
-                            </button>
+                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
                         </div>
                     </div>
                 </div>
@@ -114,6 +112,7 @@
                     <div class="form-group local-forms">
                         <label>Invoice No<span class="login-danger"></span></label>
                         <input class="form-control" id="invoice_no" name="invoice_no" type="text" placeholder="Invoice No">
+                        <input name="sale_type" type="text" value="Normal">
                     </div>
                 </div>
             </div>
@@ -387,21 +386,5 @@
     </div>
 
     @include('sell.sales_ajax')
+    @endsection
 
-    <script>
-        $(document).ready(function() {
-            $('#payment-method').change(function() {
-                var method = $(this).val();
-                $('.payment-fields').hide();
-                if (method === 'Cheque') {
-                    $('#cheque-details').show();
-                } else if (method === 'Card') {
-                    $('#card-details').show();
-                } else if (method === 'Bank Transfer') {
-                    $('#bank-details').show();
-                }
-            });
-
-        })
-    </script>
-@endsection

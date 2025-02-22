@@ -1,14 +1,11 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Supplier extends Model
 {
     use HasFactory;
-
     protected $table = 'suppliers';
     protected $fillable = [
         'prefix',
@@ -45,4 +42,25 @@ class Supplier extends Model
         return Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
     }
 
+    public function purchases()
+    {
+        return $this->hasMany(Purchase::class);
+    }
+
+    public function purchaseReturns()
+    {
+        return $this->hasMany(PurchaseReturn::class);
+    }
+
+    // Total Purchase Due for the supplier
+    public function getTotalPurchaseDueAttribute()
+    {
+        return $this->purchases()->sum('total_due');
+    }
+
+    // Total Return Due for the supplier
+    public function getTotalReturnDueAttribute()
+    {
+        return $this->purchaseReturns()->sum('total_due');
+    }
 }

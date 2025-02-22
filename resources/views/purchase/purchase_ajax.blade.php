@@ -651,6 +651,8 @@
             });
         }
 
+
+
         $(document).ready(function() {
             fetchPurchases();
 
@@ -718,6 +720,8 @@
                     },
                 });
             }
+
+
 
             // Define the openPaymentModal function
             window.openPaymentModal = function(event, purchaseId) {

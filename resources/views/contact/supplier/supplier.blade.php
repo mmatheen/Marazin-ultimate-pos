@@ -41,21 +41,20 @@
                                     <th>Prefix</th>
                                     <th>First Name</th>
                                     <th>Last Name</th>
+                                    <th>Full Name</th>
                                     <th>Mobile No</th>
                                     <th>Email</th>
-                                    <th>Contact ID</th>
-                                    <th>Contact Type</th>
-                                    <th>Date</th>
-                                    <th>Assign To</th>
+                                    <th>Address</th>
+                                    <th>Location ID</th>
                                     <th>Opening Balance</th>
+                                    <th>Current Balance</th>
+                                    <th>Total Purchase Due</th>
+                                    <th>Total Return Due</th>
                                     <th>Action</th>
-
                                 </tr>
                             </thead>
-
                             <tbody>
                             </tbody>
-
                         </table>
                     </div>
                 </div>

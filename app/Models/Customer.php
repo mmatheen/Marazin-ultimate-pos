@@ -36,4 +36,26 @@ class Customer extends Model
         return $this->first_name . ' ' . $this->last_name;
     }
 
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
+    }
+
+    public function salesReturns()
+    {
+        return $this->hasMany(SalesReturn::class);
+    }
+
+    // Total Sale Due for the customer
+    public function getTotalSaleDueAttribute()
+    {
+        return $this->sales()->sum('total_due');
+    }
+
+    // Total Return Due for the customer
+    public function getTotalReturnDueAttribute()
+    {
+        return $this->salesReturns()->sum('total_due');
+    }
+
 }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Sale extends Model
 {
@@ -14,6 +15,7 @@ class Sale extends Model
         'sales_date',
         'location_id',
         'status',
+        'sale_type',
         'invoice_no',
         'final_total',
         'total_paid',
@@ -70,14 +72,28 @@ class Sale extends Model
 
     public function getBatchQuantityPlusSold($batchId, $locationId, $productId)
     {
-        // Get available stock from the batch in the location
-        $availableStock = self::getAvailableStock($batchId, $locationId);
+        if ($batchId === 'all') {
+            // Get total available stock for all batches of the product in the location
+            $availableStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productId)
+                ->where('location_batches.location_id', $locationId)
+                ->sum('location_batches.qty');
 
-        // Get sold quantity for this product and batch from the sale
-        $soldQuantity = $this->products()
-            ->where('product_id', $productId)
-            ->where('batch_id', $batchId)
-            ->sum('quantity');
+            // Get total sold quantity for all batches of the product in the sale
+            $soldQuantity = $this->products()
+                ->where('product_id', $productId)
+                ->sum('quantity');
+        } else {
+            // Get available stock from the batch in the location
+            $availableStock = self::getAvailableStock($batchId, $locationId);
+
+            // Get sold quantity for this product and batch from the sale
+            $soldQuantity = $this->products()
+                ->where('product_id', $productId)
+                ->where('batch_id', $batchId)
+                ->sum('quantity');
+        }
 
         return $availableStock + $soldQuantity;
     }
@@ -97,9 +113,9 @@ class Sale extends Model
         return $this->final_total - $this->total_paid;
     }
 
-    // Update the total due amount
     public function updateTotalDue()
     {
+        $this->total_paid = $this->payments()->sum('amount');
         $this->total_due = $this->final_total - $this->total_paid;
         $this->save();
     }

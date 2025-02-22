@@ -15,6 +15,9 @@ class SalesReturn extends Model
         'location_id',
         'return_date',
         'return_total',
+        'total_paid',
+        'total_due',
+        'payment_status',
         'notes',
         'is_defective',
         'invoice_number',
@@ -53,6 +56,21 @@ class SalesReturn extends Model
         return $this->hasMany(SalesReturnProduct::class, 'sales_return_id');
     }
 
+    /**
+     * Relationship with Payment.
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'reference_id', 'id')
+                    ->where(function($query) {
+                        $query->where('payment_type', 'sale_return_with_bill')
+                              ->orWhere('payment_type', 'sale_return_without_bill');
+                    });
+    }
+
+    /**
+     * Boot method to generate invoice number on creating.
+     */
     protected static function boot()
     {
         parent::boot();
@@ -60,8 +78,16 @@ class SalesReturn extends Model
         static::creating(function ($model) {
             $model->invoice_number = self::generateInvoiceNumber();
         });
+
+        static::saving(function ($model) {
+            $model->total_paid = $model->payments()->sum('amount');
+            $model->total_due = $model->return_total - $model->total_paid;
+        });
     }
 
+    /**
+     * Generate invoice number.
+     */
     public static function generateInvoiceNumber()
     {
         $latest = self::latest()->first();
@@ -69,4 +95,13 @@ class SalesReturn extends Model
         return 'SR-' . str_pad($number, 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Update the total due amount.
+     */
+    public function updateTotalDue()
+    {
+        $this->total_paid = $this->payments()->sum('amount');
+        $this->total_due = $this->return_total - $this->total_paid;
+        $this->save();
+    }
 }

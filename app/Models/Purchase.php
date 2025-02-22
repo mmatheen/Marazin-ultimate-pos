@@ -22,8 +22,11 @@ class Purchase extends Model
         'discount_type',
         'discount_amount',
         'final_total',
-        'payment_status'
+        'payment_status',
+        'total_paid'
     ];
+
+    protected $appends = ['total_due'];
 
     public function supplier()
     {
@@ -54,10 +57,11 @@ class Purchase extends Model
     {
         return $this->final_total - $this->total_paid;
     }
-    // Update the total due amount
+
+    // Update the total paid and total due amounts
     public function updateTotalDue()
     {
-        $this->total_due = $this->final_total - $this->total_paid;
+        $this->total_paid = $this->payments()->sum('amount');
         $this->save();
     }
 }

@@ -169,8 +169,7 @@
                                         <table class="datatable table table-stripped" style="width:100%" id="posTable">
                                             <thead>
                                                 <tr>
-                                                    <th><input type="checkbox" name="" value="" id="allchecked"
-                                                            onclick="toggleLoginFields(id,'.checked')" /></th>
+                                                    <th><input type="checkbox" name="" value="" id="allchecked" onclick="toggleLoginFields(id,'.checked')" /></th>
                                                     <th>Action</th>
                                                     <th>Date</th>
                                                     <th>Invoice No</th>
@@ -182,17 +181,11 @@
                                                     <th>Total Amount</th>
                                                     <th>Total Paid</th>
                                                     <th>Sell Due</th>
-                                                    <th>Return Due</th>
-                                                    <th>Shipping Status</th>
                                                     <th>Total Items</th>
                                                     <th>Added By</th>
-                                                    <th>Sell Note</th>
-                                                    <th>Staff Note</th>
-                                                    <th>Shipping Details</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-
                                             </tbody>
                                         </table>
                                     </div>

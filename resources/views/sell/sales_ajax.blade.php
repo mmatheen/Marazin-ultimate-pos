@@ -2,6 +2,8 @@
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
         fetchData();
+        // Initialize DataTable
+        const table = $('#salesTable').DataTable();
 
         var saleValidationOptions = {
             rules: {
@@ -17,26 +19,7 @@
                 status: {
                     required: true
                 },
-                invoice_no: {
-                    required: true
-                }
-                // discount_type: {
-                //     required: true
-                // },
-                // discount_amount: {
-                //     required: true,
-                //     number: true
-                // },
 
-                // payment_method: {
-                //     required: true
-                // },
-                // payment_account: {
-                //     required: true
-                // },
-                // payment_note: {
-                //     required: false
-                // }
             },
             messages: {
                 customer_id: {
@@ -51,25 +34,7 @@
                 status: {
                     required: "Status is required"
                 },
-                invoice_no: {
-                    required: "Invoice No is required"
-                }
-                // discount_type: {
-                //     required: "Discount Type is required"
-                // },
-                // discount_amount: {
-                //     required: "Discount Amount is required",
-                //     number: "Please enter a valid number"
-                // },
-                // payment_method: {
-                //     required: "Payment Method is required"
-                // },
-                // payment_account: {
-                //     required: "Payment Account is required"
-                // },
-                // payment_note: {
-                //     required: "Payment Note is required"
-                // }
+
             },
             errorElement: 'span',
             errorPlacement: function(error, element) {
@@ -120,279 +85,395 @@
             }
         });
 
-// Initialize DataTable
-const table = $('#salesTable').DataTable();
+        function fetchData() {
+            $.ajax({
+                url: '/sales',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    table.clear().draw();
+                    if (response.sales && Array.isArray(response.sales)) {
+                        var counter = 1;
+                        response.sales.forEach(function(item) {
+                            if (item.sale_type === 'Normal') { // Add this condition
+                                let row = $('<tr>');
+                                row.append('<td>' +
+                                    '<div class="btn-group">' +
+                                    '<button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
+                                    '<i class="feather-menu"></i> Actions' +
+                                    '</button>' +
+                                    '<ul class="dropdown-menu">' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>' +
+                                    '<li><button type="button" value="' + item.id +
+                                    '" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>' +
+                                    '</ul>' +
+                                    '</div>' +
+                                    '</td>');
+                                row.append('<td>' + item.sales_date + '</td>');
+                                row.append('<td>' + item.invoice_no + '</td>');
+                                row.append('<td>' + item.customer.first_name + ' ' + item
+                                    .customer.last_name + '</td>');
+                                row.append('<td>' + item.customer.mobile_no + '</td>');
+                                row.append('<td>' + item.location.name + '</td>');
+                                row.append('<td>' + item.payment_status + '</td>');
+                                row.append('<td>' + (item.payments && item.payments[0] ?
+                                        item.payments[0].payment_method : 'N/A') +
+                                    '</td>');
+                                row.append('<td>' + item.final_total + '</td>');
+                                row.append('<td>' + item.total_paid + '</td>');
+                                row.append('<td>' + item.total_due + '</td>');
+                                row.append('<td>' + item.status + '</td>');
+                                row.append('<td>' + item.products.length + '</td>');
+                                row.append('<td>' + 'Added By User' +
+                                '</td>'); // Replace with actual user data if available
 
-// Apply validation to forms
-function fetchData() {
-    $.ajax({
-        url: '/sales',
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            table.clear().draw();
-            if (response.sales && Array.isArray(response.sales)) {
-                var counter = 1;
-                response.sales.forEach(function(item) {
-                    let row = $('<tr>');
-                    row.append('<td>' +
-                        '<div class="btn-group">' +
-                            '<button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
-                                '<i class="feather-menu"></i> Actions' +
-                            '</button>' +
-                            '<ul class="dropdown-menu">' +
-                                '<li><button type="button" value="' + item.id + '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
-                                '<li><button type="button" value="' + item.id + '" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>' +
-                                '<li><button type="button" value="' + item.id + '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>' +
-                                '<li><button type="button" value="' + item.id + '" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>' +
-                                '<li><button type="button" value="' + item.id + '" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>' +
-                                '<li><button type="button" value="' + item.id + '" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>' +
-                            '</ul>' +
-                        '</div>' +
-                    '</td>');
-                    row.append('<td>' + item.sales_date + '</td>');
-                    row.append('<td>' + item.invoice_no + '</td>');
-                    row.append('<td>' + item.customer.first_name + ' ' + item.customer.last_name + '</td>');
-                    row.append('<td>' + item.customer.mobile_no + '</td>');
-                    row.append('<td>' + item.location.name + '</td>');
-                    row.append('<td>' + item.payment_status + '</td>');
-                    row.append('<td>' + item.payments[0].payment_method + '</td>');
-                    row.append('<td>' + item.final_total + '</td>');
-                    row.append('<td>' + item.total_paid + '</td>');
-                    row.append('<td>' + item.total_due + '</td>');
-                    row.append('<td>' + item.status + '</td>');
-                    row.append('<td>' + item.products.length + '</td>');
-                    row.append('<td>' + 'Added By User' + '</td>'); // Replace with actual user data if available
+                                table.row.add(row).draw(false);
+                                counter++;
+                            }
+                        });
+                    } else {
+                        console.error('Sales data is not in the expected format.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching sales data:', error);
+                }
+            });
+        }
 
-                    table.row.add(row).draw(false);
-                    counter++;
+        // Event handler for view details button
+        $('#salesTable tbody').on('click', 'button.view-details', function() {
+            var saleId = $(this).val();
+            $.ajax({
+                url: '/sales_details/' + saleId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.salesDetails) {
+                        const saleDetails = response.salesDetails;
+                        const customer = saleDetails.customer;
+                        const location = saleDetails.location;
+                        const products = saleDetails.products;
+
+                        // Populate modal fields
+                        $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
+                            .invoice_no);
+                        $('#customerDetails').text(customer.first_name + ' ' + customer
+                            .last_name);
+                        $('#locationDetails').text(location.name);
+                        $('#salesDetails').text('Date: ' + saleDetails.sales_date +
+                            ', Status: ' + saleDetails.status);
+
+                        // Populate products table
+                        const productsTableBody = $('#productsTable tbody');
+                        productsTableBody.empty();
+                        if (products && Array.isArray(products)) {
+                            products.forEach((product, index) => {
+                                const productRow = $('<tr>');
+                                productRow.append('<td>' + (index + 1) + '</td>');
+                                productRow.append('<td>' + product.product
+                                    .product_name + '</td>');
+                                productRow.append('<td>' + product.product.sku +
+                                    '</td>');
+                                productRow.append('<td>' + product.quantity +
+                                    '</td>');
+                                productRow.append('<td>' + product.price + '</td>');
+                                productRow.append('<td>' + (product.quantity *
+                                    product.price).toFixed(2) + '</td>');
+                                productsTableBody.append(productRow);
+                            });
+                        }
+
+                        // Populate payment info table
+                        const paymentInfoTableBody = $('#paymentInfoTable tbody');
+                        paymentInfoTableBody.empty();
+                        if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
+                            saleDetails.payments.forEach((payment) => {
+                                const paymentRow = $('<tr>');
+                                paymentRow.append('<td>' + payment.payment_date +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.reference_no +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.amount +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.payment_method +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.notes + '</td>');
+                                paymentInfoTableBody.append(paymentRow);
+                            });
+                        }
+
+                        // Populate amount details table
+                        const amountDetailsTableBody = $('#amountDetailsTable tbody');
+                        amountDetailsTableBody.empty();
+                        amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' +
+                            saleDetails.final_total + '</td></tr>');
+                        amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' +
+                            saleDetails.total_paid + '</td></tr>');
+                        amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
+                            saleDetails.total_due + '</td></tr>');
+
+                        $('#saleDetailsModal').modal('show');
+                    } else {
+                        console.error('Sales details data is not in the expected format.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching sales details:', error);
+                }
+            });
+        });
+
+        // Event handler for add payment button
+        $('#salesTable tbody').on('click', 'button.add-payment', function() {
+            var saleId = $(this).val();
+            $.ajax({
+                url: '/sales_details/' + saleId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.salesDetails) {
+                        const saleDetails = response.salesDetails;
+                        const customer = saleDetails.customer;
+                        const location = saleDetails.location;
+
+                        // Populate payment modal fields
+                        $('#paymentModalLabel').text('Add Payment - Invoice No: ' +
+                            saleDetails.invoice_no);
+                        $('#paymentCustomerDetail').text(customer.first_name + ' ' +
+                            customer.last_name);
+                        $('#paymentLocationDetails').text(location.name);
+                        $('#totalAmount').text(saleDetails.final_total);
+                        $('#totalPaidAmount').text(saleDetails.total_paid);
+
+                        $('#saleId').val(saleDetails.id);
+                        $('#payment_type').val('sale');
+                        $('#customer_id').val(customer.id);
+                        $('#reference_no').val(saleDetails.invoice_no);
+                        // Set default date to today
+                        $('#paidOn').val(new Date().toISOString().split('T')[0]);
+
+                        // Set the amount field to the total due amount
+                        $('#payAmount').val(saleDetails.total_due);
+
+                        // Ensure the Add Payment modal is brought to the front
+                        $('#viewPaymentModal').modal('hide');
+                        $('#paymentModal').modal('show');
+
+                        // Validate the amount input
+                        $('#payAmount').off('input').on('input', function() {
+                            let amount = parseFloat($(this).val());
+                            let totalDue = parseFloat(saleDetails.total_due);
+                            if (amount > totalDue) {
+                                $('#amountError').text(
+                                    'The given amount exceeds the total due amount.'
+                                ).show();
+                                $(this).val(totalDue);
+                            } else {
+                                $('#amountError').hide();
+                            }
+                        });
+
+                        $('#paymentModal').modal('show');
+                    } else {
+                        console.error('Sales details data is not in the expected format.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching sales details:', error);
+                }
+            });
+        });
+
+        // Event handler for view payments button
+        $('#salesTable tbody').on('click', 'button.view-payments', function(event) {
+            event.preventDefault();
+            var saleId = $(this).val();
+            $('#viewPaymentModal').data('sale-id', saleId);
+            $.ajax({
+                url: '/sales_details/' + saleId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.salesDetails) {
+                        const saleDetails = response.salesDetails;
+                        const customer = saleDetails.customer;
+
+                        // Populate view payments modal fields
+                        $('#viewPaymentModalLabel').text('View Payments ( Reference No: ' +
+                            saleDetails.invoice_no + ' )');
+                        $('#viewCustomerDetail').text(customer.first_name + ' ' + customer
+                            .last_name);
+                        $('#viewBusinessDetail').text(saleDetails.location.name);
+                        $('#viewReferenceNo').text(saleDetails.invoice_no);
+                        $('#viewDate').text(saleDetails.sales_date);
+                        $('#viewPurchaseStatus').text(saleDetails.status);
+                        $('#viewPaymentStatus').text(saleDetails.payment_status);
+
+                        const paymentsTableBody = $('#viewPaymentModal table tbody');
+                        paymentsTableBody.empty();
+                        if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
+                            saleDetails.payments.forEach((payment) => {
+                                const paymentRow = $('<tr>');
+                                paymentRow.append('<td>' + payment.payment_date +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.reference_no +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.amount +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.payment_method +
+                                    '</td>');
+                                paymentRow.append('<td>' + payment.notes + '</td>');
+                                paymentRow.append('<td>' + 'Account Name' +
+                                    '</td>'); // Replace with actual account name
+                                paymentRow.append(
+                                    '<td><button type="button" value="' +
+                                    payment.id +
+                                    '" class="btn btn-outline-warning btn-sm edit-payment"><i class="feather-edit text-warning me-1"></i>Edit</button></td>'
+                                );
+                                paymentRow.append(
+                                    '<td><button type="button" value="' +
+                                    payment.id +
+                                    '" class="btn btn-outline-danger btn-sm delete-payment"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>'
+                                );
+                                paymentsTableBody.append(paymentRow);
+                            });
+                        } else {
+                            paymentsTableBody.append(
+                                '<tr><td colspan="7" class="text-center">No records found</td></tr>'
+                            );
+                        }
+
+                        $('#viewPaymentModal').modal('show');
+                    } else {
+                        console.error('Sales details data is not in the expected format.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching sales details:', error);
+                }
+            });
+        });
+
+        // Event handler for delete payment button
+        $(document).on('click', 'button.delete-payment', function() {
+            var paymentId = $(this).val();
+            if (confirm('Are you sure you want to delete this payment?')) {
+                $.ajax({
+                    url: '/payments/' + paymentId,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    success: function(response) {
+                        toastr.success('Payment deleted successfully.', 'Deleted');
+                        $('#viewPaymentModal').modal('hide');
+                        fetchPurchases();
+                    },
+                    error: function(xhr) {
+                        toastr.error(xhr.responseJSON.message);
+                    }
                 });
-            } else {
-                console.error('Sales data is not in the expected format.');
             }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching sales data:', error);
-        }
-    });
-}
+        });
 
-// Call fetchData to load the data initially
-fetchData();
+        // Event handler for edit payment button
+        $(document).on('click', 'button.edit-payment', function() {
+            var paymentId = $(this).val();
+            $.ajax({
+                url: '/payments/' + paymentId,
+                type: 'GET',
+                success: function(response) {
+                    if (response.data) {
+                        const payment = response.data;
+                        const customer = payment.customer || {};
+                        const location = payment.location || {};
 
-// Event handler for view details button
-$('#salesTable tbody').on('click', 'button.view-details', function() {
-    var saleId = $(this).val();
-    $.ajax({
-        url: '/sales_details/' + saleId,
-        type: 'GET',
-        success: function(response) {
-            if (response.salesDetails) {
-                const saleDetails = response.salesDetails;
-                const customer = saleDetails.customer;
-                const location = saleDetails.location;
-                const products = saleDetails.products;
+                        // Populate edit payment modal fields
+                        $('#paymentModalLabel').text('Edit Payment - Reference No: ' + (
+                            payment.reference_no || 'N/A'));
+                        $('#paymentCustomerDetail').text((customer.first_name || 'N/A') +
+                            ' ' + (customer.last_name || ''));
+                        $('#paymentLocationDetails').text(location.name || 'N/A');
+                        $('#totalAmount').text(payment.final_total || 'N/A');
+                        $('#totalPaidAmount').text(payment.total_paid || 'N/A');
 
-                // Populate modal fields
-                $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails.invoice_no);
-                $('#customerDetails').text(customer.first_name + ' ' + customer.last_name);
-                $('#locationDetails').text(location.name);
-                $('#salesDetails').text('Date: ' + saleDetails.sales_date + ', Status: ' + saleDetails.status);
+                        $('#saleId').val(payment.reference_id);
+                        $('#payment_type').val(payment.payment_type);
+                        $('#customer_id').val(payment.customer_id);
+                        $('#reference_no').val(payment.reference_no);
+                        $('#paidOn').val(payment.payment_date);
+                        $('#payAmount').val(payment.amount);
+                        $('#paymentNotes').val(payment.notes);
 
-                // Populate products table
-                const productsTableBody = $('#productsTable tbody');
-                productsTableBody.empty();
-                if (products && Array.isArray(products)) {
-                    products.forEach((product, index) => {
-                        const productRow = $('<tr>');
-                        productRow.append('<td>' + (index + 1) + '</td>');
-                        productRow.append('<td>' + product.product.product_name + '</td>');
-                        productRow.append('<td>' + product.product.sku + '</td>');
-                        productRow.append('<td>' + product.quantity + '</td>');
-                        productRow.append('<td>' + product.price + '</td>');
-                        productRow.append('<td>' + (product.quantity * product.price).toFixed(2) + '</td>');
-                        productsTableBody.append(productRow);
-                    });
+                        // Ensure the Edit Payment modal is brought to the front
+                        $('#viewPaymentModal').modal('hide');
+                        $('#paymentModal').modal('show');
+
+                        // Validate the amount input
+                        $('#payAmount').off('input').on('input', function() {
+                            let amount = parseFloat($(this).val());
+                            let totalDue = parseFloat(payment.total_due || 0);
+                            if (amount > totalDue) {
+                                $('#amountError').text(
+                                    'The given amount exceeds the total due amount.'
+                                ).show();
+                                $(this).val(totalDue);
+                            } else {
+                                $('#amountError').hide();
+                            }
+                        });
+
+                        $('#paymentModal').modal('show');
+                    } else {
+                        console.error('Payment data is not in the expected format.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching payment details:', error);
                 }
+            });
+        });
 
-                // Populate payment info table
-                const paymentInfoTableBody = $('#paymentInfoTable tbody');
-                paymentInfoTableBody.empty();
-                if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
-                    saleDetails.payments.forEach((payment) => {
-                        const paymentRow = $('<tr>');
-                        paymentRow.append('<td>' + payment.payment_date + '</td>');
-                        paymentRow.append('<td>' + payment.reference_no + '</td>');
-                        paymentRow.append('<td>' + payment.amount + '</td>');
-                        paymentRow.append('<td>' + payment.payment_method + '</td>');
-                        paymentRow.append('<td>' + payment.notes + '</td>');
-                        paymentInfoTableBody.append(paymentRow);
-                    });
+        // Function to print the modal content
+        window.printModal = function() {
+            var printContents = document.getElementById('saleDetailsModal').innerHTML;
+            var originalContents = document.body.innerHTML;
+            document.body.innerHTML = printContents;
+            window.print();
+            document.body.innerHTML = originalContents;
+            // location.reload();  // Reload the page to restore the original content and bindings
+        };
+
+        $('#savePayment').click(function() {
+            var formData = new FormData($('#paymentForm')[0]);
+
+            $.ajax({
+                url: '/api/payments',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    $('#paymentModal').modal('hide');
+                    document.getElementsByClassName('successSound')[0].play();
+                    toastr.success(response.message, 'Payment Added');
+                    fetchData();
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error adding payment:', error);
                 }
+            });
+        });
 
-                // Populate amount details table
-                const amountDetailsTableBody = $('#amountDetailsTable tbody');
-                amountDetailsTableBody.empty();
-                amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' + saleDetails.final_total + '</td></tr>');
-                amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' + saleDetails.total_paid + '</td></tr>');
-                amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' + saleDetails.total_due + '</td></tr>');
 
-                $('#saleDetailsModal').modal('show');
-            } else {
-                console.error('Sales details data is not in the expected format.');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching sales details:', error);
-        }
-    });
-});
-
-// Event handler for add payment button
-$('#salesTable tbody').on('click', 'button.add-payment', function() {
-    var saleId = $(this).val();
-    $.ajax({
-        url: '/sales_details/' + saleId,
-        type: 'GET',
-        success: function(response) {
-            if (response.salesDetails) {
-                const saleDetails = response.salesDetails;
-                const customer = saleDetails.customer;
-                const location = saleDetails.location;
-
-                // Populate payment modal fields
-                $('#paymentModalLabel').text('Add Payment - Invoice No: ' + saleDetails.invoice_no);
-                $('#paymentCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
-                $('#paymentLocationDetails').text(location.name);
-                $('#totalAmount').text(saleDetails.final_total);
-                $('#totalPaidAmount').text(saleDetails.total_paid);
-
-                $('#saleId').val(saleDetails.id);
-                $('#payment_type').val('sale');
-                $('#customer_id').val(customer.id);
-                $('#reference_no').val(saleDetails.invoice_no);
-                  // Set default date to today
-                  $('#paidOn').val(new Date().toISOString().split('T')[0]);
-
-                $('#paymentModal').modal('show');
-            } else {
-                console.error('Sales details data is not in the expected format.');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching sales details:', error);
-        }
-    });
-});
-
-// Event handler for view payments button
-$('#salesTable tbody').on('click', 'button.view-payments', function() {
-    var saleId = $(this).val();
-    $('#viewPaymentModal').data('sale-id', saleId);
-    $.ajax({
-        url: '/sales_details/' + saleId,
-        type: 'GET',
-        success: function(response) {
-            if (response.salesDetails) {
-                const saleDetails = response.salesDetails;
-                const customer = saleDetails.customer;
-
-                // Populate view payments modal fields
-                $('#viewPaymentModalLabel').text('View Payments ( Reference No: ' + saleDetails.invoice_no + ' )');
-                $('#viewCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
-                $('#viewBusinessDetail').text(saleDetails.location.name);
-                $('#viewReferenceNo').text(saleDetails.invoice_no);
-                $('#viewDate').text(saleDetails.sales_date);
-                $('#viewPurchaseStatus').text(saleDetails.status);
-                $('#viewPaymentStatus').text(saleDetails.payment_status);
-
-                const paymentsTableBody = $('#viewPaymentModal table tbody');
-                paymentsTableBody.empty();
-                if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
-                    saleDetails.payments.forEach((payment) => {
-                        const paymentRow = $('<tr>');
-                        paymentRow.append('<td>' + payment.payment_date + '</td>');
-                        paymentRow.append('<td>' + payment.reference_no + '</td>');
-                        paymentRow.append('<td>' + payment.amount + '</td>');
-                        paymentRow.append('<td>' + payment.payment_method + '</td>');
-                        paymentRow.append('<td>' + payment.notes + '</td>');
-                        paymentRow.append('<td>' + 'Account Name' + '</td>'); // Replace with actual account name
-                        paymentRow.append('<td><button type="button" value="' + payment.id + '" class="btn btn-outline-danger btn-sm delete-payment"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
-                        paymentsTableBody.append(paymentRow);
-                    });
-                } else {
-                    paymentsTableBody.append('<tr><td colspan="7" class="text-center">No records found</td></tr>');
-                }
-
-                $('#viewPaymentModal').modal('show');
-            } else {
-                console.error('Sales details data is not in the expected format.');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error fetching sales details:', error);
-        }
-    });
-});
-
-// Function to print the modal content
-window.printModal = function() {
-    var printContents = document.getElementById('saleDetailsModal').innerHTML;
-    var originalContents = document.body.innerHTML;
-    document.body.innerHTML = printContents;
-    window.print();
-    document.body.innerHTML = originalContents;
-    // location.reload();  // Reload the page to restore the original content and bindings
-};
-
-// Function to toggle payment fields based on payment method
-function togglePaymentFields() {
-    const paymentMethod = $('#paymentMethod').val();
-    if (paymentMethod === 'card') {
-        $('#creditCardFields').removeClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
-    } else if (paymentMethod === 'cheque') {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').removeClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
-    } else if (paymentMethod === 'bank_transfer') {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').removeClass('d-none');
-    } else {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
-    }
-}
-
-// Define the openPaymentModal function
-function openPaymentModal(event, saleId) {
-    // Implement the logic to open the payment modal
-    $('#paymentModal').modal('show');
-}
-
-$('#savePayment').click(function() {
-    var formData = new FormData($('#paymentForm')[0]);
-
-    $.ajax({
-        url: '/api/payments',
-        type: 'POST',
-        data: formData,
-        contentType: false,
-        processData: false,
-        success: function(response) {
-            $('#paymentModal').modal('hide');
-            fetchsales();
-            document.getElementsByClassName('successSound')[0].play();
-            toastr.success(response.message, 'Payment Added');
-        },
-        error: function(xhr, status, error) {
-            console.error('Error adding payment:', error);
-        }
-    });
-});
+        // Function to update calculations
         function updateCalculations() {
             let totalItems = 0;
             let netTotalAmount = 0;
@@ -437,15 +518,18 @@ $('#savePayment').click(function() {
 
             $('#total-items').text(totalItems.toFixed(2));
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#purchase-total').text(`Purchase Total: $ ${finalTotal.toFixed(2)}`);
-            $('#discount-display').text(`(-) $ ${discountAmount.toFixed(2)}`);
-            $('#tax-display').text(`(+) $ ${taxAmount.toFixed(2)}`);
+            $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
+            $('#discount-display').text(`(-) Rs. ${discountAmount.toFixed(2)}`);
+            $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
+            updatePaymentDue(finalTotal, discountAmount);
         }
 
-        // Function to update footer (dummy implementation, replace with actual logic)
-        function updateFooter() {
-            // Implement the logic to update the footer based on your specific requirements
-            console.log("Footer updated");
+        // Function to update payment due amount
+        function updatePaymentDue(finalTotal, discountAmount) {
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const discountNetTotalAmount = finalTotal - discountAmount;
+            const paymentDue = discountNetTotalAmount - paidAmount;
+            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
         }
 
         // Event listener for remove button click
@@ -485,13 +569,85 @@ $('#savePayment').click(function() {
                 updateCalculations();
             });
 
-        // Function to reset form and validation messages
-        function resetFormAndValidation() {
-            $('#addSalesForm')[0].reset(); // Reset the form
-            $('.error-message').html(''); // Clear error messages
-            $('#addSaleProduct').DataTable().clear().draw(); // Clear the data table
-            $('#addSalesForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addSalesForm').find('.is-validGreen').removeClass('is-validGreen');
+
+        $('#addSalesForm').on('submit', function(event) {
+            event.preventDefault();
+
+            const submitButton = $(this).find('button[type="submit"]');
+            submitButton.prop('disabled', true).text('Processing...');
+
+            const formData = new FormData(this);
+            formData.set('sales_date', convertDateFormat($('#sales_date').val()));
+
+            $('#addSaleProduct tbody tr').each(function(index) {
+                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                const unitPrice = parseFloat($(this).find('.price-input').val()) || 0;
+                const discount = parseFloat($(this).find('.discount-percent').val()) || 0;
+                const tax = parseFloat($(this).find('.product-tax').val()) || 0;
+                const priceType = $(this).find('.price-type').val() || 'retail';
+                const subtotal = (quantity * unitPrice) - discount + tax;
+
+                formData.append(`products[${index}][product_id]`, $(this).data('id'));
+                formData.append(`products[${index}][quantity]`, quantity);
+                formData.append(`products[${index}][unit_price]`, unitPrice);
+                formData.append(`products[${index}][discount]`, discount);
+                formData.append(`products[${index}][tax]`, tax);
+                formData.append(`products[${index}][subtotal]`, subtotal);
+                formData.append(`products[${index}][batch_id]`, $(this).find('.batch-dropdown')
+                    .val());
+                formData.append(`products[${index}][price_type]`, priceType);
+            });
+
+            if (!$('#addSalesForm').valid()) {
+                document.getElementsByClassName('warningSound')[0].play();
+                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+                submitButton.prop('disabled', false).text('Save');
+                return;
+            }
+
+            const saleId = $('#sale_id').val();
+            const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+
+            $.ajax({
+                url: url,
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                processData: false,
+                contentType: false,
+                data: formData,
+                success: function(response) {
+                    submitButton.prop('disabled', false).text('Save');
+                    if (response.message) {
+                        toastr.success(response.message, 'Success');
+                        resetFormAndValidation();
+                        window.location.href = '/list-sale';
+                        if (response.invoice_html) {
+                            $('#invoiceContainer').html(response.invoice_html);
+                        }
+                    } else {
+                        toastr.error('Failed to add sale.', 'Error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    submitButton.prop('disabled', false).text('Save');
+                    console.error('Error adding sale:', error);
+                    toastr.error('Something went wrong while adding the sale.', 'Error');
+                }
+            });
+        });
+
+
+        // Function to convert date format from DD-MM-YYYY to YYYY-MM-DD
+        function convertDateFormat(dateStr) {
+            const [day, month, year] = dateStr.split('-');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Function to update footer totals
+        function updateFooter() {
+            updateTotals();
         }
 
         // Fetch locations using AJAX
@@ -605,7 +761,7 @@ $('#savePayment').click(function() {
                 return;
             }
 
-            $("#productSearchInput").autocomplete({
+            const autocompleteInstance = $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase();
                     const filteredProducts = allProducts.filter(product =>
@@ -625,13 +781,21 @@ $('#savePayment').click(function() {
                     addProductToTable(ui.item.product);
                     return false;
                 }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
-            };
+            }).autocomplete("instance");
+
+            if (autocompleteInstance) {
+                console.log('Autocomplete instance initialized successfully.');
+                autocompleteInstance._renderItem = function(ul, item) {
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
+            } else {
+                console.error('Failed to initialize autocomplete instance.');
+            }
         }
 
+        // Function to get batches
         function getBatches(product, selectedBatchId, isEditing) {
             if (!Array.isArray(product.batches)) {
                 return [];
@@ -656,25 +820,27 @@ $('#savePayment').click(function() {
             }
         }
 
+        // Function to add product to table
         function addProductToTable(product, selectedBatchId = null, isEditing = false) {
-    // Validate product data
-    if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
-        console.error("Invalid product data:", product);
-        return;
-    }
+            // Validate product data
+            if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
+                console.error("Invalid product data:", product);
+                return;
+            }
 
-    // Set default quantity if it's not provided
-    if (typeof product.quantity === 'undefined') {
-        product.quantity = 1;
-    }
+            // Set default quantity if it's not provided
+            if (typeof product.quantity === 'undefined') {
+                product.quantity = 1;
+            }
 
-    const batches = getBatches(product, selectedBatchId, isEditing);
+            const batches = getBatches(product, selectedBatchId, isEditing);
 
-    const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
-    const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
+            const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch
+                .batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
+            const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
 
-    // Generate batch options
-    const batchOptions = batches.map(batch => `
+            // Generate batch options
+            const batchOptions = batches.map(batch => `
         <option value="${batch.batch_id}"
                 data-price="${batch.batch_price}"
                 data-quantity="${batch.batch_quantity}"
@@ -684,7 +850,7 @@ $('#savePayment').click(function() {
         </option>
     `).join('');
 
-    const newRow = `
+            const newRow = `
         <tr data-id="${product.id}">
             <td>${product.name || '-'} <br><span style="font-size:12px;">Current stock: ${totalQuantity}</span>
                 <select class="form-select batch-dropdown" aria-label="Select Batch">
@@ -713,218 +879,144 @@ $('#savePayment').click(function() {
         </tr>
     `;
 
-    const $newRow = $(newRow);
-    $('#addSaleProduct').DataTable().row.add($newRow).draw();
-    allProducts = allProducts.filter(p => p.id !== product.id);
+            const $newRow = $(newRow);
+            $('#addSaleProduct').DataTable().row.add($newRow).draw();
+            allProducts = allProducts.filter(p => p.id !== product.id);
 
-    // Update footer and set up event listeners
-    updateFooter();
-    toastr.success('Product added to the table!', 'Success');
+            // Update footer and set up event listeners
+            updateFooter();
+            toastr.success('Product added to the table!', 'Success');
 
-    // Event listeners for row updates
-    const quantityInput = $newRow.find('.quantity-input');
-    const priceInput = $newRow.find('.price-input');
-    const batchDropdown = $newRow.find('.batch-dropdown');
+            // Event listeners for row updates
+            const quantityInput = $newRow.find('.quantity-input');
+            const priceInput = $newRow.find('.price-input');
+            const batchDropdown = $newRow.find('.batch-dropdown');
 
-    $newRow.find('.remove-btn').on('click', function(event) {
-        event.preventDefault(); // Prevent form submission
-        var row = $(this).closest('tr');
-        $('#confirmRemoveModal').data('row', row).modal('show');
-    });
-
-    $newRow.find('.quantity-minus').on('click', () => {
-        if (quantityInput.val() > 1) {
-            quantityInput.val(quantityInput.val() - 1);
-            updateTotals();
-        }
-    });
-
-    $newRow.find('.quantity-plus').on('click', () => {
-        let newQuantity = parseInt(quantityInput.val(), 10) + 1;
-        const selectedOption = batchDropdown.find(':selected');
-        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
-
-        if (newQuantity > maxQuantity) {
-            document.getElementsByClassName('errorSound')[0].play();
-            toastr.error(`You cannot add more than ${maxQuantity} units of this product.`, 'Error');
-        } else {
-            quantityInput.val(newQuantity);
-            updateTotals();
-        }
-    });
-
-    quantityInput.on('input', () => {
-        const quantityValue = parseInt(quantityInput.val(), 10);
-        const selectedOption = batchDropdown.find(':selected');
-        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
-
-        if (quantityValue > maxQuantity) {
-            quantityInput.val(maxQuantity);
-            document.getElementsByClassName('errorSound')[0].play();
-            toastr.error(`You cannot add more than ${maxQuantity} units of this product.`, 'Error');
-        }
-        updateTotals();
-    });
-
-    priceInput.on('input', () => {
-        updateTotals();
-    });
-
-    batchDropdown.on('change', () => {
-        const selectedOption = batchDropdown.find(':selected');
-        const batchPrice = parseFloat(selectedOption.data('price')) || 0;
-        const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10);
-
-        if (quantityInput.val() > batchQuantity) {
-            quantityInput.val(batchQuantity);
-            toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
-        }
-        priceInput.val(batchPrice.toFixed(2));
-        const subtotal = parseFloat(quantityInput.val()) * batchPrice;
-        $newRow.find('.subtotal').text(subtotal.toFixed(2));
-        quantityInput.attr('max', batchQuantity);
-        updateTotals();
-    });
-}
-
-// Function to update row totals
-function updateRow($row) {
-    const batchElement = $row.find('.batch-dropdown option:selected');
-    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-    const price = parseFloat(batchElement.data('price')) || 0;
-    const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-    const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
-
-    if (quantity > batchQuantity) {
-        alert('Requested quantity exceeds available batch quantity.');
-        $row.find('.quantity-input').val(batchQuantity);
-        quantity = batchQuantity;
-    }
-
-    const subTotal = quantity * price;
-    const discountAmount = subTotal * (discountPercent / 100);
-    const netCost = subTotal - discountAmount;
-    const lineTotal = netCost;
-
-    $row.find('.subtotal').text(subTotal.toFixed(2));
-    $row.find('.net-cost').text(netCost.toFixed(2));
-    $row.find('.line-total').text(lineTotal.toFixed(2));
-    $row.find('.retail-price').text(price.toFixed(2));
-
-    // Update batch quantity if the quantity is updated
-    batchElement.data('quantity', batchQuantity - quantity);
-}
-
-function updateTotals() {
-    let totalItems = 0;
-    let netTotalAmount = 0;
-
-    $('#addSaleProduct tbody tr').each(function() {
-        totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
-        netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
-    });
-
-    $('#total-items').text(totalItems.toFixed(2));
-    $('#net-total-amount').text(netTotalAmount.toFixed(2));
-
-    const discountType = $('#discount_type').val();
-    const discountAmount = parseFloat($('#discount_amount').val()) || 0;
-    let discountNetTotalAmount = netTotalAmount;
-
-    if (discountType === 'percentage') {
-        discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
-    } else if (discountType === 'fixed') {
-        discountNetTotalAmount -= discountAmount;
-    }
-
-    $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
-
-    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-    const paymentDue = discountNetTotalAmount - paidAmount;
-    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-}
-
-        $('#addSalesForm').on('submit', function(event) {
-            event.preventDefault();
-
-            const formData = new FormData(this);
-
-            // Convert sales_date to the correct format
-            const salesDate = $('#sales_date').val();
-            formData.set('sales_date', convertDateFormat(salesDate));
-
-            // Append the products separately since they are not part of the form fields
-            $('#addSaleProduct tbody tr').each(function(index) {
-                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                const unitPrice = parseFloat($(this).find('.price-input').val()) || 0;
-                const discount = parseFloat($(this).find('.discount-percent').val()) || 0;
-                const tax = parseFloat($(this).find('.product-tax').val()) || 0;
-                const priceType = $(this).find('.price-type').val() ||
-                    'retail'; // Assuming there's a hidden or default input for price_type
-
-                // Calculate the subtotal
-                const subtotal = (quantity * unitPrice) - discount + tax;
-
-                formData.append(`products[${index}][product_id]`, $(this).data('id'));
-                formData.append(`products[${index}][quantity]`, quantity);
-                formData.append(`products[${index}][unit_price]`, unitPrice);
-                formData.append(`products[${index}][discount]`, discount);
-                formData.append(`products[${index}][tax]`, tax);
-                formData.append(`products[${index}][subtotal]`, subtotal);
-                formData.append(`products[${index}][batch_id]`, $(this).find('.batch-dropdown')
-                    .val());
-                formData.append(`products[${index}][price_type]`,
-                    priceType); // Add price_type to form data
+            $newRow.find('.remove-btn').on('click', function(event) {
+                event.preventDefault(); // Prevent form submission
+                var row = $(this).closest('tr');
+                $('#confirmRemoveModal').data('row', row).modal('show');
             });
 
-            console.log("Sales data:", formData);
-
-            // Validate the form before submitting
-            if (!$('#addSalesForm').valid()) {
-                document.getElementsByClassName('warningSound')[0].play(); // for sound
-                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
-                return; // Return if form is not valid
-            }
-
-            // Determine if we are updating or storing a new sale
-            const saleId = $('#sale_id')
-                .val(); // Assuming there's a hidden input field with the sale ID
-            const url = saleId ? `/api/sales/update/${saleId}` : '/api/sales/store';
-            const method = 'POST';
-            $.ajax({
-                url: url,
-                method: method,
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                processData: false,
-                contentType: false,
-                data: formData,
-                success: function(response) {
-                    console.log('Response:', response); // Log the response
-                    if (response.message) {
-                        toastr.success(response.message, 'Success');
-                        resetFormAndValidation();
-                        window.location.href = '/list-sale';
-                        // Display the invoice if it exists
-                        if (response.invoice_html) {
-                            $('#invoiceContainer').html(response.invoice_html);
-                        }
-                    } else {
-                        toastr.error('Failed to add sale.', 'Error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error adding sale:', error);
-                    toastr.error('Something went wrong while adding the sale.', 'Error');
+            $newRow.find('.quantity-minus').on('click', () => {
+                if (quantityInput.val() > 1) {
+                    quantityInput.val(quantityInput.val() - 1);
+                    updateTotals();
                 }
             });
-        });
 
-        // Function to convert date format from DD-MM-YYYY to YYYY-MM-DD
-        function convertDateFormat(dateStr) {
-            const [day, month, year] = dateStr.split('-');
-            return `${year}-${month}-${day}`;
+            $newRow.find('.quantity-plus').on('click', () => {
+                let newQuantity = parseInt(quantityInput.val(), 10) + 1;
+                const selectedOption = batchDropdown.find(':selected');
+                const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+                );
+
+                if (newQuantity > maxQuantity) {
+                    document.getElementsByClassName('errorSound')[0].play();
+                    toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+                        'Error');
+                } else {
+                    quantityInput.val(newQuantity);
+                    updateTotals();
+                }
+            });
+
+            quantityInput.on('input', () => {
+                const quantityValue = parseInt(quantityInput.val(), 10);
+                const selectedOption = batchDropdown.find(':selected');
+                const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+                );
+
+                if (quantityValue > maxQuantity) {
+                    quantityInput.val(maxQuantity);
+                    document.getElementsByClassName('errorSound')[0].play();
+                    toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+                        'Error');
+                }
+                updateTotals();
+            });
+
+            priceInput.on('input', () => {
+                updateTotals();
+            });
+
+            batchDropdown.on('change', () => {
+                const selectedOption = batchDropdown.find(':selected');
+                const batchPrice = parseFloat(selectedOption.data('price')) || 0;
+                const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+                );
+
+                if (quantityInput.val() > batchQuantity) {
+                    quantityInput.val(batchQuantity);
+                    toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
+                        'Error');
+                }
+                priceInput.val(batchPrice.toFixed(2));
+                const subtotal = parseFloat(quantityInput.val()) * batchPrice;
+                $newRow.find('.subtotal').text(subtotal.toFixed(2));
+                quantityInput.attr('max', batchQuantity);
+                updateTotals();
+            });
+        }
+
+        // Function to update row totals
+        function updateRow($row) {
+            const batchElement = $row.find('.batch-dropdown option:selected');
+            const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+            const price = parseFloat(batchElement.data('price')) || 0;
+            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+            const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
+
+            if (quantity > batchQuantity) {
+                alert('Requested quantity exceeds available batch quantity.');
+                $row.find('.quantity-input').val(batchQuantity);
+                quantity = batchQuantity;
+            }
+
+            const subTotal = quantity * price;
+            const discountAmount = subTotal * (discountPercent / 100);
+            const netCost = subTotal - discountAmount;
+            const lineTotal = netCost;
+
+            $row.find('.subtotal').text(subTotal.toFixed(2));
+            $row.find('.net-cost').text(netCost.toFixed(2));
+            $row.find('.line-total').text(lineTotal.toFixed(2));
+            $row.find('.retail-price').text(price.toFixed(2));
+
+            // Update batch quantity if the quantity is updated
+            batchElement.data('quantity', batchQuantity - quantity);
+        }
+
+        function updateTotals() {
+            let totalItems = 0;
+            let netTotalAmount = 0;
+
+            $('#addSaleProduct tbody tr').each(function() {
+                totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
+                netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
+            });
+
+            $('#total-items').text(totalItems.toFixed(2));
+            $('#net-total-amount').text(netTotalAmount.toFixed(2));
+
+            const discountType = $('#discount_type').val();
+            const discountAmount = parseFloat($('#discount_amount').val()) || 0;
+            let discountNetTotalAmount = netTotalAmount;
+
+            if (discountType === 'percentage') {
+                discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
+            } else if (discountType === 'fixed') {
+                discountNetTotalAmount -= discountAmount;
+            }
+
+            $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
+
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const paymentDue = discountNetTotalAmount - paidAmount;
+            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
         }
 
         // Function to reset form and validation messages
@@ -936,139 +1028,16 @@ function updateTotals() {
             $('#addSalesForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
-        function updateFooter() {
-    updateTotals();
-}
-
-        // $('#salesTable tbody').on('click', 'button.view-details', function() {
-        //     var saleId = $(this).val();
-        //     $.ajax({
-        //         url: '/sales_details/' + saleId,
-        //         type: 'GET',
-        //         success: function(response) {
-        //             if (response.salesDetails) {
-        //                 const saleDetails = response.salesDetails;
-        //                 const customer = saleDetails.customer;
-        //                 const location = saleDetails.location;
-        //                 const products = saleDetails.products;
-
-        //                 // Populate modal fields
-        //                 $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
-        //                     .invoice_no);
-        //                 $('#customerDetails').text(customer.first_name + ' ' + customer
-        //                     .last_name);
-        //                 $('#locationDetails').text(location.name);
-        //                 $('#salesDetails').text('Date: ' + saleDetails.sales_date +
-        //                     ', Status: ' + saleDetails.status);
-
-        //                 // Populate products table
-        //                 const productsTableBody = $('#productsTable tbody');
-        //                 productsTableBody.empty();
-        //                 if (products && Array.isArray(products)) {
-        //                     products.forEach((product, index) => {
-        //                         const productRow = $('<tr>');
-        //                         productRow.append('<td>' + (index + 1) + '</td>');
-        //                         productRow.append('<td>' + product.product
-        //                             .product_name + '</td>');
-        //                         productRow.append('<td>' + product.product.sku +
-        //                             '</td>');
-        //                         productRow.append('<td>' + product.quantity +
-        //                             '</td>');
-        //                         productRow.append('<td>' + product.price + '</td>');
-        //                         productRow.append('<td>' + (product.quantity *
-        //                             product.price).toFixed(2) + '</td>');
-        //                         productsTableBody.append(productRow);
-        //                     });
-        //                 }
-
-        //                 // Populate payment info table
-        //                 const paymentInfoTableBody = $('#paymentInfoTable tbody');
-        //                 paymentInfoTableBody.empty();
-        //                 if (saleDetails.payments && Array.isArray(saleDetails.payments)) {
-        //                     saleDetails.payments.forEach((payment) => {
-        //                         const paymentRow = $('<tr>');
-        //                         paymentRow.append('<td>' + payment.date + '</td>');
-        //                         paymentRow.append('<td>' + payment.reference_no +
-        //                             '</td>');
-        //                         paymentRow.append('<td>' + payment.amount +
-        //                             '</td>');
-        //                         paymentRow.append('<td>' + payment.payment_mode +
-        //                             '</td>');
-        //                         paymentRow.append('<td>' + payment.payment_note +
-        //                             '</td>');
-        //                         paymentInfoTableBody.append(paymentRow);
-        //                     });
-        //                 }
-
-        //                 // Populate amount details table
-        //                 const amountDetailsTableBody = $('#amountDetailsTable tbody');
-        //                 amountDetailsTableBody.empty();
-        //                 amountDetailsTableBody.append('<tr><td>Total Amount</td><td>' +
-        //                     saleDetails.total_amount + '</td></tr>');
-        //                 amountDetailsTableBody.append('<tr><td>Paid Amount</td><td>' +
-        //                     saleDetails.paid_amount + '</td></tr>');
-        //                 amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
-        //                     saleDetails.due_amount + '</td></tr>');
-
-        //                 // Populate activities table
-        //                 const activitiesTableBody = $('#activitiesTable tbody');
-        //                 activitiesTableBody.empty();
-        //                 if (saleDetails.activities && Array.isArray(saleDetails
-        //                         .activities)) {
-        //                     saleDetails.activities.forEach((activity) => {
-        //                         const activityRow = $('<tr>');
-        //                         activityRow.append('<td>' + activity.date +
-        //                             '</td>');
-        //                         activityRow.append('<td>' + activity.action +
-        //                             '</td>');
-        //                         activityRow.append('<td>' + activity.by + '</td>');
-        //                         activityRow.append('<td>' + activity.note +
-        //                             '</td>');
-        //                         activitiesTableBody.append(activityRow);
-        //                     });
-        //                 }
-
-        //                 $('#saleDetailsModal').modal('show');
-        //             } else {
-        //                 console.error('Sales details data is not in the expected format.');
-        //             }
-        //         },
-        //         error: function(xhr, status, error) {
-        //             console.error('Error fetching sales details:', error);
-        //         }
-        //     });
-        // });
-
-        // // Function to print the modal content
-        // window.printModal = function() {
-        //     var printContents = document.getElementById('saleDetailsModal').innerHTML;
-        //     var originalContents = document.body.innerHTML;
-        //     document.body.innerHTML = printContents;
-        //     window.print();
-        //     document.body.innerHTML = originalContents;
-        //     // location.reload();  // Reload the page to restore the original content and bindings
-        // };
-
-
         // // Use event delegation for the action buttons and stop event propagation
         $(document).on('click', '.edit_btn', function(event) {
             var id = $(this).val();
             window.location.href = `/sales/edit/${id}`;
         });
 
-        // Extract the sale ID from the URL and fetch data if editing
-        const pathSegments = window.location.pathname.split('/');
-        const saleId = pathSegments[pathSegments.length - 1] === 'add_sale' ? null : pathSegments[pathSegments
-            .length - 1];
-
-        if (saleId) {
-            fetchSaleData(saleId);
-        }
-
-        // Fetch sale data for editing
+        // Function to fetch sale data for editing
         function fetchSaleData(saleId) {
             $.ajax({
-                url: `/api/sales/edit/${saleId}`,
+                url: `/sales/edit/${saleId}`,
                 method: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1080,12 +1049,25 @@ function updateTotals() {
                     }
                 },
                 error: function(xhr, status, error) {
+                    if (xhr.status === 404) {
+                        toastr.error('Sale not found.', 'Error');
+                    } else {
+                        toastr.error('Something went wrong while fetching the sale data.', 'Error');
+                    }
                     console.error('Error fetching sale data:', error);
-                    toastr.error('Something went wrong while fetching the sale data.', 'Error');
                 }
             });
         }
 
+        // Extract the sale ID from the URL and fetch data if editing
+        $(document).ready(function() {
+            const pathSegments = window.location.pathname.split('/');
+            const saleId = pathSegments[pathSegments.length - 1];
+
+            if (saleId && saleId !== 'add-sale' && saleId !== 'list-sale') {
+                fetchSaleData(saleId);
+            }
+        });
         // Populate form with sale data
         function populateForm(sale) {
             $('#sale_id').val(sale.id);

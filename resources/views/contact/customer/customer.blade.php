@@ -43,15 +43,14 @@
                                     <th>Last Name</th>
                                     <th>Mobile No</th>
                                     <th>Email</th>
-                                    <th>Contact ID</th>
-                                    <th>Contact Type</th>
-                                    <th>Date</th>
-                                    <th>Assign To</th>
+                                    <th>Address</th>
                                     <th>Opening Balance</th>
+                                    <th>Total Sale Due</th>
+                                    <th>Total Return Due</th>
                                     <th>Action</th>
-
                                 </tr>
                             </thead>
+
 
                             <tbody>
                             </tbody>

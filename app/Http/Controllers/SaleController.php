@@ -11,8 +11,11 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\SalesPayment;
+use App\Models\SalesReturn;
 use App\Models\StockHistory;
 use App\Models\Transaction;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -51,33 +54,43 @@ class SaleController extends Controller
 
     public function salesDetails($id)
     {
-        $salesDetails = Sale::with('products.product', 'customer', 'location','payments')->findOrFail($id);
-        return response()->json(['salesDetails' => $salesDetails], 200);
+        try {
+            $salesDetails = Sale::with('products.product', 'customer', 'location', 'payments')->findOrFail($id);
+            return response()->json(['salesDetails' => $salesDetails], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Sale not found'], 404);
+        }
     }
 
     public function edit($id)
     {
-        $sale = Sale::with('products.product.batches', 'customer', 'location','payments')->findOrFail($id);
+        try {
+            $sale = Sale::with('products.product.batches', 'customer', 'location', 'payments')->findOrFail($id);
 
-        foreach ($sale->products as $product) {
-            // Use the Sale model's method to get batch quantity plus sold
-            $product->batch_quantity_plus_sold = $sale->getBatchQuantityPlusSold(
-                $product->batch_id,
-                $sale->location_id,
-                $product->product_id
-            );
+            foreach ($sale->products as $product) {
+                // Use the Sale model's method to get batch quantity plus sold
+                $product->batch_quantity_plus_sold = $sale->getBatchQuantityPlusSold(
+                    $product->batch_id,
+                    $sale->location_id,
+                    $product->product_id
+                );
+            }
+
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 200,
+                    'sales' => $sale,
+                ]);
+            }
+
+            return view('sell.add_sale', compact('sale'));
+        } catch (ModelNotFoundException $e) {
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json(['message' => 'Sale not found'], 404);
+            }
+            return redirect()->route('list-sale')->with('error', 'Sale not found.');
         }
-
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json([
-                'status' => 200,
-                'sales' => $sale,
-            ]);
-        }
-
-        return view('sell.add_sale', compact('sale'));
     }
-
     public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
@@ -108,23 +121,17 @@ class SaleController extends Controller
 
         try {
             $sale = DB::transaction(function () use ($request, $id) {
-                // Determine if we are updating or creating a new sale
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
-
-                // Generate the reference number if creating a new sale
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-                // Calculate the final total
                 $finalTotal = array_reduce($request->products, function ($carry, $product) {
                     return $carry + $product['subtotal'];
                 }, 0);
 
-                // Calculate the total due
                 $totalPaid = $request->total_paid ?? 0;
                 $totalDue = $finalTotal - $totalPaid;
 
-                // Update or create the sale
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -134,10 +141,9 @@ class SaleController extends Controller
                     'reference_no' => $referenceNo,
                     'final_total' => $finalTotal,
                     'total_paid' => $totalPaid,
-                    'total_due' => $totalDue, // Ensure total_due is set
+                    'total_due' => $totalDue,
                 ])->save();
 
-                // Restore stock for existing sale products if updating
                 if ($isUpdate) {
                     foreach ($sale->products as $product) {
                         $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
@@ -145,7 +151,6 @@ class SaleController extends Controller
                     }
                 }
 
-                // Process each sold product and handle stock
                 foreach ($request->products as $productData) {
                     $availableStock = $sale->getBatchQuantityPlusSold(
                         $productData['batch_id'],
@@ -160,26 +165,45 @@ class SaleController extends Controller
                     $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                 }
 
-                // Handle payment and ledger updates
+                // Insert ledger entry for the sale
+                Ledger::create([
+                    'transaction_date' => $request->sales_date,
+                    'reference_no' => $referenceNo,
+                    'transaction_type' => 'sale',
+                    'debit' => 0,
+                    'credit' => $finalTotal,
+                    'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
+                    'contact_type' => 'customer',
+                    'user_id' => $request->customer_id,
+                ]);
+
+                // Insert ledger entry for the payment if total_paid is provided
                 if ($totalPaid > 0) {
+                    Ledger::create([
+                        'transaction_date' => $request->payment_date ? date('Y-m-d H:i:s', strtotime($request->payment_date)) : now(),
+                        'reference_no' => $referenceNo,
+                        'transaction_type' => 'payments',
+                        'debit' => $totalPaid,
+                        'credit' => 0,
+                        'balance' => $this->calculateNewBalance($request->customer_id, $totalPaid, 'debit'),
+                        'contact_type' => 'customer',
+                        'user_id' => $request->customer_id,
+                    ]);
+
                     $this->handlePayment($request, $sale);
+                } else {
+                    $sale->updateTotalDue();
                 }
 
                 return $sale;
             });
 
-            // Fetch the customer object from the database
             $customer = Customer::findOrFail($sale->customer_id);
-
-            // Fetch the sale products with their related product details
             $invoiceItems = $sale->products()->with('product')->get();
-
-            // Calculate the net total
             $netTotal = $invoiceItems->sum(function ($item) {
                 return $item->subtotal;
             });
 
-            // Render the invoice view
             $html = view('sell.invoice1', [
                 'invoice' => $sale,
                 'customer' => $customer,
@@ -197,17 +221,22 @@ class SaleController extends Controller
         }
     }
 
+    private function calculateNewBalance($userId, $amount, $type)
+    {
+        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
+        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
+
+        return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
+    }
+
     private function handlePayment($request, $sale)
     {
-        // Calculate the total due and total paid for the sale
-        $totalPaid = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->sum('amount');
-        $totalDue = $sale->final_total - $totalPaid;
-
-        // If the paid amount exceeds total due, adjust it
+        $existingPayments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->sum('amount');
+        $totalDue = $sale->final_total - $existingPayments;
         $paidAmount = min($request->total_paid, $totalDue);
 
         $payment = Payment::create([
-            'payment_date' => $request->payment_date ? \Carbon\Carbon::parse($request->payment_date)->format('Y-m-d') : now()->format('Y-m-d H:i:s'),
+            'payment_date' => $request->payment_date ? Carbon::parse($request->payment_date)->format('Y-m-d') : now()->format('Y-m-d H:i:s'),
             'amount' => $paidAmount,
             'payment_method' => $request->payment_mode,
             'reference_no' => $sale->reference_no,
@@ -227,23 +256,22 @@ class SaleController extends Controller
             'cheque_given_by' => $request->cheque_given_by,
         ]);
 
-        Transaction::create([
-            'transaction_date' => $payment->payment_date,
-            'amount' => $payment->amount,
-            'transaction_type' => $payment->payment_type,
-            'reference_id' => $payment->id,
-        ]);
 
-        // Update sale payment status based on total due
+        $totalPaid = $existingPayments + $paidAmount;
+
         if ($totalDue - $paidAmount <= 0) {
             $sale->payment_status = 'Paid';
-        } elseif ($totalPaid + $paidAmount < $sale->final_total) {
+        } elseif ($totalPaid < $sale->final_total) {
             $sale->payment_status = 'Partial';
         } else {
             $sale->payment_status = 'Due';
         }
 
+        $sale->total_paid = $totalPaid;
+        $sale->total_due = $sale->final_total - $totalPaid;
         $sale->save();
+
+        $this->updateCustomerBalance($sale->customer_id);
     }
 
     private function updateCustomerBalance($customerId)
@@ -259,24 +287,15 @@ class SaleController extends Controller
         }
     }
 
-    private function getTotalDue($request, $paymentId = null)
-    {
-        $totalPaid = $paymentId ? Payment::where('id', '!=', $paymentId)->where('reference_id', $request->reference_id)->where('payment_type', $request->payment_type)->sum('amount') : 0;
-
-        if ($request->payment_type === 'sale') {
-            $sale = Sale::find($request->reference_id);
-            return $sale ? $sale->final_total - $totalPaid : 0;
-        }
-
-        return 0;
-    }
-
     private function processProductSale($productData, $saleId, $locationId, $stockType)
     {
         $quantityToDeduct = $productData['quantity'];
+        $remainingQuantity = $quantityToDeduct;
         $batchIds = [];
+        $totalDeductedQuantity = 0; // Variable to keep track of the total deducted quantity
 
         if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
+            // Specific batch selected
             $batch = Batch::findOrFail($productData['batch_id']);
             $locationBatch = LocationBatch::where('batch_id', $batch->id)
                 ->where('location_id', $locationId)
@@ -289,6 +308,8 @@ class SaleController extends Controller
             $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct, $stockType);
             $batchIds[] = $batch->id;
         } else {
+            // All batches selected
+            // Calculate total available quantity across all batches
             $totalAvailableQty = DB::table('location_batches')
                 ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
                 ->where('batches.product_id', $productData['product_id'])
@@ -300,7 +321,7 @@ class SaleController extends Controller
                 throw new \Exception('Insufficient stock to complete the sale.');
             }
 
-            $remainingQuantity = $quantityToDeduct;
+            // Deduct from batches using FIFO method
             $batches = DB::table('location_batches')
                 ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
                 ->where('batches.product_id', $productData['product_id'])
@@ -319,14 +340,16 @@ class SaleController extends Controller
                 $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
                 $batchIds[] = $batch->batch_id;
                 $remainingQuantity -= $deductQuantity;
+                $totalDeductedQuantity += $deductQuantity; // Accumulate the total deducted quantity
             }
         }
 
+        // Record the sales product using the total deducted quantity
         foreach ($batchIds as $batchId) {
             SalesProduct::create([
                 'sale_id' => $saleId,
                 'product_id' => $productData['product_id'],
-                'quantity' => $quantityToDeduct,
+                'quantity' => $quantityToDeduct, // Use the original quantity to be deducted
                 'price' => $productData['unit_price'],
                 'unit_price' => $productData['unit_price'],
                 'subtotal' => $productData['subtotal'],
@@ -419,7 +442,7 @@ class SaleController extends Controller
         }
 
         $products = $sale->products->map(function ($product) use ($sale) {
-            $currentQuantity = $this->getCurrentSaleQuantity($product->product_id);
+            $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id); // Fixed line
             $product->current_quantity = $currentQuantity;
             return $product;
         });
@@ -432,6 +455,7 @@ class SaleController extends Controller
             'products' => $products,
         ], 200);
     }
+
 
     public function searchSales(Request $request)
     {
@@ -459,39 +483,46 @@ class SaleController extends Controller
 
     public function editSale($id)
     {
-        $sale = Sale::with([
-            'products.product',
-            'products.batch.locationBatches',
-            'payments',
-            'customer',
-            'location',
-        ])->findOrFail($id);
+        try {
+            $sale = Sale::with([
+                'products.product',
+                'products.batch.locationBatches',
+                'payments',
+                'customer',
+                'location',
+            ])->findOrFail($id);
 
-        // Fetch all related records
-        $products = $sale->products;
-        $payments = $sale->payments;
-        $customer = $sale->customer;
-        $location = $sale->location;
+            // Fetch all related records
+            $products = $sale->products;
+            $payments = $sale->payments;
+            $customer = $sale->customer;
+            $location = $sale->location;
 
-        // Ensure authenticated user's location is retrieved separately if needed
-        $user = Auth::user();
-        $userLocation = Location::find($user->location_id);
+            // Ensure authenticated user's location is retrieved separately if needed
+            $user = Auth::user();
+            $userLocation = Location::find($user->location_id);
 
-        $response = [
-            'message' => 'Sale details fetched successfully.',
-            'sale' => $sale,
-            'products' => $products,
-            'payments' => $payments,
-            'customer' => $customer,
-            'location' => $location,
-            'user_location' => $userLocation
-        ];
+            $response = [
+                'message' => 'Sale details fetched successfully.',
+                'sale' => $sale,
+                'products' => $products,
+                'payments' => $payments,
+                'customer' => $customer,
+                'location' => $location,
+                'user_location' => $userLocation
+            ];
 
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json(['status' => 200, 'sale' => $response], 200);
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json(['status' => 200, 'sale' => $response], 200);
+            }
+
+            return view('sell.pos', compact('sale', 'products', 'payments', 'customer', 'location', 'userLocation'));
+        } catch (ModelNotFoundException $e) {
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json(['message' => 'Sale not found'], 404);
+            }
+            return redirect()->route('list-sale')->with('error', 'Sale not found.');
         }
-
-        return view('sell.pos', compact('sale', 'products', 'payments', 'customer', 'location', 'userLocation'));
     }
 
 

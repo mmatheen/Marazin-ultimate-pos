@@ -39,6 +39,35 @@ use App\Http\Controllers\{
     CartController,
     PaymentController
 };
+use App\Models\Payment;
+
+//testing
+
+Route::get('/getValue', function () {
+    $payment = Payment::find(2);
+
+    
+    $ledgerData = [
+        'transaction_date' => $payment->payment_date,
+        'reference_no' => $payment->reference_no,
+        'transaction_type' => $payment->payment_type,
+        // 'location' => $payment->reference->location ?? 'Not specified',
+        // 'payment_status' => $payment->reference->payment_status ?? 'due',
+        'debit' => in_array($payment->payment_type, ['purchase', 'purchase_return']) ? $payment->amount : 0,
+        'credit' => in_array($payment->payment_type, ['sale', 'sale_return_with_bill', 'sale_return_without_bill']) ? $payment->amount : 0,
+        'balance' => 0, // Will be calculated later
+        'payment_method' => $payment->payment_method,
+        // 'contact_type' => $contactType,
+        // 'user_id' => $contactType === 'supplier' ? $request->supplier_id : $request->customer_id,
+    ];
+
+    dump($ledgerData);
+
+    // $ledger = Ledger::create($ledgerData);
+
+    // Recalculate balance for the user and contact type
+    // Ledger::calculateBalance($ledger->user_id, $ledger->contact_type);
+});
 
 
 function set_active($route)
@@ -256,7 +285,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
         Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
-        // Sale Routes
         Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
         Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
         Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');

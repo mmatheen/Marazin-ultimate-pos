@@ -779,31 +779,36 @@
         });
 
 
-        const productId = window.location.pathname.split('/').pop();
+                // Extract the product ID from the URL and fetch data if valid
+        $(document).ready(function() {
+            const pathSegments = window.location.pathname.split('/');
+            const productId = pathSegments[pathSegments.length - 1];
 
-        fetchInitialDropdowns(() => {
-            $.ajax({
-                url: `/edit-product/${productId}`,
-                type: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        const product = response.message.product;
-                        const mainCategories = response.message.mainCategories;
-                        subCategories = response.message.subCategories;
-                        const brands = response.message.brands;
-                        const units = response.message.units;
-                        const locations = response.message.locations;
+            if (productId && productId !== 'add-product' && productId !== 'list-product') {
+                fetchInitialDropdowns(() => {
+                    $.ajax({
+                        url: `/edit-product/${productId}`,
+                        type: 'GET',
+                        success: function(response) {
+                            if (response.status === 200) {
+                                const product = response.message.product;
+                                const mainCategories = response.message.mainCategories;
+                                const subCategories = response.message.subCategories;
+                                const brands = response.message.brands;
+                                const units = response.message.units;
+                                const locations = response.message.locations;
 
-                        populateProductDetails(product, mainCategories, subCategories,
-                            brands, units, locations);
-                    } else {
-                        console.error('Error: ' + response.message);
-                    }
-                },
-                error: function() {
-                    console.error('An error occurred while fetching product details.');
-                }
-            });
+                                populateProductDetails(product, mainCategories, subCategories, brands, units, locations);
+                            } else {
+                                console.error('Error: ' + response.message);
+                            }
+                        },
+                        error: function() {
+                            console.error('An error occurred while fetching product details.');
+                        }
+                    });
+                });
+            }
         });
 
         $('#productTable').on('click', 'tr', function(e) {

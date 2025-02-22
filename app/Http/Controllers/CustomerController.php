@@ -1,237 +1,138 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use Illuminate\Support\Facades\Validator;
 
-
 class CustomerController extends Controller
 {
-    public function Customer(){
+    public function Customer()
+    {
         return view('contact.customer.customer');
     }
 
     public function index()
     {
-        $getValue = Customer::all();
-        if ($getValue->count() > 0) {
+        $customers = Customer::with(['sales', 'salesReturns'])->get()->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'prefix' => $customer->prefix,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'mobile_no' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'location_id' => $customer->location_id,
+                'opening_balance' => $customer->opening_balance,
+                'current_balance' => $customer->current_balance,
+                'total_sale_due' => $customer->total_sale_due,
+                'total_return_due' => $customer->total_return_due,
+            ];
+        });
 
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
-            ]);
-        }
+        return response()->json([
+            'status' => 200,
+            'message' => $customers,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
-        // dd($request->all());
-        $validator = Validator::make(
-            $request->all(),
-            [
-
-            'prefix' => 'required|string|max:10',  // Add max length if applicable
+        $validator = Validator::make($request->all(), [
+            'prefix' => 'required|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
-            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
-            'contact_id' => 'required|string|max:255',
-            'contact_type' => 'required|string|max:255',
-            'date' => 'required|string',
-            'assign_to' => 'required|string|max:255',
-            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
-
-            ]
-
-        );
+            'mobile_no' => 'required|numeric|digits_between:10,15',
+            'email' => 'required|email|max:255',
+            'address' => 'nullable|string|max:500',
+            'opening_balance' => 'required|numeric',
+            // 'location_id' => 'required|integer|exists:locations,id',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
-
-            $getValue = Customer::create([
-
-                'prefix' => $request->prefix,
-                'first_name' => $request->first_name ?? '',
-                'last_name' => $request->last_name ?? '',
-                'mobile_no' => $request->mobile_no ?? '',
-                'email' => $request->email ?? '',
-                'contact_id' => $request->contact_id ?? '',
-                'contact_type' => $request->contact_type ?? '',
-                'date' => $request->date ?? '',
-                'assign_to' => $request->assign_to ?? '',
-                'opening_balance' => $request->opening_balance ?? '',
-            ]);
-
-
-            if ($getValue) {
-                return response()->json([
-                    'status' => 200,
-                    'message' => "New Customer Details Created Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Something went wrong!"
-                ]);
-            }
         }
+
+        $customer = Customer::create($request->only([
+            'prefix',
+            'first_name',
+            'last_name',
+            'mobile_no',
+            'email',
+            'address',
+            'opening_balance',
+            // 'location_id',
+        ]));
+
+        return $customer ? response()->json(['status' => 200, 'message' => "New Customer Created Successfully!"])
+                         : response()->json(['status' => 500, 'message' => "Something went wrong!"]);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function show(int $id)
     {
-        $getValue = Customer::find($id);
-        if ($getValue) {
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Such Customer Found!"
-            ]);
-        }
+        $customer = Customer::find($id);
+        return $customer ? response()->json(['status' => 200, 'message' => $customer])
+                          : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function edit(int $id)
     {
-        $getValue = Customer::find($id);
-        if ($getValue) {
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Such Customer Found!"
-            ]);
-        }
+        return $this->show($id); // Reuse the show logic
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, int $id)
     {
-        $validator = Validator::make(
-            $request->all(),
-            [
-
-            'prefix' => 'required|string|max:10',  // Add max length if applicable
+        $validator = Validator::make($request->all(), [
+            'prefix' => 'required|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
-            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
-            'contact_type' => 'required|string|max:255',
-            'date' => 'required|string',
-            'assign_to' => 'required|string|max:255',
-            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
-            ]
-        );
-
+            'mobile_no' => 'required|numeric|digits_between:10,15',
+            'email' => 'required|email|max:255',
+            'address' => 'nullable|string|max:500',
+            'opening_balance' => 'required|numeric',
+            // 'location_id' => 'required|integer|exists:locations,id',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
-            $getValue = Customer::find($id);
-
-            if ($getValue) {
-                $getValue->update([
-
-                'prefix' => $request->prefix,
-                'first_name' => $request->first_name ?? '',
-                'last_name' => $request->last_name ?? '',
-                'mobile_no' => $request->mobile_no ?? '',
-                'email' => $request->email ?? '',
-                'contact_type' => $request->contact_type ?? '',
-                'date' => $request->date ?? '',
-                'assign_to' => $request->assign_to ?? '',
-                'opening_balance' => $request->opening_balance ?? '',
-
-                ]);
-                return response()->json([
-                    'status' => 200,
-                    'message' => "Old Customer  Details Updated Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "No Such Customer Found!"
-                ]);
-            }
         }
+
+        $customer = Customer::find($id);
+        if ($customer) {
+            $customer->update($request->only([
+                'prefix',
+                'first_name',
+                'last_name',
+                'mobile_no',
+                'email',
+                'address',
+                'opening_balance',
+                // 'location_id',
+            ]));
+
+            return response()->json(['status' => 200, 'message' => "Customer Details Updated Successfully!"]);
+        }
+
+        return response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function destroy(int $id)
     {
-        $getValue = Customer::find($id);
-        if ($getValue) {
-
-            $getValue->delete();
-            return response()->json([
-                'status' => 200,
-                'message' => "Customer Details Deleted Successfully!"
-            ]);
-        } else {
-
-            return response()->json([
-                'status' => 404,
-                'message' => "No Such Customer Found!"
-            ]);
+        $customer = Customer::find($id);
+        if ($customer) {
+            $customer->delete();
+            return response()->json(['status' => 200, 'message' => "Customer Details Deleted Successfully!"]);
         }
+
+        return response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
-
 }
-

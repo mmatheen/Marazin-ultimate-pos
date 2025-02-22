@@ -129,37 +129,38 @@
             $('#addAndEditSupplierModal').modal('show');
         });
 
-        // Fetch and Display Data
         function showFetchData() {
-            $.ajax({
-                url: '/supplier-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    var table = $('#supplier').DataTable();
-                    table.clear().draw();
-                    var counter = 1;
-                    response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter  + '</td>');
-                        row.append('<td>' + item.prefix + '</td>');
-                        row.append('<td>' + item.first_name + '</td>');
-                        row.append('<td>' + item.last_name + '</td>');
-                        row.append('<td>' + item.mobile_no + '</td>');
-                        row.append('<td>' + item.email + '</td>');
-                        // row.append('<td>' + item.contact_id + '</td>');
-                        // row.append('<td>' + item.contact_type + '</td>');
-                        // row.append('<td>' + item.date + '</td>');
-                        // row.append('<td>' + item.assign_to + '</td>');
-                        row.append('<td>' + item.opening_balance + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
-                        // row.append(actionDropdown);
-                        table.row.add(row).draw(false);
-                        counter++;
-                    });
-                },
+    $.ajax({
+        url: '/supplier-get-all',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            var table = $('#supplier').DataTable();
+            table.clear().draw();
+            response.message.forEach(function(item) {
+                let row = $('<tr>');
+                row.append('<td>' + item.id + '</td>'); // Supplier ID
+                row.append('<td>' + item.prefix + '</td>');
+                row.append('<td>' + item.first_name + '</td>');
+                row.append('<td>' + item.last_name + '</td>');
+                row.append('<td>' + item.full_name + '</td>');
+                row.append('<td>' + item.mobile_no + '</td>');
+                row.append('<td>' + item.email + '</td>');
+                row.append('<td>' + item.address + '</td>');
+                row.append('<td>' + (item.location_id || 'N/A') + '</td>');
+                row.append('<td>Rs ' + item.opening_balance + '</td>');
+                row.append('<td>Rs ' + item.current_balance + '</td>');
+                row.append('<td>Rs ' + item.total_purchase_due + '</td>');
+                row.append('<td>Rs ' + item.total_return_due + '</td>');
+                row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                table.row.add(row).draw(false);
             });
+        },
+        error: function(error) {
+            console.log("Error fetching data:", error);
         }
+    });
+}
 
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {

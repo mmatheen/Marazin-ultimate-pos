@@ -128,42 +128,40 @@
             $('#addAndEditCustomerModal').modal('show');
         });
 
-        // Fetch and Display Data
         function showFetchData() {
-            $.ajax({
-                url: '/customer-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    var table = $('#customer').DataTable();
-                    table.clear().draw();
-                    var counter = 1;
-                    response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter  + '</td>');
-                        row.append('<td>' + item.prefix + '</td>');
-                        row.append('<td>' + item.first_name + '</td>');
-                        row.append('<td>' + item.last_name + '</td>');
-                        row.append('<td>' + item.mobile_no + '</td>');
-                        row.append('<td>' + item.email + '</td>');
-                        row.append('<td>' + item.contact_id + '</td>');
-                        row.append('<td>' + item.contact_type + '</td>');
-                        row.append('<td>' + item.date + '</td>');
-                        row.append('<td>' + item.assign_to + '</td>');
-                        row.append('<td>' + item.opening_balance + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
-                        // row.append(actionDropdown);
-                        table.row.add(row).draw(false);
-                        counter++;
-                    });
-                },
+    $.ajax({
+        url: '/customer-get-all',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            var table = $('#customer').DataTable();
+            table.clear().draw();
+            var counter = 1;
+            response.message.forEach(function(item) {
+                let row = $('<tr>');
+                row.append('<td>' + counter + '</td>');
+                row.append('<td>' + item.prefix + '</td>');
+                row.append('<td>' + item.first_name + '</td>');
+                row.append('<td>' + item.last_name + '</td>');
+                row.append('<td>' + item.mobile_no + '</td>');
+                row.append('<td>' + item.email + '</td>');
+                row.append('<td>' + item.address + '</td>');
+                row.append('<td>' + item.opening_balance + '</td>');
+                row.append('<td>' + item.total_sale_due + '</td>');
+                row.append('<td>' + item.total_return_due + '</td>');
+                row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                table.row.add(row).draw(false);
+                counter++;
             });
-        }
+        },
+    });
+}
+
 
             // Show Edit Modal
             $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
-            $('#modalTitle').text('Edit Supplier');
+            $('#modalTitle').text('Edit Customer');
             $('#modalButton').text('Update');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text('');
@@ -177,15 +175,12 @@
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_prefix').val(response.message.prefix);
+                        $('#edit_prefix').val(response.message.prefix).trigger('change');
                         $('#edit_first_name').val(response.message.first_name);
                         $('#edit_last_name').val(response.message.last_name);
                         $('#edit_mobile_no').val(response.message.mobile_no);
                         $('#edit_email').val(response.message.email);
-                        $('#edit_contact_id').val(response.message.contact_id);
-                        $('#edit_contact_type').val(response.message.contact_type);
-                        $('#edit_date').val(response.message.date);
-                        $('#edit_assign_to').val(response.message.assign_to);
+                        $('#edit_address').val(response.message.address);
                         $('#edit_opening_balance').val(response.message.opening_balance);
                         $('#addAndEditCustomerModal').modal('show');
                     }

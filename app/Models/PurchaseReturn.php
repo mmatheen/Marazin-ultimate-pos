@@ -16,6 +16,9 @@ class PurchaseReturn extends Model
         'return_date',
         'attach_document',
         'return_total',
+        'total_paid',
+        'total_due',
+        'payment_status'
     ];
 
     public function products()
@@ -38,5 +41,16 @@ class PurchaseReturn extends Model
         return $this->hasMany(PurchaseReturnProduct::class, 'purchase_return_id', 'id');
     }
 
-}
+    public function payments()
+    {
+        return $this->hasMany(Payment::class, 'reference_id')->where('payment_type', 'purchase_return');
+    }
 
+    public function updateTotalDue()
+    {
+        $this->total_paid = $this->payments()->sum('amount');
+        $this->total_due = $this->return_total - $this->total_paid;
+        $this->save();
+    }
+
+}

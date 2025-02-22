@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Product;
 use App\Models\PaymentInfo;  // Ensure this is included at the top of your controller
 use App\Models\Batch;
+use App\Models\Ledger;
 use App\Models\Stock;
 use App\Models\PurchaseProduct;
 use Illuminate\Http\Request;
@@ -108,9 +109,43 @@ class PurchaseController extends Controller
 
             // Update supplier's balance
             $this->updateSupplierBalance($purchase->supplier_id);
+
+            // Insert ledger entry for the purchase
+            Ledger::create([
+                'transaction_date' => $request->purchase_date,
+                'reference_no' => $purchase->reference_no,
+                'transaction_type' => 'purchase',
+                'debit' => $request->final_total,
+                'credit' => 0,
+                'balance' => $this->calculateNewBalance($request->supplier_id, $request->final_total, 'debit'),
+                'contact_type' => 'supplier',
+                'user_id' => $request->supplier_id,
+            ]);
+
+            // Insert ledger entry for the payment if paid_amount is provided
+            if ($request->paid_amount > 0) {
+                Ledger::create([
+                    'transaction_date' => $request->paid_date ?? now(),
+                    'reference_no' => $purchase->reference_no,
+                    'transaction_type' => 'payments',
+                    'debit' => 0,
+                    'credit' => $request->paid_amount,
+                    'balance' => $this->calculateNewBalance($request->supplier_id, $request->paid_amount, 'credit'),
+                    'contact_type' => 'supplier',
+                    'user_id' => $request->supplier_id,
+                ]);
+            }
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
+    }
+
+    private function calculateNewBalance($userId, $amount, $type)
+    {
+        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'supplier')->orderBy('transaction_date', 'desc')->first();
+        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
+
+        return $type === 'debit' ? $previousBalance + $amount : $previousBalance - $amount;
     }
 
     private function processProducts($request, $purchase)

@@ -87,6 +87,7 @@
                                         <label for="invoiceNo" class="form-label">Invoice No.:</label>
                                         <input type="text" class="form-control" id="invoiceNo" name="invoiceNo" placeholder="Enter Invoice Number">
                                         <input type="hidden" class="form-control" id="sale-id" name="sale_id">
+                                        <input type="hidden" class="form-control" id="customer-id" name="customer_id">
                                     </div>
                                 </div>
                                 <div class="col-md-6 text-md-end">
@@ -94,6 +95,28 @@
                                     <p id="displayDate"><strong>Date:</strong> 01/16/2025</p>
                                     <p id="displayCustomer"><strong>Customer:</strong></p>
                                     <p id="displayLocation"><strong>Business Location:</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Selection Section for Without Bill -->
+                    <div class="card mb-4" id="customerSelectionSection" style="display: none;">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="customerId" class="form-label">Customer:</label>
+                                        <select id="customerId" name="customer_id" class="form-select">
+                                            <option value="">Select Customer</option>
+                                            <!-- Populate with customers -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" class="btn btn-primary mt-4" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                        Add New Customer
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -258,22 +281,24 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Function to toggle between invoice and product search sections
         function toggleSearchSections() {
             const withBill = document.getElementById('withBill').checked;
             const invoiceDetailsSection = document.getElementById('invoiceDetailsSection');
             const productSearchSection = document.getElementById('productSearchSection');
             const productsTableBody = document.getElementById('productsTableBody');
             const stockColumn = document.getElementById('stockColumn');
+            const customerSelectionSection = document.getElementById('customerSelectionSection');
 
             if (withBill) {
                 invoiceDetailsSection.style.display = 'block';
                 productSearchSection.style.display = 'none';
+                customerSelectionSection.style.display = 'none';
                 stockColumn.textContent = 'Sales Quantity';
                 setFieldState(true);
             } else {
                 invoiceDetailsSection.style.display = 'none';
                 productSearchSection.style.display = 'block';
+                customerSelectionSection.style.display = 'block';
                 stockColumn.textContent = 'Current Total Stock';
                 setFieldState(false);
             }

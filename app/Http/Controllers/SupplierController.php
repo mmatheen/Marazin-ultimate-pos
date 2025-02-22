@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Supplier;
+use App\Models\Ledger;
 use Illuminate\Support\Facades\Validator;
 
 class SupplierController extends Controller
@@ -14,59 +15,50 @@ class SupplierController extends Controller
 
     public function index()
     {
-        $getValue = Supplier::all();
-        if ($getValue->count() > 0) {
+        $suppliers = Supplier::with(['purchases', 'purchaseReturns'])->get()->map(function ($supplier) {
+            return [
+                'id' => $supplier->id,
+                'prefix' => $supplier->prefix,
+                'first_name' => $supplier->first_name,
+                'last_name' => $supplier->last_name,
+                'full_name' => $supplier->getFullNameAttribute(),
+                'mobile_no' => $supplier->mobile_no,
+                'email' => $supplier->email,
+                'address' => $supplier->address,
+                'location_id' => $supplier->location_id,
+                'opening_balance' => $supplier->opening_balance,
+                'current_balance' => $supplier->current_balance,
+                'total_purchase_due' => $supplier->getTotalPurchaseDueAttribute(),
+                'total_return_due' => $supplier->getTotalReturnDueAttribute(),
+            ];
+        });
 
+        if ($suppliers->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => $suppliers
             ]);
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Records Found!"
+                'message' => "No Suppliers Found"
             ]);
         }
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
-        // dd($request->all());
         $validator = Validator::make(
             $request->all(),
             [
-
-            'prefix' => 'required|string|max:10',  // Add max length if applicable
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
-            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
-            'address' => 'required|string|max:255',
-            // 'contact_id' => 'required|string|max:255',
-            // 'contact_type' => 'required|string|max:255',
-            // 'date' => 'required|string',
-            // 'assign_to' => 'required|string|max:255',
-            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
-
-
+                'prefix' => 'required|string|max:10',
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'mobile_no' => 'required|numeric|digits_between:10,15',
+                'email' => 'required|email|max:255',
+                'address' => 'required|string|max:255',
+                'opening_balance' => 'required|numeric',
             ]
-
         );
 
         if ($validator->fails()) {
@@ -75,24 +67,29 @@ class SupplierController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-
-            $getValue = Supplier::create([
-
+            $supplier = Supplier::create([
                 'prefix' => $request->prefix,
                 'first_name' => $request->first_name ?? '',
                 'last_name' => $request->last_name ?? '',
                 'mobile_no' => $request->mobile_no ?? '',
                 'email' => $request->email ?? '',
                 'address' => $request->address ?? '',
-                // 'contact_id' => $request->contact_id ?? '',
-                // 'contact_type' => $request->contact_type ?? '',
-                // 'date' => $request->date ?? '',
-                // 'assign_to' => $request->assign_to ?? '',
                 'opening_balance' => $request->opening_balance ?? 0,
             ]);
 
+            // Insert ledger entry for opening balance
+            if ($supplier) {
+                Ledger::create([
+                    'transaction_date' => now(),
+                    'reference_no' => 'OB-' . $supplier->id,
+                    'transaction_type' => 'opening_balance',
+                    'debit' => $request->opening_balance ?? 0,
+                    'credit' => 0,
+                    'balance' => $request->opening_balance ?? 0,
+                    'contact_type' => 'supplier',
+                    'user_id' => $supplier->id,
+                ]);
 
-            if ($getValue) {
                 return response()->json([
                     'status' => 200,
                     'message' => "New Supplier Details Created Successfully!"
@@ -106,12 +103,6 @@ class SupplierController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function show(int $id)
     {
         $getValue = Supplier::find($id);
@@ -128,12 +119,6 @@ class SupplierController extends Controller
         }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function edit(int $id)
     {
         $getValue = Supplier::find($id);
@@ -150,32 +135,20 @@ class SupplierController extends Controller
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, int $id)
     {
         $validator = Validator::make(
             $request->all(),
             [
-
-            'prefix' => 'required|string|max:10',  // Add max length if applicable
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
-            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
-            'address' => 'required|string|max:255',
-            // 'contact_type' => 'required|string|max:255',
-            // 'date' => 'required|string',
-            // 'assign_to' => 'required|string|max:255',
-            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
+                'prefix' => 'required|string|max:10',
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'mobile_no' => 'required|numeric|digits_between:10,15',
+                'email' => 'required|email|max:255',
+                'address' => 'required|string|max:255',
+                'opening_balance' => 'required|numeric',
             ]
         );
-
 
         if ($validator->fails()) {
             return response()->json([
@@ -183,28 +156,35 @@ class SupplierController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-            $getValue = Supplier::find($id);
+            $supplier = Supplier::find($id);
 
-            if ($getValue) {
-                $getValue->update([
-
-                'prefix' => $request->prefix,
-                'first_name' => $request->first_name ?? '',
-                'last_name' => $request->last_name ?? '',
-                'mobile_no' => $request->mobile_no ?? '',
-                'email' => $request->email ?? '',
-                'address' => $request->address ?? '',
-
-                // 'contact_type' => $request->contact_type ?? '',
-                // 'date' => $request->date ?? '',
-                // 'assign_to' => $request->assign_to ?? '',
-                'opening_balance' => $request->opening_balance ?? 0,
-                'current_balance' => $request->opening_balance ?? 0, // Explicitly setting current_balance
-
+            if ($supplier) {
+                $supplier->update([
+                    'prefix' => $request->prefix,
+                    'first_name' => $request->first_name ?? '',
+                    'last_name' => $request->last_name ?? '',
+                    'mobile_no' => $request->mobile_no ?? '',
+                    'email' => $request->email ?? '',
+                    'address' => $request->address ?? '',
+                    'opening_balance' => $request->opening_balance ?? 0,
+                    'current_balance' => $request->opening_balance ?? 0,
                 ]);
+
+                // Insert ledger entry for updated opening balance
+                Ledger::create([
+                    'transaction_date' => now(),
+                    'reference_no' => 'OB-' . $supplier->id,
+                    'transaction_type' => 'opening_balance',
+                    'debit' => $request->opening_balance ?? 0,
+                    'credit' => 0,
+                    'balance' => $request->opening_balance ?? 0,
+                    'contact_type' => 'supplier',
+                    'user_id' => $supplier->id,
+                ]);
+
                 return response()->json([
                     'status' => 200,
-                    'message' => "Old Supplier  Details Updated Successfully!"
+                    'message' => "Old Supplier Details Updated Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -215,24 +195,16 @@ class SupplierController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function destroy(int $id)
     {
-        $getValue = Supplier::find($id);
-        if ($getValue) {
-
-            $getValue->delete();
+        $supplier = Supplier::find($id);
+        if ($supplier) {
+            $supplier->delete();
             return response()->json([
                 'status' => 200,
                 'message' => "Supplier Details Deleted Successfully!"
             ]);
         } else {
-
             return response()->json([
                 'status' => 404,
                 'message' => "No Such Supplier Found!"

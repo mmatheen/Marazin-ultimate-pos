@@ -7,7 +7,6 @@ use App\Models\Purchase;
 use App\Models\Transaction;
 use App\Models\Supplier;
 use App\Models\Customer;
-use App\Models\Ledger;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
@@ -85,10 +84,8 @@ class PaymentController extends Controller
 
             if (in_array($request->payment_type, ['purchase', 'purchase_return'])) {
                 $this->updateSupplierBalance($request->supplier_id);
-                $this->createLedgerEntry($request, $payment, 'supplier');
             } else {
                 $this->updateCustomerBalance($request->customer_id);
-                $this->createLedgerEntry($request, $payment, 'customer');
             }
         });
 
@@ -99,6 +96,9 @@ class PaymentController extends Controller
     {
         DB::transaction(function () use ($payment) {
             $oldAmount = $payment->amount;
+
+            $transaction = Transaction::where('reference_id', $payment->id)->where('transaction_type', $payment->payment_type)->first();
+            $transaction?->delete();
 
             $payment->delete();
 
@@ -132,9 +132,9 @@ class PaymentController extends Controller
     {
         $reference = $this->findReference($request->payment_type, $request->reference_id);
         if ($reference) {
-            $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount') + $request->amount;
+            $totalPaid = $reference->payments ? $reference->payments->sum('amount') - $oldAmount + $request->amount : $request->amount;
             $reference->total_paid = $totalPaid;
-            $reference->updateTotalDue(); // Ensure updateTotalDue recalculates total_paid and total_due correctly
+            $reference->save(); // Save the total_paid without updating the generated column
             $this->updatePaymentStatus($reference, $totalPaid, $request->payment_type);
         }
     }
@@ -143,9 +143,9 @@ class PaymentController extends Controller
     {
         $reference = $this->findReference($payment->payment_type, $payment->reference_id);
         if ($reference) {
-            $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount');
+            $totalPaid = $reference->payments ? $reference->payments->sum('amount') - $oldAmount : 0;
             $reference->total_paid = $totalPaid;
-            $reference->updateTotalDue(); // Ensure updateTotalDue recalculates total_paid and total_due correctly
+            $reference->save(); // Save the total_paid without updating the generated column
             $this->updatePaymentStatus($reference, $totalPaid, $payment->payment_type);
         }
     }
@@ -192,12 +192,11 @@ class PaymentController extends Controller
         }
     }
 
+
     private function updatePaymentStatus($reference, $totalPaid, $type)
     {
         if (in_array($type, ['purchase', 'purchase_return'])) {
             $finalTotalField = $type === 'purchase' ? 'final_total' : 'return_total';
-        } elseif (in_array($type, ['sale_return_with_bill', 'sale_return_without_bill'])) {
-            $finalTotalField = 'return_total';
         } else {
             $finalTotalField = 'final_total';
         }
@@ -219,10 +218,9 @@ class PaymentController extends Controller
 
         if ($supplier) {
             $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
-            $totalPurchasesReturn = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
             $totalPayments = Payment::where('supplier_id', $supplierId)->whereIn('payment_type', ['purchase', 'purchase_return'])->sum('amount');
 
-            $supplier->current_balance = ($supplier->opening_balance + $totalPurchases) - ($totalPayments + $totalPurchasesReturn);
+            $supplier->current_balance = $supplier->opening_balance + $totalPurchases - $totalPayments;
             $supplier->save();
         }
     }
@@ -249,30 +247,8 @@ class PaymentController extends Controller
             return 0;
         }
 
-        $finalTotalField = in_array($request->payment_type, ['purchase_return', 'sale_return_with_bill', 'sale_return_without_bill']) ? 'return_total' : 'final_total';
+        $finalTotalField = in_array($request->payment_type, ['purchase', 'purchase_return']) ? 'return_total' : 'final_total';
         return $reference->$finalTotalField - $totalPaid;
-    }
-
-    private function createLedgerEntry($request, $payment, $contactType)
-    {
-        $ledgerData = [
-            'transaction_date' => $payment->payment_date,
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => $payment->payment_type,
-            'debit' => in_array($payment->payment_type, ['purchase', 'purchase_return']) ? $payment->amount : 0,
-            'credit' => in_array($payment->payment_type, ['sale', 'sale_return_with_bill', 'sale_return_without_bill']) ? $payment->amount : 0,
-            'balance' => 0, // Will be calculated later
-            'payment_method' => $payment->payment_method,
-            'contact_type' => $contactType,
-            'user_id' => $contactType === 'supplier' ? $request->supplier_id : $request->customer_id,
-        ];
-
-        // dump($ledgerData);
-
-        $ledger = Ledger::create($ledgerData);
-
-        // Recalculate balance for the user and contact type
-        Ledger::calculateBalance($ledger->user_id, $ledger->contact_type);
     }
 
     /**

@@ -286,7 +286,89 @@
         </div>
     </div>
 
+    <!-- Modal -->
+    <div class="modal fade" id="viewPurchaseReturnProductModal" tabindex="-1" aria-labelledby="viewPurchaseReturnProductModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="modalTitle"></h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <!-- Modal Body -->
+                <div class="modal-body">
+                    <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h5>Supplier:</h5>
+                                <p id="supplierDetails"></p>
+                            </div>
+                            <div class="col-md-4">
+                                <h5>Location:</h5>
+                                <p id="locationDetails"></p>
+                            </div>
+                            <div class="col-md-4">
+                                <h5>Purchase Details:</h5>
+                                <p id="purchaseDetails"></p>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mt-5">
+                                <h5>Products:</h5>
+                                <table class="table table-bordered" id="productsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Product Name</th>
+                                            <th>SKU</th>
+                                            <th>Quantity</th>
+                                            <th>Price</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Product rows will be inserted here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mt-3">
+                                <h5>Payment Info:</h5>
+                                <table class="table table-bordered" id="paymentInfoTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Reference No</th>
+                                            <th>Amount</th>
+                                            <th>Payment Mode</th>
+                                            <th>Payment Note</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Payment info will be inserted here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6 mt-3">
+                                <h5>Amount Details:</h5>
+                                <table class="table" id="amountDetailsTable">
+                                    <tbody>
+                                        <!-- Amount details will be inserted here dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-secondary" onclick="printModal()">Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <script>
         function togglePaymentFields() {
             const paymentMethod = document.getElementById('paymentMethod').value;
@@ -567,66 +649,67 @@
     </div>
 
     <div class="modal fade" id="viewPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-    aria-labelledby="viewPaymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="viewPaymentModalLabel">View Payments ( Reference No: <span
-                        id="referenceNo">PO2018/0002</span> )</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Supplier:</strong>
-                        <p id="viewSupplierDetail"></p>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Business:</strong>
-                        <p id="viewBusinessDetail"></p>
-                    </div>
+        aria-labelledby="viewPaymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewPaymentModalLabel">View Payments ( Reference No: <span
+                            id="referenceNo">PO2018/0002</span> )</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Reference No:</strong> <span id="viewReferenceNo"></span><br>
-                        <strong>Date:</strong> <span id="viewDate"></span><br>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Supplier:</strong>
+                            <p id="viewSupplierDetail"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Business:</strong>
+                            <p id="viewBusinessDetail"></p>
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <strong>Purchase Status:</strong> <span id="viewPurchaseStatus"></span><br>
-                        <strong>Payment Status:</strong> <span id="viewPaymentStatus"></span>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Reference No:</strong> <span id="viewReferenceNo"></span><br>
+                            <strong>Date:</strong> <span id="viewDate"></span><br>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Purchase Status:</strong> <span id="viewPurchaseStatus"></span><br>
+                            <strong>Payment Status:</strong> <span id="viewPaymentStatus"></span>
+                        </div>
                     </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <button class="btn btn-info"> <i class="fas fa-envelope"></i> Payment Paid Notification</button>
+                        <button class="btn btn-outline-primary"
+                            onclick="openPaymentModal(event, $('#viewPaymentModal').data('purchase-id'))"> <i
+                                class="fas fa-plus-circle"></i> Add payment</button>
+                    </div>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Reference No</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Payment Note</th>
+                                <th>Payment Account</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="text-center">No records found</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <button class="btn btn-info"> <i class="fas fa-envelope"></i> Payment Paid Notification</button>
-                    <button class="btn btn-outline-primary" onclick="openPaymentModal(event, $('#viewPaymentModal').data('purchase-id'))"> <i
-                            class="fas fa-plus-circle"></i> Add payment</button>
+                <div class="modal-footer">
+                    <button class="btn btn-primary"> <i class="fas fa-print"></i> Print</button>
+                    <button class="btn btn-dark" data-bs-dismiss="modal">Close</button>
                 </div>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Reference No</th>
-                            <th>Amount</th>
-                            <th>Payment Method</th>
-                            <th>Payment Note</th>
-                            <th>Payment Account</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td colspan="7" class="text-center">No records found</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary"> <i class="fas fa-print"></i> Print</button>
-                <button class="btn btn-dark" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
-</div>
 
 
     @include('purchase.purchase_ajax')

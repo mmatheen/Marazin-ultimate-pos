@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SalesReturn;
 use App\Models\SalesReturnProduct;
 use App\Models\Batch;
+use App\Models\Ledger;
 use App\Models\Sale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,8 +74,9 @@ class SaleReturnController extends Controller
 
         // Use transaction to ensure atomicity
         DB::transaction(function () use ($request, $id) {
-
             $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
+             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+
             // Create or update the sales return
             $salesReturn = SalesReturn::updateOrCreate(
                 ['id' => $id],
@@ -84,6 +86,8 @@ class SaleReturnController extends Controller
                     'location_id' => $request->location_id,
                     'return_date' => $request->return_date,
                     'return_total' => $request->return_total,
+                    'total_paid' => 0, // Ensure total_paid is set to 0
+                    'total_due' => $request->return_total, // Ensure total_due is set correctly
                     'notes' => $request->notes,
                     'is_defective' => $request->is_defective,
                     'stock_type' => $stockType,
@@ -100,35 +104,56 @@ class SaleReturnController extends Controller
                 $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType);
             }
 
-            return $salesReturn;
+            // Update total due
+            $salesReturn->updateTotalDue();
+
+            // Insert ledger entry for the sales return
+            Ledger::create([
+                'transaction_date' => $request->return_date,
+                'reference_no' => $salesReturn->reference_no,
+                'transaction_type' => $transactionType,
+                'debit' => $request->return_total,
+                'credit' => 0,
+                'balance' => $this->calculateNewBalance($request->customer_id, $request->return_total, 'debit'),
+                'contact_type' => 'customer',
+                'user_id' => $request->customer_id,
+            ]);
         });
 
         return response()->json(['status' => 200, 'message' => 'Sales return recorded successfully!']);
     }
 
+    private function calculateNewBalance($userId, $amount, $type)
+    {
+        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
+        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
+
+        return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
+    }
     /**
      * Get all sale returns.
      */
-    public function getAllSaleReturns()
-    {
-        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'payments'])->get();
-        $totalAmount = $salesReturns->sum('return_total');
-        $totalDue = $salesReturns->sum('total_due');
+   // Controller method
+public function getAllSaleReturns()
+{
+    $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments'])->get();
+    $totalAmount = $salesReturns->sum('return_total');
+    $totalDue = $salesReturns->sum('total_due');
 
-        return response()->json([
-            'status' => 200,
-            'data' => $salesReturns,
-            'totalAmount' => $totalAmount,
-            'totalDue' => $totalDue
-        ]);
-    }
+    return response()->json([
+        'status' => 200,
+        'data' => $salesReturns,
+        'totalAmount' => $totalAmount,
+        'totalDue' => $totalDue
+    ]);
+}
 
     /**
      * Get a sale return by ID.
      */
     public function getSaleReturnById($id)
     {
-        $salesReturn = SalesReturn::with(['returnProducts', 'sale.customer', 'sale.location', 'payments'])->find($id);
+        $salesReturn = SalesReturn::with(['returnProducts.product', 'sale.customer', 'sale.location', 'payments'])->find($id);
         if (!$salesReturn) {
             return response()->json(['status' => 404, 'message' => 'Sale return not found']);
         }
