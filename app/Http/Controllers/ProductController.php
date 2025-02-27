@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 
 class ProductController extends Controller
 {
@@ -620,6 +621,77 @@ class ProductController extends Controller
         // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }
+
+    public function getNotifications()
+    {
+        $products = Product::with('batches.locationBatches.location')->get();
+
+        $notifications = $products->filter(function ($product) {
+            $totalStock = $product->batches->sum(function ($batch) {
+                return $batch->locationBatches->sum('qty');
+            });
+
+            return $totalStock <= $product->alert_quantity;
+        })->map(function ($product) {
+            $totalStock = $product->batches->sum(function ($batch) {
+                return $batch->locationBatches->sum('qty');
+            });
+
+            return [
+                'id' => $product->id,
+                'product_name' => $product->product_name,
+                'sku' => $product->sku,
+                'unit_id' => $product->unit_id,
+                'brand_id' => $product->brand_id,
+                'main_category_id' => $product->main_category_id,
+                'sub_category_id' => $product->sub_category_id,
+                'stock_alert' => $product->stock_alert,
+                'alert_quantity' => $product->alert_quantity,
+                'product_image' => $product->product_image,
+                'description' => $product->description,
+                'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                'is_for_selling' => $product->is_for_selling,
+                'product_type' => $product->product_type,
+                'pax' => $product->pax,
+                'original_price' => $product->original_price,
+                'retail_price' => $product->retail_price,
+                'whole_sale_price' => $product->whole_sale_price,
+                'special_price' => $product->special_price,
+                'max_retail_price' => $product->max_retail_price,
+                'created_at' => $product->created_at,
+                'updated_at' => $product->updated_at,
+                'total_stock' => $totalStock,
+            ];
+        });
+
+        return response()->json(['status' => 200, 'data' => $notifications, 'count' => $notifications->count()]);
+    }
+
+
+    public function markNotificationsAsSeen()
+    {
+        $products = Product::with('batches.locationBatches.location')->get();
+        $seenNotifications = Session::get('seen_notifications', []);
+
+        $notifications = $products->filter(function ($product) {
+            $totalStock = $product->batches->sum(function ($batch) {
+                return $batch->locationBatches->sum('qty');
+            });
+
+            return $totalStock <= $product->alert_quantity;
+        });
+
+        foreach ($notifications as $notification) {
+            if (!in_array($notification->id, $seenNotifications)) {
+                $seenNotifications[] = $notification->id;
+            }
+        }
+
+        Session::put('seen_notifications', $seenNotifications);
+
+        return response()->json(['status' => 200, 'message' => 'Notifications marked as seen.']);
+    }
+    
 
 
     // public function getStocks(Request $request)

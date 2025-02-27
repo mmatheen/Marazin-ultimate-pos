@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
             $table->string('reference_no')->unique();
             $table->date('purchase_date');
-            $table->enum('purchasing_status', ['Received', 'Pending', 'Ordered'])->default('Pending');
+            $table->enum('purchasing_status', ['Received', 'Pending', 'Ordered'])->default('Received');
             $table->unsignedBigInteger('location_id');
             $table->integer('pay_term')->nullable();
             $table->enum('pay_term_type', ['days', 'months'])->nullable();
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->enum('discount_type', ['percent', 'fixed'])->nullable();
             $table->decimal('discount_amount', 15, 2)->nullable();
             $table->decimal('final_total', 15, 2);
-            $table->decimal('total_paid', 15, 2)->default(0);  // Added total_paid column
+            $table->decimal('total_paid', 15, 2)->default(0); 
             $table->decimal('total_due', 15, 2)->virtualAs('final_total - total_paid');  // Dynamic calculation of total_due
 
             $table->enum('payment_status', ['Paid', 'Due', 'Partial'])->default('Due');

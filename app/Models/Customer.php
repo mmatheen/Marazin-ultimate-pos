@@ -46,6 +46,12 @@ class Customer extends Model
         return $this->hasMany(SalesReturn::class);
     }
 
+    public function payments()
+{
+    return $this->hasMany(Payment::class);
+}
+
+
     // Total Sale Due for the customer
     public function getTotalSaleDueAttribute()
     {
@@ -58,4 +64,22 @@ class Customer extends Model
         return $this->salesReturns()->sum('total_due');
     }
 
+    public function getCurrentDueAttribute()
+    {
+        // Get total sales due
+        $totalSalesDue = $this->sales()->sum('total_due');
+    
+        // Get total return due
+        $totalReturnDue = $this->salesReturns()->sum('total_due');
+        
+        // Calculate the total payments made by the customer
+        $totalPaymentsMade = $this->payments()->sum('amount');
+        
+        // Current due calculation considering sales, payments, and returns
+        $currentDue = ($this->opening_balance + $totalSalesDue  - $totalReturnDue);
+    
+        return $currentDue;
+    }
+    
+    
 }

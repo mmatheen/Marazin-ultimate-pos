@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('payment_method');
             $table->string('reference_no')->nullable();
             $table->string('notes')->nullable();
-            $table->enum('payment_type', ['purchase', 'sale', 'purchase_return', 'sale_return_with_bill', 'sale_return_without_bill']);
-            $table->unsignedBigInteger('reference_id');
+            $table->enum('payment_type', ['purchase', 'sale', 'purchase_return', 'sale_return_with_bill', 'sale_return_without_bill'])->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
             $table->unsignedBigInteger('supplier_id')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->string('card_number')->nullable();

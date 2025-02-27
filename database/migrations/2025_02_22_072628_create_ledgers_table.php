@@ -23,7 +23,7 @@ return new class extends Migration
                 'sale_return_with_bill', // Sale return with bill
                 'sale_return_without_bill', // Sale return without bill
                 'payments', // Payment
-            ])->default('payments'); // Type of transaction
+            ])->nullable(); // Type of transaction
               $table->decimal('debit', 10, 2)->default(0); // Debit amount
             $table->decimal('credit', 10, 2)->default(0); // Credit amount
             $table->decimal('balance', 10, 2); // Current balance after the transaction

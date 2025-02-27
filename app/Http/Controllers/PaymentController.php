@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Payment;
 use App\Models\Purchase;
-use App\Models\Transaction;
 use App\Models\Supplier;
 use App\Models\Customer;
 use App\Models\Ledger;
@@ -38,8 +37,8 @@ class PaymentController extends Controller
             'payment_method' => 'required|string',
             'reference_no' => 'nullable|string',
             'notes' => 'nullable|string',
-            'payment_type' => 'required|string|in:purchase,sale,purchase_return,sale_return_with_bill,sale_return_without_bill',
-            'reference_id' => 'required|integer',
+            'payment_type' => 'nullable|string|in:purchase,sale,purchase_return,sale_return_with_bill,sale_return_without_bill',
+            'reference_id' => 'nullable|integer',
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
             'card_number' => 'nullable|string',
@@ -58,18 +57,9 @@ class PaymentController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        // Validate that the reference ID matches the supplier ID or customer ID
-        if (!$this->validateReference($request)) {
-            return response()->json(['status' => 400, 'message' => 'Reference ID does not match the specified supplier or customer.']);
-        }
-
-        $totalDue = $this->getTotalDue($request, $paymentId);
-        if ($request->amount > $totalDue) {
-            return response()->json(['status' => 400, 'message' => 'Payment amount exceeds the total due.']);
-        }
-
         DB::transaction(function () use ($request, $paymentId) {
             $paymentData = $this->preparePaymentData($request);
+            $payment = null;
 
             if ($paymentId) {
                 $payment = Payment::find($paymentId);
@@ -79,78 +69,55 @@ class PaymentController extends Controller
                     $this->updateReference($request, $payment, $oldAmount);
                 }
             } else {
-                $payment = Payment::create($paymentData);
-                $this->updateReference($request, $payment);
+                if (!$request->payment_type) {
+                    $payment = $this->allocateOverallBalancePayment($request);
+                    if ($payment instanceof \Illuminate\Http\JsonResponse) {
+                        return $payment; // Return error response if any
+                    }
+                } else {
+                    $payment = Payment::create($paymentData);
+                    $this->updateReference($request, $payment);
+                }
             }
 
-            if (in_array($request->payment_type, ['purchase', 'purchase_return'])) {
-                $this->updateSupplierBalance($request->supplier_id);
-                $this->createLedgerEntry($request, $payment, 'supplier');
-            } else {
-                $this->updateCustomerBalance($request->customer_id);
-                $this->createLedgerEntry($request, $payment, 'customer');
-            }
-        });
-
-        return response()->json(['status' => 200, 'message' => 'Payment ' . ($paymentId ? 'updated' : 'added') . ' successfully.']);
-    }
-
-    public function destroy(Payment $payment)
-    {
-        DB::transaction(function () use ($payment) {
-            $oldAmount = $payment->amount;
-
-            $payment->delete();
-
-            $this->restoreReference($payment, $oldAmount);
-
-            if (in_array($payment->payment_type, ['purchase', 'purchase_return'])) {
-                $this->updateSupplierBalance($payment->supplier_id);
-            } else {
-                $this->updateCustomerBalance($payment->customer_id);
+            if ($payment) {
+                if (in_array($payment->payment_type, ['purchase', 'purchase_return'])) {
+                    $this->updateSupplierBalance($request->supplier_id);
+                    $this->createLedgerEntry($request, $payment, 'supplier');
+                } elseif (in_array($payment->payment_type, ['sale', 'sale_return_with_bill', 'sale_return_without_bill'])) {
+                    $this->updateCustomerBalance($request->customer_id);
+                    $this->createLedgerEntry($request, $payment, 'customer');
+                }
             }
         });
 
-        return response()->json(['status' => 200, 'message' => 'Payment deleted and balances restored successfully.']);
+        return response()->json(['status' => 200, 'message' => 'Payment processed successfully.']);
     }
 
-    private function validateReference($request)
+
+    private function updateReference(Request $request, Payment $payment, $oldAmount = 0)
     {
-        $reference = $this->findReference($request->payment_type, $request->reference_id);
-        if (!$reference) {
-            return false;
-        }
-
-        if (in_array($request->payment_type, ['purchase', 'purchase_return'])) {
-            return $reference->supplier_id == $request->supplier_id;
-        }
-
-        return $reference->customer_id == $request->customer_id;
-    }
-
-    private function updateReference($request, $payment, $oldAmount = 0)
-    {
-        $reference = $this->findReference($request->payment_type, $request->reference_id);
-        if ($reference) {
-            $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount') + $request->amount;
-            $reference->total_paid = $totalPaid;
-            $reference->updateTotalDue(); // Ensure updateTotalDue recalculates total_paid and total_due correctly
-            $this->updatePaymentStatus($reference, $totalPaid, $request->payment_type);
+        if ($request->reference_id) {
+            $reference = $this->findReference($request->payment_type, $request->reference_id);
+            if ($reference) {
+                $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount') + $payment->amount;
+                $reference->total_paid = $totalPaid;
+                $this->updatePaymentStatus($reference, $totalPaid, $request->payment_type);
+            }
         }
     }
 
-    private function restoreReference($payment, $oldAmount)
+    private function restoreReference(Payment $payment)
     {
         $reference = $this->findReference($payment->payment_type, $payment->reference_id);
         if ($reference) {
             $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount');
             $reference->total_paid = $totalPaid;
-            $reference->updateTotalDue(); // Ensure updateTotalDue recalculates total_paid and total_due correctly
             $this->updatePaymentStatus($reference, $totalPaid, $payment->payment_type);
         }
     }
 
-    private function preparePaymentData($request)
+    private function preparePaymentData(Request $request)
     {
         return [
             'payment_date' => Carbon::parse($request->payment_date)->format('Y-m-d'),
@@ -169,8 +136,8 @@ class PaymentController extends Controller
             'card_security_code' => $request->card_security_code,
             'cheque_number' => $request->cheque_number,
             'cheque_bank_branch' => $request->cheque_bank_branch,
-            'cheque_received_date' => $request->cheque_received_date,
-            'cheque_valid_date' => $request->cheque_valid_date,
+            'cheque_received_date' => $request->cheque_received_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_received_date)->format('Y-m-d') : null,
+            'cheque_valid_date' => $request->cheque_valid_date ? Carbon::createFromFormat('d-m-Y', $request->cheque_valid_date)->format('Y-m-d') : null,
             'cheque_given_by' => $request->cheque_given_by,
         ];
     }
@@ -188,7 +155,7 @@ class PaymentController extends Controller
             case 'sale_return_without_bill':
                 return SalesReturn::find($id);
             default:
-                throw new \Exception("Unknown payment type: $type");
+                return null;
         }
     }
 
@@ -201,6 +168,8 @@ class PaymentController extends Controller
         } else {
             $finalTotalField = 'final_total';
         }
+
+        $reference->total_paid = $totalPaid;
 
         if ($reference->$finalTotalField - $totalPaid <= 0) {
             $reference->payment_status = 'Paid';
@@ -233,45 +202,31 @@ class PaymentController extends Controller
 
         if ($customer) {
             $totalSales = Sale::where('customer_id', $customerId)->sum('final_total');
+            $totalSalesReturn = SalesReturn::where('customer_id', $customerId)->sum('return_total');
             $totalPayments = Payment::where('customer_id', $customerId)->whereIn('payment_type', ['sale', 'sale_return_with_bill', 'sale_return_without_bill'])->sum('amount');
 
-            $customer->current_balance = $customer->opening_balance + $totalSales - $totalPayments;
+            $customer->current_balance = ($customer->opening_balance + $totalSales) - ($totalPayments + $totalSalesReturn);
             $customer->save();
         }
     }
 
-    private function getTotalDue($request, $paymentId = null)
+    private function createLedgerEntry(Request $request, Payment $payment, $contactType)
     {
-        $totalPaid = $paymentId ? Payment::where('id', '!=', $paymentId)->where('reference_id', $request->reference_id)->where('payment_type', $request->payment_type)->sum('amount') : 0;
+        $transactionType = $payment->payment_type;
 
-        $reference = $this->findReference($request->payment_type, $request->reference_id);
-        if (!$reference) {
-            return 0;
-        }
-
-        $finalTotalField = in_array($request->payment_type, ['purchase_return', 'sale_return_with_bill', 'sale_return_without_bill']) ? 'return_total' : 'final_total';
-        return $reference->$finalTotalField - $totalPaid;
-    }
-
-    private function createLedgerEntry($request, $payment, $contactType)
-    {
         $ledgerData = [
             'transaction_date' => $payment->payment_date,
             'reference_no' => $payment->reference_no,
-            'transaction_type' => $payment->payment_type,
+            'transaction_type' => $transactionType,
             'debit' => in_array($payment->payment_type, ['purchase', 'purchase_return']) ? $payment->amount : 0,
             'credit' => in_array($payment->payment_type, ['sale', 'sale_return_with_bill', 'sale_return_without_bill']) ? $payment->amount : 0,
-            'balance' => 0, // Will be calculated later
+            'balance' => 0,
             'payment_method' => $payment->payment_method,
             'contact_type' => $contactType,
             'user_id' => $contactType === 'supplier' ? $request->supplier_id : $request->customer_id,
         ];
 
-        // dump($ledgerData);
-
         $ledger = Ledger::create($ledgerData);
-
-        // Recalculate balance for the user and contact type
         Ledger::calculateBalance($ledger->user_id, $ledger->contact_type);
     }
 
@@ -289,4 +244,181 @@ class PaymentController extends Controller
         }
         return response()->json(['status' => 200, 'data' => $payment]);
     }
+
+    public function destroy(Payment $payment)
+    {
+        DB::transaction(function () use ($payment) {
+            $oldAmount = $payment->amount;
+
+            $payment->delete();
+
+            $this->restoreReference($payment);
+
+            if (in_array($payment->payment_type, ['purchase', 'purchase_return'])) {
+                $this->updateSupplierBalance($payment->supplier_id);
+            } else {
+                $this->updateCustomerBalance($payment->customer_id);
+            }
+        });
+
+        return response()->json(['status' => 200, 'message' => 'Payment deleted and balances restored successfully.']);
+    }
+
+
+    public function submitBulkPayment(Request $request)
+{
+    $data = $request->validate([
+        'supplier_id' => 'required|exists:suppliers,id',
+        'payment_method' => 'required|string',
+        'payment_date' => 'nullable|date',
+        'global_amount' => 'nullable|numeric',
+        'purchase_payments' => 'nullable|array',
+        'purchase_payments.*.purchase_id' => 'required|exists:purchases,id',
+        'purchase_payments.*.amount' => 'required|numeric|min:0',
+    ]);
+
+    $supplierId = $data['supplier_id'];
+    $globalAmount = $data['global_amount'] ?? 0;
+    $remainingAmount = $globalAmount;
+
+    $supplier = Supplier::findOrFail($supplierId);
+
+    DB::transaction(function () use ($supplier, $remainingAmount, $data) {
+        // Reduce supplier opening balance
+        if ($supplier->opening_balance > 0) {
+            if ($remainingAmount >= $supplier->opening_balance) {
+                $remainingAmount -= $supplier->opening_balance;
+                $supplier->opening_balance = 0;
+            } else {
+                $supplier->opening_balance -= $remainingAmount;
+                $remainingAmount = 0;
+            }
+            $supplier->save();
+        }
+
+        // Apply remaining amount to purchases using FIFO method
+        $purchases = Purchase::where('supplier_id', $supplier->id)
+            ->whereColumn('final_total', '>', 'total_paid')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        foreach ($purchases as $purchase) {
+            if ($remainingAmount <= 0) {
+                break;
+            }
+
+            $dueAmount = $purchase->final_total - $purchase->total_paid;
+            $paidAmount = min($remainingAmount, $dueAmount);
+
+            Payment::create([
+                'payment_date' => Carbon::today()->format('Y-m-d'),
+                'amount' => $paidAmount,
+                'payment_method' => $data['payment_method'],
+                'payment_type' => "purchase",
+                'reference_id' => $purchase->id,
+                'reference_no' => $purchase->purchase_no,
+                'supplier_id' => $supplier->id,
+                'notes' => 'Bulk payment',
+            ]);
+
+            $purchase->total_paid += $paidAmount;
+            $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
+            $purchase->save();
+
+            $remainingAmount -= $paidAmount;
+        }
+
+        // Handle individual payments
+        if (isset($data['purchase_payments']) && count($data['purchase_payments']) > 0) {
+            foreach ($data['purchase_payments'] as $payment) {
+                $purchase = Purchase::findOrFail($payment['purchase_id']);
+                $paidAmount = $payment['amount'];
+
+                Payment::create([
+                    'payment_date' => $data['payment_date'] ?? Carbon::today()->format('Y-m-d'),
+                    'amount' => $paidAmount,
+                    'payment_method' => $data['payment_method'],
+                    'payment_type' => "purchase",
+                    'reference_id' => $purchase->id,
+                    'reference_no' => $purchase->purchase_no,
+                    'supplier_id' => $supplier->id,
+                    'notes' => 'Individual payment',
+                ]);
+
+                $purchase->total_paid += $paidAmount;
+                $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
+                $purchase->save();
+            }
+        }
+    });
+
+    return response()->json(['message' => 'Payments submitted successfully.']);
+}
+
+    // public function handleSupplierPayment(Request $request)
+    // {
+    //     $request->validate([
+    //         'supplier_id' => 'required|exists:suppliers,id',
+    //         'amount' => 'required|numeric|min:0',
+    //     ]);
+
+    //     $supplierId = $request->supplier_id;
+    //     $paymentAmount = $request->amount;
+
+    //     $supplier = Supplier::findOrFail($supplierId);
+
+    //     if ($supplier->opening_balance > 0) {
+    //         if ($paymentAmount >= $supplier->opening_balance) {
+    //             $paymentAmount -= $supplier->opening_balance;
+    //             $supplier->opening_balance = 0;
+    //         } else {
+    //             $supplier->opening_balance -= $paymentAmount;
+    //             $paymentAmount = 0;
+    //         }
+    //         $supplier->save();
+    //     }
+
+    //     $purchases = Purchase::where('supplier_id', $supplierId)
+    //         ->whereColumn('final_total', '>', 'total_paid')
+    //         ->orderBy('created_at', 'asc')
+    //         ->get();
+
+    //     foreach ($purchases as $purchase) {
+    //         if ($paymentAmount <= 0) {
+    //             break;
+    //         }
+
+    //         $dueAmount = $purchase->final_total - $purchase->total_paid;
+
+    //         $paidAmount = min($paymentAmount, $dueAmount);
+    //         $this->recordPayment($request, $purchase->id, $supplierId, $paidAmount, 'purchase');
+
+    //         $paymentAmount -= $paidAmount;
+    //         $purchase->total_paid += $paidAmount;
+    //         $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
+    //         $purchase->save();
+    //     }
+
+    //     $this->updateSupplierBalance($supplierId);
+
+    //     return response()->json([
+    //         'message' => 'Supplier Payment Success',
+    //         'current_due' => $supplier->current_balance,
+    //     ]);
+    // }
+
+    // private function recordPayment(Request $request, $referenceId, $supplierId, $amount, $type)
+    // {
+    //     $paymentData = [
+    //         'payment_date' => Carbon::now()->format('Y-m-d'),
+    //         'amount' => $amount,
+    //         'payment_method' => $request->payment_method ?? 'unknown',
+    //         'payment_type' => $type,
+    //         'reference_id' => $referenceId,
+    //         'supplier_id' => $supplierId,
+    //     ];
+
+    //     $payment = Payment::create($paymentData);
+    //     $this->createLedgerEntry($request, $payment, 'supplier');
+    // }
 }

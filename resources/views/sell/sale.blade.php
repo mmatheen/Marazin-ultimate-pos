@@ -480,7 +480,7 @@
                             </div>
                             <div class="mb-3">
                                 <label for="paymentNote" class="form-label">Payment Note</label>
-                                <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
+                                <textarea class="form-control" id="paymentNotes" name="payment_note"></textarea>
                             </div>
                         </form>
                     </div>

@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container-fluid">
         <form id="addForm">
             <input type="hidden" id="product_id"  name="product_id">
             <div class="row">

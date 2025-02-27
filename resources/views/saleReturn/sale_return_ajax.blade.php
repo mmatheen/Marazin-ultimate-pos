@@ -1,41 +1,59 @@
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         let productToRemove;
 
         // Fetch and populate locations
-
         fetchLocations();
 
         function fetchLocations() {
             $.ajax({
                 url: '/location-get-all',
                 method: 'GET',
-                success: function(data) {
+                success: function (data) {
                     const locationSelect = $("#locationId");
                     data.message.forEach(location => {
                         locationSelect.append(new Option(location.name, location.id));
                     });
                 },
-                error: function(error) {
+                error: function (error) {
                     console.error('Error fetching locations:', error);
                 }
             });
         }
 
+        // Fetch and populate customers
+        fetchCustomers();
+
+        function fetchCustomers() {
+            $.ajax({
+                url: '/customer-get-all',
+                method: 'GET',
+                success: function (data) {
+                    const customerSelect = $("#customerId");
+                    data.message.forEach(customer => {
+                        customerSelect.append(new Option(`${customer.first_name} ${customer.last_name}`, customer.id));
+                    });
+                },
+                error: function (error) {
+                    console.error('Error fetching customers:', error);
+                }
+            });
+        }
+
         $("#invoiceNo").autocomplete({
-            source: function(request, response) {
+            source: function (request, response) {
                 $.ajax({
                     url: "/api/search/sales",
                     data: {
                         term: request.term
                     },
-                    success: function(data) {
+                    success: function (data) {
                         response(data);
                     }
                 });
             },
             minLength: 2,
-            select: function(event, ui) {
+            select: function (event, ui) {
                 disableProductSearch();
                 fetchSaleProducts(ui.item.value);
             }
@@ -45,7 +63,7 @@
             $.ajax({
                 url: `/api/sales/${invoiceNo}`,
                 method: 'GET',
-                success: function(data) {
+                success: function (data) {
                     const productsTableBody = $("#productsTableBody");
                     productsTableBody.empty();
 
@@ -83,7 +101,7 @@
                     fetchCustomerDetails(data.customer_id);
                     setLocationId(data.location_id);
 
-                    $(".return-quantity").on('input', function() {
+                    $(".return-quantity").on('input', function () {
                         const max = parseInt($(this).attr('max'));
                         let quantity = parseInt($(this).val());
                         const unitPrice = parseFloat($(this).data('unit-price'));
@@ -104,12 +122,12 @@
                         calculateReturnTotal();
                     });
 
-                    $(".remove-product").on('click', function() {
+                    $(".remove-product").on('click', function () {
                         productToRemove = $(this).closest('tr');
                         $('#confirmDeleteModal').modal('show');
                     });
                 },
-                error: function(error) {
+                error: function (error) {
                     console.error('Error fetching sales data:', error);
                 }
             });
@@ -119,14 +137,8 @@
             $.ajax({
                 url: `/customer-get-all`,
                 method: 'GET',
-                success: function(data) {
+                success: function (data) {
                     const customer = data.message.find(c => c.id == customerId);
-                    const customerSelect = $("#customerId");
-                    data.message.forEach(customer => {
-                        customerSelect.append(new Option(
-                            `${customer.first_name} ${customer.last_name}`, customer
-                            .id));
-                    });
                     if (customer) {
                         $("#displayCustomer").html(
                             `<strong>Customer:</strong> ${customer.first_name} ${customer.last_name}`
@@ -136,7 +148,7 @@
                         $("#displayCustomer").html('<strong>Customer:</strong> N/A');
                     }
                 },
-                error: function(error) {
+                error: function (error) {
                     console.error('Error fetching customer data:', error);
                 }
             });
@@ -155,7 +167,7 @@
 
         function calculateReturnTotal() {
             let totalSubtotal = 0;
-            $('.return-subtotal').each(function() {
+            $('.return-subtotal').each(function () {
                 totalSubtotal += parseFloat($(this).text().replace('Rs. ', ''));
             });
 
@@ -175,11 +187,11 @@
             $('#returnTotal').val(returnTotal.toFixed(2));
         }
 
-        $('#discountType, #discountAmount').on('change input', function() {
+        $('#discountType, #discountAmount').on('change input', function () {
             calculateReturnTotal();
         });
 
-        $("#confirmDeleteButton").on('click', function() {
+        $("#confirmDeleteButton").on('click', function () {
             productToRemove.remove();
             $('#confirmDeleteModal').modal('hide');
             toastr.success('Product removed successfully.');
@@ -220,11 +232,11 @@
 
         // Autocomplete Product Search
         $("#productSearch").autocomplete({
-            source: function(request, response) {
+            source: function (request, response) {
                 $.ajax({
                     url: "/products/stocks",
                     method: 'GET',
-                    success: function(data) {
+                    success: function (data) {
                         const products = data.data.map(product => ({
                             label: product.product.product_name,
                             value: product.product.id,
@@ -237,7 +249,7 @@
                 });
             },
             minLength: 2,
-            select: function(event, ui) {
+            select: function (event, ui) {
                 disableInvoiceSearch();
                 addProductToTable(ui.item);
             }
@@ -263,7 +275,7 @@
             updateRowNumbers();
             calculateReturnTotal();
 
-            $(".return-quantity").on('input', function() {
+            $(".return-quantity").on('input', function () {
                 const max = parseInt($(this).attr('max'));
                 let quantity = parseInt($(this).val());
                 const unitPrice = parseFloat($(this).data('unit-price'));
@@ -282,7 +294,7 @@
                 calculateReturnTotal();
             });
 
-            $(".remove-product").on('click', function() {
+            $(".remove-product").on('click', function () {
                 $(this).closest('tr').remove();
                 updateRowNumbers();
                 calculateReturnTotal();
@@ -291,7 +303,7 @@
         }
 
         function updateRowNumbers() {
-            $("#productsTableBody tr").each(function(index) {
+            $("#productsTableBody tr").each(function (index) {
                 $(this).find('td:first').text(index + 1);
             });
         }
@@ -301,7 +313,7 @@
             errorClass: 'is-invalid',
             validClass: 'is-valid',
             errorElement: 'div',
-            errorPlacement: function(error, element) {
+            errorPlacement: function (error, element) {
                 error.addClass('invalid-feedback');
                 if (element.prop('type') === 'checkbox') {
                     error.insertAfter(element.next('label'));
@@ -309,10 +321,10 @@
                     error.insertAfter(element);
                 }
             },
-            highlight: function(element, errorClass, validClass) {
+            highlight: function (element, errorClass, validClass) {
                 $(element).addClass(errorClass).removeClass(validClass);
             },
-            unhighlight: function(element, errorClass, validClass) {
+            unhighlight: function (element, errorClass, validClass) {
                 $(element).removeClass(errorClass).addClass(validClass);
             },
             rules: {
@@ -345,7 +357,7 @@
                     min: "Quantity must be at least 1"
                 }
             },
-            submitHandler: function(form) {
+            submitHandler: function (form) {
                 const isValid = validateForm();
                 const $submitButton = $('.btn[type="submit"]');
                 $submitButton.prop('disabled', true).html('Processing...');
@@ -356,7 +368,7 @@
 
                     // Adding nested product data
                     jsonData.products = [];
-                    $("#productsTableBody tr").each(function(index, row) {
+                    $("#productsTableBody tr").each(function (index, row) {
                         const product = {
                             product_id: $(row).find('.return-quantity').data(
                                 'productId'),
@@ -386,31 +398,31 @@
                         headers: {
                             'X-CSRF-TOKEN': $('input[name=_token]').val()
                         },
-                        success: function(response) {
+                        success: function (response) {
                             if (response.status === 200) {
                                 toastr.success(response.message);
                                 setTimeout(() => {
                                     window.location.href =
-                                    "/sale-return/list"; // Redirect after success
+                                        "/sale-return/list"; // Redirect after success
                                 }, 1500); // Delay for toastr message display
                             } else {
                                 toastr.error(response.errors.join("<br>"));
                                 $submitButton.prop('disabled', false).html(
-                                'Save'); // Re-enable on error
+                                    'Save'); // Re-enable on error
                             }
                         },
-                        error: function(xhr, status, error) {
+                        error: function (xhr, status, error) {
                             console.error('Error storing sales return:', error);
                             toastr.error(
                                 "An error occurred while processing the request.");
                             $submitButton.prop('disabled', false).html(
-                            'Save'); // Re-enable on error
+                                'Save'); // Re-enable on error
                         }
                     });
                 } else {
                     toastr.error("Please fill in all required fields.");
                     $submitButton.prop('disabled', false).html(
-                    'Save'); // Re-enable on validation fail
+                        'Save'); // Re-enable on validation fail
                 }
             }
 
@@ -431,7 +443,6 @@
 
             return isValid;
         }
-
 
         fetchData();
 

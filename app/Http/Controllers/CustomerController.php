@@ -13,9 +13,35 @@ class CustomerController extends Controller
         return view('contact.customer.customer');
     }
 
+    // public function index()
+    // {
+    //     $customers = Customer::with(['sales', 'salesReturns'])->get()->map(function ($customer) {
+    //         return [
+    //             'id' => $customer->id,
+    //             'prefix' => $customer->prefix,
+    //             'first_name' => $customer->first_name,
+    //             'last_name' => $customer->last_name,
+    //             'full_name' => $customer->full_name,
+    //             'mobile_no' => $customer->mobile_no,
+    //             'email' => $customer->email,
+    //             'address' => $customer->address,
+    //             'location_id' => $customer->location_id,
+    //             'opening_balance' => $customer->opening_balance,
+    //             'current_balance' => $customer->current_balance,
+    //             'total_sale_due' => $customer->total_sale_due,
+    //             'total_return_due' => $customer->total_return_due,
+    //         ];
+    //     });
+
+    //     return response()->json([
+    //         'status' => 200,
+    //         'message' => $customers,
+    //     ]);
+    // }
+
     public function index()
     {
-        $customers = Customer::with(['sales', 'salesReturns'])->get()->map(function ($customer) {
+        $customers = Customer::with(['sales', 'salesReturns', 'payments'])->get()->map(function ($customer) {
             return [
                 'id' => $customer->id,
                 'prefix' => $customer->prefix,
@@ -30,14 +56,17 @@ class CustomerController extends Controller
                 'current_balance' => $customer->current_balance,
                 'total_sale_due' => $customer->total_sale_due,
                 'total_return_due' => $customer->total_return_due,
+                'current_due' => $customer->current_due, // ✅ Correct current due calculation
             ];
         });
-
+    
         return response()->json([
             'status' => 200,
             'message' => $customers,
         ]);
     }
+    
+
 
     public function store(Request $request)
     {
@@ -71,14 +100,14 @@ class CustomerController extends Controller
         ]));
 
         return $customer ? response()->json(['status' => 200, 'message' => "New Customer Created Successfully!"])
-                         : response()->json(['status' => 500, 'message' => "Something went wrong!"]);
+            : response()->json(['status' => 500, 'message' => "Something went wrong!"]);
     }
 
     public function show(int $id)
     {
         $customer = Customer::find($id);
         return $customer ? response()->json(['status' => 200, 'message' => $customer])
-                          : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
+            : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 
     public function edit(int $id)

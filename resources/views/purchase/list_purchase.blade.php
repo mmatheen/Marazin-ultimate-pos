@@ -152,31 +152,43 @@
                                             class="btn btn-outline-info">
                                             <i class="fas fa-plus px-2"> </i>Add
                                         </button></a>
+
                                 </div>
+
                             </div>
                         </div>
 
-                        <div class="table-responsive">
-                            <table class="datatable table table-stripped" style="width:100%" id="purchase-list">
-                                <thead>
-                                    <tr>
-                                        <th>Action</th>
-                                        <th>Date</th>
-                                        <th>Reference No</th>
-                                        <th>Location</th>
-                                        <th>Supplier</th>
-                                        <th>Purchase Status</th>
-                                        <th>Payment Status</th>
-                                        <th>Grand Total</th>
-                                        <th>Payment Due</th>
-                                        <th>Added By</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Rows will be dynamically added here -->
-                                </tbody>
-                            </table>
+
+
+                    <div class="table-responsive">
+                        <div class="mb-3">
+                            <button id="bulkPaymentBtn" class="btn btn-primary">
+                                Add Bulk Payment
+                            </button>
                         </div>
+                        <table class="datatable table table-stripped" style="width:100%" id="purchase-list">
+                            <thead>
+                                <tr>
+
+                                    <th>Action</th>
+                                    <th>Date</th>
+                                    <th>Reference No</th>
+                                    <th>Location</th>
+                                    <th>Supplier</th>
+                                    <th>Purchase Status</th>
+                                    <th>Payment Status</th>
+                                    <th>Grand Total</th>
+                                    <th>Payment Due</th>
+                                    <th>Added By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows will be dynamically added here -->
+                            </tbody>
+                        </table>
+                        <!-- Add this button above your table, it will be hidden by default -->
+
+                    </div>
                     </div>
                 </div>
             </div>
@@ -369,63 +381,7 @@
             </div>
         </div>
     </div>
-    <script>
-        function togglePaymentFields() {
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            const creditCardFields = document.getElementById('creditCardFields');
-            const chequeFields = document.getElementById('chequeFields');
-            const bankTransferFields = document.getElementById('bankTransferFields');
 
-            creditCardFields.classList.add('d-none');
-            chequeFields.classList.add('d-none');
-            bankTransferFields.classList.add('d-none');
-
-            if (paymentMethod === 'card') {
-                creditCardFields.classList.remove('d-none');
-            } else if (paymentMethod === 'cheque') {
-                chequeFields.classList.remove('d-none');
-            } else if (paymentMethod === 'bank_transfer') {
-                bankTransferFields.classList.remove('d-none');
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", function() {
-            const cardNumberInput = document.getElementById("cardNumber");
-            const expiryMonthInput = document.getElementById("expiryMonth");
-            const expiryYearInput = document.getElementById("expiryYear");
-            const securityCodeInput = document.getElementById("securityCode");
-            const chequeNumberInput = document.getElementById("chequeNumber");
-
-            // Format card number (max 16 digits, spaced every 4)
-            cardNumberInput.addEventListener("input", function(e) {
-                let value = this.value.replace(/\D/g, "").substring(0, 16);
-                value = value.replace(/(\d{4})/g, "$1 ").trim();
-                this.value = value;
-            });
-
-            // Validate expiry month (only 1-12 allowed)
-            expiryMonthInput.addEventListener("input", function() {
-                let value = this.value.replace(/\D/g, "").substring(0, 2);
-                let month = parseInt(value);
-                if (month < 1 || month > 12) {
-                    alert("Invalid month! Please enter a value between 1 and 12.");
-                    this.value = "";
-                } else {
-                    this.value = value;
-                }
-            });
-
-            // Validate security code (3 digits only)
-            securityCodeInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 3);
-            });
-
-            // Validate cheque number (max 12 digits)
-            chequeNumberInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 12);
-            });
-        });
-    </script>
 
     <!-- Payment Modal -->
     <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
@@ -567,14 +523,7 @@
                                     <input type="text" class="form-control" id="chequeNumber" name="cheque_number">
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="bankBranch" class="form-label">Bank Branch</label>
-                                    <input type="text" class="form-control" id="bankBranch"
-                                        name="cheque_bank_branch">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
+                                                        <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="bankBranch" class="form-label">Bank Branch</label>
                                     <input type="text" class="form-control" id="bankBranch"
@@ -710,7 +659,245 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="bulkPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkPaymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkPaymentModalLabel">Supplier Bulk Payments</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="bulkPaymentForm">
+                        <div class="card mb-4 shadow-sm rounded">
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label for="supplierSelect">Select Supplier</label>
+                                    <select id="supplierSelect" class="form-control">
+                                        <option value="">Select Supplier</option>
+                                    </select>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-md-3">
+                                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                            <strong>Opening Balance:</strong>
+                                            <span id="openingBalance" class="d-block mt-2">$0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                            <strong>Total Purchase:</strong>
+                                            <span id="totalPurchaseAmount" class="d-block mt-2">$0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                            <strong>Total Paid:</strong>
+                                            <span id="totalPaidAmount" class="d-block mt-2">$0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                            <strong>Total Due:</strong>
+                                            <span id="totalDueAmount" class="d-block mt-2">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
 
+                                <div id="purchaseListContainer" class="mt-4">
+                                    <table id="purchaseTable" class="table table-striped" style="margin-bottom: 70px; margin-top: 30px">
+                                        <thead>
+                                            <tr>
+                                                <th>Purchase ID</th>
+                                                <th>Final Total</th>
+                                                <th>Total Paid</th>
+                                                <th>Total Due</th>
+                                                <th>Payment Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                                            <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
+                                                <option value="cash" selected>Cash</option>
+                                                <option value="card">Credit Card</option>
+                                                <option value="cheque">Cheque</option>
+                                                <option value="bank_transfer">Bank Transfer</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="paidOn" class="form-label">Paid On</label>
+                                            <input class="form-control datetimepicker" type="text" name="payment_date" id="paidOn" placeholder="DD-MM-YYYY">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="payAmount" class="form-label">Amount</label>
+                                            <input type="text" class="form-control" id="globalPaymentAmount" name="amount">
+                                            <div id="amountError" class="text-danger" style="display:none;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Conditional Payment Fields -->
+                                <div id="creditCardFields" class="row mb-3 d-none">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="cardNumber" class="form-label">Card Number</label>
+                                            <input type="text" class="form-control" id="cardNumber" name="card_number">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                                            <input type="text" class="form-control" id="cardHolderName" name="card_holder_name">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="cardType" class="form-label">Card Type</label>
+                                            <select class="form-select" id="cardType" name="card_type">
+                                                <option value="visa">Visa</option>
+                                                <option value="mastercard">MasterCard</option>
+                                                <option value="amex">American Express</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="expiryMonth" class="form-label">Expiry Month</label>
+                                            <input type="text" class="form-control" id="expiryMonth" name="card_expiry_month">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="expiryYear" class="form-label">Expiry Year</label>
+                                            <input type="text" class="form-control" id="expiryYear" name="card_expiry_year">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="securityCode" class="form-label">Security Code</label>
+                                            <input type="text" class="form-control" id="securityCode" name="card_security_code">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="chequeFields" class="row mb-3 d-none">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="chequeNumber" class="form-label">Cheque Number</label>
+                                            <input type="text" class="form-control" id="chequeNumber" name="cheque_number">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="bankBranch" class="form-label">Bank Branch</label>
+                                            <input type="text" class="form-control" id="bankBranch" name="cheque_bank_branch">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cheque_received_date" class="form-label">Check Received Date</label>
+                                            <input type="text" class="form-control datetimepicker" id="cheque_received_date" name="cheque_received_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
+                                            <input type="text" class="form-control datetimepicker" id="cheque_valid_date" name="cheque_valid_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="cheque_given_by" class="form-label">Check Given by</label>
+                                            <input type="text" class="form-control" id="cheque_given_by" name="cheque_given_by">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="bankTransferFields" class="row mb-3 d-none">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
+                                            <input type="text" class="form-control" id="bankAccountNumber" name="bank_account_number">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" id="submitBulkPayment" class="btn btn-success">Submit Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function togglePaymentFields() {
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            const creditCardFields = document.getElementById('creditCardFields');
+            const chequeFields = document.getElementById('chequeFields');
+            const bankTransferFields = document.getElementById('bankTransferFields');
+
+            creditCardFields.classList.add('d-none');
+            chequeFields.classList.add('d-none');
+            bankTransferFields.classList.add('d-none');
+
+            if (paymentMethod === 'card') {
+                creditCardFields.classList.remove('d-none');
+            } else if (paymentMethod === 'cheque') {
+                chequeFields.classList.remove('d-none');
+            } else if (paymentMethod === 'bank_transfer') {
+                bankTransferFields.classList.remove('d-none');
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const cardNumberInput = document.getElementById("cardNumber");
+            const expiryMonthInput = document.getElementById("expiryMonth");
+            const expiryYearInput = document.getElementById("expiryYear");
+            const securityCodeInput = document.getElementById("securityCode");
+            const chequeNumberInput = document.getElementById("chequeNumber");
+
+            // Format card number (max 16 digits, spaced every 4)
+            cardNumberInput.addEventListener("input", function(e) {
+                let value = this.value.replace(/\D/g, "").substring(0, 16);
+                value = value.replace(/(\d{4})/g, "$1 ").trim();
+                this.value = value;
+            });
+
+            // Validate expiry month (only 1-12 allowed)
+            expiryMonthInput.addEventListener("input", function() {
+                let value = this.value.replace(/\D/g, "").substring(0, 2);
+                let month = parseInt(value);
+                if (month < 1 || month > 12) {
+                    alert("Invalid month! Please enter a value between 1 and 12.");
+                    this.value = "";
+                } else {
+                    this.value = value;
+                }
+            });
+
+            // Validate security code (3 digits only)
+            securityCodeInput.addEventListener("input", function() {
+                this.value = this.value.replace(/\D/g, "").substring(0, 3);
+            });
+
+            // Validate cheque number (max 12 digits)
+            chequeNumberInput.addEventListener("input", function() {
+                this.value = this.value.replace(/\D/g, "").substring(0, 12);
+            });
+        });
+    </script>
 
     @include('purchase.purchase_ajax')
 @endsection

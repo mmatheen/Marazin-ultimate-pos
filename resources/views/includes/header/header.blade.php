@@ -40,10 +40,10 @@
                 {{-- dynamically change the location --}}
                 <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
             </li>
-
             <li class="nav-item dropdown noti-dropdown me-2">
                 <a href="#" class="dropdown-toggle nav-link header-nav-list" data-bs-toggle="dropdown">
                     <img src="{{ asset('assets/img/icons/header-icon-05.svg') }}" alt="">
+                    <span class="badge badge-pill badge-danger notification-count" style="display:none;"></span>
                 </a>
                 <div class="dropdown-menu notifications">
                     <div class="topnav-dropdown-header">
@@ -52,58 +52,7 @@
                     </div>
                     <div class="noti-content">
                         <ul class="notification-list">
-                            <li class="notification-message">
-                                <a href="#">
-                                    <div class="media d-flex">
-                                        <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image" src="{{ asset('assets/img/profiles/avatar-02.jpg') }}">
-                                        </span>
-                                        <div class="media-body flex-grow-1">
-                                            <p class="noti-details"><span class="noti-title">Carlson Tech</span> has approved <span class="noti-title">your estimate</span></p>
-                                            <p class="noti-time"><span class="notification-time">4 mins ago</span></p>
-                                        </div>
-                                    </div>
-                                </a>
-                            </li>
-                            <li class="notification-message">
-                                <a href="#">
-                                    <div class="media d-flex">
-                                        <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image" src="{{ asset('assets/img/profiles/avatar-11.jpg') }}">
-                                        </span>
-                                        <div class="media-body flex-grow-1">
-                                            <p class="noti-details"><span class="noti-title">International Software Inc</span> has sent you a invoice in the amount of <span class="noti-title">$218</span></p>
-                                            <p class="noti-time"><span class="notification-time">6 mins ago</span></p>
-                                        </div>
-                                    </div>
-                                </a>
-                            </li>
-                            <li class="notification-message">
-                                <a href="#">
-                                    <div class="media d-flex">
-                                        <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image" src="{{ asset('assets/img/profiles/avatar-17.jpg') }}">
-                                        </span>
-                                        <div class="media-body flex-grow-1">
-                                            <p class="noti-details"><span class="noti-title">John Hendry</span> sent a cancellation request <span class="noti-title">Apple iPhone XR</span></p>
-                                            <p class="noti-time"><span class="notification-time">8 mins ago</span></p>
-                                        </div>
-                                    </div>
-                                </a>
-                            </li>
-                            <li class="notification-message">
-                                <a href="#">
-                                    <div class="media d-flex">
-                                        <span class="avatar avatar-sm flex-shrink-0">
-                                            <img class="avatar-img rounded-circle" alt="User Image" src="{{ asset('assets/img/profiles/avatar-13.jpg') }}">
-                                        </span>
-                                        <div class="media-body flex-grow-1">
-                                            <p class="noti-details"><span class="noti-title">Mercury Software Inc</span> added a new product <span class="noti-title">Apple MacBook Pro</span></p>
-                                            <p class="noti-time"><span class="notification-time">12 mins ago</span></p>
-                                        </div>
-                                    </div>
-                                </a>
-                            </li>
+                            <!-- Notifications will be dynamically inserted here -->
                         </ul>
                     </div>
                     <div class="topnav-dropdown-footer">
@@ -252,6 +201,81 @@
             });
         })
     });
+    document.addEventListener('DOMContentLoaded', function () {
+    fetchNotifications();
+
+    function fetchNotifications() {
+        fetch('/notifications')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200) {
+                    updateNotifications(data.data);
+                    updateNotificationCount(data.count);
+                }
+            })
+            .catch(error => console.error('Error fetching notifications:', error));
+    }
+
+    function updateNotifications(notifications) {
+        const notificationList = document.querySelector('.notification-list');
+        notificationList.innerHTML = ''; // Clear existing notifications
+
+        notifications.forEach(notification => {
+            const notificationItem = document.createElement('li');
+            notificationItem.classList.add('notification-message');
+
+            const notificationContent = `
+                <a href="#">
+                    <div class="media d-flex">
+                        <span class="avatar avatar-sm flex-shrink-0">
+                            <img class="avatar-img rounded-circle" alt="Product Image" src="/assets/images/${notification.product_image}">
+                        </span>
+                        <div class="media-body flex-grow-1">
+                            <p class="noti-details">
+                                <span class="noti-title">${notification.product_name}</span> stock is below alert quantity. Current stock: <span class="noti-title">${notification.total_stock}</span>
+                            </p>
+                            <p class="noti-time">
+                                <span class="notification-time">${new Date(notification.created_at).toLocaleString()}</span>
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            `;
+
+            notificationItem.innerHTML = notificationContent;
+            notificationList.appendChild(notificationItem);
+        });
+    }
+
+    function updateNotificationCount(count) {
+        const notificationCountBadge = document.querySelector('.notification-count');
+        notificationCountBadge.textContent = count;
+        notificationCountBadge.style.display = count > 0 ? 'inline' : 'none';
+    }
+
+    // Event listener to mark notifications as seen when dropdown is opened
+    document.querySelector('.dropdown-toggle').addEventListener('click', function () {
+        updateNotificationCount(0); // Reset the count to zero
+        markNotificationsAsSeen();
+    });
+
+    function markNotificationsAsSeen() {
+        fetch('/notifications/seen', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 200) {
+                console.log('Notifications marked as seen.');
+            }
+        })
+        .catch(error => console.error('Error marking notifications as seen:', error));
+    }
+});
 
 </script>
 {{-- it will get the location details code end --}}

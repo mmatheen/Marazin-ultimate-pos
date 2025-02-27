@@ -46,7 +46,7 @@ use App\Models\Payment;
 Route::get('/getValue', function () {
     $payment = Payment::find(2);
 
-    
+
     $ledgerData = [
         'transaction_date' => $payment->payment_date,
         'reference_no' => $payment->reference_no,
@@ -164,6 +164,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
         Route::get('/opening-stocks-get-all', [ProductController::class, 'OpeningStockGetAll']);
+        Route::get('/notifications', [ProductController::class, 'getNotifications']);
+        Route::post('/notifications/seen', [ProductController::class, 'markNotificationsAsSeen']);
         // SubCategory Routes
         Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
 
@@ -301,7 +303,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
 
         // Route to resume a suspended sale
-        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'editSale']);
+        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
 
         // Route to delete a suspended sale
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
@@ -371,6 +373,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('payments/{payment}', [PaymentController::class, 'show']);
         Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
+
+                // web.php (Routes)
+        Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
 
     });
 });

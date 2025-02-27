@@ -108,6 +108,10 @@ class SaleController extends Controller
             'products.*.price_type' => 'required|string|in:retail,wholesale,special',
             'products.*.discount' => 'nullable|numeric|min:0',
             'products.*.tax' => 'nullable|numeric|min:0',
+            'payments' => 'nullable|array',
+            'payments.*.payment_method' => 'required_with:payments|string',
+            'payments.*.payment_date' => 'required_with:payments|date',
+            'payments.*.amount' => 'required_with:payments|numeric|min:0',
             'total_paid' => 'nullable|numeric|min:0',
             'payment_mode' => 'nullable|string',
             'payment_status' => 'nullable|string',
@@ -136,6 +140,7 @@ class SaleController extends Controller
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
                     'sales_date' => $request->sales_date,
+                    'sale_type' => $request->sale_type,
                     'status' => $request->status,
                     'invoice_no' => $request->invoice_no,
                     'reference_no' => $referenceNo,
@@ -177,20 +182,43 @@ class SaleController extends Controller
                     'user_id' => $request->customer_id,
                 ]);
 
-                // Insert ledger entry for the payment if total_paid is provided
-                if ($totalPaid > 0) {
-                    Ledger::create([
-                        'transaction_date' => $request->payment_date ? date('Y-m-d H:i:s', strtotime($request->payment_date)) : now(),
-                        'reference_no' => $referenceNo,
-                        'transaction_type' => 'payments',
-                        'debit' => $totalPaid,
-                        'credit' => 0,
-                        'balance' => $this->calculateNewBalance($request->customer_id, $totalPaid, 'debit'),
-                        'contact_type' => 'customer',
-                        'user_id' => $request->customer_id,
-                    ]);
+                // Insert ledger entries and create payment records for each payment
+                if (!empty($request->payments)) {
+                    foreach ($request->payments as $paymentData) {
+                        Ledger::create([
+                            'transaction_date' => $paymentData['payment_date'] ? date('Y-m-d H:i:s', strtotime($paymentData['payment_date'])) : now(),
+                            'reference_no' => $referenceNo,
+                            'transaction_type' => 'payments',
+                            'debit' => $paymentData['amount'],
+                            'credit' => 0,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $paymentData['amount'], 'debit'),
+                            'contact_type' => 'customer',
+                            'user_id' => $request->customer_id,
+                        ]);
 
-                    $this->handlePayment($request, $sale);
+                        Payment::create([
+                            'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                            'amount' => $paymentData['amount'],
+                            'payment_method' => $paymentData['payment_method'],
+                            'reference_no' => $sale->reference_no,
+                            'notes' => $paymentData['notes'] ?? '',
+                            'payment_type' => 'sale',
+                            'reference_id' => $sale->id,
+                            'customer_id' => $sale->customer_id,
+                            'card_number' => $paymentData['card_number'] ?? null,
+                            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                            'card_security_code' => $paymentData['card_security_code'] ?? null,
+                            'cheque_number' => $paymentData['cheque_number'] ?? null,
+                            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                        ]);
+                    }
+
+                    $this->updatePaymentStatus($sale);
                 } else {
                     $sale->updateTotalDue();
                 }
@@ -229,37 +257,13 @@ class SaleController extends Controller
         return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
     }
 
-    private function handlePayment($request, $sale)
+    private function updatePaymentStatus($sale)
     {
-        $existingPayments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->sum('amount');
-        $totalDue = $sale->final_total - $existingPayments;
-        $paidAmount = min($request->total_paid, $totalDue);
+        $totalPaid = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->sum('amount');
+        $sale->total_paid = $totalPaid;
+        $sale->total_due = $sale->final_total - $totalPaid;
 
-        $payment = Payment::create([
-            'payment_date' => $request->payment_date ? Carbon::parse($request->payment_date)->format('Y-m-d') : now()->format('Y-m-d H:i:s'),
-            'amount' => $paidAmount,
-            'payment_method' => $request->payment_mode,
-            'reference_no' => $sale->reference_no,
-            'notes' => $request->payment_note,
-            'payment_type' => 'sale',
-            'reference_id' => $sale->id,
-            'customer_id' => $sale->customer_id,
-            'card_number' => $request->card_number,
-            'card_holder_name' => $request->card_holder_name,
-            'card_expiry_month' => $request->card_expiry_month,
-            'card_expiry_year' => $request->card_expiry_year,
-            'card_security_code' => $request->card_security_code,
-            'cheque_number' => $request->cheque_number,
-            'cheque_bank_branch' => $request->cheque_bank_branch,
-            'cheque_received_date' => $request->cheque_received_date,
-            'cheque_valid_date' => $request->cheque_valid_date,
-            'cheque_given_by' => $request->cheque_given_by,
-        ]);
-
-
-        $totalPaid = $existingPayments + $paidAmount;
-
-        if ($totalDue - $paidAmount <= 0) {
+        if ($sale->total_due <= 0) {
             $sale->payment_status = 'Paid';
         } elseif ($totalPaid < $sale->final_total) {
             $sale->payment_status = 'Partial';
@@ -267,24 +271,7 @@ class SaleController extends Controller
             $sale->payment_status = 'Due';
         }
 
-        $sale->total_paid = $totalPaid;
-        $sale->total_due = $sale->final_total - $totalPaid;
         $sale->save();
-
-        $this->updateCustomerBalance($sale->customer_id);
-    }
-
-    private function updateCustomerBalance($customerId)
-    {
-        $customer = Customer::find($customerId);
-
-        if ($customer) {
-            $totalSales = Sale::where('customer_id', $customerId)->sum('final_total');
-            $totalPayments = Payment::where('customer_id', $customerId)->where('payment_type', 'sale')->sum('amount');
-
-            $customer->current_balance = $customer->opening_balance + $totalSales - $totalPayments;
-            $customer->save();
-        }
     }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType)
@@ -481,49 +468,179 @@ class SaleController extends Controller
         return response()->json($suspendedSales, 200);
     }
 
-    public function editSale($id)
-    {
-        try {
-            $sale = Sale::with([
-                'products.product',
-                'products.batch.locationBatches',
-                'payments',
-                'customer',
-                'location',
-            ])->findOrFail($id);
+    // public function editSale($id)
+    // {
+    //     try {
+    //         $sale = Sale::with([
+    //             'products.product',
+    //             'products.batch.locationBatches',
+    //             'payments',
+    //             'customer',
+    //             'location',
+    //         ])->findOrFail($id);
 
-            // Fetch all related records
-            $products = $sale->products;
-            $payments = $sale->payments;
-            $customer = $sale->customer;
-            $location = $sale->location;
+    //         // Fetch all related records
+    //         $products = $sale->products;
+    //         $payments = $sale->payments;
+    //         $customer = $sale->customer;
+    //         $location = $sale->location;
 
-            // Ensure authenticated user's location is retrieved separately if needed
-            $user = Auth::user();
-            $userLocation = Location::find($user->location_id);
+    //         // Ensure authenticated user's location is retrieved separately if needed
+    //         $user = Auth::user();
+    //         $userLocation = Location::find($user->location_id);
 
-            $response = [
-                'message' => 'Sale details fetched successfully.',
-                'sale' => $sale,
-                'products' => $products,
-                'payments' => $payments,
-                'customer' => $customer,
-                'location' => $location,
-                'user_location' => $userLocation
-            ];
+    //         $response = [
+    //             'message' => 'Sale details fetched successfully.',
+    //             'sale' => $sale,
+    //             'products' => $products,
+    //             'payments' => $payments,
+    //             'customer' => $customer,
+    //             'location' => $location,
+    //             // 'user_location' => $userLocation
+    //         ];
 
-            if (request()->ajax() || request()->is('api/*')) {
-                return response()->json(['status' => 200, 'sale' => $response], 200);
-            }
+    //         if (request()->ajax() || request()->is('api/*')) {
+    //             return response()->json(['status' => 200, 'sale' => $response], 200);
+    //         }
 
-            return view('sell.pos', compact('sale', 'products', 'payments', 'customer', 'location', 'userLocation'));
-        } catch (ModelNotFoundException $e) {
-            if (request()->ajax() || request()->is('api/*')) {
-                return response()->json(['message' => 'Sale not found'], 404);
-            }
-            return redirect()->route('list-sale')->with('error', 'Sale not found.');
+    //         return view('sell.pos', compact('sale', 'products', 'payments', 'customer', 'location', 'userLocation'));
+    //     } catch (ModelNotFoundException $e) {
+    //         if (request()->ajax() || request()->is('api/*')) {
+    //             return response()->json(['message' => 'Sale not found'], 404);
+    //         }
+    //         return redirect()->route('list-sale')->with('error', 'Sale not found.');
+    //     }
+    // }
+
+    public function show($id)
+{
+    try {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthorized access'
+            ], 401);
         }
+
+        // Load user's location
+        $location = Location::find($user->location_id);
+        if (!$location) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'User location not found'
+            ], 400);
+        }
+
+        // Load sale with relationships
+        $sale = Sale::with([
+            'products.product',
+            'customer',
+            'products.batch.locationBatches' => function($query) use ($user) {
+                $query->where('location_id', $user->location_id);
+            },
+            'payments' // Include payments for complete sale information
+        ])->findOrFail($id);
+
+        // Check if user has permission to access this sale
+        if ($sale->location_id !== $user->location_id) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to access this sale.'
+            ], 403);
+        }
+
+        // Format the sale data for response
+        $formattedSale = [
+            'id' => $sale->id,
+            'customer_id' => $sale->customer_id,
+            'location_id' => $sale->location_id,
+            'invoice_no' => $sale->invoice_no,
+            'reference_no' => $sale->reference_no,
+            'sales_date' => $sale->sales_date,
+            'status' => $sale->status,
+            'sale_type' => $sale->sale_type,
+            'final_total' => $sale->final_total,
+            'total_paid' => $sale->total_paid,
+            'total_due' => $sale->total_due,
+            'payment_status' => $sale->payment_status,
+            'customer' => $sale->customer,
+            'products' => $sale->products->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'product_id' => $product->product_id,
+                    'product' => [
+                        'id' => $product->product->id,
+                        'product_name' => $product->product->product_name,
+                        'sku' => $product->product->sku,
+                        'product_image' => $product->product->product_image,
+                        'description' => $product->product->description,
+                    ],
+                    'batch_id' => $product->batch_id,
+                    'quantity' => $product->quantity,
+                    'unit_price' => $product->unit_price,
+                    'price' => $product->price,
+                    'subtotal' => $product->subtotal,
+                    'discount' => $product->discount,
+                    'tax' => $product->tax,
+                    'batch' => [
+                        'id' => $product->batch_id,
+                        'location_batches' => $product->batch ? $product->batch->locationBatches : []
+                    ]
+                ];
+            }),
+            'payments' => $sale->payments,
+            'created_at' => $sale->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $sale->updated_at->format('Y-m-d H:i:s'),
+        ];
+
+        // Handle different types of requests
+        if (request()->ajax() || request()->is('api/*')) {
+            return response()->json([
+                'status' => 200,
+                'sale' => $formattedSale,
+                'location' => [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'address' => $location->address,
+                    // Add other necessary location fields
+                ],
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'location_id' => $user->location_id,
+                ],
+                'timestamp' => now()->format('Y-m-d H:i:s'),
+                'timezone' => config('app.timezone')
+            ]);
+        }
+
+        // For web requests, return view with data
+        return view('sell.pos', compact('sale', 'location'));
+
+    } catch (ModelNotFoundException $e) {
+        return response()->json([
+            'status' => 404,
+            'message' => 'Sale not found'
+        ], 404);
+    } catch (\Exception $e) {
+        // \Log::error('Sale show error: ' . $e->getMessage(), [
+        //     'user' => Auth::user()->id ?? 'unknown',
+        //     'sale_id' => $id,
+        //     'timestamp' => now()->format('Y-m-d H:i:s'),
+        //     'trace' => $e->getTraceAsString()
+        // ]);
+
+        return response()->json([
+            'status' => 400,
+            'message' => 'An error occurred while fetching the sale details',
+            'debug' => config('app.debug') ? $e->getMessage() : null
+        ], 400);
     }
+}
+
 
 
     public function deleteSuspendedSale($id)

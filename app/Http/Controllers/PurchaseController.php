@@ -20,7 +20,6 @@ use App\Models\Payment;
 use App\Models\PurchaseReturn;
 use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
-use App\Models\Transaction;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -337,12 +336,6 @@ class PurchaseController extends Controller
             'cheque_given_by' => $request->cheque_given_by,
         ]);
 
-        Transaction::create([
-            'transaction_date' => $payment->payment_date,
-            'amount' => $payment->amount,
-            'transaction_type' => $payment->payment_type,
-            'reference_id' => $payment->id,
-        ]);
 
         // Update purchase payment status based on total due
         if ($totalDue - $paidAmount <= 0) {
@@ -374,6 +367,8 @@ class PurchaseController extends Controller
             // Fetch all purchases with related products and payment info
             $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->get();
 
+            // $purchases = Purchase::with(['purchaseProducts'])->get();
+
             // Check if purchases are found
             if ($purchases->isEmpty()) {
                 return response()->json(['message' => 'No purchases found.'], 404);
@@ -388,7 +383,7 @@ class PurchaseController extends Controller
         }
     }
 
-    public function getAllPurchasesProduct(int $id)
+    public function getAllPurchasesProduct( $id)
     {
         // Fetch the specific purchase by ID with related products and payment info
         $purchase = Purchase::with(['supplier', 'location', 'purchaseProducts.product', 'payments'])->find($id);

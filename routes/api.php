@@ -266,7 +266,7 @@ Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.des
 
         // Route to resume a suspended sale
          // Route to resume a suspended sale
-         Route::get('/pos/sales/edit/{id}', [SaleController::class, 'editSale']);
+    Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
 
         // Route to delete a suspended sale
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
@@ -308,3 +308,8 @@ Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
 Route::get('payments/{payment}', [PaymentController::class, 'show']);
 Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
 Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
+
+
+Route::post('/supplier-payment', [PaymentController::class, 'handleSupplierPayment']);
+                // web.php (Routes)
+  Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);

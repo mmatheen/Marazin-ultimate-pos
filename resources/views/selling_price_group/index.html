@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS System</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .pos-container {
+            height: 100vh;
+        }
+        .billing-body {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-left: 1px solid #ddd;
+        }
+        .product-list-container {
+            position: relative;
+            padding: 20px;
+        }
+        .loader {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #666;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        .product-card img {
+            max-width: 100%;
+            height: auto;
+        }
+        .product-card h5, .product-card h6 {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .product-card p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .pos-container {
+                flex-direction: column;
+            }
+            .billing-body {
+                border-left: none;
+                border-top: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid pos-container d-flex">
+        <div class="col-md-8 product-list-container">
+            <div class="loader" id="loader">Loading...</div>
+            <div class="row" id="productGrid"></div>
+        </div>
+        <div class="col-md-4 billing-body">
+            <h4>Billing Body</h4>
+            <!-- Billing details go here -->
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        const baseUrl = ''; // Set your base URL here
+        const products = [
+            {
+                product_image: 'https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg?auto=compress&cs=tinysrgb&w=600',
+                product_name: 'Acer Aspire E 15 - White',
+                sku: 'AS0017-2',
+                totalQuantity: 49
+            },
+            // Add more products as needed
+        ];
+
+        function generateProductCard(product) {
+            const cardHTML = `
+                <div class="col-3">
+                    <div class="product-card">
+                        <img src="${product.product_image}" alt="${product.product_name}" class="card-img-top p-2">
+                        <div class="product-card-body">
+                            <h6>${product.product_name} <br> <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span></h6>
+                            <h6><span class="badge bg-success">${product.totalQuantity} Pc(s) in stock</span></h6>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return cardHTML;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const productGrid = document.getElementById('productGrid');
+            const loader = document.getElementById('loader');
+
+            loader.style.display = 'block';
+
+            setTimeout(() => {
+                products.forEach(product => {
+                    const card = generateProductCard(product);
+                    productGrid.innerHTML += card;
+                });
+
+                loader.style.display = 'none';
+            }, 2000); // Simulate loading delay
+        });
+    </script>
+</body>
+</html>

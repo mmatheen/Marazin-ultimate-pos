@@ -45,7 +45,7 @@
                         <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>
                         <li><a href={{ route('variation-title')}} class="{{ set_active(['variation-title'])}}">Variation Title</a></li>
                         <li><a href={{ route('import-product')}} class="{{ set_active(['import-product'])}}">Import Products</a></li>
-                        <li><a href={{ route('import-opening-stock')}} class="{{ set_active(['import-opening-stock'])}}">Import Opening Stock</a></li>
+                        {{-- <li><a href={{ route('import-opening-stock')}} class="{{ set_active(['import-opening-stock'])}}">Import Opening Stock</a></li> --}}
                         <li><a href={{ route('selling-price-group') }} class="{{ set_active(['selling-price-group'])}}">Selling Price Group</a></li>
                         <li><a href={{ route('unit') }} class="{{ set_active(['unit'])}}">Unit</a></li>
                         <li><a href={{ route('main-category') }} class="{{ set_active(['main-category'])}}">Main Category</a></li>
