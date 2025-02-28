@@ -264,161 +264,258 @@ class PaymentController extends Controller
         return response()->json(['status' => 200, 'message' => 'Payment deleted and balances restored successfully.']);
     }
 
+    // public function submitBulkPayment(Request $request)
+    // {
+    //     $data = $request->validate([
+    //         'supplier_id' => 'required|exists:suppliers,id',
+    //         'payment_method' => 'required|string',
+    //         'payment_date' => 'nullable|date',
+    //         'global_amount' => 'nullable|numeric',
+    //         'purchase_payments' => 'nullable|array',
+    //         'purchase_payments.*.purchase_id' => 'required|exists:purchases,id',
+    //         'purchase_payments.*.amount' => 'required|numeric|min:0',
+    //     ]);
+
+    //     $supplierId = $data['supplier_id'];
+    //     $globalAmount = $data['global_amount'] ?? 0;
+    //     $remainingAmount = $globalAmount;
+
+    //     $supplier = Supplier::findOrFail($supplierId);
+
+    //     // Calculate total due amount for the supplier using the total_due column
+    //     $totalDueFromPurchases = Purchase::where('supplier_id', $supplierId)
+    //         ->where('total_due', '>', 0)
+    //         ->sum('total_due');
+
+    //     $totalDueAmount = $supplier->opening_balance + $totalDueFromPurchases;
+
+
+    //     // dump($totalDueFromPurchases);
+    //     // dump($supplier->opening_balance);
+    //     // dump($totalDueAmount);
+    //     // dump($globalAmount);
+    //     // dump($globalAmount >= $totalDueAmount);
+
+
+
+    //     //
+
+    //     // // Validate that the global amount does not exceed total due amount
+
+
+    //     if ($globalAmount > $totalDueAmount) {
+    //         return response()->json(['error' => 'amount exceeds total due amount'], 400);
+    //     }
+
+    //     DB::transaction(function () use ($supplier, &$remainingAmount, $globalAmount, $data, $request) {
+    //         // Reduce supplier opening balance
+    //         if ($supplier->opening_balance > 0) {
+    //             if ($remainingAmount >= $supplier->opening_balance) {
+    //                 $remainingAmount -= $supplier->opening_balance;
+    //                 $supplier->opening_balance = 0;
+    //             } else {
+    //                 $supplier->opening_balance -= $remainingAmount;
+    //                 $remainingAmount = 0;
+    //             }
+    //             $supplier->save();
+    //         }
+
+    //         // Apply remaining amount to purchases using FIFO method if global amount is provided
+    //         if ($globalAmount > 0) {
+    //             $purchases = Purchase::where('supplier_id', $supplier->id)
+    //                 ->where('total_due', '>', 0)
+    //                 ->orderBy('created_at', 'asc')
+    //                 ->get();
+
+    //             foreach ($purchases as $purchase) {
+    //                 if ($remainingAmount <= 0) {
+    //                     break;
+    //                 }
+
+    //                 $dueAmount = $purchase->total_due;
+    //                 $paidAmount = min($remainingAmount, $dueAmount);
+
+    //                 $payment = Payment::create([
+    //                     'payment_date' => Carbon::today()->format('Y-m-d'),
+    //                     'amount' => $paidAmount,
+    //                     'payment_method' => $data['payment_method'],
+    //                     'payment_type' => "purchase",
+    //                     'reference_id' => $purchase->id,
+    //                     'reference_no' => $purchase->reference_no,
+    //                     'supplier_id' => $supplier->id,
+    //                     'notes' => 'Bulk payment',
+    //                 ]);
+
+    //                 $this->createLedgerEntry($request, $payment, 'supplier');
+
+    //                 // Update total_paid and ensure it is correctly incremented
+    //                 $purchase->increment('total_paid', $paidAmount);
+    //                 $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
+    //                 $purchase->save();
+
+    //                 $remainingAmount -= $paidAmount;
+    //             }
+    //         }
+
+    //         // Handle individual payments if global amount is not provided
+    //         if ($globalAmount == 0 && isset($data['purchase_payments']) && count($data['purchase_payments']) > 0) {
+    //             foreach ($data['purchase_payments'] as $paymentData) {
+    //                 $purchase = Purchase::findOrFail($paymentData['purchase_id']);
+    //                 $paidAmount = $paymentData['amount'];
+
+    //                 $payment = Payment::create([
+    //                     'payment_date' => $data['payment_date'] ?? Carbon::today()->format('Y-m-d'),
+    //                     'amount' => $paidAmount,
+    //                     'payment_method' => $data['payment_method'],
+    //                     'payment_type' => "purchase",
+    //                     'reference_id' => $purchase->id,
+    //                     'reference_no' => $purchase->reference_no,
+    //                     'supplier_id' => $supplier->id,
+    //                     'notes' => 'Individual payment',
+    //                 ]);
+
+    //                 $this->createLedgerEntry($request, $payment, 'supplier');
+
+    //                 // Update total_paid and ensure it is correctly incremented
+    //                 $purchase->increment('total_paid', $paidAmount);
+    //                 $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
+    //                 $purchase->save();
+    //             }
+    //         }
+    //     });
+
+    //     return response()->json(['message' => 'Payments submitted successfully.']);
+    // }
 
     public function submitBulkPayment(Request $request)
 {
     $data = $request->validate([
-        'supplier_id' => 'required|exists:suppliers,id',
+        'entity_type' => 'required|in:supplier,customer', // Determine if the entity is a supplier or customer
+        'entity_id' => 'required', // entity_id can be supplier_id or customer_id
         'payment_method' => 'required|string',
         'payment_date' => 'nullable|date',
         'global_amount' => 'nullable|numeric',
-        'purchase_payments' => 'nullable|array',
-        'purchase_payments.*.purchase_id' => 'required|exists:purchases,id',
-        'purchase_payments.*.amount' => 'required|numeric|min:0',
+        'payments' => 'nullable|array',
+        'payments.*.reference_id' => 'required|exists:purchases,id', // Ensure reference_id is provided
+        'payments.*.amount' => 'required|numeric|min:0',
     ]);
 
-    $supplierId = $data['supplier_id'];
+    // Validate entity_id based on entity_type
+    if ($data['entity_type'] === 'supplier') {
+        $entity = Supplier::findOrFail($data['entity_id']);
+    } else {
+        $entity = Customer::findOrFail($data['entity_id']);
+    }
+
+    $entityId = $data['entity_id'];
     $globalAmount = $data['global_amount'] ?? 0;
     $remainingAmount = $globalAmount;
 
-    $supplier = Supplier::findOrFail($supplierId);
+    if ($data['entity_type'] === 'supplier') {
+        $totalDueFromReferences = Purchase::where('supplier_id', $entityId)
+            ->where('total_due', '>', 0)
+            ->sum('total_due');
+    } else {
+        $totalDueFromReferences = Sale::where('customer_id', $entityId)
+            ->where('total_due', '>', 0)
+            ->sum('total_due');
+    }
 
-    DB::transaction(function () use ($supplier, $remainingAmount, $data) {
-        // Reduce supplier opening balance
-        if ($supplier->opening_balance > 0) {
-            if ($remainingAmount >= $supplier->opening_balance) {
-                $remainingAmount -= $supplier->opening_balance;
-                $supplier->opening_balance = 0;
+    $totalDueAmount = $entity->opening_balance + $totalDueFromReferences;
+
+    // Validate that the global amount does not exceed total due amount
+    if ($globalAmount > $totalDueAmount) {
+        return response()->json(['error' => 'Global amount exceeds total due amount'], 400);
+    }
+
+    DB::transaction(function () use ($entity, &$remainingAmount, $globalAmount, $data, $request) {
+        // Reduce entity opening balance
+        if ($entity->opening_balance > 0) {
+            if ($remainingAmount >= $entity->opening_balance) {
+                $remainingAmount -= $entity->opening_balance;
+                $entity->opening_balance = 0;
             } else {
-                $supplier->opening_balance -= $remainingAmount;
+                $entity->opening_balance -= $remainingAmount;
                 $remainingAmount = 0;
             }
-            $supplier->save();
+            $entity->save();
         }
 
-        // Apply remaining amount to purchases using FIFO method
-        $purchases = Purchase::where('supplier_id', $supplier->id)
-            ->whereColumn('final_total', '>', 'total_paid')
-            ->orderBy('created_at', 'asc')
-            ->get();
-
-        foreach ($purchases as $purchase) {
-            if ($remainingAmount <= 0) {
-                break;
+        // Apply remaining amount to references using FIFO method if global amount is provided
+        if ($globalAmount > 0) {
+            if ($data['entity_type'] === 'supplier') {
+                $references = Purchase::where('supplier_id', $entity->id)
+                    ->where('total_due', '>', 0)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+            } else {
+                $references = Sale::where('customer_id', $entity->id)
+                    ->where('total_due', '>', 0)
+                    ->orderBy('created_at', 'asc')
+                    ->get();
             }
 
-            $dueAmount = $purchase->final_total - $purchase->total_paid;
-            $paidAmount = min($remainingAmount, $dueAmount);
+            foreach ($references as $reference) {
+                if ($remainingAmount <= 0) {
+                    break;
+                }
 
-            Payment::create([
-                'payment_date' => Carbon::today()->format('Y-m-d'),
-                'amount' => $paidAmount,
-                'payment_method' => $data['payment_method'],
-                'payment_type' => "purchase",
-                'reference_id' => $purchase->id,
-                'reference_no' => $purchase->purchase_no,
-                'supplier_id' => $supplier->id,
-                'notes' => 'Bulk payment',
-            ]);
+                $dueAmount = $reference->total_due;
+                $paidAmount = min($remainingAmount, $dueAmount);
 
-            $purchase->total_paid += $paidAmount;
-            $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
-            $purchase->save();
+                $payment = Payment::create([
+                    'payment_date' => Carbon::today()->format('Y-m-d'),
+                    'amount' => $paidAmount,
+                    'payment_method' => $data['payment_method'],
+                    'payment_type' => $data['entity_type'] === 'supplier' ? "purchase" : "sale",
+                    'reference_id' => $reference->id,
+                    'reference_no' => $reference->reference_no,
+                    $data['entity_type'] === 'supplier' ? 'supplier_id' : 'customer_id' => $entity->id,
+                    'notes' => 'Bulk payment',
+                ]);
 
-            $remainingAmount -= $paidAmount;
+                $this->createLedgerEntry($request, $payment, $data['entity_type']);
+
+                // Update total_paid and ensure it is correctly incremented
+                $reference->increment('total_paid', $paidAmount);
+                $reference->payment_status = $reference->total_paid >= $reference->final_total ? 'Paid' : 'Partial';
+                $reference->save();
+
+                $remainingAmount -= $paidAmount;
+            }
         }
 
-        // Handle individual payments
-        if (isset($data['purchase_payments']) && count($data['purchase_payments']) > 0) {
-            foreach ($data['purchase_payments'] as $payment) {
-                $purchase = Purchase::findOrFail($payment['purchase_id']);
-                $paidAmount = $payment['amount'];
+        // Handle individual payments if global amount is not provided
+        if ($globalAmount == 0 && isset($data['payments']) && count($data['payments']) > 0) {
+            foreach ($data['payments'] as $paymentData) {
+                if ($data['entity_type'] === 'supplier') {
+                    $reference = Purchase::findOrFail($paymentData['reference_id']);
+                } else {
+                    $reference = Sale::findOrFail($paymentData['reference_id']);
+                }
+                $paidAmount = $paymentData['amount'];
 
-                Payment::create([
+                $payment = Payment::create([
                     'payment_date' => $data['payment_date'] ?? Carbon::today()->format('Y-m-d'),
                     'amount' => $paidAmount,
                     'payment_method' => $data['payment_method'],
-                    'payment_type' => "purchase",
-                    'reference_id' => $purchase->id,
-                    'reference_no' => $purchase->purchase_no,
-                    'supplier_id' => $supplier->id,
+                    'payment_type' => $data['entity_type'] === 'supplier' ? "purchase" : "sale",
+                    'reference_id' => $reference->id,
+                    'reference_no' => $reference->reference_no,
+                    $data['entity_type'] === 'supplier' ? 'supplier_id' : 'customer_id' => $entity->id,
                     'notes' => 'Individual payment',
                 ]);
 
-                $purchase->total_paid += $paidAmount;
-                $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
-                $purchase->save();
+                $this->createLedgerEntry($request, $payment, $data['entity_type']);
+
+                // Update total_paid and ensure it is correctly incremented
+                $reference->increment('total_paid', $paidAmount);
+                $reference->payment_status = $reference->total_paid >= $reference->final_total ? 'Paid' : 'Partial';
+                $reference->save();
             }
         }
     });
 
     return response()->json(['message' => 'Payments submitted successfully.']);
 }
-
-    // public function handleSupplierPayment(Request $request)
-    // {
-    //     $request->validate([
-    //         'supplier_id' => 'required|exists:suppliers,id',
-    //         'amount' => 'required|numeric|min:0',
-    //     ]);
-
-    //     $supplierId = $request->supplier_id;
-    //     $paymentAmount = $request->amount;
-
-    //     $supplier = Supplier::findOrFail($supplierId);
-
-    //     if ($supplier->opening_balance > 0) {
-    //         if ($paymentAmount >= $supplier->opening_balance) {
-    //             $paymentAmount -= $supplier->opening_balance;
-    //             $supplier->opening_balance = 0;
-    //         } else {
-    //             $supplier->opening_balance -= $paymentAmount;
-    //             $paymentAmount = 0;
-    //         }
-    //         $supplier->save();
-    //     }
-
-    //     $purchases = Purchase::where('supplier_id', $supplierId)
-    //         ->whereColumn('final_total', '>', 'total_paid')
-    //         ->orderBy('created_at', 'asc')
-    //         ->get();
-
-    //     foreach ($purchases as $purchase) {
-    //         if ($paymentAmount <= 0) {
-    //             break;
-    //         }
-
-    //         $dueAmount = $purchase->final_total - $purchase->total_paid;
-
-    //         $paidAmount = min($paymentAmount, $dueAmount);
-    //         $this->recordPayment($request, $purchase->id, $supplierId, $paidAmount, 'purchase');
-
-    //         $paymentAmount -= $paidAmount;
-    //         $purchase->total_paid += $paidAmount;
-    //         $purchase->payment_status = $purchase->total_paid >= $purchase->final_total ? 'Paid' : 'Partial';
-    //         $purchase->save();
-    //     }
-
-    //     $this->updateSupplierBalance($supplierId);
-
-    //     return response()->json([
-    //         'message' => 'Supplier Payment Success',
-    //         'current_due' => $supplier->current_balance,
-    //     ]);
-    // }
-
-    // private function recordPayment(Request $request, $referenceId, $supplierId, $amount, $type)
-    // {
-    //     $paymentData = [
-    //         'payment_date' => Carbon::now()->format('Y-m-d'),
-    //         'amount' => $amount,
-    //         'payment_method' => $request->payment_method ?? 'unknown',
-    //         'payment_type' => $type,
-    //         'reference_id' => $referenceId,
-    //         'supplier_id' => $supplierId,
-    //     ];
-
-    //     $payment = Payment::create($paymentData);
-    //     $this->createLedgerEntry($request, $payment, 'supplier');
-    // }
 }

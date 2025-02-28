@@ -98,6 +98,21 @@ class Sale extends Model
         return $availableStock + $soldQuantity;
     }
 
+    public static function generateInvoiceNo()
+        {
+            // Get the last sale invoice number
+            $lastSale = self::latest('id')->first();
+
+            if ($lastSale && preg_match('/INV-(\d+)/', $lastSale->invoice_no, $matches)) {
+                $nextNumber = (int) $matches[1] + 1;
+            } else {
+                $nextNumber = 1; // Start from 1 if no previous invoice exists
+            }
+
+            return 'INV-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        }
+
+
     public function payments()
     {
         return $this->hasMany(Payment::class, 'reference_id', 'id')->where('payment_type', 'sale');

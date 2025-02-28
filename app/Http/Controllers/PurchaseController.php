@@ -315,8 +315,8 @@ class PurchaseController extends Controller
         // If the paid amount exceeds total due, adjust it
         $paidAmount = min($request->paid_amount, $totalDue);
 
-        $payment = Payment::create([
-            'payment_date' => $request->paid_date ?? now(),
+         Payment::create([
+            'payment_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
             'amount' => $paidAmount,
             'payment_method' => $request->payment_method,
             'reference_no' => $purchase->reference_no,

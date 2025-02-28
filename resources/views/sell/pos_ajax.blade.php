@@ -655,14 +655,10 @@ function updateTotals() {
             });
 
             $(document).ready(function() {
-        function generateCode(prefix, number) {
-            const numberStr = number.toString().padStart(4, '0');
-            return prefix + numberStr.slice(-4);
-        }
+       
 
         function gatherSaleData(status) {
             const uniqueNumber = new Date().getTime() % 10000;
-            const invoiceNo = generateCode('INV', uniqueNumber);
             const customerId = $('#customer-id').val();
             const salesDate = new Date().toISOString().slice(0, 10);
 
@@ -678,7 +674,6 @@ function updateTotals() {
                 location_id: locationId, // Use the global locationId
                 status: status,
                 sale_type: "POS",
-                invoice_no: invoiceNo,
                 products: []
             };
 

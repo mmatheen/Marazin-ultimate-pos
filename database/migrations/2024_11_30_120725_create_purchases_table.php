@@ -25,9 +25,8 @@ return new class extends Migration
             $table->enum('discount_type', ['percent', 'fixed'])->nullable();
             $table->decimal('discount_amount', 15, 2)->nullable();
             $table->decimal('final_total', 15, 2);
-            $table->decimal('total_paid', 15, 2)->default(0); 
-            $table->decimal('total_due', 15, 2)->virtualAs('final_total - total_paid');  // Dynamic calculation of total_due
-
+            $table->decimal('total_paid', 15, 2)->default(0);
+            $table->decimal('total_due', 15, 2)->storedAs('final_total - total_paid');
             $table->enum('payment_status', ['Paid', 'Due', 'Partial'])->default('Due');
             $table->timestamps();
 

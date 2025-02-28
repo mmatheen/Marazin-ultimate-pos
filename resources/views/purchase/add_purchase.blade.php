@@ -179,13 +179,14 @@
                                             <span class="text-danger small" id="supplier_id_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="reference-no">Reference No</label>
+                                            <label for="reference-no">Reference No <i class="fas fa-exclamation-circle" title="Keep blank, this will be auto-generated"></i></label>
                                             <input class="form-control" type="text" placeholder="Reference No" id="reference-no" name="reference_no">
                                             <span class="text-danger small" id="reference_no_error"></span>
                                         </div>
+
                                         <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="purchase-date">Purchase Date <span class="text-danger">*</span></label>
-                                            <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY" id="purchase-date" name="purchase_date">
+                                            <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY" id="purchase-date" name="purchase_date" value="{{ \Carbon\Carbon::now()->format('d-m-Y') }}">
                                             <span class="text-danger small" id="purchase_date_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
@@ -198,7 +199,7 @@
                                                     <option value="Ordered">Ordered</option>
                                                 </select>
                                             </div>
-                                            <span class="text-danger small" id="purchase_status_error"></span>
+                                            <span class="text-danger small" id="purchasing_status_error"></span>
                                         </div>
                                     </div>
                                     <div class="row mb-4">
@@ -218,15 +219,15 @@
                                                     <option selected disabled></option>
                                                 </select>
                                             </div>
-                                            <span class="text-danger" id="business_location_error"></span>
+                                            <span class="text-danger" id="location_id_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="duration">Duration <span class="login-danger">*</span></label>
+                                            <label for="duration">Duration</label>
                                             <input class="form-control" id="duration" name="pay_term" type="number" placeholder="Enter Duration">
                                             <span class="text-danger" id="duration_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="period">Period <span class="login-danger">*</span></label>
+                                            <label for="period">Period</label>
                                             <div class="input-group">
                                                 <select class="form-control" id="period" name="pay_term_type">
                                                     <option selected disabled>Please Select</option>
@@ -328,7 +329,7 @@
                                         <div class="col-md-3">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms days">
-                                                    <label>Discount Type<span class="login-danger">*</span></label>
+                                                    <label>Discount Type</label>
                                                     <select class="form-control form-select select" id="discount-type" name="discount_type">
                                                         <option selected value="">None</option>
                                                         <option value="fixed">Fixed</option>

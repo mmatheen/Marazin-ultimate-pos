@@ -17,10 +17,10 @@
             purchase_date: {
                 required: "Purchase Date is required"
             },
-            purchase_status: {
+            purchasing_status: {
                 required: "Purchase Status is required"
             },
-            services: {
+            location_id: {
                 required: "Business Location is required"
             },
             duration: {
@@ -45,10 +45,10 @@
                 purchase_date: {
                     required: true
                 },
-                purchase_status: {
+                purchasing_status: {
                     required: true
                 },
-                services: {
+                location_id: {
                     required: true
                 },
                 duration: {
@@ -119,114 +119,114 @@
 
         let allProducts = []; // Store all product data
 
-function fetchProducts() {
-    fetch('/products/stocks')
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) {
-                        console.error("Product data is missing:", stock);
-                        return null;
+        function fetchProducts() {
+            fetch('/products/stocks')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) {
+                                console.error("Product data is missing:", stock);
+                                return null;
+                            }
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || ''
+                            };
+                        }).filter(product => product !== null);
+                        initAutocomplete(allProducts); // Initialize autocomplete
+                    } else {
+                        console.error("Failed to fetch product data:", data);
                     }
-                    return {
-                        id: stock.product.id,
-                        name: stock.product.product_name,
-                        sku: stock.product.sku || "N/A",
-                        quantity: stock.total_stock || 0,
-                        price: stock.batches?.[0]?.unit_cost || 0,
-                        wholesale_price: stock.batches?.[0]?.wholesale_price || 0,
-                        special_price: stock.batches?.[0]?.special_price || 0,
-                        max_retail_price: stock.batches?.[0]?.max_retail_price || 0,
-                        retail_price: stock.batches?.[0]?.retail_price || 0,
-                        expiry_date: stock.batches?.[0]?.expiry_date || '',
-                        batch_no: stock.batches?.[0]?.batch_no || ''
-                    };
-                }).filter(product => product !== null);
-                initAutocomplete(allProducts); // Initialize autocomplete
-            } else {
-                console.error("Failed to fetch product data:", data);
-            }
-        })
-        .catch(error => console.error("Error fetching products:", error));
-}
-
-function initAutocomplete(products) {
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
-            const filteredProducts = products.filter(
-                product =>
-                product.name.toLowerCase().includes(searchTerm) ||
-                product.sku.toLowerCase().includes(searchTerm)
-            );
-
-            if (filteredProducts.length === 0) {
-                response([{
-                    label: "No products found",
-                    value: ""
-                }]);
-            } else {
-                response(
-                    filteredProducts.map(product => ({
-                        label: `${product.name} (${product.sku})`,
-                        value: product.name,
-                        product: product,
-                    }))
-                );
-            }
-        },
-        select: function(event, ui) {
-            if (!ui.item.product) {
-                return false;
-            }
-            addProductToTable(ui.item.product);
-            $("#productSearchInput").val("");
-            return false;
-        },
-    });
-
-    // Ensure the autocomplete widget is initialized before setting _renderItem
-    const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
-    if (autocompleteInstance) {
-        autocompleteInstance._renderItem = function(ul, item) {
-            if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-            }
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    }
-}
-
-function addProductToTable(product, isEditing = false, prices = {}) {
-    const table = $("#purchase_product").DataTable();
-    let existingRow = null;
-
-    $('#purchase_product tbody tr').each(function() {
-        const rowProductId = $(this).data('id');
-        if (rowProductId === product.id) {
-            existingRow = $(this);
-            return false;
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
-    });
 
-    if (existingRow && !isEditing) {
-        const quantityInput = existingRow.find('.purchase-quantity');
-        const newQuantity = parseFloat(quantityInput.val()) + 1;
-        quantityInput.val(newQuantity).trigger('input');
-    } else {
-        const price = parseFloat(prices.price || product.price) || 0;
-        const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-        const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-        const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-        const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-        const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+        function initAutocomplete(products) {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = products.filter(
+                        product =>
+                        product.name.toLowerCase().includes(searchTerm) ||
+                        product.sku.toLowerCase().includes(searchTerm)
+                    );
 
-        const newRow = `
+                    if (filteredProducts.length === 0) {
+                        response([{
+                            label: "No products found",
+                            value: ""
+                        }]);
+                    } else {
+                        response(
+                            filteredProducts.map(product => ({
+                                label: `${product.name} (${product.sku})`,
+                                value: product.name,
+                                product: product,
+                            }))
+                        );
+                    }
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    return false;
+                },
+            });
+
+            // Ensure the autocomplete widget is initialized before setting _renderItem
+            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            if (autocompleteInstance) {
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
+            }
+        }
+
+        function addProductToTable(product, isEditing = false, prices = {}) {
+            const table = $("#purchase_product").DataTable();
+            let existingRow = null;
+
+            $('#purchase_product tbody tr').each(function() {
+                const rowProductId = $(this).data('id');
+                if (rowProductId === product.id) {
+                    existingRow = $(this);
+                    return false;
+                }
+            });
+
+            if (existingRow && !isEditing) {
+                const quantityInput = existingRow.find('.purchase-quantity');
+                const newQuantity = parseFloat(quantityInput.val()) + 1;
+                quantityInput.val(newQuantity).trigger('input');
+            } else {
+                const price = parseFloat(prices.price || product.price) || 0;
+                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+
+                const newRow = `
             <tr data-id="${product.id}">
                 <td>${product.id}</td>
                 <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
@@ -250,183 +250,194 @@ function addProductToTable(product, isEditing = false, prices = {}) {
             </tr>
         `;
 
-        const $newRow = $(newRow);
-        table.row.add($newRow).draw();
-        updateRow($newRow);
-        updateFooter();
+                const $newRow = $(newRow);
+                table.row.add($newRow).draw();
+                updateRow($newRow);
+                updateFooter();
 
-        $newRow.find(
-            ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
-        ).on("input", function() {
-            updateRow($newRow);
-            updateFooter();
-        });
+                $newRow.find(
+                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+                ).on("input", function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
 
-        $newRow.find(".delete-product").on("click", function() {
-            table.row($newRow).remove().draw();
-            updateFooter();
-        });
-    }
-}
-
-function updateRow($row) {
-    const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
-    const price = parseFloat($row.find(".product-price").val()) || 0;
-    const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
-    const profitMargin = parseFloat($row.find(".profit-margin").val()) || 0;
-
-    const discountedPrice = price - (price * discountPercent) / 100;
-    const unitCost = discountedPrice;
-    const retailPrice = unitCost + (unitCost * profitMargin) / 100;
-    const subTotal = unitCost * quantity;
-
-    $row.find(".unit-cost").val(unitCost.toFixed(2));
-    $row.find(".retail-price").val(retailPrice.toFixed(2));
-    $row.find(".sub-total").text(subTotal.toFixed(2));
-}
-
-function updateFooter() {
-    let totalItems = 0;
-    let netTotalAmount = 0;
-
-    $('#purchase_product tbody tr').each(function() {
-        const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-        const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
-
-        totalItems += quantity;
-        netTotalAmount += subTotal;
-    });
-
-    $('#total-items').text(totalItems.toFixed(2));
-    $('#net-total-amount').text(netTotalAmount.toFixed(2));
-    $('#total').val(netTotalAmount.toFixed(2));
-
-    const discountType = $('#discount-type').val();
-    const discountInput = parseFloat($('#discount-amount').val()) || 0;
-    let discountAmount = 0;
-
-    if (discountType === 'fixed') {
-        discountAmount = discountInput;
-    } else if (discountType === 'percentage') {
-        discountAmount = (netTotalAmount * discountInput) / 100;
-    }
-
-    const taxType = $('#tax-type').val();
-    let taxAmount = 0;
-
-    if (taxType === 'vat10') {
-        taxAmount = (netTotalAmount - discountAmount) * 0.10;
-    } else if (taxType === 'cgst10') {
-        taxAmount = (netTotalAmount - discountAmount) * 0.10;
-    }
-
-    const finalTotal = netTotalAmount - discountAmount + taxAmount;
-
-    $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
-    $('#final-total').val(finalTotal.toFixed(2));
-    $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
-    $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
-
-    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-    const paymentDue = finalTotal - paidAmount;
-    $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
-}
-
-$('#discount-type, #discount-amount, #tax-type, #paid-amount').on('change input', updateFooter);
-
-function formatDate(dateStr) {
-    const [year, month, day] = dateStr.split('-');
-    return `${day}-${month}-${year}`;
-}
-
-const pathSegments = window.location.pathname.split('/');
-const purchaseId = pathSegments[pathSegments.length - 1] === 'add-purchase' ? null : pathSegments[pathSegments.length - 1];
-
-if (purchaseId) {
-    fetchPurchaseData(purchaseId);
-    $("#purchaseButton").text("Update Purchase");
-}
-
-function fetchPurchaseData(purchaseId) {
-    $.ajax({
-        url: `/purchase/edit/${purchaseId}`,
-        method: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            if (response.status === 200) {
-                populateForm(response.purchase);
-            } else {
-                toastr.error('Failed to fetch purchase data.', 'Error');
+                $newRow.find(".delete-product").on("click", function() {
+                    table.row($newRow).remove().draw();
+                    updateFooter();
+                });
             }
-        },
-        error: handleAjaxError('fetching purchase data')
-    });
-}
+        }
 
-function populateForm(purchase) {
-    $('#supplier-id').val(purchase.supplier_id).trigger(
-        'change'); // Trigger change event after setting supplier ID
-    $('#reference-no').val(purchase.reference_no);
-    $('#purchase-date').val(formatDate(purchase.purchase_date));
-    $('#purchase-status').val(purchase.purchasing_status).change();
-    $('#services').val(purchase.location_id).change();
-    $('#duration').val(purchase.pay_term);
-    $('#period').val(purchase.pay_term_type).change();
-    $('#discount-type').val(purchase.discount_type).change();
-    $('#discount-amount').val(purchase.discount_amount);
-    $('#payment-status').val(purchase.payment_status).change();
+        function updateRow($row) {
+            const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
+            const price = parseFloat($row.find(".product-price").val()) || 0;
+            const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
+            const profitMargin = parseFloat($row.find(".profit-margin").val()) || 0;
 
-    if (purchase.payments && purchase.payments.length > 0) {
-        const latestPayment = purchase.payments[purchase.payments.length - 1];
-        $('#payment-date').val(formatDate(latestPayment.payment_date));
-        $('#payment-account').val(latestPayment.payment_account);
-        $('#payment-method').val(latestPayment.payment_method);
-        $('#payment-note').val(latestPayment.notes);
-    }
+            const discountedPrice = price - (price * discountPercent) / 100;
+            const unitCost = discountedPrice;
+            const retailPrice = unitCost + (unitCost * profitMargin) / 100;
+            const subTotal = unitCost * quantity;
 
-    const productTable = $('#purchase_product').DataTable();
-    productTable.clear().draw();
+            $row.find(".unit-cost").val(unitCost.toFixed(2));
+            $row.find(".retail-price").val(retailPrice.toFixed(2));
+            $row.find(".sub-total").text(subTotal.toFixed(2));
+        }
 
-    if (purchase.purchase_products && Array.isArray(purchase.purchase_products)) {
-        purchase.purchase_products.forEach(product => {
-            const productData = {
-                id: product.product_id,
-                name: product.product.product_name,
-                sku: product.product.sku,
-                quantity: product.quantity,
-                price: product.price,
-                wholesale_price: product.wholesale_price,
-                special_price: product.special_price,
-                max_retail_price: product.max_retail_price,
-                expiry_date: product.batch ? product.batch.expiry_date : '',
-                batch_no: product.batch ? product.batch.batch_no : ''
-            };
+        function updateFooter() {
+            let totalItems = 0;
+            let netTotalAmount = 0;
 
-            const batchPrices = {
-                price: product.batch ? product.batch.retail_price : product.price,
-                unit_cost: product.batch ? product.batch.unit_cost : product.unit_cost,
-                wholesale_price: product.batch ? product.batch.wholesale_price : product.wholesale_price,
-                special_price: product.batch ? product.batch.special_price : product.special_price,
-                max_retail_price: product.batch ? product.batch.max_retail_price : product.max_retail_price,
-                quantity: product.quantity
-            };
+            $('#purchase_product tbody tr').each(function() {
+                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
 
-            addProductToTable(productData, true, batchPrices);
-        });
-    }
+                totalItems += quantity;
+                netTotalAmount += subTotal;
+            });
 
-    updateFooter();
-}
+            $('#total-items').text(totalItems.toFixed(2));
+            $('#net-total-amount').text(netTotalAmount.toFixed(2));
+            $('#total').val(netTotalAmount.toFixed(2));
 
+            const discountType = $('#discount-type').val();
+            const discountInput = parseFloat($('#discount-amount').val()) || 0;
+            let discountAmount = 0;
 
+            if (discountType === 'fixed') {
+                discountAmount = discountInput;
+            } else if (discountType === 'percentage') {
+                discountAmount = (netTotalAmount * discountInput) / 100;
+            }
 
+            const taxType = $('#tax-type').val();
+            let taxAmount = 0;
+
+            if (taxType === 'vat10') {
+                taxAmount = (netTotalAmount - discountAmount) * 0.10;
+            } else if (taxType === 'cgst10') {
+                taxAmount = (netTotalAmount - discountAmount) * 0.10;
+            }
+
+            const finalTotal = netTotalAmount - discountAmount + taxAmount;
+
+            $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
+            $('#final-total').val(finalTotal.toFixed(2));
+            $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
+            $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
+
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const paymentDue = finalTotal - paidAmount;
+            $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
+        }
+
+        $('#discount-type, #discount-amount, #tax-type, #paid-amount').on('change input', updateFooter);
+
+        function formatDate(dateStr) {
+            const [year, month, day] = dateStr.split('-');
+            return `${day}-${month}-${year}`;
+        }
+
+        const pathSegments = window.location.pathname.split('/');
+        const purchaseId = pathSegments[pathSegments.length - 1] === 'add-purchase' ? null : pathSegments[
+            pathSegments.length - 1];
+
+        if (purchaseId) {
+            fetchPurchaseData(purchaseId);
+            $("#purchaseButton").text("Update Purchase");
+        }
+
+        function fetchPurchaseData(purchaseId) {
+            $.ajax({
+                url: `/purchase/edit/${purchaseId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        populateForm(response.purchase);
+                    } else {
+                        toastr.error('Failed to fetch purchase data.', 'Error');
+                    }
+                },
+                error: handleAjaxError('fetching purchase data')
+            });
+        }
+
+        function populateForm(purchase) {
+            $('#supplier-id').val(purchase.supplier_id).trigger(
+                'change'); // Trigger change event after setting supplier ID
+            $('#reference-no').val(purchase.reference_no);
+            $('#purchase-date').val(formatDate(purchase.purchase_date));
+            $('#purchase-status').val(purchase.purchasing_status).change();
+            $('#services').val(purchase.location_id).change();
+            $('#duration').val(purchase.pay_term);
+            $('#period').val(purchase.pay_term_type).change();
+            $('#discount-type').val(purchase.discount_type).change();
+            $('#discount-amount').val(purchase.discount_amount);
+            $('#payment-status').val(purchase.payment_status).change();
+
+            if (purchase.payments && purchase.payments.length > 0) {
+                const latestPayment = purchase.payments[purchase.payments.length - 1];
+                $('#payment-date').val(formatDate(latestPayment.payment_date));
+                $('#payment-account').val(latestPayment.payment_account);
+                $('#payment-method').val(latestPayment.payment_method);
+                $('#payment-note').val(latestPayment.notes);
+            }
+
+            const productTable = $('#purchase_product').DataTable();
+            productTable.clear().draw();
+
+            if (purchase.purchase_products && Array.isArray(purchase.purchase_products)) {
+                purchase.purchase_products.forEach(product => {
+                    const productData = {
+                        id: product.product_id,
+                        name: product.product.product_name,
+                        sku: product.product.sku,
+                        quantity: product.quantity,
+                        price: product.price,
+                        wholesale_price: product.wholesale_price,
+                        special_price: product.special_price,
+                        max_retail_price: product.max_retail_price,
+                        expiry_date: product.batch ? product.batch.expiry_date : '',
+                        batch_no: product.batch ? product.batch.batch_no : ''
+                    };
+
+                    const batchPrices = {
+                        price: product.batch ? product.batch.retail_price : product.price,
+                        unit_cost: product.batch ? product.batch.unit_cost : product.unit_cost,
+                        wholesale_price: product.batch ? product.batch.wholesale_price : product
+                            .wholesale_price,
+                        special_price: product.batch ? product.batch.special_price : product
+                            .special_price,
+                        max_retail_price: product.batch ? product.batch.max_retail_price : product
+                            .max_retail_price,
+                        quantity: product.quantity
+                    };
+
+                    addProductToTable(productData, true, batchPrices);
+                });
+            }
+
+            updateFooter();
+        }
 
         $('#purchaseButton').on('click', function(event) {
             event.preventDefault();
             $('#purchaseButton').prop('disabled', true).html('Processing...');
 
             if (!$('#purchaseForm').valid()) {
+                document.getElementsByClassName('errorSound')[0].play();
                 toastr.error('Invalid inputs, Check & try again!!', 'Warning');
+                $('#purchaseButton').prop('disabled', false).html('Save Purchase');
+                return;
+            }
+
+            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
+            console.log('Product table rows count:', productTableRows.length); // Debug log
+            if (productTableRows.length === 0) {
+                toastr.error('Please add at least one product.', 'Warning');
+                document.getElementsByClassName('errorSound')[0].play();
                 $('#purchaseButton').prop('disabled', false).html('Save Purchase');
                 return;
             }
@@ -449,10 +460,9 @@ function populateForm(purchase) {
             }
 
             formData.append('purchase_date', purchaseDate);
-            formData.append('paid_date', paidDate);
+            // formData.append('paid_date', paidDate);
             formData.append('final_total', $('#final-total').val());
 
-            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
             productTableRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = $(row).find('.purchase-quantity').val() || 0;
@@ -499,6 +509,7 @@ function populateForm(purchase) {
 
         function handleAjaxSuccess(response) {
             if (response.status === 400) {
+                document.getElementsByClassName('errorSound')[0].play();
                 $.each(response.errors, function(key, err_value) {
                     $('#' + key + '_error').html(err_value);
                 });
@@ -508,30 +519,48 @@ function populateForm(purchase) {
                 if (!purchaseId) {
                     resetFormAndValidation();
                 }
+                setTimeout(function() {
+                    window.location.href = "list-purchase";
+                }, 300);
+
             }
             $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
         }
 
         function handleAjaxError(action) {
             return function(xhr, status, error) {
-                const errorMessage = `Something went wrong while ${action}. Status: ${xhr.status} - ${xhr.statusText} Response: ${xhr.responseText}`;
+                const errorMessage =
+                    `Something went wrong while ${action}. Status: ${xhr.status} - ${xhr.statusText} Response: ${xhr.responseText}`;
                 // toastr.error(errorMessage, 'Error');
                 console.error('Error:', errorMessage, 'Response:', xhr.responseText);
-                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' :
+                    'Save Purchase');
             };
         }
 
-
         function resetFormAndValidation() {
             $('#purchaseForm')[0].reset();
-            $('#purchase_product tbody').empty();
-            $('#total-items').text('0');
-            $('#net-total-amount').text('0.00');
-            $('#purchase-total').text('Purchase Total: Rs 0.00');
-            $('#final-total').val('0.00');
-            $('#discount-display').text('(-) Rs 0.00');
-            $('#tax-display').text('(+) Rs 0.00');
+            $('#purchaseForm').validate().resetForm();
+            const table = $("#purchase_product").DataTable();
+            table.clear().draw();
+            updateFooter();
         }
+
+        // Initialize DataTable
+        $(document).ready(function() {
+            $('#purchase_product').DataTable();
+            fetchProducts();
+        });
+        // function resetFormAndValidation() {
+        //     $('#purchaseForm')[0].reset();
+        //     $('#purchase_product tbody').empty();
+        //     $('#total-items').text('0');
+        //     $('#net-total-amount').text('0.00');
+        //     $('#purchase-total').text('Purchase Total: Rs 0.00');
+        //     $('#final-total').val('0.00');
+        //     $('#discount-display').text('(-) Rs 0.00');
+        //     $('#tax-display').text('(+) Rs 0.00');
+        // }
 
         $(".show-file").on("change", function() {
             const input = this;
@@ -653,8 +682,8 @@ function populateForm(purchase) {
         $(document).ready(function() {
             fetchPurchases();
 
-              // Fetch and display data
-              function fetchPurchases() {
+            // Fetch and display data
+            function fetchPurchases() {
                 $.ajax({
                     url: '/get-all-purchases',
                     type: 'GET',
@@ -670,13 +699,21 @@ function populateForm(purchase) {
                                     '<button type="button" class="btn btn-outline-info">Actions</button>' +
                                     '</a>' +
                                     '<div class="dropdown-menu dropdown-menu-end">' +
-                                    '<a class="dropdown-item" href="#" onclick="viewPurchase(' + item.id + ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
+                                    '<a class="dropdown-item" href="#" onclick="viewPurchase(' +
+                                    item.id +
+                                    ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>' +
-                                    '<a class="dropdown-item" href="/purchase/edit/' + item.id + '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
+                                    '<a class="dropdown-item" href="/purchase/edit/' +
+                                    item.id +
+                                    '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>' +
-                                    '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' + item.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
-                                    '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' + item.id + ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
+                                    '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' +
+                                    item.id +
+                                    ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
+                                    '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' +
+                                    item.id +
+                                    ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-undo-alt"></i>&nbsp;&nbsp;Purchase Return</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Update Status</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-envelope"></i>&nbsp;&nbsp;Item Received Notification</a>' +
@@ -684,17 +721,24 @@ function populateForm(purchase) {
                                 );
                                 row.append('<td>' + item.purchase_date + '</td>');
                                 row.append('<td>' + item.reference_no + '</td>');
-                                row.append('<td>' + (item.location?.name || 'Unknown') + '</td>');
-                                row.append('<td>' + (item.supplier?.first_name || 'Unknown') + ' ' + (item.supplier?.last_name || '') + '</td>');
-                                row.append('<td>' + item.purchasing_status + '</td>');
+                                row.append('<td>' + (item.location?.name ||
+                                    'Unknown') + '</td>');
+                                row.append('<td>' + (item.supplier?.first_name ||
+                                    'Unknown') + ' ' + (item.supplier
+                                    ?.last_name || '') + '</td>');
+                                row.append('<td>' + item.purchasing_status +
+                                    '</td>');
                                 row.append('<td>' + item.payment_status + '</td>');
                                 row.append('<td>' + item.final_total + '</td>');
                                 row.append('<td>' + item.total_due + '</td>');
-                                row.append('<td>' + (item.supplier?.assign_to || '') + '</td>');
+                                row.append('<td>' + (item.supplier?.assign_to ||
+                                    '') + '</td>');
                                 table.row.add(row).draw(false);
                             });
                         } else {
-                            console.error("No purchases found or response.purchases is undefined.");
+                            console.error(
+                                "No purchases found or response.purchases is undefined."
+                            );
                         }
 
                         // Initialize or reinitialize the DataTable after adding rows
@@ -708,202 +752,219 @@ function populateForm(purchase) {
                     }
                 });
             }
-            // Show the modal when the button is clicked
-    $('#bulkPaymentBtn').click(function() {
-        $('#bulkPaymentModal').modal('show');
-    });
+// Show the modal when the button is clicked
+$('#bulkPaymentBtn').click(function() {
+    $('#bulkPaymentModal').modal('show');
+});
 
-    // Fetch suppliers and populate the dropdown
-    $.ajax({
-        url: '/supplier-get-all',
-        type: 'GET',
-        dataType: 'json',
-        success: function (response) {
-            var supplierSelect = $('#supplierSelect');
-            supplierSelect.empty();
-            supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
-            if (response.message && response.message.length > 0) {
-                response.message.forEach(function (supplier) {
-                    supplierSelect.append(
-                        '<option value="' + supplier.id + '" data-opening-balance="' + supplier.opening_balance + '">' + supplier.first_name + ' ' + supplier.last_name + '</option>'
-                    );
-                });
-            } else {
-                console.error("No suppliers found or response.message is undefined.");
-            }
-        },
-        error: function (xhr, status, error) {
-            console.error("AJAX error: ", status, error);
+// Fetch suppliers and populate the dropdown
+$.ajax({
+    url: '/supplier-get-all',
+    type: 'GET',
+    dataType: 'json',
+    success: function(response) {
+        var supplierSelect = $('#supplierSelect');
+        supplierSelect.empty();
+        supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
+        if (response.message && response.message.length > 0) {
+            response.message.forEach(function(supplier) {
+                supplierSelect.append(
+                    '<option value="' + supplier.id +
+                    '" data-opening-balance="' + supplier.opening_balance + '">' +
+                    supplier.first_name + ' ' + supplier.last_name + '</option>'
+                );
+            });
+        } else {
+            console.error("No suppliers found or response.message is undefined.");
         }
-    });
+    },
+    error: function(xhr, status, error) {
+        console.error("AJAX error: ", status, error);
+    }
+});
 
-              // Fetch purchases based on selected supplier
-$('#supplierSelect').change(function () {
+let originalOpeningBalance = 0; // Store the actual supplier opening balance
+
+$('#supplierSelect').change(function() {
     var supplierId = $(this).val();
-    var openingBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
+    originalOpeningBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
+
+    $('#openingBalance').text(originalOpeningBalance.toFixed(2)); // Display initial balance
+
     $.ajax({
         url: '/get-all-purchases',
         type: 'GET',
         dataType: 'json',
-        data: { supplier_id: supplierId },
-        success: function (response) {
+        data: { supplier_id: supplierId }, // Ensure supplier_id is sent
+        success: function(response) {
             var purchaseTable = $('#purchaseTable').DataTable();
-            purchaseTable.clear();
-            var totalPurchaseAmount = 0;
-            var totalPaidAmount = parseFloat(response.total_paid) || 0;
-            var totalDueAmount = 0;
+            purchaseTable.clear(); // Clear the table before adding new data
+            var totalPurchaseAmount = 0, totalPaidAmount = 0, totalDueAmount = 0;
 
             if (response.purchases && response.purchases.length > 0) {
-                response.purchases.forEach(function (purchase) {
-                    if (parseFloat(purchase.total_due) > 0) { // Only add purchases with total_due > 0
-                        totalPurchaseAmount += parseFloat(purchase.final_total);
-                        totalPaidAmount += parseFloat(purchase.total_paid);
-                        totalDueAmount += parseFloat(purchase.total_due);
+                response.purchases.forEach(function(purchase) {
+                    if (purchase.supplier_id == supplierId) { // Filter by supplier ID
+                        var finalTotal = parseFloat(purchase.final_total) || 0;
+                        var totalPaid = parseFloat(purchase.total_paid) || 0;
+                        var totalDue = parseFloat(purchase.total_due) || 0;
 
-                        purchaseTable.row.add([
-                            purchase.id + " " +"(" + purchase.reference_no + ")",
-                            purchase.final_total,
-                            purchase.total_paid,
-                            purchase.total_due,
-                            '<input type="number" class="form-control purchase-amount" data-purchase-id="' + purchase.id + '">'
-                        ]).draw();
+                        if (totalDue > 0) {
+                            totalPurchaseAmount += finalTotal;
+                            totalPaidAmount += totalPaid;
+                            totalDueAmount += totalDue;
+
+                            purchaseTable.row.add([
+                                purchase.id + " (" + purchase.reference_no + ")",
+                                finalTotal.toFixed(2),
+                                totalPaid.toFixed(2),
+                                totalDue.toFixed(2),
+                                '<input type="number" class="form-control purchase-amount" data-purchase-id="' + purchase.id + '">'
+                            ]).draw();
+                        }
                     }
                 });
-            } else {
-                console.error("No purchases found for the selected supplier or response.purchases is undefined.");
             }
 
             $('#totalPurchaseAmount').text(totalPurchaseAmount.toFixed(2));
             $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
             $('#totalDueAmount').text(totalDueAmount.toFixed(2));
-            $('#openingBalance').text(openingBalance.toFixed(2));
         },
-        error: function (xhr, status, error) {
+        error: function(xhr, status, error) {
             console.error("AJAX error: ", status, error);
         }
     });
 });
 
-            // Handle global payment amount input
-            $('#globalPaymentAmount').change(function () {
-                var globalAmount = parseFloat($(this).val());
-                var supplierOpeningBalance = parseFloat($('#openingBalance').text()) || 0;
+$('#globalPaymentAmount').on('input', function() {
+    var globalAmount = parseFloat($(this).val()) || 0;
+    var supplierOpeningBalance = originalOpeningBalance; // Always use original balance
+    var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
+    var remainingAmount = globalAmount;
 
-                var remainingAmount = globalAmount;
+    // Validate global amount
+    if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
+        $(this).addClass('is-invalid').after('<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>');
+        return;
+    } else {
+        $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
+    }
 
-                // First reduce the opening balance if available
-                if (supplierOpeningBalance > 0) {
-                    if (remainingAmount <= supplierOpeningBalance) {
-                        $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
-                        remainingAmount = 0;
-                    } else {
-                        remainingAmount -= supplierOpeningBalance;
-                        $('#openingBalance').text("0.00");
-                    }
-                }
+    // Deduct from opening balance first
+    let newOpeningBalance = supplierOpeningBalance;
+    if (newOpeningBalance > 0) {
+        if (remainingAmount <= newOpeningBalance) {
+            newOpeningBalance -= remainingAmount;
+            remainingAmount = 0;
+        } else {
+            remainingAmount -= newOpeningBalance;
+            newOpeningBalance = 0;
+        }
+    }
+    $('#openingBalance').text(newOpeningBalance.toFixed(2));
 
-                // Apply the remaining amount to the purchases dynamically
-                $('.purchase-amount').each(function () {
-                    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-                    if (remainingAmount > 0) {
-                        var paymentAmount = Math.min(remainingAmount, purchaseDue);
-                        $(this).val(paymentAmount);
-                        remainingAmount -= paymentAmount;
-                    } else {
-                        $(this).val(0);
-                    }
-                });
+    // Apply the remaining amount to the purchases dynamically
+    $('.purchase-amount').each(function() {
+        var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+        if (remainingAmount > 0) {
+            var paymentAmount = Math.min(remainingAmount, purchaseDue);
+            $(this).val(paymentAmount);
+            remainingAmount -= paymentAmount;
+        } else {
+            $(this).val(0);
+        }
+    });
+});
+
+// Validate individual payment amounts
+$(document).on('input', '.purchase-amount', function() {
+    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+    var paymentAmount = parseFloat($(this).val());
+    if (paymentAmount > purchaseDue) {
+        $(this).addClass('is-invalid');
+        $(this).next('.invalid-feedback').remove();
+        $(this).after('<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
+    } else {
+        $(this).removeClass('is-invalid');
+        $(this).next('.invalid-feedback').remove();
+    }
+});
+
+// Function to update the opening balance
+function updateOpeningBalance() {
+    var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
+    var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data('opening-balance')) || 0;
+    var totalPayment = 0;
+
+    // Calculate the total payment from individual amounts
+    $('.purchase-amount').each(function() {
+        totalPayment += parseFloat($(this).val()) || 0;
+    });
+
+    var remainingAmount = globalAmount - totalPayment;
+
+    // Adjust the opening balance based on the remaining amount
+    if (remainingAmount >= 0) {
+        $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
+    } else {
+        $('#openingBalance').text("0.00");
+    }
+}
+
+// Handle global payment amount input
+$('#globalPaymentAmount').change(function() {
+    updateOpeningBalance();
+});
+
+// Initialize DataTable
+$(document).ready(function() {
+    $('#purchaseTable').DataTable();
+});
+
+// Handle payment submission
+$('#submitBulkPayment').click(function() {
+    var supplierId = $('#supplierSelect').val();
+    var paymentMethod = $('#paymentMethod').val();
+    var paymentDate = $('#paidOn').val();
+    var globalPaymentAmount = $('#globalPaymentAmount').val();
+    var purchasePayments = [];
+
+    $('.purchase-amount').each(function() {
+        var purchaseId = $(this).data('purchase-id');
+        var paymentAmount = parseFloat($(this).val());
+        if (paymentAmount > 0) {
+            purchasePayments.push({
+                reference_id: purchaseId,
+                amount: paymentAmount
             });
+        }
+    });
 
-            // Validate individual payment amounts
-            $(document).on('input', '.purchase-amount', function () {
-                var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-                var paymentAmount = parseFloat($(this).val());
-                if (paymentAmount > purchaseDue) {
-                    $(this).addClass('is-invalid');
-                    $(this).next('.invalid-feedback').remove();
-                    $(this).after('<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
-                } else {
-                    $(this).removeClass('is-invalid');
-                    $(this).next('.invalid-feedback').remove();
-                }
-            });
+    var paymentData = {
+        entity_type: 'supplier',
+        entity_id: supplierId,
+        payment_method: paymentMethod,
+        payment_date: paymentDate,
+        global_amount: globalPaymentAmount,
+        payments: purchasePayments
+    };
 
-            // Function to update the opening balance
-            function updateOpeningBalance() {
-                var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
-                var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data('opening-balance')) || 0;
-                var totalPayment = 0;
-
-                // Calculate the total payment from individual amounts
-                $('.purchase-amount').each(function () {
-                    totalPayment += parseFloat($(this).val()) || 0;
-                });
-
-                var remainingAmount = globalAmount - totalPayment;
-
-                // Adjust the opening balance based on the remaining amount
-                if (remainingAmount >= 0) {
-                    $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
-                } else {
-                    $('#openingBalance').text("0.00");
-                }
-            }
-
-            // Handle global payment amount input
-            $('#globalPaymentAmount').change(function () {
-                updateOpeningBalance();
-            });
-
-            // Initialize DataTable
-            $(document).ready(function () {
-                $('#purchaseTable').DataTable();
-            });
-
-            // Handle payment submission
-            $('#submitBulkPayment').click(function () {
-                var supplierId = $('#supplierSelect').val();
-                var paymentMethod = $('#paymentMethod').val();
-                var paymentDate = $('#paidOn').val();
-                var globalPaymentAmount = $('#globalPaymentAmount').val();
-                var purchasePayments = [];
-
-                $('.purchase-amount').each(function () {
-                    var purchaseId = $(this).data('purchase-id');
-                    var paymentAmount = parseFloat($(this).val());
-                    if (paymentAmount > 0) {
-                        purchasePayments.push({
-                            purchase_id: purchaseId,
-                            amount: paymentAmount
-                        });
-                    }
-                });
-
-                var paymentData = {
-                    supplier_id: supplierId,
-                    payment_method: paymentMethod,
-                    payment_date: paymentDate,
-                    global_amount: globalPaymentAmount,
-                    purchase_payments: purchasePayments
-                };
-
-                $.ajax({
-                    url: '/api/submit-bulk-payment',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify(paymentData),
-                    success: function (response) {
-                        toastr.success(response.message, 'Payment Submitted');
-                        $('#bulkPaymentModal').modal('hide');
-                        $('#bulkPaymentForm')[0].reset(); // Reset the form
-                        fetchPurchases();
-                    },
-                    error: function (xhr, status, error) {
-                        console.error("AJAX error: ", status, error);
-                        alert('Failed to submit payment.');
-                    }
-                });
-            });
+    $.ajax({
+        url: '/api/submit-bulk-payment',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(paymentData),
+        success: function(response) {
+            toastr.success(response.message, 'Payment Submitted');
+            $('#bulkPaymentModal').modal('hide');
+            $('#bulkPaymentForm')[0].reset(); // Reset the form
+            fetchPurchases();
+        },
+        error: function(xhr, status, error) {
+            console.error("AJAX error: ", status, error);
+            alert('Failed to submit payment.');
+        }
+    });
+});
             // Define the openPaymentModal function
             window.openPaymentModal = function(event, purchaseId) {
                 event.preventDefault();
@@ -1178,5 +1239,7 @@ $('#supplierSelect').change(function () {
                 }
             });
         });
+
+
     });
 </script>

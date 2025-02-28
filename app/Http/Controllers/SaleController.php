@@ -142,7 +142,7 @@ class SaleController extends Controller
                     'sales_date' => $request->sales_date,
                     'sale_type' => $request->sale_type,
                     'status' => $request->status,
-                    'invoice_no' => $request->invoice_no,
+                    'invoice_no' => Sale::generateInvoiceNo(),
                     'reference_no' => $referenceNo,
                     'final_total' => $finalTotal,
                     'total_paid' => $totalPaid,
