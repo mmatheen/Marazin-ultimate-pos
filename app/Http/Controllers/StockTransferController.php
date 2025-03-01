@@ -91,13 +91,17 @@ class StockTransferController extends Controller
 
                 // Iterate through the products and update the quantities
                 foreach ($request->products as $product) {
-                    // Check the quantity of the batch at the source location
-                    $fromLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
-                        ->where('location_id', $request->from_location_id)
-                        ->firstOrFail();
+                    try {
+                        // Check the quantity of the batch at the source location
+                        $fromLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
+                            ->where('location_id', $request->from_location_id)
+                            ->firstOrFail();
+                    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                        return response()->json(['message' => 'The source location does not have the product with ID ' . $product['product_id']], 400);
+                    }
 
                     if ($fromLocationBatch->qty < $product['quantity']) {
-                        throw new \Exception('The selected batch does not have enough quantity at the source location.');
+                        return response()->json(['message' => 'The selected batch does not have enough quantity at the source location.'], 400);
                     }
 
                     // Create StockTransferProduct entry

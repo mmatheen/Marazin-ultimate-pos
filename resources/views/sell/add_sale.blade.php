@@ -49,7 +49,7 @@
         }
     </style>
 
-    <div class="container">
+    <div class="container-fluid">
         <form id="addSalesForm">
             <input id="sale_id" name="sale_id" type="hidden">
             <div class="row">
@@ -75,60 +75,70 @@
                     </div>
                 </div>
             </div>
-
-            {{-- Customer and Sales Date --}}
             <div class="row">
-                <div class="col-md-3">
-                    <div class="mb-3">
-                        <div class="input-group local-forms d-flex">
-                            <select class="form-control form-select select2Box" id="customer-id" name="customer_id">
-                                <option selected disabled>Customer*</option>
-                            </select>
-                            <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                <div class="card">
+                    <div class="card-body">
+
+
+                        {{-- Customer and Sales Date --}}
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <div class="input-group local-forms d-flex">
+                                        <select class="form-control form-select select2Box" id="customer-id" name="customer_id">
+                                            <option selected disabled>Customer*</option>
+                                        </select>
+                                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#addModal" id="button-addon1"><i class="fas fa-plus-circle"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group local-forms calendar-icon">
+                                    <label>Sales Date<span class="login-danger">*</span></label>
+                                    <input class="form-control datetimepicker" id="sales_date" name="sales_date" type="text" placeholder="DD-MM-YYYY">
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group local-forms">
+                                    <label>Status<span class="login-danger">*</span></label>
+                                    <select class="form-control form-select select" id="status" name="status">
+                                        <option selected disabled>Please Select </option>
+                                        <option value="Final">Final</option>
+                                        <option value="Draft">Draft</option>
+                                        <option value="Quotation">Quotation</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <div class="form-group local-forms">
+                                    <label>Invoice No<span class="login-danger"></span></label>
+                                    <input class="form-control" id="invoice_no" name="invoice_no" type="text" placeholder="Invoice No">
+                                    <input name="sale_type" type="hidden" value="Normal">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Customer Details --}}
+                        <div class="row">
+                            <div class="col-lg-3 col-md-4 mb-3">
+                                <div class="card">
+                                    <div class="card-body bg-light">
+                                        <h6 class="mb-2">Customer Details</h6>
+                                        <p class="mb-0">
+                                            <span id="customer-name"></span><br>
+                                            <span id="customer-phone"></span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="col-md-3">
-                    <div class="form-group local-forms calendar-icon">
-                        <label>Sales Date<span class="login-danger">*</span></label>
-                        <input class="form-control datetimepicker" id="sales_date" name="sales_date" type="text" placeholder="DD-MM-YYYY">
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="form-group local-forms">
-                        <label>Status<span class="login-danger">*</span></label>
-                        <select class="form-control form-select select" id="status" name="status">
-                            <option selected disabled>Please Select </option>
-                            <option value="Final">Final</option>
-                            <option value="Draft">Draft</option>
-                            <option value="Quotation">Quotation</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-3">
-                    <div class="form-group local-forms">
-                        <label>Invoice No<span class="login-danger"></span></label>
-                        <input class="form-control" id="invoice_no" name="invoice_no" type="text" placeholder="Invoice No">
-                        <input name="sale_type" type="hidden" value="Normal">
-                    </div>
-                </div>
             </div>
 
-            {{-- Customer Details --}}
-            <div class="row">
-                <div class="col-lg-3 col-md-4 mb-3">
-                    <div class="supplier-info p-3 border rounded">
-                        <h6 class="mb-2">Customer Details</h6>
-                        <p class="mb-0">
-                            <span id="customer-name"></span><br>
-                            <span id="customer-phone"></span>
-                        </p>
-                    </div>
-                </div>
-            </div>
 
             {{-- Product Search and Table --}}
             <div class="row">

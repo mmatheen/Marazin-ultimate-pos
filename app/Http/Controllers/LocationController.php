@@ -13,14 +13,23 @@ class LocationController extends Controller
         return view('location.location');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $getValue = Location::all();
-        if ($getValue->count() > 0) {
+        $user = auth()->user();
+        $context = $request->query('context'); // Get the context from the query parameter
 
+        // If the context is 'all_locations' (e.g., for stock transfer), show all locations
+        if ($context === 'all_locations' || $user->role === 'Super Admin') {
+            $locations = Location::all();
+        } else {
+            $locations = Location::where('id', $user->location_id)->get();
+        }
+
+        if ($locations->count() > 0) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => $locations,
+                'user_id' => $user->id,
             ]);
         } else {
             return response()->json([
@@ -29,7 +38,6 @@ class LocationController extends Controller
             ]);
         }
     }
-
     /**
      * Show the form for creating a new resource.
      *
@@ -40,12 +48,8 @@ class LocationController extends Controller
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+
+
     public function store(Request $request)
     {
 

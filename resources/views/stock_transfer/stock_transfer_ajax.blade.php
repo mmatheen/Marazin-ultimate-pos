@@ -5,19 +5,17 @@
 
         // Extract the stock transfer ID from the URL
         const pathSegments = window.location.pathname.split('/');
-        const stockTransferId = pathSegments[pathSegments.length - 1] === 'add-stock-transfer' ? null : pathSegments[pathSegments.length - 1];
+        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
 
-        // Fetch products data from the server
+        // Fetch products and stock transfer data
         fetchProductsData();
-
-        // Fetch stock transfer data if editing
         if (stockTransferId) {
             fetchStockTransferData(stockTransferId);
         }
 
-           // Fetch locations data and then set the selected options
-           fetchDropdownData('/location-get-all', $('#from_location_id'), "Select Location");
-            fetchDropdownData('/location-get-all', $('#to_location_id'), "Select Location");
+        // Fetch locations data
+        fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
+        fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
 
         // Function to fetch products data
         function fetchProductsData() {
@@ -54,24 +52,34 @@
 
         // Function to populate the form with stock transfer data
         function populateForm(stockTransfer) {
-            $('#transfer_date').val(stockTransfer.transfer_date.split(' ')[0]); // Extract date part
+            $('#transfer_date').val(stockTransfer.transfer_date.split(' ')[0]);
             $('#reference_no').val(stockTransfer.reference_no);
             $('#status').val(stockTransfer.status);
 
-            // Fetch locations data and then set the selected options
-            fetchDropdownData('/location-get-all', $('#from_location_id'), "Select Location", stockTransfer.from_location_id);
-            fetchDropdownData('/location-get-all', $('#to_location_id'), "Select Location", stockTransfer.to_location_id);
+            fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location", stockTransfer.from_location_id);
+            fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location", stockTransfer.to_location_id);
 
             stockTransfer.stock_transfer_products.forEach(product => {
-                addProductToTable(product);
+                addProductToTable(product, true);
             });
 
             updateTotalAmount();
         }
 
         // Function to add a product to the table
-        function addProductToTable(productData) {
+        function addProductToTable(productData, isEditing = false) {
             const product = productData.product;
+            const existingRow = $(`tr[data-product-id="${product.id}"]`);
+
+            if (existingRow.length > 0) {
+                // Update the quantity if the product already exists in the table
+                const quantityInput = existingRow.find('.quantity-input');
+                const newQuantity = parseInt(quantityInput.val()) + productData.quantity;
+                quantityInput.val(newQuantity);
+                existingRow.find('.quantity-input').trigger('change');
+                return;
+            }
+
             const batches = product.batches ? product.batches.map(batch => ({
                 batch_id: batch.id,
                 batch_no: batch.batch_no,
@@ -91,8 +99,14 @@
                 </option>
             `).join('');
 
+            const quantityInput = isEditing ? `
+                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly>
+            ` : `
+                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
+            `;
+
             const newRow = `
-                <tr class="add-row">
+                <tr class="add-row" data-product-id="${product.id}">
                     <td>
                         ${product.product_name}
                         <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
@@ -104,7 +118,7 @@
                         <div class="error-message batch-error"></div>
                     </td>
                     <td>
-                        <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
+                        ${quantityInput}
                         <div class="error-message quantity-error text-danger"></div>
                     </td>
                     <td>
@@ -119,10 +133,10 @@
                 </tr>
             `;
 
-            $(".add-table-items").find("tr:last").remove(); // Remove the existing total row
-            $(".add-table-items").append(newRow); // Append the new row
-            addTotalRow(); // Add the total row again at the end
-            updateTotalAmount(); // Update the total
+            $(".add-table-items").find("tr:last").remove();
+            $(".add-table-items").append(newRow);
+            addTotalRow();
+            updateTotalAmount();
             productIndex++;
         }
 
@@ -144,12 +158,23 @@
         // Function to add product to the table with dynamic batches
         function addProductWithBatches(productData) {
             const product = productData.product;
+            const existingRow = $(`tr[data-product-id="${product.id}"]`);
+
+            if (existingRow.length > 0) {
+                // Update the quantity if the product already exists in the table
+                const quantityInput = existingRow.find('.quantity-input');
+                const newQuantity = parseInt(quantityInput.val()) + 1; // Increment by 1 for this example
+                quantityInput.val(newQuantity);
+                existingRow.find('.quantity-input').trigger('change');
+                return;
+            }
+
             const batches = productData.batches ? productData.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
                 batch_id: batch.id,
                 batch_no: batch.batch_no,
                 batch_price: parseFloat(batch.retail_price),
                 batch_quantity: locationBatch.quantity,
-                transfer_quantity: locationBatch.quantity // Assuming transfer quantity is the same as available quantity initially
+                transfer_quantity: locationBatch.quantity
             }))) : [];
 
             if (batches.length === 0) {
@@ -164,7 +189,7 @@
             `).join('');
 
             const newRow = `
-                <tr class="add-row">
+                <tr class="add-row" data-product-id="${product.id}">
                     <td>
                         ${product.product_name}
                         <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
@@ -191,10 +216,10 @@
                 </tr>
             `;
 
-            $(".add-table-items").find("tr:last").remove(); // Remove the existing total row
-            $(".add-table-items").append(newRow); // Append the new row
-            addTotalRow(); // Add the total row again at the end
-            updateTotalAmount(); // Update the total
+            $(".add-table-items").find("tr:last").remove();
+            $(".add-table-items").append(newRow);
+            addTotalRow();
+            updateTotalAmount();
             productIndex++;
         }
 
@@ -283,7 +308,7 @@
                 error.appendTo(element.closest('td').find('.error-message'));
             },
             submitHandler: function(form, event) {
-                event.preventDefault(); // Prevent the default form submission
+                event.preventDefault();
 
                 const fromLocationId = $('#from_location_id').val();
                 const toLocationId = $('#to_location_id').val();
@@ -293,13 +318,11 @@
                     return;
                 }
 
-                // Check if any products are added
                 if ($('.add-row').length === 0) {
                     toastr.error('Please add at least one product.');
                     return;
                 }
 
-                // Format the transfer date to YYYY-MM-DD
                 const transferDate = $('#transfer_date').val();
                 const dateParts = transferDate.split('-');
                 const formattedDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`).toISOString().split('T')[0];
@@ -308,10 +331,8 @@
                 const url = stockTransferId ? `/api/stock-transfer/update/${stockTransferId}` : '/api/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
 
-                // Serialize the form data
                 const formData = $(form).serialize();
 
-                // Send the AJAX request
                 $.ajax({
                     url: url,
                     method: method,
@@ -322,7 +343,6 @@
                     },
                     error: function(response) {
                         if (response.responseJSON && response.responseJSON.errors) {
-                            // Display validation errors
                             for (const [key, value] of Object.entries(response.responseJSON.errors)) {
                                 toastr.error(value.join(', '));
                             }
@@ -347,9 +367,8 @@
                             targetSelect.append(option);
                         });
 
-                        // If editing, set the selected option
                         if (selectedId) {
-                            targetSelect.val(selectedId).trigger('change'); // Trigger change event to ensure value is set
+                            targetSelect.val(selectedId).trigger('change');
                         }
                     } else {
                         console.error(`Failed to fetch data: ${data.message}`);
@@ -361,12 +380,11 @@
             });
         }
 
-        // Fetch and populate stock transfer list
         fetchStockTransferList();
 
         function fetchStockTransferList() {
             $.ajax({
-                url: '/stock-transfers', // Route to fetch stock transfers
+                url: '/stock-transfers',
                 method: 'GET',
                 success: function(response) {
                     if (response.status === 200) {
@@ -385,10 +403,9 @@
 
         function populateStockTransferTable(data) {
             const tableBody = $('#stockTransfer tbody');
-            tableBody.empty(); // Clear existing rows
+            tableBody.empty();
 
             data.forEach(transfer => {
-                // Calculate the total amount from the products
                 const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
                     return sum + (product.quantity * product.unit_price);
                 }, 0);
@@ -417,8 +434,7 @@
             });
         }
 
-        // Delete stock transfer
-        function deleteStockTransfer(id) {
+        window.deleteStockTransfer = function(id) {
             if (confirm('Are you sure you want to delete this stock transfer?')) {
                 $.ajax({
                     url: `/stock-transfers/${id}`,
@@ -429,7 +445,7 @@
                     success: function(response) {
                         if (response.status === 200) {
                             toastr.success('Stock transfer deleted successfully.');
-                            fetchStockTransferList(); // Refresh the table
+                            fetchStockTransferList();
                         } else {
                             toastr.error('Failed to delete stock transfer.');
                         }

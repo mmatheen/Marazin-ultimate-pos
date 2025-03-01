@@ -772,7 +772,7 @@ $('#submitBulkPayment').click(function() {
         }
 
 
-        // Fetch locations using AJAX
+            // Fetch locations using AJAX
         $.ajax({
             url: '/location-get-all',
             method: 'GET',
@@ -785,8 +785,11 @@ $('#submitBulkPayment').click(function() {
                         '<option selected disabled>Please Select Locations</option>');
 
                     data.message.forEach(function(location) {
-                        const option = $('<option></option>').val(location.id).text(location
-                            .name);
+                        const option = $('<option></option>').val(location.id).text(location.name);
+                        // Check if the location ID matches the user's location ID and set it as selected
+                        if (location.id === data.user_id) {
+                            option.attr('selected', 'selected');
+                        }
                         locationSelect.append(option);
                     });
                 } else {
@@ -797,46 +800,53 @@ $('#submitBulkPayment').click(function() {
                 console.error('Error fetching location data:', error);
             }
         });
+             // Fetch customers using AJAX
+// Fetch customers using AJAX
+$.ajax({
+    url: '/customer-get-all',
+    method: 'GET',
+    dataType: 'json',
+    success: function(data) {
+        console.log('Customer Data:', data); // Log customer data
+        if (data.status === 200) {
+            const customerSelect = $('#customer-id');
+            customerSelect.html('<option selected disabled>Customer</option>');
 
-        // Fetch customers using AJAX
-        $.ajax({
-            url: '/customer-get-all',
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                console.log('Customer Data:', data); // Log customer data
-                if (data.status === 200) {
-                    const customerSelect = $('#customer-id');
-                    customerSelect.html('<option selected disabled>Customer</option>');
-
-                    data.message.forEach(function(customer) {
-                        const option = $('<option></option>')
-                            .val(customer.id)
-                            .text(
-                                `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
-                            )
-                            .data('details', customer);
-                        customerSelect.append(option);
-                    });
-                } else {
-                    console.error('Failed to fetch customer data:', data.message);
+            data.message.forEach(function(customer) {
+                const option = $('<option></option>')
+                    .val(customer.id)
+                    .text(
+                        `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
+                    )
+                    .data('details', customer);
+                // Check if the customer is the "Walking Customer" and set it as selected
+                if (customer.first_name === "Walking" && customer.last_name === "Customer") {
+                    option.attr('selected', 'selected');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching customer data:', error);
-            }
-        });
+                customerSelect.append(option);
+            });
 
-        // Handle customer selection
-        $('#customer-id').on('change', function() {
-            const selectedOption = $(this).find(':selected');
-            const customerDetails = selectedOption.data('details');
+            // Trigger change event to display details of the default selected customer (Walking Customer)
+            customerSelect.trigger('change');
+        } else {
+            console.error('Failed to fetch customer data:', data.message);
+        }
+    },
+    error: function(xhr, status, error) {
+        console.error('Error fetching customer data:', error);
+    }
+});
 
-            if (customerDetails) {
-                $('#customer-name').text(`${customerDetails.first_name} ${customerDetails.last_name}`);
-                $('#customer-phone').text(customerDetails.mobile_no);
-            }
-        });
+// Handle customer selection
+$('#customer-id').on('change', function() {
+    const selectedOption = $(this).find(':selected');
+    const customerDetails = selectedOption.data('details');
+
+    if (customerDetails) {
+        $('#customer-name').text(`${customerDetails.first_name} ${customerDetails.last_name}`);
+        $('#customer-phone').text(customerDetails.mobile_no);
+    }
+});
 
         // Global variable to store combined product data
         let allProducts = [];
