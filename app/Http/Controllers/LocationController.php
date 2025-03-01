@@ -19,7 +19,7 @@ class LocationController extends Controller
         $context = $request->query('context'); // Get the context from the query parameter
 
         // If the context is 'all_locations' (e.g., for stock transfer), show all locations
-        if ($context === 'all_locations' || $user->role === 'Super Admin') {
+        if ($context === 'all_locations' || $user->role_name=== 'Super Admin') {
             $locations = Location::all();
         } else {
             $locations = Location::where('id', $user->location_id)->get();

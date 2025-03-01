@@ -116,9 +116,7 @@
             </div>
         </div>
 
-    </div>
-
-    {{-- table row --}}
+          {{-- table row --}}
     <div class="row">
         <div class="col-md-12">
             <div class="card card-table">
@@ -178,6 +176,9 @@
                 </div>
             </div>
         </div>
+    </div>
+    </div>
+
 
         <!-- Modal to show sale details -->
         <div class="modal fade" id="saleDetailsModal" tabindex="-1" aria-labelledby="saleDetailsModalLabel"
@@ -755,27 +756,6 @@
         fetchSaleDetailsForPayment(saleId);
     }
 
-    // Function to toggle payment fields based on payment method
-    function togglePaymentFields() {
-        const paymentMethod = $('#paymentMethod').val();
-        if (paymentMethod === 'card') {
-            $('#creditCardFields').removeClass('d-none');
-            $('#chequeFields').addClass('d-none');
-            $('#bankTransferFields').addClass('d-none');
-        } else if (paymentMethod === 'cheque') {
-            $('#creditCardFields').addClass('d-none');
-            $('#chequeFields').removeClass('d-none');
-            $('#bankTransferFields').addClass('d-none');
-        } else if (paymentMethod === 'bank_transfer') {
-            $('#creditCardFields').addClass('d-none');
-            $('#chequeFields').addClass('d-none');
-            $('#bankTransferFields').removeClass('d-none');
-        } else {
-            $('#creditCardFields').addClass('d-none');
-            $('#chequeFields').addClass('d-none');
-            $('#bankTransferFields').addClass('d-none');
-        }
-    }
 
     // Function to fetch sale details for payment modal
     function fetchSaleDetailsForPayment(saleId) {
@@ -831,25 +811,34 @@
             }
         });
     }
-            // Function to toggle payment fields based on payment method
-function togglePaymentFields() {
-    const paymentMethod = $('#paymentMethod').val();
+
+    // Toggle payment fields based on selected payment method
+$('#bulkPaymentModal #paymentMethod').change(function() {
+    togglePaymentFields('bulkPaymentModal');
+});
+
+// Toggle payment fields based on selected payment method for individual payments
+$('#paymentMethod').change(function() {
+    togglePaymentFields('paymentModal');
+});// Function to toggle payment fields based on payment method
+function togglePaymentFields(modalId) {
+    const paymentMethod = $(`#${modalId} #paymentMethod`).val();
     if (paymentMethod === 'card') {
-        $('#creditCardFields').removeClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
+        $(`#${modalId} #creditCardFields`).removeClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
     } else if (paymentMethod === 'cheque') {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').removeClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).removeClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
     } else if (paymentMethod === 'bank_transfer') {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').removeClass('d-none');
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).removeClass('d-none');
     } else {
-        $('#creditCardFields').addClass('d-none');
-        $('#chequeFields').addClass('d-none');
-        $('#bankTransferFields').addClass('d-none');
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
     }
 }
 

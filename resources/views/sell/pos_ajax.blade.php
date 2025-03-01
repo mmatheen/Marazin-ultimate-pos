@@ -374,249 +374,248 @@
 
         let locationId;
 
-function addProductToTable(product) {
-    console.log("Product to be added:", product);
+        function addProductToTable(product) {
+            console.log("Product to be added:", product);
 
-    // Check if stockData is defined and not empty
-    if (!stockData || stockData.length === 0) {
-        console.error('stockData is not defined or empty');
-        toastr.error('Stock data is not available', 'Error');
-        return;
-    }
+            // Check if stockData is defined and not empty
+            if (!stockData || stockData.length === 0) {
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
+            }
 
-    const stockEntry = stockData.find(stock => stock.product.id === product.id);
-    console.log("stockEntry", stockEntry);
+            const stockEntry = stockData.find(stock => stock.product.id === product.id);
+            console.log("stockEntry", stockEntry);
 
-    // Ensure stockEntry is defined
-    if (!stockEntry) {
-        toastr.error('Stock entry not found for the product', 'Error');
-        return;
-    }
+            // Ensure stockEntry is defined
+            if (!stockEntry) {
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
+            }
 
-    const totalQuantity = stockEntry.total_stock;
-    if (totalQuantity === 0) {
-        toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-        return;
-    }
+            const totalQuantity = stockEntry.total_stock;
+            if (totalQuantity === 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
+            }
 
-    if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-        toastr.error('No batches found for the product', 'Error');
-        return;
-    }
+            if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
+                toastr.error('No batches found for the product', 'Error');
+                return;
+            }
 
-    const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
-    if (locationBatches.length === 0) {
-        toastr.error('No batches with quantity found', 'Error');
-        return;
-    }
+            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
+            if (locationBatches.length === 0) {
+                toastr.error('No batches with quantity found', 'Error');
+                return;
+            }
 
-    locationId = locationBatches[0].location_id;
+            locationId = locationBatches[0].location_id;
 
-    addProductToTableWithDetails(product, totalQuantity, locationId, locationBatches, stockEntry);
-}
-
-
-function addProductToTableWithDetails(product, totalQuantity, locationId, locationBatches, stockEntry) {
-    const billingBody = document.getElementById('billing-body');
-    if (!billingBody) {
-        console.error('billingBody element not found');
-        return;
-    }
-
-    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-        const productNameCell = row.querySelector('.product-name');
-        return productNameCell && productNameCell.textContent === product.product_name;
-    });
-
-    if (existingRow) {
-        const quantityInput = existingRow.querySelector('.quantity-input');
-        let newQuantity = parseInt(quantityInput.value, 10) + 1;
-
-        if (newQuantity > totalQuantity) {
-            toastr.error(`You cannot add more than ${totalQuantity} units of this product.`, 'Warning');
-            return;
+            addProductToTableWithDetails(product, totalQuantity, locationId, locationBatches, stockEntry);
         }
 
-        quantityInput.value = newQuantity;
-
-        const priceInput = existingRow.querySelector('.price-input');
-        const basePrice = parseFloat(priceInput.value);
-        const discountAmount = product.discount_amount || 0;
-        const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
-
-        const subtotal = parseFloat(quantityInput.value) * finalPrice;
-        existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
-    } else {
-        document.getElementsByClassName('successSound')[0].play();
-        toastr.info(
-            `<div style="display: flex; align-items: center;">
-                <img src="/assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
-                <span style="font-size: 16px; font-weight: bold; padding-right:5px;">${product.product_name} </span>Product Added!
-            </div>`
-        );
-
-        const basePrice = product.retail_price;
-        const discountAmount = product.discount_amount || 0;
-        const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
-
-        const row = document.createElement('tr');
-
-        const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
-            batch_id: batch.id,
-            batch_price: parseFloat(batch.retail_price),
-            batch_quantity: locationBatch.quantity
-        }))) : [];
-
-        const batchOptions = batches
-        .filter(batch => batch.batch_quantity > 0) // Filter batches with quantity greater than zero
-        .map(batch => `
-            <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
-                Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
-            </option>
-        `).join('');
-
-    // Check if there are any valid batch options
-    if (batchOptions.length === 0) {
-        toastr.error('No batches with quantity found', 'Error');
-        return;
-    }
-        row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-                    <div>
-                        <div class="font-weight-bold product-name">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
-                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-                        <select class="form-select batch-dropdown" aria-label="Select Batch">
-                            <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
-                                All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice.toFixed(2)}
-                            </option>
-                            ${batchOptions}
-                        </select>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="quantity-container d-flex align-items-center">
-                    <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
-                    <input type="number" value="1" min="1" max="${totalQuantity}" class="form-control quantity-input mx-2">
-                    <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
-                </div>
-            </td>
-            <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input" data-currency></td>
-            <td class="subtotal">${finalPrice.toFixed(2)}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
-            <td class="product-id" style="display:none">${product.id}</td>
-            <td class="location-id" style="display:none">${locationId}</td>
-            <td class="discount-data" style="display:none">
-                ${JSON.stringify({
-                    type: product.discount_type,
-                    amount: product.discount_amount
-                })}
-            </td>
-        `;
-
-        billingBody.insertBefore(row, billingBody.firstChild);
-
-        const quantityInput = row.querySelector('.quantity-input');
-        const priceInput = row.querySelector('.price-input');
-        const quantityMinus = row.querySelector('.quantity-minus');
-        const quantityPlus = row.querySelector('.quantity-plus');
-        const removeBtn = row.querySelector('.remove-btn');
-        const batchDropdown = row.querySelector('.batch-dropdown');
-
-        removeBtn.addEventListener('click', () => {
-            row.remove();
-            updateTotals();
-        });
-
-        quantityMinus.addEventListener('click', () => {
-            if (quantityInput.value > 1) {
-                quantityInput.value--;
-                updateTotals();
+        function addProductToTableWithDetails(product, totalQuantity, locationId, locationBatches, stockEntry) {
+            const billingBody = document.getElementById('billing-body');
+            if (!billingBody) {
+                console.error('billingBody element not found');
+                return;
             }
-        });
 
-        quantityPlus.addEventListener('click', () => {
-            let newQuantity = parseInt(quantityInput.value, 10) + 1;
-            if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
-                document.getElementsByClassName('errorSound')[0].play();
-                toastr.error(
-                    `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
-                    'Error'
-                );
-            } else {
+            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                const productNameCell = row.querySelector('.product-name');
+                return productNameCell && productNameCell.textContent === product.product_name;
+            });
+
+            if (existingRow) {
+                const quantityInput = existingRow.querySelector('.quantity-input');
+                let newQuantity = parseInt(quantityInput.value, 10) + 1;
+
+                if (newQuantity > totalQuantity) {
+                    toastr.error(`You cannot add more than ${totalQuantity} units of this product.`, 'Warning');
+                    return;
+                }
+
                 quantityInput.value = newQuantity;
-                updateTotals();
-            }
-        });
 
-        quantityInput.addEventListener('input', () => {
-            const quantityValue = parseInt(quantityInput.value, 10);
-            if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
-                quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
-                document.getElementsByClassName('errorSound')[0].play();
-                toastr.error(
-                    `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
-                    'Error'
+                const priceInput = existingRow.querySelector('.price-input');
+                const basePrice = parseFloat(priceInput.value);
+                const discountAmount = product.discount_amount || 0;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
+
+                const subtotal = parseFloat(quantityInput.value) * finalPrice;
+                existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+            } else {
+                document.getElementsByClassName('successSound')[0].play();
+                toastr.info(
+                    `<div style="display: flex; align-items: center;">
+                        <img src="/assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
+                        <span style="font-size: 16px; font-weight: bold; padding-right:5px;">${product.product_name} </span>Product Added!
+                    </div>`
                 );
+
+                const basePrice = product.retail_price;
+                const discountAmount = product.discount_amount || 0;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
+
+                const row = document.createElement('tr');
+
+                const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
+                    batch_id: batch.id,
+                    batch_price: parseFloat(batch.retail_price),
+                    batch_quantity: locationBatch.quantity
+                }))) : [];
+
+                const batchOptions = batches
+                .filter(batch => batch.batch_quantity > 0) // Filter batches with quantity greater than zero
+                .map(batch => `
+                    <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
+                        Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
+                    </option>
+                `).join('');
+
+                // Check if there are any valid batch options
+                if (batchOptions.length === 0) {
+                    toastr.error('No batches with quantity found', 'Error');
+                    return;
+                }
+                row.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                            <div>
+                                <div class="font-weight-bold product-name">${product.product_name}</div>
+                                <div class="text-muted">${product.sku}</div>
+                                ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                                <select class="form-select batch-dropdown" aria-label="Select Batch">
+                                    <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
+                                        All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice.toFixed(2)}
+                                    </option>
+                                    ${batchOptions}
+                                </select>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="quantity-container d-flex align-items-center">
+                            <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
+                            <input type="number" value="1" min="1" max="${totalQuantity}" class="form-control quantity-input mx-2">
+                            <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
+                        </div>
+                    </td>
+                    <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input separater_amount" data-currency></td>
+                    <td class="subtotal">${finalPrice.toFixed(2)}</td>
+                    <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
+                    <td class="product-id" style="display:none">${product.id}</td>
+                    <td class="location-id" style="display:none">${locationId}</td>
+                    <td class="discount-data" style="display:none">
+                        ${JSON.stringify({
+                            type: product.discount_type,
+                            amount: product.discount_amount
+                        })}
+                    </td>
+                `;
+
+                billingBody.insertBefore(row, billingBody.firstChild);
+
+                const quantityInput = row.querySelector('.quantity-input');
+                const priceInput = row.querySelector('.price-input');
+                const quantityMinus = row.querySelector('.quantity-minus');
+                const quantityPlus = row.querySelector('.quantity-plus');
+                const removeBtn = row.querySelector('.remove-btn');
+                const batchDropdown = row.querySelector('.batch-dropdown');
+
+                removeBtn.addEventListener('click', () => {
+                    row.remove();
+                    updateTotals();
+                });
+
+                quantityMinus.addEventListener('click', () => {
+                    if (quantityInput.value > 1) {
+                        quantityInput.value--;
+                        updateTotals();
+                    }
+                });
+
+                quantityPlus.addEventListener('click', () => {
+                    let newQuantity = parseInt(quantityInput.value, 10) + 1;
+                    if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                        document.getElementsByClassName('errorSound')[0].play();
+                        toastr.error(
+                            `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
+                            'Error'
+                        );
+                    } else {
+                        quantityInput.value = newQuantity;
+                        updateTotals();
+                    }
+                });
+
+                quantityInput.addEventListener('input', () => {
+                    const quantityValue = parseInt(quantityInput.value, 10);
+                    if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                        quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
+                        document.getElementsByClassName('errorSound')[0].play();
+                        toastr.error(
+                            `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
+                            'Error'
+                        );
+                    }
+                    updateTotals();
+                });
+
+                priceInput.addEventListener('input', () => {
+                    updateTotals();
+                });
+
+                batchDropdown.addEventListener('change', () => {
+                    const selectedOption = batchDropdown.selectedOptions[0];
+                    const batchPrice = parseFloat(selectedOption.getAttribute('data-price'));
+                    const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+                    if (quantityInput.value > batchQuantity) {
+                        quantityInput.value = batchQuantity;
+                        toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
+                    }
+                    priceInput.value = batchPrice.toFixed(2);
+                    const subtotal = parseFloat(quantityInput.value) * batchPrice;
+                    row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+                    quantityInput.setAttribute('max', batchQuantity);
+                    updateTotals();
+                });
             }
+
             updateTotals();
-        });
+        }
 
-        priceInput.addEventListener('input', () => {
-            updateTotals();
-        });
+        function updateTotals() {
+            const billingBody = document.getElementById('billing-body');
+            let totalItems = 0;
+            let totalAmount = 0;
 
-        batchDropdown.addEventListener('change', () => {
-            const selectedOption = batchDropdown.selectedOptions[0];
-            const batchPrice = parseFloat(selectedOption.getAttribute('data-price'));
-            const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
-            if (quantityInput.value > batchQuantity) {
-                quantityInput.value = batchQuantity;
-                toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
-            }
-            priceInput.value = batchPrice.toFixed(2);
-            const subtotal = parseFloat(quantityInput.value) * batchPrice;
-            row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
-            quantityInput.setAttribute('max', batchQuantity);
-            updateTotals();
-        });
-    }
+            billingBody.querySelectorAll('tr').forEach(row => {
+                const quantity = parseInt(row.querySelector('.quantity-input').value);
+                const price = parseFloat(row.querySelector('.price-input').value);
+                const subtotal = quantity * price;
 
-    updateTotals();
-}
+                row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
 
-function updateTotals() {
-    const billingBody = document.getElementById('billing-body');
-    let totalItems = 0;
-    let totalAmount = 0;
+                totalItems += quantity;
+                totalAmount += subtotal;
+            });
 
-    billingBody.querySelectorAll('tr').forEach(row => {
-        const quantity = parseInt(row.querySelector('.quantity-input').value);
-        const price = parseFloat(row.querySelector('.price-input').value);
-        const subtotal = quantity * price;
+            const discount = parseFloat(document.getElementById('discount').value) || 0;
+            const tax = parseFloat(document.getElementById('order-tax').value) || 0;
+            const shipping = parseFloat(document.getElementById('shipping').value) || 0;
 
-        row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+            const subtotalAmount = totalAmount - discount;
+            const totalAmountWithTaxAndShipping = subtotalAmount + tax + shipping;
 
-        totalItems += quantity;
-        totalAmount += subtotal;
-    });
-
-    const discount = parseFloat(document.getElementById('discount').value) || 0;
-    const tax = parseFloat(document.getElementById('order-tax').value) || 0;
-    const shipping = parseFloat(document.getElementById('shipping').value) || 0;
-
-    const subtotalAmount = totalAmount - discount;
-    const totalAmountWithTaxAndShipping = subtotalAmount + tax + shipping;
-
-    document.getElementById('items-count').textContent = totalItems.toFixed(2);
-    document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-    document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-}
+            document.getElementById('items-count').textContent = totalItems.toFixed(2);
+            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
+            document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+            document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+        }
 
         // Add event listeners for input changes
         document.getElementById('discount').addEventListener('input', updateTotals);
@@ -999,7 +998,10 @@ function updateTotals() {
 
     $(document).ready(function() {
         fetchAllSales();
+
     });
+
+
 </script>
 
 

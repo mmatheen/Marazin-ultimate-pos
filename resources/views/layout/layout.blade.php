@@ -149,33 +149,29 @@
                 });
             });
         </script>
-{{-- <script>
+<script>
     // Global utility function to format currency
     function formatCurrency(amount) {
-        return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    }
+            return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
 
-    // Function to apply currency formatting to input fields
-    function applyCurrencyFormatting() {
-        $('input[data-currency]').on('input', function() {
-            let value = this.value.replace(/,/g, '');
-            if (!isNaN(value) && value !== '') {
-                this.value = parseFloat(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            }
+        // Function to apply currency formatting to input fields
+        function applyCurrencyFormatting() {
+            $('input[data-currency]').on('input', function() {
+                let value = this.value.replace(/,/g, '');
+                if (!isNaN(value) && value !== '') {
+                    this.value = parseFloat(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+            });
+        }
+
+        // Apply the currency formatting when the document is ready
+        $(document).ready(function() {
+            applyCurrencyFormatting();
         });
-    } --}}
 
-{{--     
-
-    // Apply the currency formatting when the document is ready
-    $(document).ready(function() {
-        applyCurrencyFormatting();
-    });
-</script> --}}
-    {{-- Toaster Notifications --}}
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        // Inputmask for numeric fields
+        $(document).ready(function() {
             Inputmask({
                 alias: "numeric",
                 groupSeparator: ",",
@@ -185,7 +181,8 @@
                 rightAlign: false
             }).mask(".amount");
         });
-        </script>
+    </script>
+        {{-- Toaster Notifications --}}
     <script>
         $(document).ready(function() {
             var successSound = document.querySelector('.successSound');

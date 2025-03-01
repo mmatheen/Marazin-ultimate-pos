@@ -34,8 +34,7 @@
                                                     <div class="col-md-4">
                                                         <div class="mb-3">
                                                             <div class="form-group local-forms">
-                                                                <label>Product SKU <span
-                                                                        class="login-danger">*</span></label>
+                                                                <label>Product SKU </label>
                                                                 <input class="form-control" id="edit_sku"
                                                                     name="sku" type="text"
                                                                     placeholder="Product SKU">

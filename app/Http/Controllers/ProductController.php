@@ -216,9 +216,9 @@ class ProductController extends Controller
             'pax' => 'nullable|integer',
             'retail_price' => 'required|numeric|min:0',
             'whole_sale_price' => 'required|numeric|min:0',
-            'special_price' => 'required|numeric|min:0',
+            'special_price' => 'nullable|numeric|min:0',
             'original_price' => 'required|numeric|min:0',
-            'max_retail_price' => 'required|numeric|min:0',
+            'max_retail_price' => 'nullable|numeric|min:0',
         ];
 
         $validator = Validator::make($request->all(), $rules);

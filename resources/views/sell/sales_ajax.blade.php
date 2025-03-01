@@ -95,7 +95,7 @@
                     if (response.sales && Array.isArray(response.sales)) {
                         var counter = 1;
                         response.sales.forEach(function(item) {
-                            if (item.sale_type === 'Normal') { // Add this condition
+                            // if (item.sale_type === 'Normal') { // Add this condition
                                 let row = $('<tr>');
                                 row.append('<td>' +
                                     '<div class="btn-group">' +
@@ -138,7 +138,7 @@
 
                                 table.row.add(row).draw(false);
                                 counter++;
-                            }
+                            // }
                         });
                     } else {
                         console.error('Sales data is not in the expected format.');
@@ -196,7 +196,7 @@ $('#customerSelect').change(function() {
         data: { customer_id: customerId }, // Ensure customer_id is sent
         success: function(response) {
             var salesTable = $('#salesList').DataTable();
-            salesTable.clear(); // Clear the table before adding new data
+            salesTable.clear().draw(); // Clear the table before adding new data
             var totalSalesAmount = 0, totalPaidAmount = 0, totalDueAmount = 0;
 
             if (response.sales && response.sales.length > 0) {
@@ -217,13 +217,14 @@ $('#customerSelect').change(function() {
                                 totalPaid.toFixed(2),
                                 totalDue.toFixed(2),
                                 '<input type="number" class="form-control reference-amount" data-reference-id="' + sale.id + '">'
-                            ]).draw();
+                            ]);
                         }
                     }
                 });
+                salesTable.draw();
             } else {
                 salesTable.row.add([
-                    { className: 'text-center', colspan: 5, text: 'No records found' }
+                    '<td class="text-center" colspan="5">No records found</td>'
                 ]).draw();
             }
 
@@ -319,9 +320,29 @@ $('#globalPaymentAmount').change(function() {
 
 // Initialize DataTable
 $(document).ready(function() {
-    $('#salesTable').DataTable();
-});
+    $('#salesList').DataTable({
+        columns: [
+            { title: "ID (Invoice)" },
+            { title: "Final Total" },
+            { title: "Total Paid" },
+            { title: "Total Due" },
+            { title: "Payment" }
+        ]
+    });
 
+    // Clear the modal content when the modal is hidden
+    $('#bulkPaymentModal').on('hidden.bs.modal', function () {
+        $('#bulkPaymentForm')[0].reset(); // Reset the form
+        $('#salesList').DataTable().clear().draw(); // Clear the sales list
+        $('#openingBalance').text('0.00'); // Reset the opening balance
+        $('#totalSalesAmount').text('0.00'); // Reset the total sales amount
+        $('#totalPaidAmount').text('0.00'); // Reset the total paid amount
+        $('#totalDueAmount').text('0.00'); // Reset the total due amount
+        $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove(); // Remove validation feedback
+        $('#paymentMethod').val('cash'); // Reset payment method to cash
+        togglePaymentFields('bulkPaymentModal'); // Ensure the correct fields are shown
+    });
+});
 // Handle payment submission
 $('#submitBulkPayment').click(function() {
     var customerId = $('#customerSelect').val();
@@ -330,6 +351,11 @@ $('#submitBulkPayment').click(function() {
     var globalPaymentAmount = $('#globalPaymentAmount').val();
     var salePayments = [];
 
+    // Validate customer selection
+    if (!customerId) {
+        alert('Please select a customer.');
+        return;
+    }
 
     $('.reference-amount').each(function() {
         var referenceId = $(this).data('reference-id');
@@ -360,7 +386,7 @@ $('#submitBulkPayment').click(function() {
             toastr.success(response.message, 'Payment Submitted');
             $('#bulkPaymentModal').modal('hide');
             $('#bulkPaymentForm')[0].reset(); // Reset the form
-            fetchSalesData()
+            fetchSalesData();
         },
         error: function(xhr, status, error) {
             console.error("AJAX error: ", status, error);

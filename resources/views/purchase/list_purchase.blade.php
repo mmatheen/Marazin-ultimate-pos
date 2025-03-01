@@ -842,24 +842,35 @@
     </div>
 
     <script>
-        function togglePaymentFields() {
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            const creditCardFields = document.getElementById('creditCardFields');
-            const chequeFields = document.getElementById('chequeFields');
-            const bankTransferFields = document.getElementById('bankTransferFields');
+        // Toggle payment fields based on selected payment method
+$('#bulkPaymentModal #paymentMethod').change(function() {
+    togglePaymentFields('bulkPaymentModal');
+});
 
-            creditCardFields.classList.add('d-none');
-            chequeFields.classList.add('d-none');
-            bankTransferFields.classList.add('d-none');
-
-            if (paymentMethod === 'card') {
-                creditCardFields.classList.remove('d-none');
-            } else if (paymentMethod === 'cheque') {
-                chequeFields.classList.remove('d-none');
-            } else if (paymentMethod === 'bank_transfer') {
-                bankTransferFields.classList.remove('d-none');
-            }
-        }
+// Toggle payment fields based on selected payment method for individual payments
+$('#paymentMethod').change(function() {
+    togglePaymentFields('paymentModal');
+});
+      function togglePaymentFields(modalId) {
+    const paymentMethod = $(`#${modalId} #paymentMethod`).val();
+    if (paymentMethod === 'card') {
+        $(`#${modalId} #creditCardFields`).removeClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
+    } else if (paymentMethod === 'cheque') {
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).removeClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
+    } else if (paymentMethod === 'bank_transfer') {
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).removeClass('d-none');
+    } else {
+        $(`#${modalId} #creditCardFields`).addClass('d-none');
+        $(`#${modalId} #chequeFields`).addClass('d-none');
+        $(`#${modalId} #bankTransferFields`).addClass('d-none');
+    }
+}
 
         document.addEventListener("DOMContentLoaded", function() {
             const cardNumberInput = document.getElementById("cardNumber");

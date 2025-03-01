@@ -15,12 +15,12 @@
             </a>
         </div>
 
-        <div class="top-nav-search">
+        {{-- <div class="top-nav-search">
             <form>
                 <input type="text" class="form-control" placeholder="Search here">
                 <button class="btn" type="submit"><i class="fas fa-search"></i></button>
             </form>
-        </div>
+        </div> --}}
         <a class="mobile_btn" id="mobile_btn">
             <i class="fas fa-bars"></i>
         </a>
@@ -36,10 +36,16 @@
                 </select>
                 @endif
             </li>
-            <li class="nav-item dropdown noti-dropdown me-2 mt-4">
+            <li class="nav-item dropdown noti-dropdown me-3 mt-4">
                 {{-- dynamically change the location --}}
                 <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
             </li>
+           <!-- POS Link -->
+           <li class="nav-item me-2">
+            <a href="{{ route('pos-create') }}" class="nav-link header-nav-list fw-semibold">
+                POS
+            </a>
+             </li>
             <li class="nav-item dropdown noti-dropdown me-2">
                 <a href="#" class="dropdown-toggle nav-link header-nav-list" data-bs-toggle="dropdown">
                     <img src="{{ asset('assets/img/icons/header-icon-05.svg') }}" alt="">

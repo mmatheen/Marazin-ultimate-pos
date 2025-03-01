@@ -46,7 +46,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
-                                                    <label>Product SKU <span class="login-danger">*</span></label>
+                                                    <label>Product SKU</label>
                                                     <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU" autocomplete="off">
                                                     <span class="text-danger" id="sku_error"></span>
                                                 </div>
@@ -97,7 +97,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3 ">
                                                 <div class="input-group local-forms d-flex">
-                                                    <label>Sub Category <span class="login-danger">*</span></label>
+                                                    <label>Sub Category</label>
                                                     <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
                                                     </select>
                                                     <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
