@@ -362,21 +362,26 @@ class PurchaseController extends Controller
 
 
     public function getAllPurchase()
-{
-    try {
-        $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->cursor()->toArray();
+    {
+        try {
+            // Fetch all purchases with related products and payment info
+            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->get();
 
-        if (empty($purchases)) {
-            return response()->json(['message' => 'No purchases found.'], 404);
+            // $purchases = Purchase::with(['purchaseProducts'])->get();
+
+            // Check if purchases are found
+            if ($purchases->isEmpty()) {
+                return response()->json(['message' => 'No purchases found.'], 404);
+            }
+
+            // Return the purchases along with related purchase products and payment info
+            return response()->json(['purchases' => $purchases], 200);
+        } catch (\Exception $e) {
+            // Log the exception and return a generic error message
+            Log::error('Error fetching purchases: ' . $e->getMessage());
+            return response()->json(['message' => 'An error occurred while fetching purchases. Please try again later.'], 500);
         }
-
-        return response()->json(['purchases' => $purchases], 200);
-    } catch (\Exception $e) {
-        Log::error('Error fetching purchases: ' . $e->getMessage());
-        return response()->json(['message' => 'An error occurred while fetching purchases. Please try again later.'], 500);
     }
-}
-
 
     public function getAllPurchasesProduct( $id)
     {
