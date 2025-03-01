@@ -193,9 +193,10 @@
         .product-card img {
             max-width: 100%;
             height: auto;
-            max-height: 80px; /* Ensure all images have the same height */
-            object-fit: cover; /* Ensure images cover the area without stretching */
+            max-height: 80px;
+            object-fit: contain;
         }
+
 
         .product-card h6 {
             font-size: 12px;
