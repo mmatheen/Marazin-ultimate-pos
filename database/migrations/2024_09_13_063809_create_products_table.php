@@ -15,7 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('unit_id');
             $table->unsignedBigInteger('brand_id');
             $table->unsignedBigInteger('main_category_id');
-            $table->unsignedBigInteger('sub_category_id');
+            $table->unsignedBigInteger('sub_category_id')->nullable();
             $table->boolean('stock_alert')->nullable();
             $table->integer('alert_quantity')->nullable();
             $table->string('product_image')->nullable();
@@ -27,8 +27,8 @@ return new class extends Migration
             $table->double('original_price');
             $table->double('retail_price');
             $table->double('whole_sale_price');
-            $table->double('special_price');
-            $table->double('max_retail_price');
+            $table->double('special_price')->nullable();
+            $table->double('max_retail_price')->nullable();
             $table->timestamps();
 
             // Foreign keys

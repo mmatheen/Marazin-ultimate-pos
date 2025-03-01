@@ -37,7 +37,7 @@
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product Name <span class="login-danger">*</span></label>
-                                                    <input class="form-control" id="edit_product_name" name="product_name" type="text" placeholder="Product Name">
+                                                    <input class="form-control" id="edit_product_name" name="product_name" type="text" placeholder="Product Name" autocomplete="off">
                                                     <span class="text-danger" id="product_name_error"></span>
                                                 </div>
                                             </div>
@@ -47,7 +47,7 @@
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product SKU <span class="login-danger">*</span></label>
-                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU">
+                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU" autocomplete="off">
                                                     <span class="text-danger" id="sku_error"></span>
                                                 </div>
                                             </div>
