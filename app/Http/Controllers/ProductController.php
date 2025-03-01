@@ -212,7 +212,7 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'is_imei_or_serial_no' => 'nullable|boolean',
             'is_for_selling' => 'required|boolean',
-            'product_type' => 'required|string',
+            'product_type' => 'nullable|string',
             'pax' => 'nullable|integer',
             'retail_price' => 'required|numeric|min:0',
             'whole_sale_price' => 'required|numeric|min:0',
@@ -454,9 +454,9 @@ class ProductController extends Controller
                             'qty' => $locationData['qty'],
                             'unit_cost' => $locationData['unit_cost'],
                             'wholesale_price' => $product->whole_sale_price,
-                            'special_price' => $product->special_price,
+                            'special_price' => $product->special_price ?? 0,
                             'retail_price' => $product->retail_price,
-                            'max_retail_price' => $product->max_retail_price,
+                            'max_retail_price' => $product->max_retail_price ?? 0,
                             'expiry_date' => $formattedExpiryDate,
                         ]
                     );
@@ -542,22 +542,18 @@ class ProductController extends Controller
 
 
     public function getAllProductStocks()
-    {
-        $user = auth()->user();
-        $userRole = $user->role_name;
-        $userLocationId = $user->location_id;
+{
+    $user = auth()->user();
+    $userRole = $user->role_name;
+    $userLocationId = $user->location_id;
 
-        // Retrieve products based on the user's role
-        if ($userRole === 'Super Admin') {
-            $products = Product::with('batches.locationBatches.location')->get();
-        } else {
-            $products = Product::with(['batches.locationBatches' => function ($query) use ($userLocationId) {
-                $query->where('location_id', $userLocationId);
-            }])->get();
-        }
+    // Initialize an array to store product stock data
+    $productStocks = [];
 
-        // Prepare the response
-        $productStocks = $products->map(function ($product) use ($userRole) {
+    // Retrieve products based on the user's role in chunks
+    Product::with(['batches.locationBatches.location'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
+        // Process each product in the chunk
+        foreach ($products as $product) {
             // Calculate total stock
             $totalStock = $product->batches->sum(function ($batch) {
                 return $batch->locationBatches->sum('qty');
@@ -589,8 +585,8 @@ class ProductController extends Controller
                 ];
             });
 
-            // Return the product structure
-            return [
+            // Add the processed product stock to the response array
+            $productStocks[] = [
                 'product' => [
                     'id' => $product->id,
                     'product_name' => $product->product_name,
@@ -616,11 +612,13 @@ class ProductController extends Controller
                 'total_stock' => $totalStock,
                 'batches' => $batches,
             ];
-        });
+        }
+    });
 
-        // Return the response
-        return response()->json(['status' => 200, 'data' => $productStocks]);
-    }
+    // Return the response
+    return response()->json(['status' => 200, 'data' => $productStocks]);
+}
+
 
     public function getNotifications()
     {
@@ -691,7 +689,7 @@ class ProductController extends Controller
 
         return response()->json(['status' => 200, 'message' => 'Notifications marked as seen.']);
     }
-    
+
 
 
     // public function getStocks(Request $request)

@@ -268,8 +268,8 @@
                 <td>${product.name || '-'}</td>
                 <td><select class="form-control batch-select">${batchOptions}</select></td>
                 <td><input type="number" class="form-control purchase-quantity" value="${initialQuantity}" min="1" max="${firstPurchase.batch.qty}"></td>
-                <td class="unit-price">${firstPurchase.price || '0'}</td>
-                <td class="sub-total">${subtotal.toFixed(2)}</td>
+                <td class="unit-price amount">${firstPurchase.price || '0'}</td>
+                <td class="sub-total amount">${subtotal.toFixed(2)}</td>
                 <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;

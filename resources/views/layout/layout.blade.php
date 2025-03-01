@@ -101,6 +101,7 @@
         </div>
     </div>
     <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/inputmask/5.0.7/inputmask.min.js"></script>
 
     <script src="{{ asset('assets/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/js/feather.min.js') }}"></script>
@@ -111,6 +112,9 @@
     <script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/apexchart/apexcharts.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/apexchart/chart-data.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/datatables/datatables.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
@@ -138,15 +142,50 @@
         });
     </script>
 
-    {{-- <script>
+    <script>
             document.addEventListener("DOMContentLoaded", function () {
                 document.querySelectorAll("input").forEach(function (input) {
                     input.setAttribute("autocomplete", "off");
                 });
             });
-        </script> --}}
+        </script>
+{{-- <script>
+    // Global utility function to format currency
+    function formatCurrency(amount) {
+        return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
 
+    // Function to apply currency formatting to input fields
+    function applyCurrencyFormatting() {
+        $('input[data-currency]').on('input', function() {
+            let value = this.value.replace(/,/g, '');
+            if (!isNaN(value) && value !== '') {
+                this.value = parseFloat(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }
+        });
+    } --}}
+
+{{--     
+
+    // Apply the currency formatting when the document is ready
+    $(document).ready(function() {
+        applyCurrencyFormatting();
+    });
+</script> --}}
     {{-- Toaster Notifications --}}
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            Inputmask({
+                alias: "numeric",
+                groupSeparator: ",",
+                radixPoint: ".",
+                autoGroup: true,
+                digits: 2,
+                rightAlign: false
+            }).mask(".amount");
+        });
+        </script>
     <script>
         $(document).ready(function() {
             var successSound = document.querySelector('.successSound');

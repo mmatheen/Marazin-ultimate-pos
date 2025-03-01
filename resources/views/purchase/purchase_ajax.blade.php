@@ -237,7 +237,7 @@
                 <td>
                     <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
                 </td>
-                <td><input type="number" class="form-control unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>

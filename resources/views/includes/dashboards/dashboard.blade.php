@@ -1,60 +1,302 @@
 @extends('layout.layout')
 @section('content')
-<!--      -->
+    <div class="content container-fluid">
+        <div class="page-header">
+            <div class="row">
+                <div class="col-sm-12">
+                    <div class="page-sub-header">
+                        <h3 class="page-title">Welcome Admin!</h3>
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                            <li class="breadcrumb-item active">Admin</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <script>
-        $(document).ready(function() {
-            fetchDashboardData();
 
-            function fetchDashboardData() {
-                $.ajax({
-                    url: "/dashboard-data",
-                    type: "GET",
-                    dataType: "json",
-                    success: function(response) {
-                        $("#totalSales").text("$" + response.totalSales.toFixed(2));
-                        $("#totalPurchases").text("$" + response.totalPurchases.toFixed(2));
-                        $("#totalSalesReturn").text("$" + response.totalSalesReturn.toFixed(2));
-                        $("#totalPurchaseReturn").text("$" + response.totalPurchaseReturn.toFixed(2));
-                        $("#stockTransfer").text(response.stockTransfer);
-                        $("#stockAdjustment").text(response.stockAdjustment);
-                        $("#totalProducts").text(response.totalProducts);
-                        $("#expenses").text("$" + response.expenses.toFixed(2));
+        <div class="row">
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Sales</h6>
+                                <h3 id="totalSales">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-cash-register" style="color: #4caf50;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Purchases</h6>
+                                <h3 id="totalPurchases">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-shopping-cart" style="color: #2196f3;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Sales Returns</h6>
+                                <h3 id="totalSalesReturn">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-undo-alt" style="color: #f44336;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Purchase Returns</h6>
+                                <h3 id="totalPurchaseReturn">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-undo" style="color: #ff9800;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Sales Due</h6>
+                                <h3 id="totalSalesDue">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-money-bill-alt" style="color: #4caf50;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Purchases Due</h6>
+                                <h3 id="totalPurchasesDue">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-money-bill" style="color: #2196f3;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Sales Return Due</h6>
+                                <h3 id="totalSalesReturnDue">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-file-invoice-dollar" style="color: #f44336;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-sm-6 col-12 d-flex">
+                <div class="card bg-comman w-100">
+                    <div class="card-body">
+                        <div class="db-widgets d-flex justify-content-between align-items-center">
+                            <div class="db-info">
+                                <h6>Total Purchase Return Due</h6>
+                                <h3 id="totalPurchaseReturnDue">Rs. 0.00</h3>
+                            </div>
+                            <div class="db-icon">
+                                <i class="fas fa-file-invoice" style="color: #ff9800;"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        updateCharts(response);
-                    }
-                });
-            }
+        <div class="row">
+            <div class="col-md-12 col-lg-6">
+                <div class="card card-chart">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-6">
+                                <h5 class="card-title">Sales Overview</h5>
+                            </div>
+                            <div class="col-6">
+                                <ul class="chart-list-out">
+                                    <li class="star-menus"><a href="javascript:;"><i class="fas fa-ellipsis-v"></i></a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-6">
+                <div class="card card-chart">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-6">
+                                <h5 class="card-title">Purchase Overview</h5>
+                            </div>
+                            <div class="col-6">
+                                <ul class="chart-list-out">
+                                    <li class="star-menus"><a href="javascript:;"><i class="fas fa-ellipsis-v"></i></a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="purchaseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            function updateCharts(data) {
-                const ctx1 = document.getElementById('salesChart').getContext('2d');
-                const ctx2 = document.getElementById('stockChart').getContext('2d');
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                fetchDashboardData();
 
-                new Chart(ctx1, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Sales', 'Purchases', 'Sales Return', 'Purchase Return'],
-                        datasets: [{
-                            label: 'Amount ($)',
-                            data: [data.totalSales, data.totalPurchases, data.totalSalesReturn, data.totalPurchaseReturn],
-                            backgroundColor: ['blue', 'green', 'red', 'orange']
-                        }]
-                    }
-                });
+                function formatCurrency(amount) {
+                    return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
 
-                new Chart(ctx2, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Stock Transfers', 'Stock Adjustments'],
-                        datasets: [{
-                            data: [data.stockTransfer, data.stockAdjustment],
-                            backgroundColor: ['purple', 'yellow']
-                        }]
-                    }
-                });
-            }
-        });
+                function fetchDashboardData() {
+                    $.ajax({
+                        url: "/dashboard-data",
+                        type: "GET",
+                        dataType: "json",
+                        success: function(response) {
+                            $("#totalSales").text(formatCurrency(response.totalSales));
+                            $("#totalPurchases").text(formatCurrency(response.totalPurchases));
+                            $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));
+                            $("#totalPurchaseReturn").text(formatCurrency(response.totalPurchaseReturn));
+                            $("#totalSalesDue").text(formatCurrency(response.totalSalesDue));
+                            $("#totalPurchasesDue").text(formatCurrency(response.totalPurchasesDue));
+                            $("#totalSalesReturnDue").text(formatCurrency(response.totalSalesReturnDue));
+                            $("#totalPurchaseReturnDue").text(formatCurrency(response.totalPurchaseReturnDue));
+                            $("#stockTransfer").text(response.stockTransfer);
+                            $("#totalProducts").text(response.totalProducts);
+
+                            updateCharts(response);
+                        }
+                    });
+                }
+
+                function updateCharts(data) {
+                    const salesChart = new Chart(document.getElementById('salesChart'), {
+                        type: 'line',
+                        data: {
+                            labels: data.salesDates,
+                            datasets: [{
+                                label: 'Sales Amount (Rs.)',
+                                data: data.salesAmounts,
+                                borderColor: 'blue',
+                                fill: false,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'day'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return formatCurrency(context.parsed.y);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    const purchaseChart = new Chart(document.getElementById('purchaseChart'), {
+                        type: 'line',
+                        data: {
+                            labels: data.purchaseDates,
+                            datasets: [{
+                                label: 'Purchase Amount (Rs.)',
+                                data: data.purchaseAmounts,
+                                borderColor: 'green',
+                                fill: false,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'day'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return formatCurrency(context.parsed.y);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
         </script>
-
+    </div>
 @endsection

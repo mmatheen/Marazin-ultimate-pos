@@ -6,7 +6,6 @@
         let brandMap = {};
         let locationMap = {};
         let subCategories = [];
-        fetchLastAddedProducts();
 
         // Validation options
         var addAndUpdateValidationOptions = {
@@ -23,9 +22,9 @@
                 main_category_id: {
                     required: true
                 },
-                sub_category_id: {
-                    required: true
-                },
+                // sub_category_id: {
+                //     required: true
+                // },
                 'locations[]': {
                     required: true
                 },
@@ -33,9 +32,6 @@
                     required: true
                 },
                 whole_sale_price: {
-                    required: true
-                },
-                special_price: {
                     required: true
                 },
                 original_price: {
@@ -55,9 +51,9 @@
                 main_category_id: {
                     required: "Main Category is required"
                 },
-                sub_category_id: {
-                    required: "Sub Category is required"
-                },
+                // sub_category_id: {
+                //     required: "Sub Category is required"
+                // },
                 'locations[]': {
                     required: "Business Location is required"
                 },
@@ -66,9 +62,6 @@
                 },
                 whole_sale_price: {
                     required: "Whole Sale Price is required"
-                },
-                special_price: {
-                    required: "Special Price is required"
                 },
                 original_price: {
                     required: "Cost Price is required"

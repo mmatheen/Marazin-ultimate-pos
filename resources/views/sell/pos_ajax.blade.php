@@ -504,7 +504,7 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
                     <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
                 </div>
             </td>
-            <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input"></td>
+            <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input" data-currency></td>
             <td class="subtotal">${finalPrice.toFixed(2)}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
             <td class="product-id" style="display:none">${product.id}</td>

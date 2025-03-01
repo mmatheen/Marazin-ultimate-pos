@@ -9,7 +9,7 @@
                     <a href="#"><i class="feather-grid"></i> <span> Dashboard</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="index.html" class="active">Admin Dashboard</a></li>
+                        <li><a href={{ route('dashboard') }} class="{{ set_active(['dashboard'])}}">Admin Dashboard</a></li>
 
                     </ul>
                 </li>

@@ -326,10 +326,10 @@
                 </div>
                 <div class="modal-body">
                     <form id="paymentForm">
-                        <input type="text" id="saleReturnId" name="reference_id">
-                        <input type="text" id="payment_type" name="payment_type">
-                        <input type="text" id="customer_id" name="customer_id">
-                        <input type="text" id="reference_no" name="reference_no">
+                        <input type="hidden" id="saleReturnId" name="reference_id">
+                        <input type="hidden" id="payment_type" name="payment_type">
+                        <input type="hidden" id="customer_id" name="customer_id">
+                        <input type="hidden" id="reference_no" name="reference_no">
 
                         <div class="row mb-3">
                             <div class="col-md-4">

@@ -8,24 +8,28 @@ class DashboardController extends Controller
 {
     public function getDashboardData()
     {
-        $totalSales = DB::table('sales')->sum('amount');
-        $totalPurchases = DB::table('purchase')->sum('amount');
-        $totalSalesReturn = DB::table('sale_return')->sum('amount');
-        $totalPurchaseReturn = DB::table('purchase_return')->sum('amount');
-        $stockTransfer = DB::table('stock_transfers')->sum('quantity');
-        $stockAdjustment = DB::table('stock_adjustments')->sum('quantity');
+        $totalSales = DB::table('sales')->sum('final_total');
+        $totalSalesDue = DB::table('sales')->sum('total_due');
+        $totalPurchases = DB::table('purchases')->sum('final_total');
+        $totalPurchasesDue = DB::table('purchases')->sum('total_due');
+        $totalPurchaseReturn = DB::table('purchase_returns')->sum('return_total');
+        $totalPurchaseReturnDue = DB::table('purchase_returns')->sum('total_due');
+        $totalSalesReturn = DB::table('sales_returns')->sum('return_total');
+        $totalSalesReturnDue= DB::table('sales_returns')->sum('total_due');
+        $stockTransfer = DB::table('stock_transfers')->sum('final_total');
         $totalProducts = DB::table('products')->count();
-        $expenses = DB::table('expenses')->sum('amount');
 
         return response()->json([
             'totalSales' => $totalSales,
             'totalPurchases' => $totalPurchases,
             'totalSalesReturn' => $totalSalesReturn,
             'totalPurchaseReturn' => $totalPurchaseReturn,
+            'totalSalesDue' => $totalSalesDue,
+            'totalPurchasesDue' => $totalPurchasesDue,
+            'totalPurchaseReturnDue' => $totalPurchaseReturnDue,
+            'totalSalesReturnDue' => $totalSalesReturnDue,
             'stockTransfer' => $stockTransfer,
-            'stockAdjustment' => $stockAdjustment,
             'totalProducts' => $totalProducts,
-            'expenses' => $expenses
         ]);
     }
 }
