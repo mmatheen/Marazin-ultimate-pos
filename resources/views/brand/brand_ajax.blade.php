@@ -112,7 +112,7 @@
             });
         });
 
-    
+
         // Submit Add/Update Form
         $('#brandAddAndUpdateForm').submit(function(e) {
             e.preventDefault();

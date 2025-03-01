@@ -1,52 +1,46 @@
 <script type="text/javascript">
     $(document).ready(function () {
-    var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
+        var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
-        populateBrandDropdown();
+        populateUnitDropdown();
 
-    // add form and update validation rules code start
-              var addAndUpdateValidationOptions = {
-        rules: {
-            name: {
-                required: true,
+        // add form and update validation rules code start
+        var addAndUpdateValidationOptions = {
+            rules: {
+                name: {
+                    required: true,
+                },
+                short_name: {
+                    required: true,
+                },
             },
-
-            short_name: {
-                required: true,
-
+            messages: {
+                name: {
+                    required: "Name is required",
+                },
+                short_name: {
+                    required: "Short Name is required",
+                },
             },
-        },
-        messages: {
-
-            name: {
-                required: "Name is required",
+            errorElement: 'span',
+            errorPlacement: function (error, element) {
+                error.addClass('text-danger');
+                error.insertAfter(element);
             },
-
-            short_name: {
-                required: "Short Name is required",
+            highlight: function (element, errorClass, validClass) {
+                $(element).addClass('is-invalidRed').removeClass('is-validGreen');
             },
+            unhighlight: function (element, errorClass, validClass) {
+                $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+            }
+        };
 
-        },
-        errorElement: 'span',
-        errorPlacement: function (error, element) {
-            error.addClass('text-danger');
-            error.insertAfter(element);
-        },
-        highlight: function (element, errorClass, validClass) {
-            $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-        },
-        unhighlight: function (element, errorClass, validClass) {
-            $(element).removeClass('is-invalidRed').addClass('is-validGreen');
-        }
+        // Apply validation to both forms
+        $('#unitAddAndUpdateForm').validate(addAndUpdateValidationOptions);
 
-    };
+        // add form and update validation rules code end
 
-    // Apply validation to both forms
-    $('#unitAddAndUpdateForm').validate(addAndUpdateValidationOptions);
-
-  // add form and update validation rules code end
-
-  // Function to reset form and validation errors
+        // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
             $('#unitAddAndUpdateForm')[0].reset();
@@ -57,9 +51,9 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditUnitModal').on('hidden.bs.modal', function () {
-                resetFormAndValidation();
-            });
+        $('#addAndEditUnitModal').on('hidden.bs.modal', function () {
+            resetFormAndValidation();
+        });
 
         // Show Add Warranty Modal
         $('#addUnitButton').click(function() {
@@ -95,8 +89,8 @@
             });
         }
 
-            // Show Edit Modal
-            $(document).on('click', '.edit_btn', function() {
+        // Show Edit Modal
+        $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
             $('#modalTitle').text('Edit Unit');
             $('#modalButton').text('Update');
@@ -121,16 +115,15 @@
             });
         });
 
-
         // Submit Add/Update Form
         $('#unitAddAndUpdateForm').submit(function(e) {
             e.preventDefault();
 
-             // Validate the form before submitting
+            // Validate the form before submitting
             if (!$('#unitAddAndUpdateForm').valid()) {
-                   document.getElementsByClassName('warningSound')[0].play(); //for sound
-                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                   toastr.warning('Invalid inputs, Check & try again!!','Warning');
+                document.getElementsByClassName('warningSound')[0].play(); //for sound
+                toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                toastr.warning('Invalid inputs, Check & try again!!','Warning');
                 return; // Return if form is not valid
             }
 
@@ -152,12 +145,17 @@
                         $.each(response.errors, function(key, err_value) {
                             $('#' + key + '_error').html(err_value);
                         });
-                        populateBrandDropdown();
+                        populateUnitDropdown();
 
                     } else {
-                        populateBrandDropdown();
+                        populateUnitDropdown(function() {
+                            if (!id) {
+                                // If it's a new unit, set it as selected
+                                $('#edit_unit_id').val(response.unit.id);
+                            }
+                        });
                         $('#addAndEditUnitModal').modal('hide');
-                           // Clear validation error messages
+                        // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
@@ -167,7 +165,6 @@
                 }
             });
         });
-
 
         // Delete Warranty
         $(document).on('click', '.delete_btn', function() {
@@ -187,7 +184,7 @@
                     if (response.status == 404) {
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error(response.message, 'Error');
-                        populateBrandDropdown();
+                        populateUnitDropdown();
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
@@ -199,7 +196,7 @@
             });
         });
 
-        function populateBrandDropdown() {
+        function populateUnitDropdown(callback) {
             $.ajax({
                 url: '/get-unit',
                 method: 'GET',
@@ -211,6 +208,7 @@
                     $.each(data, function(key, value) {
                         unitSelect.append('<option value="'+value.id+'">'+value.name+'</option>');
                     });
+                    if (callback) callback();
                 },
                 error: function(xhr, status, error) {
                     console.error('Failed to fetch unit data:', error); // Log any errors

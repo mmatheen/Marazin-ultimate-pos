@@ -6,6 +6,7 @@
         let brandMap = {};
         let locationMap = {};
         let subCategories = [];
+        fetchLastAddedProducts();
 
         // Validation options
         var addAndUpdateValidationOptions = {
@@ -330,7 +331,7 @@
             const filteredProducts = allProducts.filter(item => {
                 const product = item.product;
                 const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
-                true;
+                    true;
                 const matchesCategory = selectedCategory ? product.main_category_id ==
                     selectedCategory : true;
                 const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
@@ -366,7 +367,7 @@
                 if (response.status === 200) {
                     response.message.forEach(function(location) {
                         locationMap[location.id] = location
-                        .name; // Store location name with ID as key
+                            .name; // Store location name with ID as key
                     });
                 } else {
                     console.error('Failed to load location data. Status: ' + response.status);
@@ -442,7 +443,7 @@
                         });
                     } else {
                         document.getElementsByClassName('successSound')[0]
-                    .play(); // Play success sound
+                            .play(); // Play success sound
                         toastr.success(response.message, 'Added');
 
                         if (buttonType === 'onlySave') {
@@ -466,7 +467,7 @@
                 },
                 complete: function() {
                     isSubmitting =
-                    false; // Reset the flag after the request completes (success or failure)
+                        false; // Reset the flag after the request completes (success or failure)
                 }
             });
         }
@@ -499,7 +500,7 @@
             });
         }
 
-        function addProductToTable(product) {
+        function addProductToTable(product, isEditing = false, prices = {}) {
             const table = $("#purchase_product").DataTable();
             let existingRow = null;
 
@@ -511,36 +512,37 @@
                 }
             });
 
-            if (existingRow) {
+            if (existingRow && !isEditing) {
                 const quantityInput = existingRow.find('.purchase-quantity');
                 const newQuantity = parseFloat(quantityInput.val()) + 1;
                 quantityInput.val(newQuantity).trigger('input');
             } else {
-                const price = parseFloat(product.original_price) || 0;
-                const retailPrice = parseFloat(product.retail_price) || 0;
-                const wholesalePrice = parseFloat(product.whole_sale_price) || 0;
-                const specialPrice = parseFloat(product.special_price) || 0;
-                const maxRetailPrice = parseFloat(product.max_retail_price) || 0;
+                const price = parseFloat(prices.price || product.original_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+                const wholesalePrice = parseFloat(prices.whole_sale_price || product.whole_sale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
 
                 const newRow = `
-                    <tr data-id="${product.id}">
-                        <td>${product.id}</td>
-                        <td>${product.product_name || '-'} <br><small>Stock: ${product.quantity || 0}</small></td>
-                        <td><input type="number" class="form-control purchase-quantity" value="1" min="1"></td>
-                        <td><input type="number" class="form-control unit-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
-                        <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
-                        <td><input type="number" class="form-control product-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
-                        <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" step="0.01"></td>
-                        <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0" step="0.01"></td>
-                        <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0" step="0.01"></td>
-                        <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0" step="0.01"></td>
-                        <td class="sub-total">0</td>
-                        <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                        <td><input type="date" class="form-control expiry-date"></td>
-                        <td><input type="text" class="form-control batch-id"></td>
-                        <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
-                    </tr>
-                `;
+            <tr data-id="${product.id}">
+                <td>${product.id}</td>
+                <td>${product.product_name || '-'} <br><small>Stock: ${product.quantity || 0}</small></td>
+                <td><input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="1"></td>
+                <td><input type="number" class="form-control unit-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
+                <td><input type="number" class="form-control product-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td class="sub-total">0</td>
+                <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="date" class="form-control expiry-date" value="${product.expiry_date || ''}"></td>
+                <td><input type="text" class="form-control batch-no" value="${product.batch_no || ''}"></td>
+                <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+            </tr>
+        `;
 
                 const $newRow = $(newRow);
                 table.row.add($newRow).draw();
@@ -549,7 +551,7 @@
 
                 $newRow.find(
                     ".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price"
-                    ).on("input", function() {
+                ).on("input", function() {
                     updateRow($newRow);
                     updateFooter();
                 });
@@ -565,10 +567,15 @@
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const unitPrice = parseFloat($row.find(".unit-price").val()) || 0;
             const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
+            const profitMargin = parseFloat($row.find(".profit-margin").val()) || 0;
 
             const discountedPrice = unitPrice - (unitPrice * discountPercent) / 100;
+            // const retailPrice = discountedPrice + (discountedPrice * profitMargin) / 100;
+            const retailPrice = unitCost + (unitCost * profitMargin) / 100;
             const subTotal = discountedPrice * quantity;
 
+            $row.find(".product-price").val(discountedPrice.toFixed(2));
+            $row.find(".retail-price").val(retailPrice.toFixed(2));
             $row.find(".sub-total").text(subTotal.toFixed(2));
         }
 
@@ -621,6 +628,7 @@
 
         $('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
 
+
         $(".show-picture").on("change", function() {
             const input = this;
             if (input.files && input.files[0]) {
@@ -641,7 +649,7 @@
         $('#edit_main_category_id').change(function() {
             var main_category_id = $(this).val();
             $('#edit_sub_category_id').empty().append(
-            '<option selected disabled>Sub Category</option>');
+                '<option selected disabled>Sub Category</option>');
 
             $.ajax({
                 url: 'sub_category-details-get-by-main-category-id/' + main_category_id,
@@ -665,9 +673,12 @@
             });
         });
 
+
+
+
         $(document).ready(function() {
             const currentPath = window.location.pathname;
-            console.log(currentPath   );
+            console.log(currentPath);
             const productId = $('#product_id').val();
             const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
@@ -700,17 +711,17 @@
                             batches.forEach(function(batch) {
                                 let row = $(
                                     `tr[data-location-id="${batch.location_id}"]`
-                                    );
+                                );
                                 if (row.length > 0) {
                                     row.find(
                                         'input[name^="locations"][name$="[qty]"]'
-                                        ).val(batch.quantity);
+                                    ).val(batch.quantity);
                                     row.find(
                                         'input[name^="locations"][name$="[batch_no]"]'
-                                        ).val(batch.batch_no);
+                                    ).val(batch.batch_no);
                                     row.find(
                                         'input[name^="locations"][name$="[expiry_date]"]'
-                                        ).val(batch.expiry_date);
+                                    ).val(batch.expiry_date);
                                 }
                             });
                         }
@@ -779,7 +790,7 @@
         });
 
 
-                // Extract the product ID from the URL and fetch data if valid
+        // Extract the product ID from the URL and fetch data if valid
         $(document).ready(function() {
             const pathSegments = window.location.pathname.split('/');
             const productId = pathSegments[pathSegments.length - 1];
@@ -792,19 +803,24 @@
                         success: function(response) {
                             if (response.status === 200) {
                                 const product = response.message.product;
-                                const mainCategories = response.message.mainCategories;
-                                const subCategories = response.message.subCategories;
+                                const mainCategories = response.message
+                                    .mainCategories;
+                                const subCategories = response.message
+                                .subCategories;
                                 const brands = response.message.brands;
                                 const units = response.message.units;
                                 const locations = response.message.locations;
 
-                                populateProductDetails(product, mainCategories, subCategories, brands, units, locations);
+                                populateProductDetails(product, mainCategories,
+                                    subCategories, brands, units, locations);
                             } else {
                                 console.error('Error: ' + response.message);
                             }
                         },
                         error: function() {
-                            console.error('An error occurred while fetching product details.');
+                            console.error(
+                                'An error occurred while fetching product details.'
+                                );
                         }
                     });
                 });

@@ -694,101 +694,6 @@ $('#submitBulkPayment').click(function() {
         });
 
 
-        // Function to update calculations
-        function updateCalculations() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
-
-            $('#addSaleProduct tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                const price = parseFloat($(this).find('.price-input').val()) || 0;
-                const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
-
-                const subTotal = quantity * price;
-                const discountAmount = subTotal * (discountPercent / 100);
-                const netCost = subTotal - discountAmount;
-                const lineTotal = netCost;
-
-                $(this).find('.sub-total').text(subTotal.toFixed(2));
-                $(this).find('.net-cost').text(netCost.toFixed(2));
-                $(this).find('.line-total').text(lineTotal.toFixed(2));
-                $(this).find('.retail-price').text(price.toFixed(2));
-
-                totalItems += quantity;
-                netTotalAmount += lineTotal;
-            });
-
-            const discountType = $('#discount-type').val();
-            const discountInput = parseFloat($('#discount-amount').val()) || 0;
-            let discountAmount = 0;
-
-            if (discountType === 'fixed') {
-                discountAmount = discountInput;
-            } else if (discountType === 'percentage') {
-                discountAmount = (netTotalAmount * discountInput) / 100;
-            }
-
-            const taxType = $('#tax-type').val();
-            let taxAmount = 0;
-
-            if (taxType === 'vat10' || taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            }
-
-            const finalTotal = netTotalAmount - discountAmount + taxAmount;
-
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
-            $('#discount-display').text(`(-) Rs. ${discountAmount.toFixed(2)}`);
-            $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
-            updatePaymentDue(finalTotal, discountAmount);
-        }
-
-        // Function to update payment due amount
-        function updatePaymentDue(finalTotal, discountAmount) {
-            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-            const discountNetTotalAmount = finalTotal - discountAmount;
-            const paymentDue = discountNetTotalAmount - paidAmount;
-            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-        }
-
-        // Event listener for remove button click
-        $(document).on('click', '.remove-btn', function(event) {
-            event.preventDefault(); // Prevent form submission
-            var row = $(this).closest('tr');
-            $('#confirmRemoveModal').data('row', row).modal('show');
-        });
-
-        // Event listener for confirmation modal
-        $('#confirmRemoveButton').on('click', function() {
-            var row = $('#confirmRemoveModal').data('row');
-            removeProduct(row);
-            $('#confirmRemoveModal').modal('hide');
-        });
-
-        // Function to handle the removal of the product from the DataTable
-        function removeProduct(row) {
-            var table = $('#addSaleProduct').DataTable();
-            var productId = row.data('id');
-            var product = allProducts.find(p => p.id === productId);
-
-            // Re-add the removed product back to the allProducts array
-            allProducts.push(product);
-
-            table.row(row).remove().draw();
-
-            toastr.success('Product removed successfully!', 'Success');
-            updateCalculations();
-            updateFooter();
-        }
-
-        // Trigger calculations on events
-        $(document).on('change keyup',
-            '.quantity-input, .discount-percent, .price-input, #discount-amount, #discount-type, #tax-type',
-            function() {
-                updateCalculations();
-            });
 
 
         $('#addSalesForm').on('submit', function(event) {
@@ -866,10 +771,6 @@ $('#submitBulkPayment').click(function() {
             return `${year}-${month}-${day}`;
         }
 
-        // Function to update footer totals
-        function updateFooter() {
-            updateTotals();
-        }
 
         // Fetch locations using AJAX
         $.ajax({
@@ -1239,6 +1140,103 @@ $('#submitBulkPayment').click(function() {
             const paymentDue = discountNetTotalAmount - paidAmount;
             $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
         }
+
+          // Function to update calculations
+          function updateCalculations() {
+            let totalItems = 0;
+            let netTotalAmount = 0;
+
+            $('#addSaleProduct tbody tr').each(function() {
+                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                const price = parseFloat($(this).find('.price-input').val()) || 0;
+                const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
+
+                const subTotal = quantity * price;
+                const discountAmount = subTotal * (discountPercent / 100);
+                const netCost = subTotal - discountAmount;
+                const lineTotal = netCost;
+
+                $(this).find('.sub-total').text(subTotal.toFixed(2));
+                $(this).find('.net-cost').text(netCost.toFixed(2));
+                $(this).find('.line-total').text(lineTotal.toFixed(2));
+                $(this).find('.retail-price').text(price.toFixed(2));
+
+                totalItems += quantity;
+                netTotalAmount += lineTotal;
+            });
+
+            const discountType = $('#discount-type').val();
+            const discountInput = parseFloat($('#discount-amount').val()) || 0;
+            let discountAmount = 0;
+
+            if (discountType === 'fixed') {
+                discountAmount = discountInput;
+            } else if (discountType === 'percentage') {
+                discountAmount = (netTotalAmount * discountInput) / 100;
+            }
+
+            const taxType = $('#tax-type').val();
+            let taxAmount = 0;
+
+            if (taxType === 'vat10' || taxType === 'cgst10') {
+                taxAmount = (netTotalAmount - discountAmount) * 0.10;
+            }
+
+            const finalTotal = netTotalAmount - discountAmount + taxAmount;
+
+            $('#total-items').text(totalItems.toFixed(2));
+            $('#net-total-amount').text(netTotalAmount.toFixed(2));
+            $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
+            $('#discount-display').text(`(-) Rs. ${discountAmount.toFixed(2)}`);
+            $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
+            updatePaymentDue(finalTotal, discountAmount);
+        }
+
+        // Function to update payment due amount
+        function updatePaymentDue(finalTotal, discountAmount) {
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const discountNetTotalAmount = finalTotal - discountAmount;
+            const paymentDue = discountNetTotalAmount - paidAmount;
+            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+        }
+
+        // Event listener for remove button click
+        $(document).on('click', '.remove-btn', function(event) {
+            event.preventDefault(); // Prevent form submission
+            var row = $(this).closest('tr');
+            $('#confirmRemoveModal').data('row', row).modal('show');
+        });
+
+        // Event listener for confirmation modal
+        $('#confirmRemoveButton').on('click', function() {
+            var row = $('#confirmRemoveModal').data('row');
+            removeProduct(row);
+            $('#confirmRemoveModal').modal('hide');
+        });
+
+        // Function to handle the removal of the product from the DataTable
+        function removeProduct(row) {
+            var table = $('#addSaleProduct').DataTable();
+            var productId = row.data('id');
+            var product = allProducts.find(p => p.id === productId);
+
+            // Re-add the removed product back to the allProducts array
+            allProducts.push(product);
+
+            table.row(row).remove().draw();
+
+            toastr.success('Product removed successfully!', 'Success');
+            updateCalculations();
+            updateFooter();
+        }
+
+        // Trigger calculations on events
+        $(document).on('change keyup',
+            '.quantity-input, .discount-percent, .price-input, #discount-amount, #discount-type, #tax-type',
+            function() {
+                updateCalculations();
+            });
+
 
         // Function to reset form and validation messages
         function resetFormAndValidation() {

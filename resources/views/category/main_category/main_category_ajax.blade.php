@@ -195,7 +195,7 @@
                 type: 'GET',
                 success: function(response) {
                     if (response.status === 200) {
-                        const MainSelect = $('#edit_main_category_id');
+                        const MainSelect = $('#edit_main_category_id_sub');
                         MainSelect.empty(); // Clear existing options
                         // Access itemMainCategories and subcategories from response data
                         const mainCategories = response.message;

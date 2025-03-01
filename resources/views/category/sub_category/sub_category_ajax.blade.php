@@ -2,6 +2,7 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        fetchSubCategoryDropdown();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
@@ -154,6 +155,7 @@
 
                     } else {
                         $('#addAndEditSubCategoryModal').modal('hide');
+                        fetchSubCategoryDropdown();
                            // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
@@ -187,6 +189,7 @@
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
+                        fetchSubCategoryDropdown();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, 'Deleted');
@@ -194,5 +197,23 @@
                 }
             });
         });
-    });
+
+    function fetchSubCategoryDropdown() {
+        $.ajax({
+            url: '/sub-category-get-all',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                let dropdown = $('#edit_sub_category_id');
+                dropdown.empty().append('<option value="">Select Sub Category</option>');
+                $.each(response.message, function(index, item) {
+                    dropdown.append(`<option value="${item.id}">${item.subCategoryname}</option>`);
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching dropdown data:", error);
+            }
+        });
+    }
+});
 </script>

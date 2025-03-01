@@ -112,7 +112,7 @@
                     <div class="form-group local-forms">
                         <label>Invoice No<span class="login-danger"></span></label>
                         <input class="form-control" id="invoice_no" name="invoice_no" type="text" placeholder="Invoice No">
-                        <input name="sale_type" type="text" value="Normal">
+                        <input name="sale_type" type="hidden" value="Normal">
                     </div>
                 </div>
             </div>

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->boolean('is_imei_or_serial_no')->nullable();
             $table->string('is_for_selling')->nullable();
-            $table->string('product_type');
+            $table->string('product_type')->nullable();
             $table->string('pax')->nullable();
             $table->double('original_price');
             $table->double('retail_price');

@@ -11,7 +11,7 @@
         const categoryBtn = document.getElementById('category-btn');
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
-        const baseUrl = "http://127.0.0.1:8000"; // Base URL for the images
+        // const baseUrl = "http://127.0.0.1:8000"; // Base URL for the images
 
         // Global arrays to store products
         let allProducts = [];
@@ -308,7 +308,7 @@
                 const cardHTML = `
                 <div class="col-3">
                     <div class="product-card">
-                        <img src="${baseUrl}/assets/images/${product.product_image}" alt="${product.product_name}" class="card-img-top p-2">
+                        <img src="/assets/images/${product.product_image}" alt="${product.product_name}" class="card-img-top p-2">
                         <div class="product-card-body">
                             <h6>${product.product_name} <br> <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span></h6>
                             <h6><span class="badge bg-success">${totalQuantity} Pc(s) in stock</span></h6>
@@ -450,7 +450,7 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
         document.getElementsByClassName('successSound')[0].play();
         toastr.info(
             `<div style="display: flex; align-items: center;">
-                <img src="${baseUrl}/assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
+                <img src="/assets/images/${product.product_image}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ddd; padding: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);"/>
                 <span style="font-size: 16px; font-weight: bold; padding-right:5px;">${product.product_name} </span>Product Added!
             </div>`
         );
@@ -483,7 +483,7 @@ function addProductToTableWithDetails(product, totalQuantity, locationId, locati
         row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
-                    <img src="${baseUrl}/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                    <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
                     <div>
                         <div class="font-weight-bold product-name">${product.product_name}</div>
                         <div class="text-muted">${product.sku}</div>
@@ -655,7 +655,7 @@ function updateTotals() {
             });
 
             $(document).ready(function() {
-       
+
 
         function gatherSaleData(status) {
             const uniqueNumber = new Date().getTime() % 10000;

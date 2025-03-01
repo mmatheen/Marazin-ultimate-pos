@@ -28,7 +28,7 @@
                     <div class="col-md-12">
                         <div class="form-group local-forms">
                             <label>main category<span class="login-danger">*</span></label>
-                            <select id="edit_main_category_id" name="main_category_id" class="form-control select2Box form-select select">
+                            <select id="edit_main_category_id_sub" name="main_category_id" class="form-control select2Box form-select select">
                                 {{-- <option selected disabled>Please Select </option>
                                 @foreach($MainCategories as $MainCategory)
                                 <option value="{{ $MainCategory->id }}">{{ $MainCategory->mainCategoryName }}</option>
