@@ -383,7 +383,7 @@ fetchCategoriesAndBrands();
 fetchInitialDropdowns(fetchProductData);
 
 // Apply filters on change
-$('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts); 
+$('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
 
         function resetFormAndValidation() {
             $('#addForm')[0].reset();
@@ -790,9 +790,255 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         //     }
         // });
 
+        $(document).ready(function() {
+        const productId = $('#product_id').val();
+        const productName = $('#product_name').val();
+        const productSku = $('#product_sku').val();
+        const productOriginalPrice = $('#product_original_price').val();
         
+        const currentPath = window.location.pathname;
+        const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
 
+    // Initialize datetime picker for expiry date fields
+    function initializeDateTimePicker() {
+        $(".expiry-date-picker").datepicker({
+            dateFormat: 'yy-mm-dd' // Set the date format as per your requirement
+        });
+    }
+
+    // Fetch and populate data dynamically
+    fetchOpeningStockData(productId, isEditMode);
+
+    $('#addRow').click(function() {
+        var index = $('#locationRows tr').length;
+        var locationId = $('#locationRows tr:last').data('location-id');
+        var locationName = $('#locationRows tr:last td:first p').text();
+        var newRow = `
+            <tr data-location-id="${locationId}">
+                <td>
+                    <input type="hidden" name="locations[` + index + `][id]" value="${locationId}">
+                    <p>${locationName}</p>
+                </td>
+                <td>
+                    <p>${productName}</p>
+                </td>
+                <td>
+                    <p>${productSku}</p>
+                </td>
+                <td>
+                    <input type="number" class="form-control"
+                        name="locations[` + index + `][qty]"
+                        value="">
+                </td>
+                <td>
+                    <input type="text" class="form-control"
+                        name="locations[` + index + `][unit_cost]"
+                        value="${productOriginalPrice}" readonly>
+                </td>
+                <td>
+                    <input type="text" class="form-control batch-no-input"
+                        name="locations[` + index + `][batch_no]"
+                        value="">
+                </td>
+                <td>
+                    <input type="text" class="form-control expiry-date-picker"
+                        name="locations[` + index + `][expiry_date]"
+                        value="">
+                </td>
+            </tr>
+        `;
+        $('#locationRows').append(newRow);
+        initializeDateTimePicker(); // Re-initialize datetime picker for new rows
+    });
+
+    $('#submitOpeningStock').click(function(e) {
+        e.preventDefault();
+        handleFormSubmission(isEditMode, productId);
+    });
+
+    function fetchOpeningStockData(productId, isEditMode) {
+        const url = isEditMode ? `/edit-opening-stock/${productId}` : `/opening-stock/${productId}`;
+
+        $.ajax({
+            url: url,
+            type: 'GET',
+            success: function(response) {
+                if (response.status === 200) {
+                    const product = response.product;
+                    const locations = response.locations;
+                    const batches = response.openingStock.batches;
+
+                    $('#locationRows').html(''); // Clear existing rows before appending
+
+                    if (batches.length === 0) {
+                        locations.forEach(function(location, index) {
+                            var newRow = `
+                                <tr data-location-id="${location.id}">
+                                    <td>
+                                        <input type="hidden" name="locations[` + index + `][id]" value="${location.id}">
+                                        <p>${location.name}</p>
+                                    </td>
+                                    <td>
+                                        <p>${product.product_name}</p>
+                                    </td>
+                                    <td>
+                                        <p>${product.sku}</p>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control"
+                                            name="locations[` + index + `][qty]"
+                                            value="">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control"
+                                            name="locations[` + index + `][unit_cost]"
+                                            value="${product.original_price}" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control batch-no-input"
+                                            name="locations[` + index + `][batch_no]"
+                                            value="">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control expiry-date-picker"
+                                            name="locations[` + index + `][expiry_date]"
+                                            value="">
+                                    </td>
+                                </tr>
+                            `;
+                            $('#locationRows').append(newRow);
+                        });
+                    } else {
+                        batches.forEach(function(batch, index) {
+                            var newRow = `
+                                <tr data-location-id="${batch.location_id}">
+                                    <td>
+                                        <input type="hidden" name="locations[` + index + `][id]" value="${batch.location_id}">
+                                        <p>${batch.location_name}</p>
+                                    </td>
+                                    <td>
+                                        <p>${product.product_name}</p>
+                                    </td>
+                                    <td>
+                                        <p>${product.sku}</p>
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control"
+                                            name="locations[` + index + `][qty]"
+                                            value="${batch.quantity}">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control"
+                                            name="locations[` + index + `][unit_cost]"
+                                            value="${product.original_price}" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control batch-no-input"
+                                            name="locations[` + index + `][batch_no]"
+                                            value="${batch.batch_no}">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control expiry-date-picker"
+                                            name="locations[` + index + `][expiry_date]"
+                                            value="${batch.expiry_date}">
+                                    </td>
+                                </tr>
+                            `;
+                            $('#locationRows').append(newRow);
+                        });
+                    }
+
+                    initializeDateTimePicker(); // Initialize datetime picker for existing rows
+
+                    if (isEditMode) {
+                        $('#pageTitle').text('Edit Opening Stock for Product');
+                        $('#breadcrumbTitle').text('Edit Opening Stock');
+                        $('#submitOpeningStock').text('Update');
+                    }
+                } else {
+                    console.log('Failed to fetch existing stock data.', 'Error');
+                }
+            },
+            error: function(xhr) {
+                console.log('Failed to fetch existing stock data.', 'Error');
+            }
+        });
+    }
+
+    function handleFormSubmission(isEditMode, productId) {
+        let form = $('#openingStockForm')[0];
+        let formData = new FormData(form);
+
+        let locations = [];
+        formData.forEach((value, key) => {
+            if (key.includes('locations') && value) {
+                let parts = key.split('[');
+                let index = parts[1].split(']')[0];
+                if (!locations[index]) {
+                    locations[index] = {};
+                }
+                let field = parts[2].split(']')[0];
+                locations[index][field] = value;
+            }
+        });
+
+        // Filter out locations with empty qty and ensure expiry_date is set
+        locations = locations.filter(location => location.qty).map(location => {
+            if (!location.expiry_date) {
+                location.expiry_date = ''; // or any default value you consider
+            }
+            return location;
+        });
+
+        if (!validateBatchNumbers(locations)) {
+            toastr.error(
+                'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
+                'Warning');
+            return;
+        }
+
+        let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+        $.ajax({
+            url: url,
+            type: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            data: JSON.stringify({ locations }),
+            contentType: 'application/json',
+            processData: false,
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success(response.message, 'Success');
+                    window.location.href = '/list-product';
+                } else {
+                    toastr.error(response.message, 'Error');
+                }
+            },
+            error: function(xhr) {
+                if (xhr.status === 422) {
+                    let errors = xhr.responseJSON.errors;
+                    $.each(errors, function(key, val) {
+                        $(`#${key}_error`).text(val[0]);
+                    });
+                } else {
+                    toastr.error('Unexpected error occurred', 'Error');
+                }
+            }
+        });
+    }
+
+    function validateBatchNumbers(locations) {
+        let isValid = true;
+        locations.forEach(location => {
+            if (location.batch_no && !/^BATCH[0-9]{3,}$/.test(location.batch_no)) {
+                isValid = false;
+            }
+        });
+        return isValid;
+    }
+});
         // Extract the product ID from the URL and fetch data if valid
         $(document).ready(function() {
             const pathSegments = window.location.pathname.split('/');

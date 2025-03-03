@@ -4,7 +4,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
-    <title>ARB - Distribution </title>
+    {{-- <title>ARB - Distribution </title> --}}
+    <title>ARB - Distribution @yield('title') </title>
     <link rel="shortcut icon" href={{ asset('assets/img/favicon.png') }}>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
@@ -83,6 +84,8 @@
 </head>
 
 <body>
+
+{{-- @stack('scripts') --}}
 
     {{-- For jQuery --}}
     <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
@@ -170,17 +173,7 @@
             applyCurrencyFormatting();
         });
 
-        // Inputmask for numeric fields
-        $(document).ready(function() {
-            Inputmask({
-                alias: "numeric",
-                groupSeparator: ",",
-                radixPoint: ".",
-                autoGroup: true,
-                digits: 2,
-                rightAlign: false
-            }).mask(".amount");
-        });
+
     </script>
         {{-- Toaster Notifications --}}
     <script>

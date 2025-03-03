@@ -1,4 +1,6 @@
 @extends('layout.layout')
+
+@section('title','List Product')
 @section('content')
     <div class="content container-fluid">
 
@@ -218,4 +220,5 @@
     </div>
 
    @include('product.product_ajax')
+
 @endsection
