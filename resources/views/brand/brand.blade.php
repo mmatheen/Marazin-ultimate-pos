@@ -84,5 +84,5 @@
         </div>
     </div>
 </div>
-@include('brand.brand_ajax')
+{{-- @include('brand.brand_ajax') --}}
 @endsection

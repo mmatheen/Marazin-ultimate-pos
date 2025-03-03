@@ -76,14 +76,14 @@
 
                         <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a></li>
                         <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>
-                        <li><a href="view-invoice.html">Add Draft</a></li>
+                        {{-- <li><a href="view-invoice.html">Add Draft</a></li>
                         <li><a href="invoices-settings.html">List Draft</a></li>
                         <li><a href="invoices-settings.html">Add Quatation</a></li>
                         <li><a href="invoices-settings.html">List Quatations</a></li>
                         <li><a href="invoices-settings.html">List Sell Return</a></li>
                         <li><a href="invoices-settings.html">Shipments</a></li>
                         <li><a href="invoices-settings.html">Discounts</a></li>
-                        <li><a href="invoices-settings.html">Import Sales</a></li>
+                        <li><a href="invoices-settings.html">Import Sales</a></li> --}}
                     </ul>
                 </li>
                 <li class="menu-title">
