@@ -173,6 +173,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/opening-stock-store/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
         // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+
+        
         // Dropdown Routes
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
         Route::get('/get-unit', [UnitController::class, 'unitDropdown']);

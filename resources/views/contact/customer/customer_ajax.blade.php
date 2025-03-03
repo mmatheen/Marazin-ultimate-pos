@@ -2,6 +2,7 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        fetchCustomerData();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
@@ -30,23 +31,7 @@
             contact_id: {
                 required: true,
 
-            },
-            contact_type: {
-                required: true,
-
-            },
-            date: {
-                required: true,
-
-            },
-            assign_to: {
-                required: true,
-
-            },
-            opening_balance: {
-                required: true,
-
-            },
+            }
 
         },
         messages: {
@@ -66,21 +51,6 @@
             },
             email: {
                 required: "Email  is required",
-            },
-            contact_id: {
-                required: "Contact ID  is required",
-            },
-            contact_type: {
-                required: "Contact Type  is required",
-            },
-            date: {
-                required: "Date  is required",
-            },
-            assign_to: {
-                required: "Assign To  is required",
-            },
-            opening_balance: {
-                required: "Opening Balance  is required",
             },
 
         },
@@ -224,6 +194,7 @@
                         $('#addAndEditCustomerModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
+                        fetchCustomerData();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, id ? 'Updated' : 'Added');
@@ -262,5 +233,43 @@
                 }
             });
         });
+
+
+        function fetchCustomerData() {
+            $.ajax({
+                url: '/customer-get-all',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    const customerSelect = $('#customer-id');
+                    customerSelect.empty();
+
+                    if (data.status === 200) {
+                        const sortedCustomers = data.message.sort((a, b) => {
+                            if (a.first_name === 'Walking') return -1;
+                            if (b.first_name === 'Walking') return 1;
+                            return 0;
+                        });
+
+                        sortedCustomers.forEach(customer => {
+                            const option = $('<option></option>');
+                            option.val(customer.id);
+                            option.text(`${customer.first_name} ${customer.last_name}`);
+                            customerSelect.append(option);
+                        });
+
+                        const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
+                        if (walkingCustomer) {
+                            customerSelect.val(walkingCustomer.id);
+                        }
+                    } else {
+                        console.error('Failed to fetch customer data:', data.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching customer data:', error);
+                }
+            });
+        }
     });
 </script>

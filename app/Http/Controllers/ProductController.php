@@ -334,164 +334,170 @@ class ProductController extends Controller
     }
 
     public function editOpeningStock($productId)
-    {
-        $product = Product::with('locations')->findOrFail($productId);
-        $locations = $product->locations;
+{
+    $product = Product::with('locations')->findOrFail($productId);
+    $locations = $product->locations;
 
-        $batches = Batch::where('product_id', $productId)
-            ->whereHas('locationBatches.stockHistories', function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            })
-            ->with(['locationBatches.stockHistories' => function ($query) {
-                $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
-            }])
-            ->get();
+    $batches = Batch::where('product_id', $productId)
+        ->whereHas('locationBatches.stockHistories', function ($query) {
+            $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+        })
+        ->with(['locationBatches.stockHistories' => function ($query) {
+            $query->where('stock_type', StockHistory::STOCK_TYPE_OPENING);
+        }])
+        ->get();
 
-        $openingStock = [
-            'product_id' => $product->id,
-            'batches' => $batches->flatMap(function ($batch) {
-                return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
-                    return [
-                        'batch_id' => $locationBatch->batch_id,
-                        'location_id' => $locationBatch->location_id,
-                        'quantity' => $locationBatch->qty,
-                        'batch_no' => $batch->batch_no,
-                        'expiry_date' => $batch->expiry_date,
-                        'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
-                            return [
-                                'stock_history_id' => $stockHistory->id,
-                                'quantity' => $stockHistory->quantity,
-                                'stock_type' => $stockHistory->stock_type,
-                            ];
-                        })->values(),
-                    ];
-                });
-            })->values(),
-        ];
-
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
-        }
-
-        return view('product.opening_stock', [
-            'product' => $product,
-            'locations' => $locations,
-            'openingStock' => $openingStock,
-            'editing' => true
-        ]);
-    }
-
-    public function storeOrUpdateOpeningStock(Request $request, $productId)
-    {
-        $validator = Validator::make($request->all(), [
-            'locations' => 'required|array',
-            'locations.*.id' => 'required|integer|exists:locations,id',
-            'locations.*.qty' => 'required|numeric|min:1',
-            'locations.*.unit_cost' => 'required|numeric|min:0',
-            'locations.*.batch_no' => [
-                'nullable',
-                'string',
-                'max:255',
-                'regex:/^BATCH[0-9]{3,}$/',
-            ],
-            'locations.*.expiry_date' => 'nullable|date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-        }
-
-        $product = Product::find($productId);
-        if (!$product) {
-            return response()->json(['status' => 404, 'message' => 'Product not found']);
-        }
-
-        try {
-            DB::transaction(function () use ($request, $product, &$message) {
-                $isUpdate = false;
-                $locationIds = array_column($request->locations, 'id');
-
-                // Get the existing location batches for the product
-                $existingLocationBatches = LocationBatch::whereHas('batch', function ($query) use ($product) {
-                    $query->where('product_id', $product->id);
-                })->get();
-
-                // Remove stock history records, location batches, and batches for locations that are no longer associated
-                foreach ($existingLocationBatches as $locationBatch) {
-                    if (!in_array($locationBatch->location_id, $locationIds)) {
-                        StockHistory::where('loc_batch_id', $locationBatch->id)
-                            ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
-                            ->delete();
-                        $locationBatch->delete();
-                    }
-                }
-
-                // Remove batches that are no longer associated with any location
-                $batchIds = Batch::where('product_id', $product->id)->pluck('id')->toArray();
-                $usedBatchIds = LocationBatch::whereIn('batch_id', $batchIds)->pluck('batch_id')->toArray();
-                $unusedBatchIds = array_diff($batchIds, $usedBatchIds);
-                Batch::whereIn('id', $unusedBatchIds)->delete();
-
-                foreach ($request->locations as $locationData) {
-                    $formattedExpiryDate = $locationData['expiry_date']
-                        ? \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d')
-                        : null;
-
-                    $existingBatch = Batch::where('batch_no', $locationData['batch_no'] ?? '')
-                        ->where('product_id', $product->id)
-                        ->first();
-
-                    if ($existingBatch) {
-                        $isUpdate = true;
-                    }
-
-                    $batch = Batch::updateOrCreate(
-                        [
-                            'batch_no' => $locationData['batch_no'] ?? Batch::generateNextBatchNo(),
-                            'product_id' => $product->id,
-                        ],
-                        [
-                            'qty' => $locationData['qty'],
-                            'unit_cost' => $locationData['unit_cost'],
-                            'wholesale_price' => $product->whole_sale_price,
-                            'special_price' => $product->special_price ?? 0,
-                            'retail_price' => $product->retail_price,
-                            'max_retail_price' => $product->max_retail_price ?? 0,
-                            'expiry_date' => $formattedExpiryDate,
-                        ]
-                    );
-
-                    $locationBatch = LocationBatch::updateOrCreate(
-                        [
-                            'batch_id' => $batch->id,
-                            'location_id' => $locationData['id'],
-                        ],
-                        [
-                            'qty' => $locationData['qty'],
-                        ]
-                    );
-
-                    $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $locationData['qty']]);
-
-                    StockHistory::updateOrCreate(
-                        [
-                            'loc_batch_id' => $locationBatch->id,
-                            'stock_type' => StockHistory::STOCK_TYPE_OPENING,
-                        ],
-                        [
-                            'quantity' => $locationData['qty'],
-                        ]
-                    );
-                }
-
-                $message = $isUpdate ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+    $openingStock = [
+        'product_id' => $product->id,
+        'batches' => $batches->flatMap(function ($batch) {
+            return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
+                $location = Location::find($locationBatch->location_id);
+                return [
+                    'batch_id' => $locationBatch->batch_id,
+                    'location_id' => $locationBatch->location_id,
+                    'location_name' => $location->name,
+                    'quantity' => $locationBatch->qty,
+                    'batch_no' => $batch->batch_no,
+                    'expiry_date' => $batch->expiry_date,
+                    'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
+                        return [
+                            'stock_history_id' => $stockHistory->id,
+                            'quantity' => $stockHistory->quantity,
+                            'stock_type' => $stockHistory->stock_type,
+                        ];
+                    })->values(),
+                ];
             });
+        })->values(),
+    ];
 
-            return response()->json(['status' => 200, 'message' => $message]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
-        }
+    if (request()->ajax() || request()->is('api/*')) {
+        return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
     }
+
+    return view('product.opening_stock', [
+        'product' => $product,
+        'locations' => $locations,
+        'openingStock' => $openingStock,
+        'editing' => true
+    ]);
+}
+
+public function storeOrUpdateOpeningStock(Request $request, $productId)
+{
+    $filteredLocations = array_filter($request->locations, function ($location) {
+        return !empty($location['qty']);
+    });
+
+    $validator = Validator::make(['locations' => $filteredLocations], [
+        'locations' => 'required|array',
+        'locations.*.id' => 'required|integer|exists:locations,id',
+        'locations.*.qty' => 'required|numeric|min:1',
+        'locations.*.unit_cost' => 'required|numeric|min:0',
+        'locations.*.batch_no' => [
+            'nullable',
+            'string',
+            'max:255',
+            'regex:/^BATCH[0-9]{3,}$/',
+        ],
+        'locations.*.expiry_date' => 'nullable|date',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+    }
+
+    $product = Product::find($productId);
+    if (!$product) {
+        return response()->json(['status' => 404, 'message' => 'Product not found']);
+    }
+
+    try {
+        DB::transaction(function () use ($filteredLocations, $product, &$message) {
+            $isUpdate = false;
+            $locationIds = array_column($filteredLocations, 'id');
+
+            // Get the existing location batches for the product
+            $existingLocationBatches = LocationBatch::whereHas('batch', function ($query) use ($product) {
+                $query->where('product_id', $product->id);
+            })->get();
+
+            // Remove stock history records, location batches, and batches for locations that are no longer associated
+            foreach ($existingLocationBatches as $locationBatch) {
+                if (!in_array($locationBatch->location_id, $locationIds)) {
+                    StockHistory::where('loc_batch_id', $locationBatch->id)
+                        ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
+                        ->delete();
+                    $locationBatch->delete();
+                }
+            }
+
+            // Remove batches that are no longer associated with any location
+            $batchIds = Batch::where('product_id', $product->id)->pluck('id')->toArray();
+            $usedBatchIds = LocationBatch::whereIn('batch_id', $batchIds)->pluck('batch_id')->toArray();
+            $unusedBatchIds = array_diff($batchIds, $usedBatchIds);
+            Batch::whereIn('id', $unusedBatchIds)->delete();
+
+            foreach ($filteredLocations as $locationData) {
+                $formattedExpiryDate = $locationData['expiry_date']
+                    ? \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d')
+                    : null;
+
+                $existingBatch = Batch::where('batch_no', $locationData['batch_no'] ?? '')
+                    ->where('product_id', $product->id)
+                    ->first();
+
+                if ($existingBatch) {
+                    $isUpdate = true;
+                }
+
+                $batch = Batch::updateOrCreate(
+                    [
+                        'batch_no' => $locationData['batch_no'] ?? Batch::generateNextBatchNo(),
+                        'product_id' => $product->id,
+                    ],
+                    [
+                        'qty' => $locationData['qty'],
+                        'unit_cost' => $locationData['unit_cost'],
+                        'wholesale_price' => $product->whole_sale_price,
+                        'special_price' => $product->special_price ?? 0,
+                        'retail_price' => $product->retail_price,
+                        'max_retail_price' => $product->max_retail_price ?? 0,
+                        'expiry_date' => $formattedExpiryDate,
+                    ]
+                );
+
+                $locationBatch = LocationBatch::updateOrCreate(
+                    [
+                        'batch_id' => $batch->id,
+                        'location_id' => $locationData['id'],
+                    ],
+                    [
+                        'qty' => $locationData['qty'],
+                    ]
+                );
+
+                $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $locationData['qty']]);
+
+                StockHistory::updateOrCreate(
+                    [
+                        'loc_batch_id' => $locationBatch->id,
+                        'stock_type' => StockHistory::STOCK_TYPE_OPENING,
+                    ],
+                    [
+                        'quantity' => $locationData['qty'],
+                    ]
+                );
+            }
+
+            $message = $isUpdate ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+        });
+
+        return response()->json(['status' => 200, 'message' => $message]);
+    } catch (\Exception $e) {
+        return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
+    }
+}
 
     public function OpeningStockGetAll()
     {
@@ -542,82 +548,88 @@ class ProductController extends Controller
 
 
     public function getAllProductStocks()
-{
-    $user = auth()->user();
-    $userRole = $user->role_name;
-    $userLocationId = $user->location_id;
-
-    // Initialize an array to store product stock data
-    $productStocks = [];
-
-    // Retrieve products based on the user's role in chunks
-    Product::with(['batches.locationBatches.location'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
-        // Process each product in the chunk
-        foreach ($products as $product) {
-            // Calculate total stock
-            $totalStock = $product->batches->sum(function ($batch) {
-                return $batch->locationBatches->sum('qty');
-            });
-
-            // Map through batches
-            $batches = $product->batches->map(function ($batch) {
-                // Map through location batches
-                $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+    {
+        $user = auth()->user();
+        $userRole = $user->role_name;
+        $userLocationId = $user->location_id;
+    
+        // Initialize an array to store product stock data
+        $productStocks = [];
+    
+        // Retrieve products based on the user's role in chunks
+        Product::with(['batches.locationBatches.location', 'locations'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
+            // Process each product in the chunk
+            foreach ($products as $product) {
+                // Calculate total stock
+                $totalStock = $product->batches->sum(function ($batch) {
+                    return $batch->locationBatches->sum('qty');
+                });
+    
+                // Map through batches
+                $batches = $product->batches->map(function ($batch) {
+                    // Map through location batches
+                    $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
+                        return [
+                            'batch_id' => $locationBatch->batch_id ?? 'N/A',
+                            'location_id' => $locationBatch->location_id ?? 'N/A',
+                            'location_name' => $locationBatch->location->name ?? 'N/A',
+                            'quantity' => $locationBatch->qty,
+                        ];
+                    });
+    
                     return [
-                        'batch_id' => $locationBatch->batch_id ?? 'N/A',
-                        'location_id' => $locationBatch->location_id ?? 'N/A',
-                        'location_name' => $locationBatch->location->name ?? 'N/A',
-                        'quantity' => $locationBatch->qty,
+                        'id' => $batch->id,
+                        'batch_no' => $batch->batch_no,
+                        'unit_cost' => $batch->unit_cost,
+                        'wholesale_price' => $batch->wholesale_price,
+                        'special_price' => $batch->special_price,
+                        'retail_price' => $batch->retail_price,
+                        'max_retail_price' => $batch->max_retail_price,
+                        'expiry_date' => $batch->expiry_date,
+                        'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+                        'location_batches' => $locationBatches,
                     ];
                 });
-
-                return [
-                    'id' => $batch->id,
-                    'batch_no' => $batch->batch_no,
-                    'unit_cost' => $batch->unit_cost,
-                    'wholesale_price' => $batch->wholesale_price,
-                    'special_price' => $batch->special_price,
-                    'retail_price' => $batch->retail_price,
-                    'max_retail_price' => $batch->max_retail_price,
-                    'expiry_date' => $batch->expiry_date,
-                    'total_batch_quantity' => $batch->locationBatches->sum('qty'),
-                    'location_batches' => $locationBatches,
+    
+                // Add the processed product stock to the response array
+                $productStocks[] = [
+                    'product' => [
+                        'id' => $product->id,
+                        'product_name' => $product->product_name,
+                        'sku' => $product->sku,
+                        'unit_id' => $product->unit_id,
+                        'brand_id' => $product->brand_id,
+                        'main_category_id' => $product->main_category_id,
+                        'sub_category_id' => $product->sub_category_id,
+                        'stock_alert' => $product->stock_alert,
+                        'alert_quantity' => $product->alert_quantity,
+                        'product_image' => $product->product_image,
+                        'description' => $product->description,
+                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                        'is_for_selling' => $product->is_for_selling,
+                        'product_type' => $product->product_type,
+                        'pax' => $product->pax,
+                        'original_price' => $product->original_price,
+                        'retail_price' => $product->retail_price,
+                        'whole_sale_price' => $product->whole_sale_price,
+                        'special_price' => $product->special_price,
+                        'max_retail_price' => $product->max_retail_price,
+                    ],
+                    'total_stock' => $totalStock,
+                    'batches' => $batches,
+                    'locations' => $product->locations->map(function ($location) {
+                        return [
+                            'location_id' => $location->id,
+                            'location_name' => $location->name,
+                        ];
+                    }),
                 ];
-            });
-
-            // Add the processed product stock to the response array
-            $productStocks[] = [
-                'product' => [
-                    'id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'sku' => $product->sku,
-                    'unit_id' => $product->unit_id,
-                    'brand_id' => $product->brand_id,
-                    'main_category_id' => $product->main_category_id,
-                    'sub_category_id' => $product->sub_category_id,
-                    'stock_alert' => $product->stock_alert,
-                    'alert_quantity' => $product->alert_quantity,
-                    'product_image' => $product->product_image,
-                    'description' => $product->description,
-                    'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                    'is_for_selling' => $product->is_for_selling,
-                    'product_type' => $product->product_type,
-                    'pax' => $product->pax,
-                    'original_price' => $product->original_price,
-                    'retail_price' => $product->retail_price,
-                    'whole_sale_price' => $product->whole_sale_price,
-                    'special_price' => $product->special_price,
-                    'max_retail_price' => $product->max_retail_price,
-                ],
-                'total_stock' => $totalStock,
-                'batches' => $batches,
-            ];
-        }
-    });
-
-    // Return the response
-    return response()->json(['status' => 200, 'data' => $productStocks]);
-}
+            }
+        });
+    
+        // Return the response
+        return response()->json(['status' => 200, 'data' => $productStocks]);
+    }
 
 
     public function getNotifications()

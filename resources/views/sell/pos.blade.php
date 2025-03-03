@@ -1109,16 +1109,6 @@ document.getElementById('paymentModal').addEventListener('show.bs.modal', functi
     initializeDateTimePickers();
 });
 
-document.addEventListener("DOMContentLoaded", function() {
-    Inputmask({
-        alias: "numeric",
-        groupSeparator: ",",
-        radixPoint: ".",
-        autoGroup: true,
-        digits: 2,
-        rightAlign: false
-    }).mask(".amount");
-});
 
     </script>
 
@@ -1126,5 +1116,6 @@ document.addEventListener("DOMContentLoaded", function() {
     @include('sell.pos_ajax')
     @include('contact.customer.customer_ajax')
     @include('contact.customer.add_customer_modal')
+
 </body>
 </html>

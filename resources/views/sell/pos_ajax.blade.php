@@ -623,35 +623,7 @@
         document.getElementById('shipping').addEventListener('input', updateTotals);
 
 
-        // Fetch customer data and populate the customer dropdown
-        fetch('/customer-get-all')
-            .then(response => response.json())
-            .then(data => {
-                const customerSelect = document.getElementById('customer-id');
 
-                if (data.status === 200) {
-                    const sortedCustomers = data.message.sort((a, b) => {
-                        if (a.first_name === 'Walking') return -1;
-                        if (b.first_name === 'Walking') return 1;
-                        return 0;
-                    });
-
-                    sortedCustomers.forEach(customer => {
-                        const option = document.createElement('option');
-                        option.value = customer.id;
-                        option.textContent = `${customer.first_name} ${customer.last_name}`;
-                        customerSelect.appendChild(option);
-                    });
-
-                    customerSelect.value = sortedCustomers.find(customer => customer.first_name ===
-                        'Walking').id;
-                } else {
-                    console.error('Failed to fetch customer data:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching customer data:', error);
-            });
 
             $(document).ready(function() {
 
@@ -1039,6 +1011,14 @@
     $(function() {
         $('.datetime').datetimepicker({
             format: 'hh:mm:ss a'
+        });
+    });
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll("input").forEach(function (input) {
+            input.setAttribute("autocomplete", "off");
         });
     });
 </script>
