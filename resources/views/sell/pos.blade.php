@@ -179,14 +179,15 @@
             text-align: left !important;
         }
 
-        /* .product-card {
+        .product-card {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 10px;
             text-align: center;
-            min-height: 180;
+            min-height: 160px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            margin-bottom: 10px; /* Uniform margin bottom */
         }
 
         .product-card img {
@@ -195,7 +196,6 @@
             max-height: 80px;
             object-fit: contain;
         }
-
 
         .product-card h6 {
             font-size: 12px;
@@ -208,90 +208,49 @@
         .product-card .product-card-body {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: left;
         }
 
         .product-card .badge {
             font-size: 12px;
             margin-top: 5px;
-        } */
+        }
 
-        .product-card {
-    border: 1px solid #ddd;
-    padding: 10px;
-    text-align: center;
-    min-height: 160px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    margin-bottom: 10px; /* Uniform margin bottom */
-}
+        /* Responsive grid layout */
+        @media (min-width: 1400px) {
+            #posProduct .col-xxl-3 {
+                flex: 0 0 25%;
+                max-width: 25%;
+            }
+        }
 
-.product-card img {
-    max-width: 100%;
-    height: auto;
-    max-height: 80px;
-    object-fit: contain;
-}
+        @media (min-width: 1200px) and (max-width: 1399px) {
+            #posProduct .col-xl-4 {
+                flex: 0 0 33.3333%;
+                max-width: 33.3333%;
+            }
+        }
 
-.product-card h6 {
-    font-size: 12px;
-    margin: 8px 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
+        @media (min-width: 992px) and (max-width: 1199px) {
+            #posProduct .col-lg-4 {
+                flex: 0 0 33.3333%;
+                max-width: 33.3333%;
+            }
+        }
 
-.product-card .product-card-body {
-    display: flex;
-    flex-direction: column;
-    align-items: left;
-}
+        @media (min-width: 768px) and (max-width: 991px) {
+            #posProduct .col-md-6 {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+        }
 
-.product-card .badge {
-    font-size: 12px;
-    margin-top: 5px;
-}
-
-
-/* Responsive grid layout */
-@media (min-width: 1400px) {
-    #posProduct .col-xxl-3 {
-        flex: 0 0 25%;
-        max-width: 25%;
-    }
-}
-
-@media (min-width: 1200px) and (max-width: 1399px) {
-    #posProduct .col-xl-4 {
-        flex: 0 0 33.3333%;
-        max-width: 33.3333%;
-    }
-}
-
-@media (min-width: 992px) and (max-width: 1199px) {
-    #posProduct .col-lg-4 {
-        flex: 0 0 33.3333%;
-        max-width: 33.3333%;
-    }
-}
-
-@media (min-width: 768px) and (max-width: 991px) {
-    #posProduct .col-md-6 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
-}
-
-@media (max-width: 767px) {
-    #posProduct .col-sm-12 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
-}
-
-
-
+        @media (max-width: 767px) {
+            #posProduct .col-sm-12 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
 
         .btn-add-to-cart {
             background-color: #007bff;
@@ -433,7 +392,6 @@
                 padding: 5px 8px;
             }
         }
-
 
         /* Updated Loader Styles */
         .loader-container {
@@ -649,25 +607,28 @@
                         </div>
                         <div class="col-md-8">
                             <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
-                            {{-- <input type="hidden" id="payment-mode" value="cash"/> --}}
-                            {{-- <input type="hidden" id="payment-status" value="paid"/>
-                            <input type="hidden" id="invoice-no" value="inv-00256"/> --}}
+                         
                         </div>
+                   
+
                         <div class="col-md-12 mt-3">
-                            <table class="table table-bordered">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Price inc. tax</th>
-                                        <th>Subtotal</th>
-                                        <th>Remove</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="billing-body" class="bg-white" style="height: 300px; overflow-y: auto;">
-                                    <!-- Dynamic rows go here -->
-                                </tbody>
-                            </table>
+                        
+                            <div class="table-responsive" style="height: 300px; overflow-y: auto;">
+                                <table class="table table-bordered">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>Quantity</th>
+                                            <th>Price inc. tax</th>
+                                            <th>Subtotal</th>
+                                            <th>Remove</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="billing-body" class="bg-white">
+                                        <!-- Dynamic rows go here -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
