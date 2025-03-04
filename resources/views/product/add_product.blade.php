@@ -282,9 +282,9 @@
                                                         <thead class="table-success">
                                                             <tr>
                                                                 <th scope="col">Cost Price</th>
-                                                                <th scope="col">Retail Price</th>
-                                                                <th scope="col">Whole Sale Price</th>
                                                                 <th scope="col">Special Price</th>
+                                                                <th scope="col">Whole Sale Price</th>
+                                                                <th scope="col">Retail Price</th>
                                                                 <th scope="col">Max Retail Price</th>
                                                             </tr>
                                                         </thead>
@@ -298,11 +298,10 @@
                                                                         </div>
                                                                     </div>
                                                                 </td>
-
                                                                 <td>
                                                                     <div class="form-group">
-                                                                        <input type="number" id="edit_retail_price" name="retail_price" class="form-control" placeholder="Rs .00">
-                                                                        <span class="text-danger" id="retail_price_error"></span>
+                                                                        <input type="text" id="edit_special_price" name="special_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="special_price_error"></span>
                                                                     </div>
                                                                 </td>
                                                                 <td>
@@ -311,12 +310,14 @@
                                                                         <span class="text-danger" id="whole_sale_price_error"></span>
                                                                     </div>
                                                                 </td>
+
                                                                 <td>
                                                                     <div class="form-group">
-                                                                        <input type="text" id="edit_special_price" name="special_price" class="form-control" placeholder="Rs .00">
-                                                                        <span class="text-danger" id="special_price_error"></span>
+                                                                        <input type="number" id="edit_retail_price" name="retail_price" class="form-control" placeholder="Rs .00">
+                                                                        <span class="text-danger" id="retail_price_error"></span>
                                                                     </div>
                                                                 </td>
+
                                                                 <td>
                                                                     <div class="form-group">
                                                                         <input type="text" id="edit_max_retail_price" name="max_retail_price" class="form-control" placeholder="Rs .00">

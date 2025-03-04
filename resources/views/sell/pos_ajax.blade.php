@@ -2,7 +2,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         // Elements
-        const productContainer = document.getElementById('productContainer');
+        const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
         const discountInput = document.getElementById('discount');
         const taxInput = document.getElementById('order-tax');
@@ -29,17 +29,17 @@
             </div>
         </div>
     `;
-            productContainer.innerHTML = loaderHTML;
-            productContainer.style.position = 'relative';
+            posProduct.innerHTML = loaderHTML;
+            posProduct.style.position = 'relative';
         }
 
         // Hide loader
         function hideLoader() {
-            productContainer.innerHTML = '';
-            productContainer.style.position = '';
+            posProduct.innerHTML = '';
+            posProduct.style.position = '';
         }
 
-          allProductsBtn.onclick = function() {
+        allProductsBtn.onclick = function() {
             fetchAllProducts();
         };
 
@@ -273,10 +273,10 @@
         }
 
         function displayProducts(products) {
-            productContainer.innerHTML = ''; // Clear previous products
+            posProduct.innerHTML = ''; // Clear previous products
 
             if (products.length === 0) {
-                productContainer.innerHTML = '<p class="text-center">No products found.</p>';
+                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
                 return;
             }
 
@@ -299,27 +299,29 @@
             //         </div>
             //     `;
 
-              products.forEach(stock => {
+            products.forEach(stock => {
                 const product = stock.product;
-                const totalQuantity = stock.total_stock
+                const totalQuantity = stock.total_stock;
                 const price = product.retail_price;
                 const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
 
                 const cardHTML = `
-                <div class="col-3">
+                <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
                     <div class="product-card">
-                        <img src="/assets/images/${product.product_image}" alt="${product.product_name}" class="card-img-top p-2">
+                        <img src="/assets/images/${product.product_image}" alt="${product.product_name}">
                         <div class="product-card-body">
-                            <h6>${product.product_name} <br> <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span></h6>
-                            <h6><span class="badge bg-success">${totalQuantity} Pc(s) in stock</span></h6>
+                            <h6>${product.product_name} <br>
+                                <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                            </h6>
+                            <h6>
+                                <span class="badge bg-success">${totalQuantity} Pc(s) in stock</span>
+                            </h6>
                         </div>
                     </div>
                 </div>
             `;
-                // Append card to the container
-                productContainer.insertAdjacentHTML('beforeend', cardHTML);
+                posProduct.insertAdjacentHTML('beforeend', cardHTML);
             });
-
             // Add click event to product cards
             const productCards = document.querySelectorAll('.product-card');
 
@@ -404,7 +406,8 @@
                 return;
             }
 
-            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
+            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
+                .quantity > 0);
             if (locationBatches.length === 0) {
                 toastr.error('No batches with quantity found', 'Error');
                 return;
@@ -441,7 +444,8 @@
                 const priceInput = existingRow.querySelector('.price-input');
                 const basePrice = parseFloat(priceInput.value);
                 const discountAmount = product.discount_amount || 0;
-                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount /
+                    100) : basePrice - discountAmount;
 
                 const subtotal = parseFloat(quantityInput.value) * finalPrice;
                 existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
@@ -456,19 +460,21 @@
 
                 const basePrice = product.retail_price;
                 const discountAmount = product.discount_amount || 0;
-                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount /
+                    100) : basePrice - discountAmount;
 
                 const row = document.createElement('tr');
 
-                const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
-                    batch_id: batch.id,
-                    batch_price: parseFloat(batch.retail_price),
-                    batch_quantity: locationBatch.quantity
-                }))) : [];
+                const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch
+                    .location_batches.map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_price: parseFloat(batch.retail_price),
+                        batch_quantity: locationBatch.quantity
+                    }))) : [];
 
                 const batchOptions = batches
-                .filter(batch => batch.batch_quantity > 0) // Filter batches with quantity greater than zero
-                .map(batch => `
+                    .filter(batch => batch.batch_quantity > 0) // Filter batches with quantity greater than zero
+                    .map(batch => `
                     <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
                         Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
                     </option>
@@ -539,7 +545,8 @@
 
                 quantityPlus.addEventListener('click', () => {
                     let newQuantity = parseInt(quantityInput.value, 10) + 1;
-                    if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                    if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute(
+                            'data-quantity'), 10)) {
                         document.getElementsByClassName('errorSound')[0].play();
                         toastr.error(
                             `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
@@ -553,8 +560,10 @@
 
                 quantityInput.addEventListener('input', () => {
                     const quantityValue = parseInt(quantityInput.value, 10);
-                    if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
-                        quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
+                    if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute(
+                            'data-quantity'), 10)) {
+                        quantityInput.value = batchDropdown.selectedOptions[0].getAttribute(
+                            'data-quantity');
                         document.getElementsByClassName('errorSound')[0].play();
                         toastr.error(
                             `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
@@ -574,7 +583,8 @@
                     const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
                     if (quantityInput.value > batchQuantity) {
                         quantityInput.value = batchQuantity;
-                        toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
+                        toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
+                            'Error');
                     }
                     priceInput.value = batchPrice.toFixed(2);
                     const subtotal = parseFloat(quantityInput.value) * batchPrice;
@@ -614,7 +624,8 @@
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
             document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
             document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-            document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+            document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping
+                .toFixed(2);
         }
 
         // Add event listeners for input changes
@@ -625,183 +636,193 @@
 
 
 
-            $(document).ready(function() {
+        $(document).ready(function() {
 
 
-        function gatherSaleData(status) {
-            const uniqueNumber = new Date().getTime() % 10000;
-            const customerId = $('#customer-id').val();
-            const salesDate = new Date().toISOString().slice(0, 10);
+            function gatherSaleData(status) {
+                const uniqueNumber = new Date().getTime() % 10000;
+                const customerId = $('#customer-id').val();
+                const salesDate = new Date().toISOString().slice(0, 10);
 
-            if (!locationId) {
-                toastr.error('Location ID is required.');
-                alert(locationId);
-                return;
-            }
+                if (!locationId) {
+                    toastr.error('Location ID is required.');
+                    alert(locationId);
+                    return;
+                }
 
-            const saleData = {
-                customer_id: customerId,
-                sales_date: salesDate,
-                location_id: locationId, // Use the global locationId
-                status: status,
-                sale_type: "POS",
-                products: []
-            };
-
-            $('#billing-body tr').each(function() {
-                const productRow = $(this);
-                const batchDropdown = productRow.find('.batch-dropdown');
-                const selectedBatch = batchDropdown.val() !== "all" ? batchDropdown.val() : "all";
-                const productData = {
-                    product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
-                    batch_id: selectedBatch,
-                    location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
-                    quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
-                    price_type: 'retail',
-                    unit_price: parseFloat(productRow.find('.price-input').val().trim()),
-                    subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
-                    discount: parseFloat(productRow.find('.discount-data').data('amount')) || 0,
-                    tax: 0
+                const saleData = {
+                    customer_id: customerId,
+                    sales_date: salesDate,
+                    location_id: locationId, // Use the global locationId
+                    status: status,
+                    sale_type: "POS",
+                    products: []
                 };
-                saleData.products.push(productData);
-            });
 
-            if (saleData.products.length === 0) {
-                toastr.error('At least one product is required.');
-                return null;
+                $('#billing-body tr').each(function() {
+                    const productRow = $(this);
+                    const batchDropdown = productRow.find('.batch-dropdown');
+                    const selectedBatch = batchDropdown.val() !== "all" ? batchDropdown.val() :
+                        "all";
+                    const productData = {
+                        product_id: parseInt(productRow.find('.product-id').text().trim(),
+                            10),
+                        batch_id: selectedBatch,
+                        location_id: parseInt(productRow.find('.location-id').text().trim(),
+                            10),
+                        quantity: parseInt(productRow.find('.quantity-input').val().trim(),
+                            10),
+                        price_type: 'retail',
+                        unit_price: parseFloat(productRow.find('.price-input').val()
+                        .trim()),
+                        subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
+                        discount: parseFloat(productRow.find('.discount-data').data(
+                            'amount')) || 0,
+                        tax: 0
+                    };
+                    saleData.products.push(productData);
+                });
+
+                if (saleData.products.length === 0) {
+                    toastr.error('At least one product is required.');
+                    return null;
+                }
+
+                return saleData;
             }
 
-            return saleData;
-        }
+            function sendSaleData(saleData, saleId = null) {
+                const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+                const method = 'POST';
 
-        function sendSaleData(saleData, saleId = null) {
-            const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-            const method = 'POST';
+                $.ajax({
+                    url: url,
+                    type: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    },
+                    data: JSON.stringify(saleData),
+                    success: function(response) {
+                        if (response.message) {
+                            document.getElementsByClassName('successSound')[0].play();
+                            toastr.success(response.message);
 
-            $.ajax({
-                url: url,
-                type: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                },
-                data: JSON.stringify(saleData),
-                success: function(response) {
-                    if (response.message) {
-                        document.getElementsByClassName('successSound')[0].play();
-                        toastr.success(response.message);
+                            // Open a hidden print area in the same window
+                            var printArea = document.createElement('div');
+                            printArea.innerHTML = response.invoice_html;
+                            document.body.appendChild(printArea);
 
-                        // Open a hidden print area in the same window
-                        var printArea = document.createElement('div');
-                        printArea.innerHTML = response.invoice_html;
-                        document.body.appendChild(printArea);
+                            // Print and then remove the print area
+                            window.print();
+                            document.body.removeChild(printArea);
 
-                        // Print and then remove the print area
-                        window.print();
-                        document.body.removeChild(printArea);
-
-                        // Reset the form and refresh products
-                        resetForm();
-                        fetchAllProducts();
-                    } else {
-                        toastr.error('Failed to record sale: ' + response.message);
+                            // Reset the form and refresh products
+                            resetForm();
+                            fetchAllProducts();
+                        } else {
+                            toastr.error('Failed to record sale: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('An error occurred: ' + xhr.responseText);
                     }
-                },
-                error: function(xhr, status, error) {
-                    toastr.error('An error occurred: ' + xhr.responseText);
+                });
+            }
+
+            function gatherCashPaymentData() {
+                const totalAmount = parseFloat($('#total-amount').text()
+            .trim()); // Ensure #total-amount element exists
+                const today = new Date().toISOString().slice(0, 10);
+
+                return [{
+                    payment_method: 'cash',
+                    payment_date: today,
+                    amount: totalAmount
+                }];
+            }
+
+            $('#cashButton').on('click', function() {
+                const saleData = gatherSaleData('completed');
+                if (saleData) {
+                    saleData.payments = gatherCashPaymentData();
+                    sendSaleData(saleData);
                 }
             });
-        }
 
-        function gatherCashPaymentData() {
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
-        const today = new Date().toISOString().slice(0, 10);
-
-        return [{
-            payment_method: 'cash',
-            payment_date: today,
-            amount: totalAmount
-        }];
-    }
-
-    $('#cashButton').on('click', function() {
-        const saleData = gatherSaleData('completed');
-        if (saleData) {
-            saleData.payments = gatherCashPaymentData();
-            sendSaleData(saleData);
-        }
-    });
-
-        $('#suspendModal').on('click', '#confirmSuspend', function() {
-            const saleData = gatherSaleData('suspend');
-            if (saleData) {
-                sendSaleData(saleData);
-                let modal = bootstrap.Modal.getInstance(document.getElementById("suspendModal"));
-                modal.hide();
-            }
-        });
-
-        document.getElementById('finalize_payment').addEventListener('click', function() {
-            const saleData = gatherSaleData('completed');
-            if (saleData) {
-                const paymentData = gatherPaymentData();
-                saleData.payments = paymentData;
-                sendSaleData(saleData);
-                let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
-                modal.hide();
-            }
-        });
-
-        function gatherPaymentData() {
-            const paymentData = [];
-            document.querySelectorAll('.payment-row').forEach(row => {
-                const paymentMethod = row.querySelector('.payment-method').value;
-                const paymentDate = row.querySelector('.payment-date').value;
-                const amount = parseFloat(row.querySelector('.payment-amount').value);
-                const conditionalFields = {};
-
-                row.querySelectorAll('.conditional-fields input').forEach(input => {
-                    conditionalFields[input.name] = input.value;
-                });
-
-                paymentData.push({
-                    payment_method: paymentMethod,
-                    payment_date: paymentDate,
-                    amount: amount,
-                    ...conditionalFields
-                });
+            $('#suspendModal').on('click', '#confirmSuspend', function() {
+                const saleData = gatherSaleData('suspend');
+                if (saleData) {
+                    sendSaleData(saleData);
+                    let modal = bootstrap.Modal.getInstance(document.getElementById(
+                        "suspendModal"));
+                    modal.hide();
+                }
             });
-            return paymentData;
-        }
 
-        $('#holdButton').on('click', function() {
-            const saleData = gatherSaleData('hold');
-            if (saleData) {
-                sendSaleData(saleData);
+            document.getElementById('finalize_payment').addEventListener('click', function() {
+                const saleData = gatherSaleData('completed');
+                if (saleData) {
+                    const paymentData = gatherPaymentData();
+                    saleData.payments = paymentData;
+                    sendSaleData(saleData);
+                    let modal = bootstrap.Modal.getInstance(document.getElementById(
+                        "paymentModal"));
+                    modal.hide();
+                }
+            });
+
+            function gatherPaymentData() {
+                const paymentData = [];
+                document.querySelectorAll('.payment-row').forEach(row => {
+                    const paymentMethod = row.querySelector('.payment-method').value;
+                    const paymentDate = row.querySelector('.payment-date').value;
+                    const amount = parseFloat(row.querySelector('.payment-amount').value);
+                    const conditionalFields = {};
+
+                    row.querySelectorAll('.conditional-fields input').forEach(input => {
+                        conditionalFields[input.name] = input.value;
+                    });
+
+                    paymentData.push({
+                        payment_method: paymentMethod,
+                        payment_date: paymentDate,
+                        amount: amount,
+                        ...conditionalFields
+                    });
+                });
+                return paymentData;
             }
-        });
 
-    function fetchSuspendedSales() {
-        $.ajax({
-            url: '/sales/suspended',
-            type: 'GET',
-            success: function(response) {
-                displaySuspendedSales(response);
-                $('#suspendSalesModal').modal('show');
-            },
-            error: function(xhr, status, error) {
-                toastr.error('Failed to fetch suspended sales: ' + xhr.responseText);
+            $('#holdButton').on('click', function() {
+                const saleData = gatherSaleData('hold');
+                if (saleData) {
+                    sendSaleData(saleData);
+                }
+            });
+
+            function fetchSuspendedSales() {
+                $.ajax({
+                    url: '/sales/suspended',
+                    type: 'GET',
+                    success: function(response) {
+                        displaySuspendedSales(response);
+                        $('#suspendSalesModal').modal('show');
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('Failed to fetch suspended sales: ' + xhr
+                        .responseText);
+                    }
+                });
             }
-        });
-    }
 
-    function displaySuspendedSales(sales) {
-        const suspendedSalesContainer = $('#suspendedSalesContainer');
-        suspendedSalesContainer.empty();
+            function displaySuspendedSales(sales) {
+                const suspendedSalesContainer = $('#suspendedSalesContainer');
+                suspendedSalesContainer.empty();
 
-        sales.forEach(sale => {
-            const finalTotal = parseFloat(sale.final_total);
-            const saleRow = `
+                sales.forEach(sale => {
+                    const finalTotal = parseFloat(sale.final_total);
+                    const saleRow = `
                 <tr>
                     <td>${sale.invoice_no}</td>
                     <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
@@ -814,43 +835,44 @@
                     </td>
                 </tr>
             `;
-            suspendedSalesContainer.append(saleRow);
-        });
+                    suspendedSalesContainer.append(saleRow);
+                });
 
-        $('.editSaleButton').on('click', function() {
-            const saleId = $(this).data('sale-id');
-            // editSale(saleId);
-        });
+                $('.editSaleButton').on('click', function() {
+                    const saleId = $(this).data('sale-id');
+                    // editSale(saleId);
+                });
 
-        $('.deleteSuspendButton').on('click', function() {
-            const saleId = $(this).data('sale-id');
-            deleteSuspendedSale(saleId);
-        });
-    }
-
-//     const pathSegments = window.location.pathname.split('/');
-// const saleId = pathSegments[pathSegments.length - 1] === 'pos-create' ? null : pathSegments[pathSegments.length - 1];
-
-// if (saleId) {
-//     editSale(saleId);
-// }
-
-
-    // Function to delete a suspended sale
-    function deleteSuspendedSale(saleId) {
-        $.ajax({
-            url: `/api/sales/delete-suspended/${saleId}`,
-            type: 'DELETE',
-            success: function(response) {
-                toastr.success(response.message);
-                // Code to update the POS page after deletion
-                fetchSuspendedSales(); // Refresh suspended sales list
-            },
-            error: function(xhr, status, error) {
-                toastr.error('Failed to delete suspended sale: ' + xhr.responseText);
+                $('.deleteSuspendButton').on('click', function() {
+                    const saleId = $(this).data('sale-id');
+                    deleteSuspendedSale(saleId);
+                });
             }
-        });
-    }
+
+            //     const pathSegments = window.location.pathname.split('/');
+            // const saleId = pathSegments[pathSegments.length - 1] === 'pos-create' ? null : pathSegments[pathSegments.length - 1];
+
+            // if (saleId) {
+            //     editSale(saleId);
+            // }
+
+
+            // Function to delete a suspended sale
+            function deleteSuspendedSale(saleId) {
+                $.ajax({
+                    url: `/api/sales/delete-suspended/${saleId}`,
+                    type: 'DELETE',
+                    success: function(response) {
+                        toastr.success(response.message);
+                        // Code to update the POS page after deletion
+                        fetchSuspendedSales(); // Refresh suspended sales list
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('Failed to delete suspended sale: ' + xhr
+                        .responseText);
+                    }
+                });
+            }
 
             // Event listener for the pause circle button to fetch and show suspended sales
             $('#pauseCircleButton').on('click', function() {
@@ -878,6 +900,7 @@
         }
 
     })
+
     function fetchAllSales() {
         $.ajax({
             url: '/sales',
@@ -972,8 +995,6 @@
         fetchAllSales();
 
     });
-
-
 </script>
 
 
@@ -1016,8 +1037,8 @@
 </script>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        document.querySelectorAll("input").forEach(function (input) {
+    document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll("input").forEach(function(input) {
             input.setAttribute("autocomplete", "off");
         });
     });

@@ -98,7 +98,6 @@
     <div class="main-wrapper">
         <div class="page-wrapper">
             @yield('content')
-            @yield('scripts')
             @include('includes.header.header')
             @include('includes.sidebar.sidebar')
             @include('includes.footer.footer')

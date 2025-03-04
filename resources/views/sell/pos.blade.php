@@ -179,11 +179,11 @@
             text-align: left !important;
         }
 
-        .product-card {
+        /* .product-card {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
-            min-height: 200px; /* Ensure all cards have the same height */
+            min-height: 180;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -202,7 +202,7 @@
             margin: 8px 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap; /* Ensure text is truncated if too long */
+            white-space: nowrap;
         }
 
         .product-card .product-card-body {
@@ -214,7 +214,84 @@
         .product-card .badge {
             font-size: 12px;
             margin-top: 5px;
-        }
+        } */
+
+        .product-card {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-bottom: 10px; /* Uniform margin bottom */
+}
+
+.product-card img {
+    max-width: 100%;
+    height: auto;
+    max-height: 80px;
+    object-fit: contain;
+}
+
+.product-card h6 {
+    font-size: 12px;
+    margin: 8px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.product-card .product-card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+}
+
+.product-card .badge {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+
+/* Responsive grid layout */
+@media (min-width: 1400px) {
+    #posProduct .col-xxl-3 {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+}
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+    #posProduct .col-xl-4 {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+    }
+}
+
+@media (min-width: 992px) and (max-width: 1199px) {
+    #posProduct .col-lg-4 {
+        flex: 0 0 33.3333%;
+        max-width: 33.3333%;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+    #posProduct .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+@media (max-width: 767px) {
+    #posProduct .col-sm-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+
+
 
         .btn-add-to-cart {
             background-color: #007bff;
@@ -357,12 +434,6 @@
             }
         }
 
-        #productContainer {
-            position: relative;
-            min-height: 620px;
-            display: flex;
-            flex-wrap: wrap;
-        }
 
         /* Updated Loader Styles */
         .loader-container {
@@ -640,23 +711,24 @@
                 </div>
             </div>
 
-            <!-- Product List -->
-            <div class="col-md-5">
-                <div class="card bg-white p-3">
-                    <!-- Buttons for Category and Brand -->
-                    <div class="row mb-3">
-                        <div class="d-flex justify-content-between w-100 mb-2">
-                            <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All Products</button>
-                            <button type="button" class="btn btn-primary w-50 me-3" id="category-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory" aria-controls="offcanvasCategory">Category</button>
-                            <button type="button" class="btn btn-primary w-50" id="brand-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand" aria-controls="offcanvasBrand">Brand</button>
-                        </div>
-                    </div>
-
-                    <div id="productContainer" class="row g-3 scrollable-content">
-                        <!-- Products will be dynamically injected here -->
+           <!-- Product List -->
+        <div class="col-md-5">
+            <div class="card bg-white p-3" style="height: 700px;">
+                <!-- Buttons for Category and Brand -->
+                <div class="row mb-3">
+                    <div class="d-flex justify-content-between w-100 mb-2">
+                        <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All Products</button>
+                        <button type="button" class="btn btn-primary w-50 me-3" id="category-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory" aria-controls="offcanvasCategory">Category</button>
+                        <button type="button" class="btn btn-primary w-50" id="brand-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand" aria-controls="offcanvasBrand">Brand</button>
                     </div>
                 </div>
+
+                <div class="row g-3 overflow-auto" id="posProduct">
+                    
+                </div>
             </div>
+        </div>
+
         </div>
 
         <!-- Offcanvas Category Menu -->

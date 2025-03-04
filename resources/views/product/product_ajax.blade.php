@@ -239,7 +239,12 @@ function fetchProductData() {
 
             // Initialize DataTable
             let table = $('#productTable').DataTable({
-                destroy: true
+                destroy: true,
+
+                lengthMenu:[
+                    [10,20,50,75,100,-1],
+                    [10,20,50,75,100,"All"],
+                ]
             });
             let productTableBody = $('#productTable tbody').empty(); // Clear existing data
 
@@ -795,7 +800,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         const productName = $('#product_name').val();
         const productSku = $('#product_sku').val();
         const productOriginalPrice = $('#product_original_price').val();
-        
+
         const currentPath = window.location.pathname;
         const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
