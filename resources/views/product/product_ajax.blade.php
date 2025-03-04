@@ -203,8 +203,6 @@ function formatProductData(product) {
         '/assets/images/default.jpg';
     return `
     <tr data-product-id="${product.id}">
-        <td><input type="checkbox" class="checked" /></td>
-        <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
         <td>
             <div class="dropdown">
                 <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
@@ -219,6 +217,8 @@ function formatProductData(product) {
                 </ul>
             </div>
         </td>
+        <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+        
         <td>${product.product_name}</td>
         <td>${locationName}</td>
         <td>${product.retail_price}</td>
@@ -237,23 +237,33 @@ function fetchProductData() {
             allProducts = response.data; // Store all data for filtering
             populateProductFilter(); // Populate filter options
 
-            // Initialize DataTable
-            let table = $('#productTable').DataTable({
-                destroy: true,
+            // Clear existing DataTable instance if it exists
+            if ($.fn.DataTable.isDataTable('#productTable')) {
+                $('#productTable').DataTable().destroy();
+            }
 
-                lengthMenu:[
-                    [10,20,50,75,100,-1],
-                    [10,20,50,75,100,"All"],
-                ]
-            });
-            let productTableBody = $('#productTable tbody').empty(); // Clear existing data
+            // Clear the table body
+            $('#productTable tbody').empty();
 
+            // Append rows to the table
             response.data.forEach(function(item) {
                 let product = item.product;
                 product.total_stock = item.total_stock;
                 product.batches = item.batches;
                 product.locations = item.locations;
-                productTableBody.append(formatProductData(product));
+                $('#productTable tbody').append(formatProductData(product));
+            });
+
+            // Initialize DataTable
+            let table = $('#productTable').DataTable({
+                lengthMenu: [
+                    [10, 20, 50, 75, 100, -1],
+                    [10, 20, 50, 75, 100, "All"]
+                ],
+                columnDefs: [
+                    // Disable sorting for action column (if needed)
+                    { orderable: false, targets: [1] }
+                ]
             });
 
             // Prevent modal from opening when clicking on table header

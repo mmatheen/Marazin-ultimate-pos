@@ -106,9 +106,8 @@
                                             <table class="datatable table table-stripped" style="width:100%" id="productTable">
                                                 <thead>
                                                     <tr>
-                                                        <th><input type="checkbox" id="allchecked" onclick="toggleLoginFields(id, '.checked')" /></th>
-                                                        <th>Product Image</th>
                                                         <th>Action</th>
+                                                        <th>Product Image</th>
                                                         <th>Product</th>
                                                         <th>Business Location</th>
                                                         <th>Selling Price</th>
