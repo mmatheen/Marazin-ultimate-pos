@@ -23,7 +23,6 @@ return new class extends Migration
             $table->decimal('special_price', 15, 2);
             $table->decimal('retail_price', 15, 2);
             $table->decimal('max_retail_price', 15, 2);
-            $table->decimal('price', 15, 2);
             $table->decimal('total', 15, 2);
             $table->timestamps();
 

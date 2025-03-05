@@ -62,7 +62,6 @@ class PurchaseController extends Controller
             'products.*.special_price' => 'required|numeric|min:0',
             'products.*.retail_price' => 'required|numeric|min:0',
             'products.*.max_retail_price' => 'required|numeric|min:0',
-            'products.*.price' => 'required|numeric|min:0',
             'products.*.total' => 'required|numeric|min:0',
             'products.*.batch_no' => 'nullable|string|max:255',
             'products.*.expiry_date' => 'nullable|date',
@@ -168,7 +167,6 @@ class PurchaseController extends Controller
                         'special_price' => $productData['special_price'],
                         'retail_price' => $productData['retail_price'],
                         'max_retail_price' => $productData['max_retail_price'],
-                        'price' => $productData['price'],
                         'total' => $productData['total'],
                     ]);
                 } else {
@@ -271,7 +269,6 @@ class PurchaseController extends Controller
                 'special_price' => $productData['special_price'],
                 'retail_price' => $productData['retail_price'],
                 'max_retail_price' => $productData['max_retail_price'],
-                'price' => $productData['price'],
                 'total' => $productData['total'],
                 'location_id' => $locationId,
             ]
@@ -436,7 +433,6 @@ class PurchaseController extends Controller
                         'special_price' => $purchaseProduct->special_price,
                         'retail_price' => $purchaseProduct->retail_price,
                         'max_retail_price' => $purchaseProduct->max_retail_price,
-                        'price' => $purchaseProduct->price,
                         'total' => $purchaseProduct->total,
                         'batch' => $purchaseProduct->batch,
                     ];

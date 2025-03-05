@@ -119,113 +119,114 @@
 
         let allProducts = []; // Store all product data
 
-function fetchProducts() {
-    fetch('/products/stocks')
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) {
-                        console.error("Product data is missing:", stock);
-                        return null;
+        function fetchProducts() {
+            fetch('/products/stocks')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) {
+                                console.error("Product data is missing:", stock);
+                                return null;
+                            }
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || ''
+                            };
+                        }).filter(product => product !== null);
+                        initAutocomplete(allProducts); // Initialize autocomplete
+                    } else {
+                        console.error("Failed to fetch product data:", data);
                     }
-                    return {
-                        id: stock.product.id,
-                        name: stock.product.product_name,
-                        sku: stock.product.sku || "N/A",
-                        quantity: stock.total_stock || 0,
-                        price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
-                        wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
-                        special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
-                        max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
-                        retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
-                        expiry_date: stock.batches?.[0]?.expiry_date || '',
-                        batch_no: stock.batches?.[0]?.batch_no || ''
-                    };
-                }).filter(product => product !== null);
-                initAutocomplete(allProducts); // Initialize autocomplete
-            } else {
-                console.error("Failed to fetch product data:", data);
-            }
-        })
-        .catch(error => console.error("Error fetching products:", error));
-}
-
-function initAutocomplete(products) {
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
-            const filteredProducts = products.filter(
-                product =>
-                product.name.toLowerCase().includes(searchTerm) ||
-                product.sku.toLowerCase().includes(searchTerm)
-            );
-
-            if (filteredProducts.length === 0) {
-                response([{
-                    label: "No products found",
-                    value: ""
-                }]);
-            } else {
-                response(
-                    filteredProducts.map(product => ({
-                        label: `${product.name} (${product.sku})`,
-                        value: product.name,
-                        product: product,
-                    }))
-                );
-            }
-        },
-        select: function(event, ui) {
-            if (!ui.item.product) {
-                return false;
-            }
-            addProductToTable(ui.item.product);
-            $("#productSearchInput").val("");
-            return false;
-        },
-    });
-
-    // Ensure the autocomplete widget is initialized before setting _renderItem
-    const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
-    if (autocompleteInstance) {
-        autocompleteInstance._renderItem = function(ul, item) {
-            if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-            }
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    }
-}
-
-function addProductToTable(product, isEditing = false, prices = {}) {
-    const table = $("#purchase_product").DataTable();
-    let existingRow = null;
-
-    $('#purchase_product tbody tr').each(function() {
-        const rowProductId = $(this).data('id');
-        if (rowProductId === product.id) {
-            existingRow = $(this);
-            return false;
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
-    });
 
-    if (existingRow && !isEditing) {
-        const quantityInput = existingRow.find('.purchase-quantity');
-        const newQuantity = parseFloat(quantityInput.val()) + 1;
-        quantityInput.val(newQuantity).trigger('input');
-    } else {
-        const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-        const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-        const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-        const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-        const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+        function initAutocomplete(products) {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = products.filter(
+                        product =>
+                        product.name.toLowerCase().includes(searchTerm) ||
+                        product.sku.toLowerCase().includes(searchTerm)
+                    );
 
-        const newRow = `
+                    if (filteredProducts.length === 0) {
+                        response([{
+                            label: "No products found",
+                            value: ""
+                        }]);
+                    } else {
+                        response(
+                            filteredProducts.map(product => ({
+                                label: `${product.name} (${product.sku})`,
+                                value: product.name,
+                                product: product,
+                            }))
+                        );
+                    }
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    return false;
+                },
+            });
+
+            // Ensure the autocomplete widget is initialized before setting _renderItem
+            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            if (autocompleteInstance) {
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
+            }
+        }
+
+        function addProductToTable(product, isEditing = false, prices = {}) {
+            const table = $("#purchase_product").DataTable();
+            let existingRow = null;
+
+            $('#purchase_product tbody tr').each(function() {
+                const rowProductId = $(this).data('id');
+                if (rowProductId === product.id) {
+                    existingRow = $(this);
+                    return false;
+                }
+            });
+
+            if (existingRow && !isEditing) {
+                const quantityInput = existingRow.find('.purchase-quantity');
+                const newQuantity = parseFloat(quantityInput.val()) + 1;
+                quantityInput.val(newQuantity).trigger('input');
+            } else {
+                // const price = parseFloat(prices.price || product.price) || 0;
+                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+
+                const newRow = `
             <tr data-id="${product.id}">
                 <td>${product.id}</td>
                 <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
@@ -241,6 +242,7 @@ function addProductToTable(product, isEditing = false, prices = {}) {
                 <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
+
                 <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
                 <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0"></td>
                 <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
@@ -249,24 +251,24 @@ function addProductToTable(product, isEditing = false, prices = {}) {
             </tr>
         `;
 
-        const $newRow = $(newRow);
-        table.row.add($newRow).draw();
-        updateRow($newRow);
-        updateFooter();
+                const $newRow = $(newRow);
+                table.row.add($newRow).draw();
+                updateRow($newRow);
+                updateFooter();
 
-        $newRow.find(
-            ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
-        ).on("input", function() {
-            updateRow($newRow);
-            updateFooter();
-        });
+                $newRow.find(
+                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+                ).on("input", function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
 
-        $newRow.find(".delete-product").on("click", function() {
-            table.row($newRow).remove().draw();
-            updateFooter();
-        });
-    }
-}
+                $newRow.find(".delete-product").on("click", function() {
+                    table.row($newRow).remove().draw();
+                    updateFooter();
+                });
+            }
+        }
 
         function updateRow($row) {
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;

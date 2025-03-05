@@ -1,4 +1,3 @@
-@section('scripts')
 <script type="text/javascript">
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
@@ -214,6 +213,3 @@
     });
 
 </script>
-@endsection
-
-

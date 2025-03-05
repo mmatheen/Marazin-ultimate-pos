@@ -238,29 +238,7 @@
                                             <span class="text-danger" id="duration_type_error"></span>
                                         </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-12">
-                                            <div class="document-upload p-3 border rounded">
-                                                <label class="mb-2">Attach document</label>
-                                                <div class="invoices-upload-btn mb-2">
-                                                    <input type="file" accept=".pdf,image/*" name="attached_document" id="purchase_attach_document" class="hide-input show-file">
-                                                    <label for="purchase_attach_document" class="upload btn btn-outline-secondary">
-                                                        <i class="far fa-folder-open"></i> Browse..
-                                                    </label>
-                                                </div>
-                                                <small class="text-muted d-block">
-                                                    Max File size: 5MB<br>
-                                                    Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png
-                                                </small>
-                                            </div>
-                                        </div>
-                                        <div class="col-lg-6 col-md-12">
-                                            <div class="preview-container p-3 border rounded">
-                                                <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
-                                                <iframe id="pdfViewer" width="100%" height="200px" style="display: none;"></iframe>
-                                            </div>
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
                         </div>
@@ -295,10 +273,10 @@
                                                 <th>Unit Cost<br>(Before Discount)</th>
                                                 <th>Discount<br>Percent</th>
                                                 <th>Unit<br>Cost</th>
-                                                <th>Wholesale<br>Price</th>
-                                                <th>Special<br>Price</th>
-                                                <th>Max Retail<br>Price</th>
                                                 <th>Sub<br>Total</th>
+                                                <th>Special<br>Price</th>
+                                                <th>Wholesale<br>Price</th>
+                                                <th>Max Retail<br>Price</th>
                                                 <th>Profit<br>Margin%</th>
                                                 <th>Retail<br>Price</th>
                                                 <th>Expiry<br>Date</th>
@@ -315,6 +293,37 @@
                                     <p>Net Total Amount: Rs<span id="net-total-amount">0.00</span></p>
                                     <input class="form-control" type="hidden" id="total" name="total" placeholder="Total">
                                     <input class="form-control" type="hidden" id="final-total" name="final_total" placeholder="Final Total">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card card-table">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-6 col-md-12">
+                                        <div class="document-upload p-3 border rounded">
+                                            <label class="mb-2">Attach document</label>
+                                            <div class="invoices-upload-btn mb-2">
+                                                <input type="file" accept=".pdf,image/*" name="attached_document" id="purchase_attach_document" class="hide-input show-file">
+                                                <label for="purchase_attach_document" class="upload btn btn-outline-secondary">
+                                                    <i class="far fa-folder-open"></i> Browse..
+                                                </label>
+                                            </div>
+                                            <small class="text-muted d-block">
+                                                Max File size: 5MB<br>
+                                                Allowed File: .pdf, .csv, .zip, .doc, .docx, .jpeg, .jpg, .png
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6 col-md-12">
+                                        <div class="preview-container p-3 border rounded">
+                                            <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
+                                            <iframe id="pdfViewer" width="100%" height="200px" style="display: none;"></iframe>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
