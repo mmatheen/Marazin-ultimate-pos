@@ -731,7 +731,7 @@
                                     <i class="fas fa-plus-circle"></i>
                                 </button>
                             </div>
-                            {{-- <span class="text-danger" id="brand_id_error"></span> --}}
+                            <p id="total-due-amount" class="text-danger mt-2">Total due amount: Rs. 0.00</p>
                         </div>
                         <div class="col-md-8">
                             <input type="text" class="form-control" id="productSearchInput"

@@ -56,16 +56,16 @@ class CustomerController extends Controller
                 'current_balance' => $customer->current_balance,
                 'total_sale_due' => $customer->total_sale_due,
                 'total_return_due' => $customer->total_return_due,
-                'current_due' => $customer->current_due, // ✅ Correct current due calculation
+                'current_due' => $customer->current_due, 
             ];
         });
-    
+
         return response()->json([
             'status' => 200,
             'message' => $customers,
         ]);
     }
-    
+
 
 
     public function store(Request $request)
