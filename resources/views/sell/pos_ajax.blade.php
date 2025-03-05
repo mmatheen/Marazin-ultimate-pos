@@ -5,8 +5,8 @@
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
         const discountInput = document.getElementById('discount');
-        const taxInput = document.getElementById('order-tax');
-        const shippingInput = document.getElementById('shipping');
+        // const taxInput = document.getElementById('order-tax');
+        // const shippingInput = document.getElementById('shipping');
         const finalValue = document.getElementById('total');
         const categoryBtn = document.getElementById('category-btn');
         const allProductsBtn = document.getElementById('allProductsBtn');
@@ -280,24 +280,6 @@
                 return;
             }
 
-            // // Generate and insert cards using fetched product data
-            // products.forEach(stock => {
-            //     const product = stock.product;
-            //     const totalQuantity = stock.total_stock
-            //     const price = product.retail_price;
-            //     const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
-
-            //     const cardHTML = `
-            //         <div class="col-3">
-            //             <div class="product-card">
-            //                 <img src="${baseUrl}/assets/images/${product.product_image}" alt="${product.product_name}" class="card-img-top p-2">
-            //                 <div class="product-card-body">
-            //                     <h6>${product.product_name} <br> <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span></h6>
-            //                     <h6><span class="badge bg-success">${totalQuantity} Pc(s) in stock</span></h6>
-            //                 </div>
-            //             </div>
-            //         </div>
-            //     `;
 
             products.forEach(stock => {
                 const product = stock.product;
@@ -614,11 +596,11 @@
             });
 
             const discount = parseFloat(document.getElementById('discount').value) || 0;
-            const tax = parseFloat(document.getElementById('order-tax').value) || 0;
-            const shipping = parseFloat(document.getElementById('shipping').value) || 0;
+            // const tax = parseFloat(document.getElementById('order-tax').value) || 0;
+            // const shipping = parseFloat(document.getElementById('shipping').value) || 0;
 
             const subtotalAmount = totalAmount - discount;
-            const totalAmountWithTaxAndShipping = subtotalAmount + tax + shipping;
+            const totalAmountWithTaxAndShipping = subtotalAmount;
 
             document.getElementById('items-count').textContent = totalItems.toFixed(2);
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
@@ -630,8 +612,7 @@
 
         // Add event listeners for input changes
         document.getElementById('discount').addEventListener('input', updateTotals);
-        document.getElementById('order-tax').addEventListener('input', updateTotals);
-        document.getElementById('shipping').addEventListener('input', updateTotals);
+ 
 
 
 
@@ -746,6 +727,19 @@
                 const saleData = gatherSaleData('completed');
                 if (saleData) {
                     saleData.payments = gatherCashPaymentData();
+                    sendSaleData(saleData);
+                }
+            });
+
+            $('#creditSaleButton').on('click', function() {
+                const customerId = $('#customer-id').val();
+                if (customerId == 1) {
+                    toastr.error('Credit sale is not allowed for Walking Customer. Please choose another customer.');
+                    return;
+                }
+
+                const saleData = gatherSaleData('completed');
+                if (saleData) {
                     sendSaleData(saleData);
                 }
             });

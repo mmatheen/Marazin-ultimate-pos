@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS Page</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-
+    <link rel="shortcut icon" href={{ asset('assets/img/favicon.png') }}>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="shortcut icon" href={{asset('assets/img/favicon.png')}}>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/flags/flags.css') }}">
@@ -24,8 +26,13 @@
 
     <style>
         /* General Styles */
-        .is-invalidRed { border-color: #e61414 !important; }
-        .is-validGreen { border-color: rgb(3, 105, 54) !important; }
+        .is-invalidRed {
+            border-color: #e61414 !important;
+        }
+
+        .is-validGreen {
+            border-color: rgb(3, 105, 54) !important;
+        }
 
         /* Scrollable Content */
         .scrollable-content {
@@ -41,25 +48,31 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
+
         .total-payable-section h1 {
             font-size: 28px;
             font-weight: 700;
             color: #333;
             margin-bottom: 10px;
         }
+
         .total-payable-section #total {
             font-size: 24px;
             font-weight: 800;
             color: #d9534f;
             margin: 0;
         }
-        .total-payable-section button { margin-top: 20px; }
+
+        .total-payable-section button {
+            margin-top: 20px;
+        }
 
         /* Quantity Container */
         .quantity-container {
             display: flex;
             align-items: center;
         }
+
         .quantity-container input {
             width: 60px;
             text-align: center;
@@ -68,6 +81,7 @@
             margin: 0 5px;
             height: 35px;
         }
+
         .quantity-container button {
             background-color: #007bff;
             color: white;
@@ -76,9 +90,18 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .quantity-container button:hover { background-color: #0056b3 !important; }
-        .quantity-minus { background-color: red !important; }
-        .quantity-plus { background-color: green !important; }
+
+        .quantity-container button:hover {
+            background-color: #0056b3 !important;
+        }
+
+        .quantity-minus {
+            background-color: red !important;
+        }
+
+        .quantity-plus {
+            background-color: green !important;
+        }
 
         /* Button Styles */
         .btn-outline-teal {
@@ -86,15 +109,18 @@
             color: #20c997;
             background: none;
         }
+
         .btn-outline-teal:hover {
             background-color: #20c997;
             color: white;
         }
+
         .btn-outline-purple {
             border-color: #6f42c1;
             color: #6f42c1;
             background: none;
         }
+
         .btn-outline-purple:hover {
             background-color: #6f42c1;
             color: white;
@@ -106,7 +132,10 @@
             font-size: 14px !important;
             border-radius: 5px !important;
         }
-        .row .col-auto { margin-right: 20px !important; }
+
+        .row .col-auto {
+            margin-right: 20px !important;
+        }
 
         /* Add Expense Button */
         .btn-primary {
@@ -114,6 +143,7 @@
             border: none !important;
             color: white !important;
         }
+
         .btn-primary:hover {
             background-color: #3c3aad !important;
         }
@@ -123,6 +153,7 @@
             font-size: 16px !important;
             font-weight: 600 !important;
         }
+
         .d-flex.align-items-center h6 {
             font-size: 16px !important;
             color: #333 !important;
@@ -139,41 +170,50 @@
             z-index: 1000;
             padding: 10px 20px;
         }
+
         .bottom-fixed .btn {
             font-size: 14px;
             font-weight: bold;
             padding: 10px 15px;
             border-radius: 5px;
         }
+
         .bottom-fixed .btn-primary {
             background-color: #4f46e5;
             border: none;
             color: #fff;
         }
+
         .bottom-fixed .btn-primary:hover {
             background-color: #3c3aad;
         }
+
         .bottom-fixed .btn-warning {
             background-color: #f59e0b;
             border: none;
             color: #fff;
         }
+
         .bottom-fixed .btn-warning:hover {
             background-color: #d97706;
         }
+
         .bottom-fixed .btn-danger {
             background-color: #dc2626;
             border: none;
             color: #fff;
         }
+
         .bottom-fixed .btn-danger:hover {
             background-color: #b91c1c !important;
         }
+
         .bottom-fixed .total-payable-section h4,
         .bottom-fixed .total-payable-section h5 {
             margin: 0 !important;
             font-weight: bold !important;
         }
+
         .bottom-fixed .total-payable-section h5 {
             color: #16a34a !important;
             text-align: left !important;
@@ -187,7 +227,8 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            margin-bottom: 10px; /* Uniform margin bottom */
+            margin-bottom: 10px;
+            /* Uniform margin bottom */
         }
 
         .product-card img {
@@ -262,6 +303,7 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
+
         .btn-add-to-cart:hover {
             background-color: #0056b3;
         }
@@ -272,13 +314,18 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             width: 40%
         }
+
         .offcanvas-body {
             padding: 15px;
         }
+
         .offcanvas-body button {
-            background-color: transparent; /* Remove the background color */
-            color: #007bff; /* Set the text color to blue */
-            border: 2px solid #007bff; /* Add a blue outline border */
+            background-color: transparent;
+            /* Remove the background color */
+            color: #007bff;
+            /* Set the text color to blue */
+            border: 2px solid #007bff;
+            /* Add a blue outline border */
             padding: 8px 16px;
             margin-bottom: 10px;
             width: 100%;
@@ -286,9 +333,12 @@
             border-radius: 4px;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
+
         .offcanvas-body button:hover {
-            background-color: #007bff; /* Add blue background on hover */
-            color: #fff; /* Change text color to white on hover */
+            background-color: #007bff;
+            /* Add blue background on hover */
+            color: #fff;
+            /* Change text color to white on hover */
         }
 
         /* Category Styles */
@@ -298,7 +348,9 @@
             gap: 10px;
             justify-content: center;
         }
-        .category-card, .brand-card {
+
+        .category-card,
+        .brand-card {
             width: calc(33.33% - 10px);
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -308,19 +360,26 @@
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease-in-out;
         }
-        .category-card:hover, .brand-card:hover {
+
+        .category-card:hover,
+        .brand-card:hover {
             transform: translateY(-10px);
         }
-        .category-card h6, .brand-card h6 {
+
+        .category-card h6,
+        .brand-card h6 {
             font-size: 14px;
             margin: 10px 0;
             color: #333;
         }
-        .category-footer, .brand-footer {
+
+        .category-footer,
+        .brand-footer {
             display: flex;
             justify-content: space-between;
             margin-top: 15px;
         }
+
         /* Category Button Styles */
         .category-footer button {
             background-color: transparent;
@@ -332,6 +391,7 @@
             cursor: pointer;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
+
         .category-footer button:hover {
             background-color: #28a745;
             color: #fff;
@@ -365,18 +425,24 @@
 
         /* Responsive Styles */
         @media (max-width: 1200px) {
-            .category-card, .brand-card {
+
+            .category-card,
+            .brand-card {
                 width: calc(50% - 10px);
             }
         }
 
         @media (max-width: 768px) {
-            .category-card, .brand-card {
+
+            .category-card,
+            .brand-card {
                 width: calc(100% - 10px);
             }
+
             .bottom-fixed {
                 padding: 5px 10px;
             }
+
             .bottom-fixed .btn {
                 font-size: 12px;
                 padding: 8px 10px;
@@ -387,6 +453,7 @@
             .bottom-fixed {
                 padding: 5px 5px;
             }
+
             .bottom-fixed .btn {
                 font-size: 10px;
                 padding: 5px 8px;
@@ -398,13 +465,17 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* Use viewport height to ensure full coverage */
-            width: 100vw; /* Use viewport width to ensure full coverage */
-            position: fixed; /* Ensure loader is on top of everything */
+            height: 100vh;
+            /* Use viewport height to ensure full coverage */
+            width: 100vw;
+            /* Use viewport width to ensure full coverage */
+            position: fixed;
+            /* Ensure loader is on top of everything */
             top: 0;
             left: 0;
             z-index: 1;
-            background: rgba(255, 255, 255, 0.8); /* Optional background overlay */
+            background: rgba(255, 255, 255, 0.8);
+            /* Optional background overlay */
         }
 
         .loader {
@@ -450,19 +521,23 @@
                 transform: scale(1) rotate(0);
             }
 
-            20%, 25% {
+            20%,
+            25% {
                 transform: scale(1.3) rotate(90deg);
             }
 
-            45%, 50% {
+            45%,
+            50% {
                 transform: scale(1) rotate(180deg);
             }
 
-            70%, 75% {
+            70%,
+            75% {
                 transform: scale(1.3) rotate(270deg);
             }
 
-            95%, 100% {
+            95%,
+            100% {
                 transform: scale(1) rotate(360deg);
             }
         }
@@ -481,9 +556,9 @@
             list-style: none;
             background-color: #ffffff;
             border: 1px solid #ccc;
-            border: 1px solid rgba(0,0,0,.15);
+            border: 1px solid rgba(0, 0, 0, .15);
             border-radius: 4px;
-            box-shadow: 0 6px 12px rgba(0,0,0,.175);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
         }
 
         /* Style for each dropdown item */
@@ -511,10 +586,12 @@
         .card-body::-webkit-scrollbar {
             width: 8px;
         }
+
         .card-body::-webkit-scrollbar-thumb {
             background-color: #6c757d;
             border-radius: 4px;
         }
+
         .card-body::-webkit-scrollbar-track {
             background-color: #f1f1f1;
         }
@@ -551,6 +628,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid p-3">
         <div class="row mt-2">
@@ -560,19 +638,65 @@
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center">
                             <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                            <input type="text" class="form-control bg-light border-1 px-2 py-1" style="width: auto; color: #333;" value="{{ now()->format('Y-m-d H:i') }}" readonly/>
+                            <input type="text" class="form-control bg-light border-1 px-2 py-1"
+                                style="width: auto; color: #333;" value="{{ now()->format('Y-m-d H:i') }}" readonly />
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="col-md-6">
                             <div class="d-flex justify-content-end gap-3">
-                                <button class="btn btn-light btn-sm"><i class="fas fa-backward"></i></button>
+                                <button class="btn btn-light btn-sm" onclick="history.back()"><i
+                                        class="fas fa-backward"></i></button>
                                 <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
                                 <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
-                                <button class="btn btn-warning btn-sm"><i class="fas fa-calculator"></i></button>
+
+                                <!-- Calculator Button with Dropdown -->
+                                <div class="dropdown">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-calculator"></i>
+                                    </button>
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                        <div class="text-center">
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
+                                                onkeydown="handleKeyboardInput(event)" autofocus>
+                                        </div>
+                                        <div class="d-grid gap-1">
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
                                 <button class="btn btn-primary btn-sm"><i class="fas fa-stop"></i></button>
-                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
+                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
+                                    data-bs-target="#suspendSalesModal">
                                     <i class="fas fa-pause-circle"></i> Suspended Sales
                                 </button>
 
@@ -582,6 +706,9 @@
                                 </button>
                             </div>
                         </div>
+
+
+
                     </div>
                 </div>
             </div>
@@ -606,13 +733,14 @@
                             {{-- <span class="text-danger" id="brand_id_error"></span> --}}
                         </div>
                         <div class="col-md-8">
-                            <input type="text" class="form-control" id="productSearchInput" placeholder="Enter Product name / SKU / Scan bar code">
-                         
+                            <input type="text" class="form-control" id="productSearchInput"
+                                placeholder="Enter Product name / SKU / Scan bar code">
+
                         </div>
-                   
+
 
                         <div class="col-md-12 mt-3">
-                        
+
                             <div class="table-responsive" style="height: 300px; overflow-y: auto;">
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
@@ -648,21 +776,8 @@
                                 <input type="text" id="discount" class="form-control" placeholder="0.00">
                             </div>
                         </div>
+
                         <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Order Tax</label>
-                                <input type="text" id="order-tax" class="form-control" placeholder="0.00">
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Shipping</label>
-                                <input type="text" id="shipping" class="form-control" placeholder="0.00">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-3 offset-md-9">
                             <div class="form-group">
                                 <label>Total</label>
                                 <p id="total-amount" class="form-control">0.00</p>
@@ -672,28 +787,34 @@
                 </div>
             </div>
 
-           <!-- Product List -->
-        <div class="col-md-5">
-            <div class="card bg-white p-3" style="height: 700px;">
-                <!-- Buttons for Category and Brand -->
-                <div class="row mb-3">
-                    <div class="d-flex justify-content-between w-100 mb-2">
-                        <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All Products</button>
-                        <button type="button" class="btn btn-primary w-50 me-3" id="category-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory" aria-controls="offcanvasCategory">Category</button>
-                        <button type="button" class="btn btn-primary w-50" id="brand-btn" data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand" aria-controls="offcanvasBrand">Brand</button>
+            <!-- Product List -->
+            <div class="col-md-5">
+                <div class="card bg-white p-3" style="height: 560px;">
+                    <!-- Buttons for Category and Brand -->
+                    <div class="row mb-3">
+                        <div class="d-flex justify-content-between w-100 mb-2">
+                            <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All
+                                Products</button>
+                            <button type="button" class="btn btn-primary w-50 me-3" id="category-btn"
+                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory"
+                                aria-controls="offcanvasCategory">Category</button>
+                            <button type="button" class="btn btn-primary w-50" id="brand-btn"
+                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand"
+                                aria-controls="offcanvasBrand">Brand</button>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 overflow-auto" id="posProduct">
+
                     </div>
                 </div>
-
-                <div class="row g-3 overflow-auto" id="posProduct">
-                    
-                </div>
             </div>
-        </div>
 
         </div>
 
         <!-- Offcanvas Category Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory" aria-labelledby="offcanvasCategoryLabel">
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCategory"
+            aria-labelledby="offcanvasCategoryLabel">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasCategoryLabel">Categories</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -706,7 +827,8 @@
         </div>
 
         <!-- Offcanvas Subcategory Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory" aria-labelledby="offcanvasSubcategoryLabel">
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasSubcategory"
+            aria-labelledby="offcanvasSubcategoryLabel">
             <div class="offcanvas-header">
                 <button type="button" class="btn btn-secondary" id="subcategoryBackBtn">Back</button>
                 <h5 class="offcanvas-title" id="offcanvasSubcategoryLabel">Subcategories</h5>
@@ -720,7 +842,8 @@
         </div>
 
         <!-- Offcanvas Brand Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand" aria-labelledby="offcanvasBrandLabel">
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand"
+            aria-labelledby="offcanvasBrandLabel">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -738,17 +861,19 @@
                 <!-- Left Side: Actions -->
                 <div class="col-md-7">
                     <div class="d-flex gap-2 flex-wrap">
-                        <button class="btn btn-outline-primary"><i class="fas fa-edit"></i> Draft</button>
-                        <button class="btn btn-outline-warning"><i class="fas fa-file-alt"></i> Quotation</button>
+                        {{-- <button class="btn btn-outline-primary"><i class="fas fa-edit"></i> Draft</button>
+                        <button class="btn btn-outline-warning"><i class="fas fa-file-alt"></i> Quotation</button> --}}
                         <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
                             <i class="fas fa-pause"></i> Suspend
                         </button>
-                        <button class="btn btn-outline-success"><i class="fas fa-check"></i> Credit Sale</button>
+                        <button class="btn btn-outline-success" id="creditSaleButton"><i class="fas fa-check"></i>
+                            Credit Sale</button>
                         <button class="btn btn-outline-pink"><i class="fas fa-credit-card"></i> Card</button>
                         <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
                             <i class="fas fa-list"></i> Multiple Pay
                         </button>
-                        <button class="btn btn-success" id="cashButton"><i class="fas fa-money-bill-wave"></i> Cash</button>
+                        <button class="btn btn-success" id="cashButton"><i class="fas fa-money-bill-wave"></i>
+                            Cash</button>
                         <button class="btn btn-danger"><i class="fas fa-times"></i> Cancel</button>
                     </div>
                 </div>
@@ -763,12 +888,14 @@
         </div>
 
         <!-- Bootstrap Modal for Suspend -->
-        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel" aria-hidden="true">
+        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
+            aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
@@ -783,12 +910,14 @@
         </div>
 
         <!-- Bootstrap Modal for Suspended Sales -->
-        <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel" aria-hidden="true">
+        <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
+            aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="suspendSalesModalLabel">Suspended Sales</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <table class="table table-bordered">
@@ -816,7 +945,8 @@
     </div>
 
 
-    <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="paymentModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -835,7 +965,8 @@
                                         <input type="hidden" id="reference_no" name="reference_no">
                                         <div class="row mb-3">
                                             <div class="col-md-12">
-                                                <label for="advanceBalance" class="form-label">Advance Balance : Rs. 0.00</label>
+                                                <label for="advanceBalance" class="form-label">Advance Balance : Rs.
+                                                    0.00</label>
                                             </div>
                                         </div>
                                         <div id="paymentRows">
@@ -843,8 +974,11 @@
                                                 <div class="card-body">
                                                     <div class="row">
                                                         <div class="col-md-4">
-                                                            <label for="paymentMethod" class="form-label">Payment Method</label>
-                                                            <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                                            <label for="paymentMethod" class="form-label">Payment
+                                                                Method</label>
+                                                            <select class="form-select payment-method"
+                                                                name="payment_method"
+                                                                onchange="togglePaymentFields(this)">
                                                                 <option value="cash" selected>Cash</option>
                                                                 <option value="card">Credit Card</option>
                                                                 <option value="cheque">Cheque</option>
@@ -853,21 +987,29 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label for="paidOn" class="form-label">Paid On</label>
-                                                            <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY">
+                                                            <input class="form-control datetimepicker payment-date"
+                                                                type="text" name="payment_date"
+                                                                placeholder="DD-MM-YYYY">
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label for="payAmount" class="form-label">Amount</label>
-                                                            <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
-                                                            <div class="text-danger amount-error" style="display:none;"></div>
+                                                            <input type="text" class="form-control payment-amount"
+                                                                id="payment-amount" name="amount"
+                                                                oninput="validateAmount()">
+                                                            <div class="text-danger amount-error"
+                                                                style="display:none;"></div>
                                                         </div>
                                                     </div>
                                                     <!-- Conditional Payment Fields -->
                                                     <div class="conditional-fields row mt-3"></div>
                                                 </div>
-                                                <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+                                                <button type="button"
+                                                    class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row"
+                                                    aria-label="Close"></button>
                                             </div>
                                         </div>
-                                        <button type="button" class="btn btn-primary w-100 mb-3" id="addPaymentRow">Add Payment Row</button>
+                                        <button type="button" class="btn btn-primary w-100 mb-3"
+                                            id="addPaymentRow">Add Payment Row</button>
                                         <div class="mb-3">
                                             <label for="paymentNote" class="form-label">Payment Note</label>
                                             <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
@@ -893,7 +1035,8 @@
                     <div class="row mt-4">
                         <div class="col-12 text-end">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
+                            <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
+                                Payment</button>
                         </div>
                     </div>
                 </div>
@@ -902,14 +1045,14 @@
     </div>
 
     <script>
-       let locationId;
-let totalAmount = 0;
+        let locationId;
+        let totalAmount = 0;
 
-document.getElementById('addPaymentRow').addEventListener('click', function() {
-    const paymentRows = document.getElementById('paymentRows');
-    const newPaymentRow = document.createElement('div');
-    newPaymentRow.className = 'card mb-3 payment-row position-relative';
-    newPaymentRow.innerHTML = `
+        document.getElementById('addPaymentRow').addEventListener('click', function() {
+            const paymentRows = document.getElementById('paymentRows');
+            const newPaymentRow = document.createElement('div');
+            newPaymentRow.className = 'card mb-3 payment-row position-relative';
+            newPaymentRow.innerHTML = `
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4">
@@ -935,27 +1078,27 @@ document.getElementById('addPaymentRow').addEventListener('click', function() {
         </div>
         <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
     `;
-    paymentRows.appendChild(newPaymentRow);
+            paymentRows.appendChild(newPaymentRow);
 
-    newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
-        this.closest('.payment-row').remove();
-        updatePaymentSummary();
-    });
+            newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
+                this.closest('.payment-row').remove();
+                updatePaymentSummary();
+            });
 
-    updatePaymentSummary();
-    initializeDateTimePickers();
-});
+            updatePaymentSummary();
+            initializeDateTimePickers();
+        });
 
 
 
-function togglePaymentFields(selectElement) {
-    const paymentMethod = selectElement.value;
-    const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
+        function togglePaymentFields(selectElement) {
+            const paymentMethod = selectElement.value;
+            const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
 
-    conditionalFields.innerHTML = '';
+            conditionalFields.innerHTML = '';
 
-    if (paymentMethod === 'card') {
-        conditionalFields.innerHTML = `
+            if (paymentMethod === 'card') {
+                conditionalFields.innerHTML = `
             <div class="col-md-4">
                 <label for="cardNumber" class="form-label">Card Number</label>
                 <input type="text" class="form-control" name="card_number">
@@ -985,8 +1128,8 @@ function togglePaymentFields(selectElement) {
                 <input type="text" class="form-control" name="card_security_code">
             </div>
         `;
-    } else if (paymentMethod === 'cheque') {
-        conditionalFields.innerHTML = `
+            } else if (paymentMethod === 'cheque') {
+                conditionalFields.innerHTML = `
             <div class="col-md-6">
                 <label for="chequeNumber" class="form-label">Cheque Number</label>
                 <input type="text" class="form-control" name="cheque_number">
@@ -1008,41 +1151,41 @@ function togglePaymentFields(selectElement) {
                 <input type="text" class="form-control" name="cheque_given_by">
             </div>
         `;
-        initializeDateTimePickers();
-    } else if (paymentMethod === 'bank_transfer') {
-        conditionalFields.innerHTML = `
+                initializeDateTimePickers();
+            } else if (paymentMethod === 'bank_transfer') {
+                conditionalFields.innerHTML = `
             <div class="col-md-12">
                 <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
                 <input type="text" class="form-control" name="bank_account_number">
             </div>
         `;
-    }
-}
-
-function validateAmount() {
-    const amountInputs = document.querySelectorAll('.payment-amount');
-    amountInputs.forEach(input => {
-        const amountError = input.nextElementSibling;
-        if (isNaN(input.value) || input.value <= 0) {
-            amountError.style.display = 'block';
-            amountError.textContent = 'Please enter a valid amount.';
-        } else {
-            amountError.style.display = 'none';
+            }
         }
-    });
-    updatePaymentSummary();
-}
 
-document.querySelectorAll('.remove-payment-row').forEach(button => {
-    button.addEventListener('click', function() {
-        this.closest('.payment-row').remove();
-        updatePaymentSummary();
-    });
-});
+        function validateAmount() {
+            const amountInputs = document.querySelectorAll('.payment-amount');
+            amountInputs.forEach(input => {
+                const amountError = input.nextElementSibling;
+                if (isNaN(input.value) || input.value <= 0) {
+                    amountError.style.display = 'block';
+                    amountError.textContent = 'Please enter a valid amount.';
+                } else {
+                    amountError.style.display = 'none';
+                }
+            });
+            updatePaymentSummary();
+        }
 
-document.getElementById('paymentModal').addEventListener('hidden.bs.modal', function () {
-    document.getElementById('paymentForm').reset();
-    document.getElementById('paymentRows').innerHTML = `
+        document.querySelectorAll('.remove-payment-row').forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.payment-row').remove();
+                updatePaymentSummary();
+            });
+        });
+
+        document.getElementById('paymentModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('paymentForm').reset();
+            document.getElementById('paymentRows').innerHTML = `
         <div class="card mb-3 payment-row position-relative">
             <div class="card-body">
                 <div class="row">
@@ -1070,80 +1213,113 @@ document.getElementById('paymentModal').addEventListener('hidden.bs.modal', func
             <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
         </div>
     `;
-    updatePaymentSummary();
-    initializeDateTimePickers();
-});
+            updatePaymentSummary();
+            initializeDateTimePickers();
+        });
 
-function initializeDateTimePickers() {
-    $('.datetimepicker').datetimepicker({
-        format: 'DD-MM-YYYY',
-        useCurrent: false,
-        minDate: moment().startOf('day')
-    });
+        function initializeDateTimePickers() {
+            $('.datetimepicker').datetimepicker({
+                format: 'DD-MM-YYYY',
+                useCurrent: false,
+                minDate: moment().startOf('day')
+            });
 
-    $('.cheque-received-date').datetimepicker({
-        format: 'DD-MM-YYYY',
-        useCurrent: false,
-        minDate: moment().startOf('day')
-    });
+            $('.cheque-received-date').datetimepicker({
+                format: 'DD-MM-YYYY',
+                useCurrent: false,
+                minDate: moment().startOf('day')
+            });
 
-    $('.cheque-valid-date').datetimepicker({
-        format: 'DD-MM-YYYY',
-        useCurrent: false,
-        minDate: moment().add(1, 'days').startOf('day')
-    });
-}
+            $('.cheque-valid-date').datetimepicker({
+                format: 'DD-MM-YYYY',
+                useCurrent: false,
+                minDate: moment().add(1, 'days').startOf('day')
+            });
+        }
 
-function updatePaymentSummary() {
-    let totalItems = fetchTotalItems();
-    let totalPayable = totalAmount;
-    let totalPaying = 0;
-    let changeReturn = 0;
-    let balance = 0;
+        function updatePaymentSummary() {
+            let totalItems = fetchTotalItems();
+            let totalPayable = totalAmount;
+            let totalPaying = 0;
+            let changeReturn = 0;
+            let balance = 0;
 
-    document.querySelectorAll('.payment-amount').forEach(input => {
-        totalPaying += parseFloat(input.value) || 0;
-    });
+            document.querySelectorAll('.payment-amount').forEach(input => {
+                totalPaying += parseFloat(input.value) || 0;
+            });
 
-    if (totalPaying > totalPayable) {
-        changeReturn = totalPaying - totalPayable;
-    } else {
-        balance = totalPayable - totalPaying;
+            if (totalPaying > totalPayable) {
+                changeReturn = totalPaying - totalPayable;
+            } else {
+                balance = totalPayable - totalPaying;
+            }
+
+            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            document.getElementById('modal-total-payable').textContent = totalPayable.toFixed(2);
+            document.getElementById('modal-total-paying').textContent = totalPaying.toFixed(2);
+            document.getElementById('modal-change-return').textContent = changeReturn.toFixed(2);
+            document.getElementById('modal-balance').textContent = balance.toFixed(2);
+        }
+
+        function fetchTotalAmount() {
+            let totalAmount = 0;
+            document.querySelectorAll('#billing-body tr').forEach(row => {
+                const subtotal = parseFloat(row.querySelector('.subtotal').textContent);
+                totalAmount += subtotal;
+            });
+            return totalAmount;
+        }
+
+        function fetchTotalItems() {
+            let totalItems = 0;
+            document.querySelectorAll('#billing-body tr').forEach(row => {
+                const quantity = parseInt(row.querySelector('.quantity-input').value);
+                totalItems += quantity;
+            });
+            return totalItems;
+        }
+
+        document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
+            totalAmount = fetchTotalAmount();
+            updatePaymentSummary();
+            initializeDateTimePickers();
+        });
+    </script>
+
+    <!-- JavaScript for Calculator Functionality -->
+<script>
+    function calcInput(value) {
+        document.getElementById('calcDisplay').value += value;
     }
 
-    document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-    document.getElementById('modal-total-payable').textContent = totalPayable.toFixed(2);
-    document.getElementById('modal-total-paying').textContent = totalPaying.toFixed(2);
-    document.getElementById('modal-change-return').textContent = changeReturn.toFixed(2);
-    document.getElementById('modal-balance').textContent = balance.toFixed(2);
-}
+    function clearCalc() {
+        document.getElementById('calcDisplay').value = '';
+    }
 
-function fetchTotalAmount() {
-    let totalAmount = 0;
-    document.querySelectorAll('#billing-body tr').forEach(row => {
-        const subtotal = parseFloat(row.querySelector('.subtotal').textContent);
-        totalAmount += subtotal;
+    function calculateResult() {
+        try {
+            document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
+        } catch (e) {
+            document.getElementById('calcDisplay').value = 'Error';
+        }
+    }
+
+    // Prevent dropdown from closing when clicking inside
+    document.getElementById('calculatorDropdown').addEventListener('click', function (event) {
+        event.stopPropagation();
     });
-    return totalAmount;
-}
 
-function fetchTotalItems() {
-    let totalItems = 0;
-    document.querySelectorAll('#billing-body tr').forEach(row => {
-        const quantity = parseInt(row.querySelector('.quantity-input').value);
-        totalItems += quantity;
-    });
-    return totalItems;
-}
-
-document.getElementById('paymentModal').addEventListener('show.bs.modal', function () {
-    totalAmount = fetchTotalAmount();
-    updatePaymentSummary();
-    initializeDateTimePickers();
-});
-
-
-    </script>
+    // Handle keyboard input, allowing only numbers and operators
+    function handleKeyboardInput(event) {
+        const allowedKeys = "0123456789+-*/.";
+        if (!allowedKeys.includes(event.key) && event.key !== "Backspace" && event.key !== "Enter") {
+            event.preventDefault();
+        }
+        if (event.key === "Enter") {
+            calculateResult();
+        }
+    }
+</script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
@@ -1151,4 +1327,5 @@ document.getElementById('paymentModal').addEventListener('show.bs.modal', functi
     @include('contact.customer.add_customer_modal')
 
 </body>
+
 </html>
