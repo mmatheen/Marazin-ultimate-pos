@@ -22,7 +22,8 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/inputmask/5.0.6-beta.34/jquery.inputmask.min.js"></script>
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/inputmask/5.0.6-beta.34/jquery.inputmask.min.js"></script> --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 
     <style>
         /* General Styles */
@@ -783,6 +784,13 @@
                                 <p id="total-amount" class="form-control">0.00</p>
                             </div>
                         </div>
+
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Amount Given</label>
+                                <input type="text" id="amount-given" class="form-control" placeholder="0.00">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1320,6 +1328,7 @@
         }
     }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')

@@ -612,7 +612,7 @@
 
         // Add event listeners for input changes
         document.getElementById('discount').addEventListener('input', updateTotals);
- 
+
 
 
 
@@ -873,6 +873,34 @@
                 fetchSuspendedSales();
             });
 
+            $('#amount-given').on('keyup', function (event) {
+                if (event.key === 'Enter') {
+                    const totalAmount = parseFloat($('#total-amount').text().trim());
+                    const amountGiven = parseFloat($('#amount-given').val().trim());
+
+                    if (isNaN(amountGiven) || amountGiven <= 0) {
+                        toastr.error('Please enter a valid amount given by the customer.');
+                        return;
+                    }
+
+                    const balance = amountGiven - totalAmount;
+                    if (balance < 0) {
+                        toastr.error('The given amount is less than the total amount.');
+                        return;
+                    }
+
+                    swal({
+                        title: "Balance Amount",
+                        text: "The balance amount to be returned is Rs. " + balance.toFixed(2),
+                        type: "info",
+                        showCancelButton: false,
+                        confirmButtonText: "OK",
+                    }, function () {
+                        $('#cashButton').trigger('click');
+                    });
+                }
+            });
+
             // Fetch suspended sales when the POS page loads
             // fetchSuspendedSales();
         });
@@ -884,6 +912,7 @@
             quantityInputs.forEach(input => {
                 input.value = 1;
             });
+
 
             const billingBodyRows = document.querySelectorAll('#billing-body tr');
             billingBodyRows.forEach(row => {
