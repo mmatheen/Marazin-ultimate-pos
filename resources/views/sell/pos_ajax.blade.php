@@ -357,11 +357,11 @@
         }
 
         let locationId;
+        let priceType = 'retail';
 
         function addProductToTable(product) {
             console.log("Product to be added:", product);
 
-            // Check if stockData is defined and not empty
             if (!stockData || stockData.length === 0) {
                 console.error('stockData is not defined or empty');
                 toastr.error('Stock data is not available', 'Error');
@@ -371,7 +371,6 @@
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
 
-            // Ensure stockEntry is defined
             if (!stockEntry) {
                 toastr.error('Stock entry not found for the product', 'Error');
                 return;
@@ -388,8 +387,7 @@
                 return;
             }
 
-            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
-                .quantity > 0);
+            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
             if (locationBatches.length === 0) {
                 toastr.error('No batches with quantity found', 'Error');
                 return;
@@ -426,8 +424,7 @@
                 const priceInput = existingRow.querySelector('.price-input');
                 const basePrice = parseFloat(priceInput.value);
                 const discountAmount = product.discount_amount || 0;
-                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount /
-                    100) : basePrice - discountAmount;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
 
                 const subtotal = parseFloat(quantityInput.value) * finalPrice;
                 existingRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
@@ -442,27 +439,27 @@
 
                 const basePrice = product.retail_price;
                 const discountAmount = product.discount_amount || 0;
-                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount /
-                    100) : basePrice - discountAmount;
+                const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
 
                 const row = document.createElement('tr');
 
-                const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch
-                    .location_batches.map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: locationBatch.quantity
-                    }))) : [];
+                const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
+                    batch_id: batch.id,
+                    batch_no: batch.batch_no,
+                    retail_price: parseFloat(batch.retail_price),
+                    wholesale_price: parseFloat(batch.wholesale_price),
+                    special_price: parseFloat(batch.special_price),
+                    batch_quantity: locationBatch.quantity
+                }))) : [];
 
                 const batchOptions = batches
-                    .filter(batch => batch.batch_quantity > 0) // Filter batches with quantity greater than zero
+                    .filter(batch => batch.batch_quantity > 0)
                     .map(batch => `
-                    <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
-                        Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
+                    <option value="${batch.batch_id}" data-retail-price="${batch.retail_price}" data-wholesale-price="${batch.wholesale_price}" data-special-price="${batch.special_price}" data-quantity="${batch.batch_quantity}">
+                      ${batch.batch_no} - Qty: ${batch.batch_quantity} - R: ${batch.retail_price.toFixed(2)} - W: ${batch.wholesale_price.toFixed(2)} - S: ${batch.special_price.toFixed(2)}
                     </option>
                 `).join('');
 
-                // Check if there are any valid batch options
                 if (batchOptions.length === 0) {
                     toastr.error('No batches with quantity found', 'Error');
                     return;
@@ -472,15 +469,29 @@
                         <div class="d-flex align-items-center">
                             <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
                             <div>
-                                <div class="font-weight-bold product-name">${product.product_name}</div>
-                                <div class="text-muted">${product.sku}</div>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <div class="font-weight-bold product-name">${product.product_name}</div>
+                                        <div class="text-muted">${product.sku}</div>
+                                    </div>
+                                    <div class="col-4 text-end">
+                                        <div class="radio-group">
+                                            <label><input type="radio" name="price-type-${product.id}" value="retail" checked> <i class="fas fa-shopping-cart"></i> R</label>
+                                            <label class="ms-2"><input type="radio" name="price-type-${product.id}" value="wholesale"> <i class="fas fa-box"></i> W</label>
+                                            <label class="ms-2"><input type="radio" name="price-type-${product.id}" value="special"> <i class="fas fa-star"></i> S</label>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-                                <select class="form-select batch-dropdown" aria-label="Select Batch">
-                                    <option value="all" data-price="${finalPrice}" data-quantity="${totalQuantity}">
-                                        All Batches - Total Qty: ${totalQuantity} - Price: ${finalPrice.toFixed(2)}
+
+                                <select class="form-select batch-dropdown" aria-label="Select Batch" style="border: 1px solid #ced4da;">
+                                    <option value="all" data-retail-price="${finalPrice}" data-quantity="${totalQuantity}">
+                                        All - Qty: ${totalQuantity} - Price: ${finalPrice.toFixed(2)}
                                     </option>
                                     ${batchOptions}
                                 </select>
+
                             </div>
                         </div>
                     </td>
@@ -512,6 +523,7 @@
                 const quantityPlus = row.querySelector('.quantity-plus');
                 const removeBtn = row.querySelector('.remove-btn');
                 const batchDropdown = row.querySelector('.batch-dropdown');
+                const radioGroup = row.querySelectorAll(`input[name="price-type-${product.id}"]`);
 
                 removeBtn.addEventListener('click', () => {
                     row.remove();
@@ -527,13 +539,9 @@
 
                 quantityPlus.addEventListener('click', () => {
                     let newQuantity = parseInt(quantityInput.value, 10) + 1;
-                    if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute(
-                            'data-quantity'), 10)) {
+                    if (newQuantity > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
                         document.getElementsByClassName('errorSound')[0].play();
-                        toastr.error(
-                            `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
-                            'Error'
-                        );
+                        toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
                     } else {
                         quantityInput.value = newQuantity;
                         updateTotals();
@@ -542,15 +550,10 @@
 
                 quantityInput.addEventListener('input', () => {
                     const quantityValue = parseInt(quantityInput.value, 10);
-                    if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute(
-                            'data-quantity'), 10)) {
-                        quantityInput.value = batchDropdown.selectedOptions[0].getAttribute(
-                            'data-quantity');
+                    if (quantityValue > parseInt(batchDropdown.selectedOptions[0].getAttribute('data-quantity'), 10)) {
+                        quantityInput.value = batchDropdown.selectedOptions[0].getAttribute('data-quantity');
                         document.getElementsByClassName('errorSound')[0].play();
-                        toastr.error(
-                            `You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`,
-                            'Error'
-                        );
+                        toastr.error(`You cannot add more than ${batchDropdown.selectedOptions[0].getAttribute('data-quantity')} units of this product.`, 'Error');
                     }
                     updateTotals();
                 });
@@ -561,19 +564,31 @@
 
                 batchDropdown.addEventListener('change', () => {
                     const selectedOption = batchDropdown.selectedOptions[0];
-                    const batchPrice = parseFloat(selectedOption.getAttribute('data-price'));
+                    updatePriceInput(selectedOption);
                     const batchQuantity = parseInt(selectedOption.getAttribute('data-quantity'), 10);
                     if (quantityInput.value > batchQuantity) {
                         quantityInput.value = batchQuantity;
-                        toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
-                            'Error');
+                        toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`, 'Error');
                     }
-                    priceInput.value = batchPrice.toFixed(2);
-                    const subtotal = parseFloat(quantityInput.value) * batchPrice;
+                    const subtotal = parseFloat(quantityInput.value) * parseFloat(priceInput.value);
                     row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
                     quantityInput.setAttribute('max', batchQuantity);
                     updateTotals();
                 });
+
+                radioGroup.forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        updatePriceInput(batchDropdown.selectedOptions[0]);
+                        priceType = document.querySelector(`input[name="price-type-${product.id}"]:checked`).value;
+                        updateTotals();
+                    });
+                });
+
+                function updatePriceInput(selectedOption) {
+                    const selectedPriceType = document.querySelector(`input[name="price-type-${product.id}"]:checked`).value;
+                    const price = selectedOption.getAttribute(`data-${selectedPriceType}-price`);
+                    priceInput.value = parseFloat(price).toFixed(2);
+                }
             }
 
             updateTotals();
@@ -596,8 +611,6 @@
             });
 
             const discount = parseFloat(document.getElementById('discount').value) || 0;
-            // const tax = parseFloat(document.getElementById('order-tax').value) || 0;
-            // const shipping = parseFloat(document.getElementById('shipping').value) || 0;
 
             const subtotalAmount = totalAmount - discount;
             const totalAmountWithTaxAndShipping = subtotalAmount;
@@ -606,11 +619,9 @@
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
             document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
             document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-            document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping
-                .toFixed(2);
+            document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
         }
 
-        // Add event listeners for input changes
         document.getElementById('discount').addEventListener('input', updateTotals);
 
 
@@ -653,7 +664,7 @@
                             10),
                         quantity: parseInt(productRow.find('.quantity-input').val().trim(),
                             10),
-                        price_type: 'retail',
+                        price_type: priceType,
                         unit_price: parseFloat(productRow.find('.price-input').val()
                         .trim()),
                         subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
