@@ -1,6 +1,10 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+
+
+
+
         // Elements
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
@@ -431,10 +435,16 @@ function showProductModal(product, stockEntry, row) {
                 ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
             </div>
         </div>
-        <div class="radio-group mt-3">
-            <label><input type="radio" name="modal-price-type" value="retail" checked> <i class="fas fa-shopping-cart"></i> Retail</label>
-            <label class="ms-2"><input type="radio" name="modal-price-type" value="wholesale"> <i class="fas fa-box"></i> Wholesale</label>
-            <label class="ms-2"><input type="radio" name="modal-price-type" value="special"> <i class="fas fa-star"></i> Special</label>
+        <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
+            <label class="btn btn-outline-primary active">
+                <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+            </label>
+            <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+            </label>
+            <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+            </label>
         </div>
         <select id="modalBatchDropdown" class="form-select mt-3">
             <option value="all" data-retail-price="${finalPrice}" data-quantity="${stockEntry.total_stock}">
@@ -447,7 +457,61 @@ function showProductModal(product, stockEntry, row) {
     selectedRow = row;
     const modal = new bootstrap.Modal(document.getElementById('productModal'));
     modal.show();
+
+    // Add event listeners for the radio buttons to change the active class
+    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.parentElement.classList.add('active');
+        });
+    });
 }
+
+
+    $(document).keydown(function(e) {
+        // Define key codes for shortcuts
+        const keyCodes = {
+            addProduct: 65, // 'A' key for adding a product
+            selectCustomer: 67, // 'C' key for selecting a customer
+            cashButton: 83, // 'S' key for cash sale
+            suspendButton: 80, // 'P' key for suspending a sale
+            creditSaleButton: 84, // 'T' key for credit sale
+        };
+
+        // Handle shortcuts
+        switch (e.which) {
+            case keyCodes.addProduct:
+                e.preventDefault();
+                // Focus on product search or add product to billing body
+                $('#product-search').focus();
+                break;
+            case keyCodes.selectCustomer:
+                e.preventDefault();
+                // Open the customer selection modal
+                $('#customerModal').modal('show');
+                break;
+            case keyCodes.cashButton:
+                e.preventDefault();
+                // Trigger the cash sale button
+                $('#cashButton').trigger('click');
+                break;
+            case keyCodes.suspendButton:
+                e.preventDefault();
+                // Trigger the suspend sale button
+                $('#suspendButton').trigger('click');
+                break;
+            case keyCodes.creditSaleButton:
+                e.preventDefault();
+                // Trigger the credit sale button
+                $('#creditSaleButton').trigger('click');
+                break;
+            default:
+                break;
+        }
+        });
 
 function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
     const billingBody = document.getElementById('billing-body');
@@ -498,6 +562,7 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
 
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
+        row.querySelector('.quantity-input').focus(); // Move cursor to quantity input field
     }
 
     updateTotals();
@@ -569,6 +634,7 @@ document.getElementById('saveProductChanges').onclick = function() {
     if (selectedRow) {
         const quantityInput = selectedRow.querySelector('.quantity-input');
         const priceInput = selectedRow.querySelector('.price-input');
+        const productNameCell = selectedRow.querySelector('.product-name');
 
         priceInput.value = price.toFixed(2);
         priceInput.setAttribute('data-quantity', batchQuantity);
@@ -577,6 +643,13 @@ document.getElementById('saveProductChanges').onclick = function() {
         selectedRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
 
         selectedRow.querySelector('.batch-id').textContent = batchId;
+
+        // Update product name cell with stars based on selected price type
+        const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
+                      selectedPriceType === 'wholesale' ? '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
+                      '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
+
+        productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
 
         updateTotals();
     }
@@ -647,12 +720,9 @@ $(document).ready(function() {
                 unit_price: parseFloat(productRow.find('.price-input').val().trim()),
                 subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
                 discount: parseFloat(productRow.find('.discount-data').data('amount')) || 0,
-                tax: 0
+                tax: 0,
+                batch_id: batchId === "all" ? "all" : batchId,
             };
-            // Add batch_id only if it's not empty
-            if (batchId !== "all") {
-                productData.batch_id = batchId;
-            }
             saleData.products.push(productData);
         });
 
@@ -740,7 +810,7 @@ $(document).ready(function() {
         if (saleData) {
             sendSaleData(saleData);
             let modal = bootstrap.Modal.getInstance(document.getElementById("suspendModal"));
-            modal.hide(); 
+            modal.hide();
         }
     });
 
