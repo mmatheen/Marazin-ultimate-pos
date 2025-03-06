@@ -211,9 +211,9 @@ function formatProductData(product) {
                 <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
                     <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
                     <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                    <li><a class="dropdown-item delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                    <li><a class="dropdown-item delete-product" href="" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
                     <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
-                    <li><a class="dropdown-item" href="#"><i class="fas fa-history"></i> Product Stock History</a></li>
+                    <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
                 </ul>
             </div>
         </td>

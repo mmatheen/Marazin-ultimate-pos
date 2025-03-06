@@ -29,6 +29,84 @@ class ProductController extends Controller
         return view('product.add_product');
     }
 
+    // public function getStockHistory($productId)
+    // {
+    //     // Fetch the product
+    //     $product = Product::findOrFail($productId);
+
+    //     // Fetch stock histories
+    //     $stockHistories = StockHistory::whereHas('locationBatch.batch', function ($query) use ($productId) {
+    //         $query->where('product_id', $productId);
+    //     })->with(['locationBatch.batch.product', 'locationBatch.location'])->get();
+
+    //     // Prepare data for the view
+    //     $data = [
+    //         'product' => $product,
+    //         'stockHistories' => $stockHistories,
+    //     ];
+
+    //     return view('product.product_stock_history', $data);
+    // }
+
+    public function getStockHistory($productId)
+    {
+        // Fetch the product
+        $product = Product::findOrFail($productId);
+
+        // Fetch stock histories with related data
+        $stockHistories = StockHistory::whereHas('locationBatch.batch', function ($query) use ($productId) {
+            $query->where('product_id', $productId);
+        })->with([
+            'locationBatch.batch.product',
+            'locationBatch.location',
+            'purchase',
+            'sale',
+            'saleReturn',
+            'purchaseReturn'
+        ])->get();
+
+        // Calculate quantities in and quantities out
+        $quantitiesIn = $stockHistories->whereIn('stock_type', [
+            StockHistory::STOCK_TYPE_PURCHASE,
+            StockHistory::STOCK_TYPE_OPENING,
+            StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
+            StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+            StockHistory::STOCK_TYPE_TRANSFER_IN,
+        ])->sum('quantity');
+
+        $quantitiesOut = $stockHistories->whereIn('stock_type', [
+            StockHistory::STOCK_TYPE_SALE,
+            StockHistory::STOCK_TYPE_ADJUSTMENT,
+            StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+            StockHistory::STOCK_TYPE_TRANSFER_OUT,
+        ])->sum(function ($history) {
+            return abs($history->quantity);
+        });
+
+        // Calculate current stock
+        $currentStock = $quantitiesIn - $quantitiesOut;
+
+        // Ensure undefined quantities are shown as 0
+        $quantitiesIn = $quantitiesIn ?: 0;
+        $quantitiesOut = $quantitiesOut ?: 0;
+
+        // Prepare data for the response
+        $data = [
+            'product' => $product,
+            'stockHistories' => $stockHistories,
+            'quantitiesIn' => $quantitiesIn,
+            'quantitiesOut' => $quantitiesOut,
+            'currentStock' => $currentStock,
+        ];
+
+        if (request()->ajax()) {
+            return response()->json($data);
+        }
+
+        return view('product.product_stock_history', $data);
+    }
+
+
     public function initialProductDetails()
     {
         $mainCategories = MainCategory::all();
@@ -383,13 +461,13 @@ class ProductController extends Controller
             'editing' => true
         ]);
     }
-    
+
     public function storeOrUpdateOpeningStock(Request $request, $productId)
     {
         $filteredLocations = array_filter($request->locations, function ($location) {
             return !empty($location['qty']);
         });
-    
+
         $validator = Validator::make(['locations' => $filteredLocations], [
             'locations' => 'required|array',
             'locations.*.id' => 'required|integer|exists:locations,id',
@@ -403,26 +481,26 @@ class ProductController extends Controller
             ],
             'locations.*.expiry_date' => 'nullable|date',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
-    
+
         $product = Product::find($productId);
         if (!$product) {
             return response()->json(['status' => 404, 'message' => 'Product not found']);
         }
-    
+
         try {
             DB::transaction(function () use ($filteredLocations, $product, &$message) {
                 $isUpdate = false;
                 $locationIds = array_column($filteredLocations, 'id');
-    
+
                 // Get the existing location batches for the product
                 $existingLocationBatches = LocationBatch::whereHas('batch', function ($query) use ($product) {
                     $query->where('product_id', $product->id);
                 })->get();
-    
+
                 // Remove stock history records, location batches, and batches for locations that are no longer associated
                 foreach ($existingLocationBatches as $locationBatch) {
                     if (!in_array($locationBatch->location_id, $locationIds)) {
@@ -432,26 +510,26 @@ class ProductController extends Controller
                         $locationBatch->delete();
                     }
                 }
-    
+
                 // Remove batches that are no longer associated with any location
                 $batchIds = Batch::where('product_id', $product->id)->pluck('id')->toArray();
                 $usedBatchIds = LocationBatch::whereIn('batch_id', $batchIds)->pluck('batch_id')->toArray();
                 $unusedBatchIds = array_diff($batchIds, $usedBatchIds);
                 Batch::whereIn('id', $unusedBatchIds)->delete();
-    
+
                 foreach ($filteredLocations as $locationData) {
                     $formattedExpiryDate = $locationData['expiry_date']
                         ? \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d')
                         : null;
-    
+
                     $existingBatch = Batch::where('batch_no', $locationData['batch_no'] ?? '')
                         ->where('product_id', $product->id)
                         ->first();
-    
+
                     if ($existingBatch) {
                         $isUpdate = true;
                     }
-    
+
                     $batch = Batch::updateOrCreate(
                         [
                             'batch_no' => $locationData['batch_no'] ?? Batch::generateNextBatchNo(),
@@ -467,7 +545,7 @@ class ProductController extends Controller
                             'expiry_date' => $formattedExpiryDate,
                         ]
                     );
-    
+
                     $locationBatch = LocationBatch::updateOrCreate(
                         [
                             'batch_id' => $batch->id,
@@ -477,9 +555,9 @@ class ProductController extends Controller
                             'qty' => $locationData['qty'],
                         ]
                     );
-    
+
                     $product->locations()->updateExistingPivot($locationData['id'], ['qty' => $locationData['qty']]);
-    
+
                     StockHistory::updateOrCreate(
                         [
                             'loc_batch_id' => $locationBatch->id,
@@ -490,10 +568,10 @@ class ProductController extends Controller
                         ]
                     );
                 }
-    
+
                 $message = $isUpdate ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
             });
-    
+
             return response()->json(['status' => 200, 'message' => $message]);
         } catch (\Exception $e) {
             return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
@@ -553,10 +631,10 @@ class ProductController extends Controller
         $user = auth()->user();
         $userRole = $user->role_name;
         $userLocationId = $user->location_id;
-    
+
         // Initialize an array to store product stock data
         $productStocks = [];
-    
+
         // Retrieve products based on the user's role in chunks
         Product::with(['batches.locationBatches.location', 'locations'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
             // Process each product in the chunk
@@ -565,7 +643,7 @@ class ProductController extends Controller
                 $totalStock = $product->batches->sum(function ($batch) {
                     return $batch->locationBatches->sum('qty');
                 });
-    
+
                 // Map through batches
                 $batches = $product->batches->map(function ($batch) {
                     // Map through location batches
@@ -577,7 +655,7 @@ class ProductController extends Controller
                             'quantity' => $locationBatch->qty,
                         ];
                     });
-    
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -591,7 +669,7 @@ class ProductController extends Controller
                         'location_batches' => $locationBatches,
                     ];
                 });
-    
+
                 // Add the processed product stock to the response array
                 $productStocks[] = [
                     'product' => [
@@ -627,7 +705,7 @@ class ProductController extends Controller
                 ];
             }
         });
-    
+
         // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }

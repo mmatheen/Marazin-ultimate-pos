@@ -471,47 +471,47 @@ function showProductModal(product, stockEntry, row) {
 }
 
 
-    $(document).keydown(function(e) {
-        // Define key codes for shortcuts
-        const keyCodes = {
-            addProduct: 65, // 'A' key for adding a product
-            selectCustomer: 67, // 'C' key for selecting a customer
-            cashButton: 83, // 'S' key for cash sale
-            suspendButton: 80, // 'P' key for suspending a sale
-            creditSaleButton: 84, // 'T' key for credit sale
-        };
+    // $(document).keydown(function(e) {
+    //     // Define key codes for shortcuts
+    //     const keyCodes = {
+    //         addProduct: 65, // 'A' key for adding a product
+    //         selectCustomer: 67, // 'C' key for selecting a customer
+    //         cashButton: 83, // 'S' key for cash sale
+    //         suspendButton: 80, // 'P' key for suspending a sale
+    //         creditSaleButton: 84, // 'T' key for credit sale
+    //     };
 
-        // Handle shortcuts
-        switch (e.which) {
-            case keyCodes.addProduct:
-                e.preventDefault();
-                // Focus on product search or add product to billing body
-                $('#product-search').focus();
-                break;
-            case keyCodes.selectCustomer:
-                e.preventDefault();
-                // Open the customer selection modal
-                $('#customerModal').modal('show');
-                break;
-            case keyCodes.cashButton:
-                e.preventDefault();
-                // Trigger the cash sale button
-                $('#cashButton').trigger('click');
-                break;
-            case keyCodes.suspendButton:
-                e.preventDefault();
-                // Trigger the suspend sale button
-                $('#suspendButton').trigger('click');
-                break;
-            case keyCodes.creditSaleButton:
-                e.preventDefault();
-                // Trigger the credit sale button
-                $('#creditSaleButton').trigger('click');
-                break;
-            default:
-                break;
-        }
-        });
+    //     // Handle shortcuts
+    //     switch (e.which) {
+    //         case keyCodes.addProduct:
+    //             e.preventDefault();
+    //             // Focus on product search or add product to billing body
+    //             $('#productSearchInput').focus();
+    //             break;
+    //         case keyCodes.selectCustomer:
+    //             e.preventDefault();
+    //             // Open the customer selection modal
+    //             $('#customerModal').modal('show');
+    //             break;
+    //         case keyCodes.cashButton:
+    //             e.preventDefault();
+    //             // Trigger the cash sale button
+    //             $('#cashButton').trigger('click');
+    //             break;
+    //         case keyCodes.suspendButton:
+    //             e.preventDefault();
+    //             // Trigger the suspend sale button
+    //             $('#suspendModal').trigger('click');
+    //             break;
+    //         case keyCodes.creditSaleButton:
+    //             e.preventDefault();
+    //             // Trigger the credit sale button
+    //             $('#creditSaleButton').trigger('click');
+    //             break;
+    //         default:
+    //             break;
+    //     }
+    //     });
 
 function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
     const billingBody = document.getElementById('billing-body');
@@ -532,6 +532,7 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
         quantityInput.value = newQuantity;
         existingRow.querySelector('.price-input').value = price.toFixed(2);
         existingRow.querySelector('.subtotal').textContent = (newQuantity * price).toFixed(2);
+
     } else {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -545,13 +546,14 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
                 </div>
             </td>
             <td>
-                <div class="quantity-container d-flex align-items-center">
+               <div class="input-group quantity-container mb-3">
                     <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
                     <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
                     <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
                 </div>
+
             </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input separater_amount" data-currency data-quantity="${batchQuantity}"></td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input amount-input" data-currency data-quantity="${batchQuantity}"></td>
             <td class="subtotal">${price.toFixed(2)}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
             <td class="product-id" style="display:none">${product.id}</td>
@@ -562,7 +564,7 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
 
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
-        row.querySelector('.quantity-input').focus(); // Move cursor to quantity input field
+        row.querySelector('.quantity-input').focus();
     }
 
     updateTotals();
@@ -695,8 +697,8 @@ $(document).ready(function() {
         const salesDate = new Date().toISOString().slice(0, 10);
 
         if (!locationId) {
-            toastr.error('Location ID is required.');
-            alert(locationId);
+            // toastr.error('Location ID is required.');
+
             return;
         }
 
@@ -786,11 +788,158 @@ $(document).ready(function() {
 
     $('#cashButton').on('click', function() {
         const saleData = gatherSaleData('completed');
-        if (saleData) {
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
+        }
+        else{
             saleData.payments = gatherCashPaymentData();
             sendSaleData(saleData);
         }
+
     });
+
+    $('#cardButton').on('click', function() {
+        $('#cardModal').modal('show');
+    });
+
+    function gatherCardPaymentData() {
+        const cardNumber = $('#card_number').val().trim();
+        const cardHolderName = $('#card_holder_name').val().trim();
+        // const cardType = $('#card_type').val().trim();
+        const cardExpiryMonth = $('#card_expiry_month').val().trim();
+        const cardExpiryYear = $('#card_expiry_year').val().trim();
+        const cardSecurityCode = $('#card_security_code').val().trim();
+        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
+        const today = new Date().toISOString().slice(0, 10);
+
+        return [{
+            payment_method: 'card',
+            payment_date: today,
+            amount: totalAmount,
+            card_number: cardNumber,
+            card_holder_name: cardHolderName,
+            // card_type: cardType,
+            card_expiry_month: cardExpiryMonth,
+            card_expiry_year: cardExpiryYear,
+            card_security_code: cardSecurityCode
+        }];
+    }
+
+
+    $('#confirmCardPayment').on('click', function() {
+        // if (!validateCartFields()) {
+        //     return;
+        // }
+        const saleData = gatherSaleData('completed');
+
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
+        }
+
+        saleData.payments = gatherCardPaymentData();
+        sendSaleData(saleData);
+        $('#cardModal').modal('hide');
+        resetCardModal();
+    });
+
+
+    $('#chequeButton').on('click', function() {
+        $('#chequeModal').modal('show');
+    });
+    function gatherChequePaymentData() {
+        const chequeNumber = $('#cheque_number').val().trim();
+        const bankBranch = $('#cheque_bank_branch').val().trim();
+        const chequeReceivedDate = $('#cheque_received_date').val().trim();
+        const chequeValidDate = $('#cheque_valid_date').val().trim();
+        const chequeGivenBy = $('#cheque_given_by').val().trim();
+        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
+        const today = new Date().toISOString().slice(0, 10);
+
+        return [{
+            payment_method: 'cheque',
+            payment_date: today,
+            amount: totalAmount,
+            cheque_number: chequeNumber,
+            bank_branch: bankBranch,
+            cheque_received_date: chequeReceivedDate,
+            cheque_valid_date: chequeValidDate,
+            cheque_given_by: chequeGivenBy
+        }];
+    }
+
+    function validateChequeFields() {
+        let isValid = true;
+
+        if ($('#cheque_number').val().trim() === '') {
+            $('#chequeNumberError').text('Cheque Number is required.');
+            isValid = false;
+        } else {
+            $('#chequeNumberError').text('');
+        }
+
+        // if ($('#cheque_bank_branch').val().trim() === '') {
+        //     $('#bankBranchError').text('Bank Branch is required.');
+        //     isValid = false;
+        // } else {
+        //     $('#bankBranchError').text('');
+        // }
+
+        if ($('#cheque_received_date').val().trim() === '') {
+            $('#chequeReceivedDateError').text('Cheque Received Date is required.');
+            isValid = false;
+        } else {
+            $('#chequeReceivedDateError').text('');
+        }
+
+        if ($('#cheque_valid_date').val().trim() === '') {
+            $('#chequeValidDateError').text('Cheque Valid Date is required.');
+            isValid = false;
+        } else {
+            $('#chequeValidDateError').text('');
+        }
+
+
+        return isValid;
+    }
+
+    $('#confirmChequePayment').on('click', function() {
+        if (!validateChequeFields()) {
+            return;
+        }
+
+        const saleData = gatherSaleData('completed');
+
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
+        }
+
+        saleData.payments = gatherChequePaymentData();
+        sendSaleData(saleData);
+        $('#chequeModal').modal('hide');
+        resetChequeModal();
+    });
+
+    function resetCardModal() {
+        $('#card_number').val('');
+        $('#card_holder_name').val('');
+        $('#card_type').val('visa');
+        $('#card_expiry_month').val('');
+        $('#card_expiry_year').val('');
+        $('#card_security_code').val('');
+    }
+
+    function resetChequeModal() {
+        $('#cheque_number').val('');
+        $('#bank_branch').val('');
+        $('#cheque_received_date').val('');
+        $('#cheque_valid_date').val('');
+        $('#cheque_given_by').val('');
+        $('.error-message').text('');
+    }
+
 
     $('#creditSaleButton').on('click', function() {
         const customerId = $('#customer-id').val();
@@ -800,29 +949,42 @@ $(document).ready(function() {
         }
 
         const saleData = gatherSaleData('completed');
-        if (saleData) {
-            sendSaleData(saleData);
+
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
         }
+
+         sendSaleData(saleData);
+
     });
 
     $('#suspendModal').on('click', '#confirmSuspend', function() {
         const saleData = gatherSaleData('suspend');
-        if (saleData) {
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
+        }
+
             sendSaleData(saleData);
             let modal = bootstrap.Modal.getInstance(document.getElementById("suspendModal"));
             modal.hide();
-        }
+
     });
 
     document.getElementById('finalize_payment').addEventListener('click', function() {
         const saleData = gatherSaleData('completed');
-        if (saleData) {
+        if (!saleData) {
+            toastr.error('Please add at least one product before completing the sale.');
+            return;
+        }
+
             const paymentData = gatherPaymentData();
             saleData.payments = paymentData;
             sendSaleData(saleData);
             let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
             modal.hide();
-        }
+
     });
 
     function gatherPaymentData() {
@@ -954,8 +1116,7 @@ $(document).ready(function() {
 });
 
         function resetForm() {
-            // document.getElementById('customer-id').value = 'Please Select';
-
+            document.getElementById('customer-id').value = 1;
             const quantityInputs = document.querySelectorAll('.quantity-input');
             quantityInputs.forEach(input => {
                 input.value = 1;
@@ -966,6 +1127,9 @@ $(document).ready(function() {
             billingBodyRows.forEach(row => {
                 row.remove();
             });
+
+             document.getElementById('amount-given').value = ''; // Reset the amount given field
+
 
             updateTotals();
         }
@@ -1080,6 +1244,20 @@ $(document).ready(function() {
         fetchAllSales();
 
     });
+
+    $(document).ready(function(){
+            $(".amount-input").inputmask({
+                alias: 'numeric',
+                groupSeparator: ',',
+                autoGroup: true,
+                digits: 2,
+                digitsOptional: false,
+                placeholder: '0',
+                rightAlign: false,
+                removeMaskOnSubmit: true
+            });
+    });
+
 </script>
 
 
@@ -1112,6 +1290,7 @@ $(document).ready(function() {
 
 <!-- jQuery Validation Plugin -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.js"></script>
 
 <script>
     $(function() {

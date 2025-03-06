@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,26 @@ class StockHistory extends Model
     public function locationBatch()
     {
         return $this->belongsTo(LocationBatch::class, 'loc_batch_id');
+    }
+
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class, 'reference_id');
+    }
+
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class, 'reference_id');
+    }
+
+    public function saleReturn()
+    {
+        return $this->belongsTo(SalesReturn::class, 'reference_id');
+    }
+
+    public function purchaseReturn()
+    {
+        return $this->belongsTo(PurchaseReturn::class, 'reference_id');
     }
 
     /**

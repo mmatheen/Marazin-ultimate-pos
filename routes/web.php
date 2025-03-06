@@ -150,6 +150,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
         Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
         Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
+        Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
         Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
         Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
         Route::get('/product-get-all', [ProductController::class, 'index']);
@@ -174,7 +175,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
 
-        
+
         // Dropdown Routes
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
         Route::get('/get-unit', [UnitController::class, 'unitDropdown']);

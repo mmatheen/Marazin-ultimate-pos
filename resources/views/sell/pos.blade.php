@@ -22,8 +22,9 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/inputmask/5.0.6-beta.34/jquery.inputmask.min.js"></script> --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
+
 
     <style>
         /* General Styles */
@@ -670,31 +671,48 @@
                                         </div>
                                         <div class="d-grid gap-1">
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('/')">/</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('*')">×</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('-')">-</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
-                                                <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
-                                                <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
-                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col"
+                                                    onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('+')">+</button>
                                             </div>
                                             <div class="row g-1">
-                                                <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                                                <button class="btn btn-success btn-sm col"
+                                                    onclick="calculateResult()">=</button>
                                             </div>
                                         </div>
                                     </div>
@@ -727,9 +745,19 @@
                 <div class="card bg-white p-3">
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="input-group local-forms d-flex">
-                                <label>Customer <span class="login-danger">*</span></label>
-                                <select class="form-control" id="customer-id">
+                            {{-- <div class="input-group local-forms d-flex align-items-center">
+                                <label class="flex-grow-1">Customer <span class="login-danger">*</span></label>
+                                <select class="form-control select2Box" id="customer-id" style="width: calc(100% - 40px);">
+                                    <option selected disabled>Please Select</option>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                                <button type="button" class="btn btn-outline-info ml-2" id="addCustomerButton">
+                                    <i class="fas fa-plus-circle"></i>
+                                </button>
+                            </div> --}}
+                            <div class="input-group mb-3">
+                                <select class="form-control select2Box" id="customer-id"
+                                    style="width: calc(100% - 40px);">
                                     <option selected disabled>Please Select</option>
                                     <!-- Options will be populated dynamically -->
                                 </select>
@@ -882,7 +910,12 @@
                         </button>
                         <button class="btn btn-outline-success" id="creditSaleButton"><i class="fas fa-check"></i>
                             Credit Sale</button>
-                        <button class="btn btn-outline-pink"><i class="fas fa-credit-card"></i> Card</button>
+                        <button class="btn btn-outline-pink" id="cardButton">
+                            <i class="fas fa-credit-card"></i> Card
+                        </button>
+                        <button class="btn btn-outline-pink" id="chequeButton">
+                            <i class="fas fa-money-check"></i> Cheque
+                        </button>
                         <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
                             <i class="fas fa-list"></i> Multiple Pay
                         </button>
@@ -904,12 +937,14 @@
 
 
 
-        <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+        <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel"
+            aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="productModalLabel">Product Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body" id="productModalBody">
                         <!-- Product details will be injected here -->
@@ -920,7 +955,29 @@
                     </div>
                 </div>
             </div>
-        </div>                                                                                                                                                                                                                       
+        </div>
+
+        <!-- Bootstrap Modal for Suspend -->
+        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
+                        <textarea class="form-control" id="suspendNote" rows="3" placeholder="Write reason..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmSuspend">Suspend</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Bootstrap Modal for Suspended Sales -->
         <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
             aria-hidden="true">
@@ -957,100 +1014,189 @@
     </div>
 
 
-    <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
-        aria-labelledby="paymentModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="paymentModalLabel">Add Payment</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-12 col-md-8">
-                            <div class="card shadow-sm mb-4">
-                                <div class="card-body">
-                                    <form id="paymentForm">
-                                        <input type="hidden" id="saleId" name="reference_id">
-                                        <input type="hidden" id="payment_type" name="payment_type">
-                                        <input type="hidden" id="customer_id" name="customer_id">
-                                        <input type="hidden" id="reference_no" name="reference_no">
-                                        <div class="row mb-3">
-                                            <div class="col-md-12">
-                                                <label for="advanceBalance" class="form-label">Advance Balance : Rs.
-                                                    0.00</label>
-                                            </div>
-                                        </div>
-                                        <div id="paymentRows">
-                                            <div class="card mb-3 payment-row position-relative">
-                                                <div class="card-body">
-                                                    <div class="row">
-                                                        <div class="col-md-4">
-                                                            <label for="paymentMethod" class="form-label">Payment
-                                                                Method</label>
-                                                            <select class="form-select payment-method"
-                                                                name="payment_method"
-                                                                onchange="togglePaymentFields(this)">
-                                                                <option value="cash" selected>Cash</option>
-                                                                <option value="card">Credit Card</option>
-                                                                <option value="cheque">Cheque</option>
-                                                                <option value="bank_transfer">Bank Transfer</option>
-                                                            </select>
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label for="paidOn" class="form-label">Paid On</label>
-                                                            <input class="form-control datetimepicker payment-date"
-                                                                type="text" name="payment_date"
-                                                                placeholder="DD-MM-YYYY">
-                                                        </div>
-                                                        <div class="col-md-4">
-                                                            <label for="payAmount" class="form-label">Amount</label>
-                                                            <input type="text" class="form-control payment-amount"
-                                                                id="payment-amount" name="amount"
-                                                                oninput="validateAmount()">
-                                                            <div class="text-danger amount-error"
-                                                                style="display:none;"></div>
-                                                        </div>
-                                                    </div>
-                                                    <!-- Conditional Payment Fields -->
-                                                    <div class="conditional-fields row mt-3"></div>
+    <div class="container mt-5">
+        <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="paymentModalLabel">Add Payment</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12 col-md-8">
+                                <div class="card shadow-sm mb-4">
+                                    <div class="card-body">
+                                        <form id="paymentForm">
+                                            <input type="hidden" id="saleId" name="reference_id">
+                                            <input type="hidden" id="payment_type" name="payment_type">
+                                            <input type="hidden" id="customer_id" name="customer_id">
+                                            <input type="hidden" id="reference_no" name="reference_no">
+                                            <div class="row mb-3">
+                                                <div class="col-md-12">
+                                                    <label for="advanceBalance" class="form-label">Advance Balance : Rs. 0.00</label>
                                                 </div>
-                                                <button type="button"
-                                                    class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row"
-                                                    aria-label="Close"></button>
                                             </div>
-                                        </div>
-                                        <button type="button" class="btn btn-primary w-100 mb-3"
-                                            id="addPaymentRow">Add Payment Row</button>
-                                        <div class="mb-3">
-                                            <label for="paymentNote" class="form-label">Payment Note</label>
-                                            <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
-                                        </div>
-                                    </form>
+                                            <div id="paymentRows">
+                                                <div class="card mb-3 payment-row position-relative">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <label for="paymentMethod" class="form-label">Payment Method</label>
+                                                                <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                                                    <option value="cash" selected>Cash</option>
+                                                                    <option value="card">Credit Card</option>
+                                                                    <option value="cheque">Cheque</option>
+                                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label for="paidOn" class="form-label">Paid On</label>
+                                                                <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <label for="payAmount" class="form-label">Amount</label>
+                                                                <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
+                                                                <div class="text-danger amount-error" style="display:none;"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="conditional-fields row mt-3"></div>
+                                                    </div>
+                                                    <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn btn-primary w-100 mb-3" id="addPaymentRow">Add Payment Row</button>
+                                            <div class="mb-3">
+                                                <label for="paymentNote" class="form-label">Payment Note</label>
+                                                <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <div class="card shadow-sm" style="height: 100%;">
-                                <div class="card-body bg-warning text-dark rounded" style="padding: 20px;">
-                                    <div class="text-start">
-                                        <p>Total Items: <strong id="modal-total-items">0.00</strong></p>
-                                        <p>Total Payable: <strong id="modal-total-payable">0.00</strong></p>
-                                        <p>Total Paying: <strong id="modal-total-paying">0.00</strong></p>
-                                        <p>Change Return: <strong id="modal-change-return">0.00</strong></p>
-                                        <p>Balance: <strong id="modal-balance">0.00</strong></p>
+                            <div class="col-12 col-md-4">
+                                <div class="card shadow-sm" style="height: 100%;">
+                                    <div class="card-body bg-warning text-dark rounded" style="padding: 20px;">
+                                        <div class="text-start">
+                                            <p>Total Items:</p>
+                                            <h5><strong id="modal-total-items">0.00</strong></h5><hr>
+                                            <p>Total Payable:</p>
+                                            <h5><strong id="modal-total-payable">0.00</strong></h5><hr>
+                                            <p>Total Paying:</p>
+                                            <h5><strong id="modal-total-paying">0.00</strong></h5><hr>
+                                            <p>Change Return:</p>
+                                            <h5><strong id="modal-change-return">0.00</strong></h5><hr>
+                                            <p>Balance:</p>
+                                            <h5><strong id="modal-balance">0.00</strong></h5>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="row mt-4">
-                        <div class="col-12 text-end">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
-                                Payment</button>
+                        <div class="row mt-4">
+                            <div class="col-12 text-end">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
+                            </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Payment Modal -->
+    <div class="modal fade" id="cardModal" tabindex="-1" aria-labelledby="cardModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cardModalLabel">Card Payment Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="cardNumber" class="form-label">Card Number</label>
+                            <input type="text" class="form-control" name="card_number" id="card_number">
+                            <div id="cardNumberError" class="text-danger"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                            <input type="text" class="form-control" name="card_holder_name"
+                                id="card_holder_name">
+                        </div>
+                        {{-- <div class="col-md-6">
+                            <label for="cardType" class="form-label">Card Type</label>
+                            <select class="form-select" name="card_type" id="card_type">
+                                <option value="visa">Visa</option>
+                                <option value="mastercard">MasterCard</option>
+                                <option value="amex">American Express</option>
+                            </select>
+                        </div> --}}
+                        <div class="col-md-6">
+                            <label for="expiryMonth" class="form-label">Expiry Month</label>
+                            <input type="text" class="form-control" name="card_expiry_month"
+                                id="card_expiry_month">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="expiryYear" class="form-label">Expiry Year</label>
+                            <input type="text" class="form-control" name="card_expiry_year"
+                                id="card_expiry_year">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="securityCode" class="form-label">Security Code</label>
+                            <input type="text" class="form-control" name="card_security_code"
+                                id="card_security_code">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="confirmCardPayment">Confirm Payment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Cheque Payment Modal -->
+    <div class="modal fade" id="chequeModal" tabindex="-1" aria-labelledby="chequeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="chequeModalLabel">Cheque Payment Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="chequeNumber" class="form-label">Cheque Number</label>
+                            <input type="text" class="form-control" name="cheque_number" id="cheque_number">
+                            <div id="chequeNumberError" class="text-danger"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="bankBranch" class="form-label">Bank Branch</label>
+                            <input type="text" class="form-control" name="cheque_bank_branch" id="cheque_bank_branch">
+                            <div id="bankBranchError" class="text-danger"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cheque_received_date" class="form-label">Cheque Received Date</label>
+                            <input type="text" class="form-control datetimepicker cheque-received-date" name="cheque_received_date" id="cheque_received_date">
+                            <div id="chequeReceivedDateError" class="text-danger"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
+                            <input type="text" class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date" id="cheque_valid_date">
+                            <div id="chequeValidDateError" class="text-danger"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cheque_given_by" class="form-label">Cheque Given by</label>
+                            <input type="text" class="form-control" name="cheque_given_by" id="cheque_given_by">
+                            <div id="chequeGivenByError" class="text-danger"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="confirmChequePayment">Confirm Payment</button>
                 </div>
             </div>
         </div>
@@ -1065,31 +1211,31 @@
             const newPaymentRow = document.createElement('div');
             newPaymentRow.className = 'card mb-3 payment-row position-relative';
             newPaymentRow.innerHTML = `
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-4">
-                    <label for="paymentMethod" class="form-label">Payment Method</label>
-                    <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
-                        <option value="cash" selected>Cash</option>
-                        <option value="card">Credit Card</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                    </select>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="paymentMethod" class="form-label">Payment Method</label>
+                            <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                <option value="cash" selected>Cash</option>
+                                <option value="card">Credit Card</option>
+                                <option value="cheque">Cheque</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="paidOn" class="form-label">Paid On</label>
+                            <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="payAmount" class="form-label">Amount</label>
+                            <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
+                            <div class="text-danger amount-error" style="display:none;"></div>
+                        </div>
+                    </div>
+                    <div class="conditional-fields row mt-3"></div>
                 </div>
-                <div class="col-md-4">
-                    <label for="paidOn" class="form-label">Paid On</label>
-                    <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY">
-                </div>
-                <div class="col-md-4">
-                    <label for="payAmount" class="form-label">Amount</label>
-                    <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
-                    <div class="text-danger amount-error" style="display:none;"></div>
-                </div>
-            </div>
-            <div class="conditional-fields row mt-3"></div>
-        </div>
-        <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
-    `;
+                <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+            `;
             paymentRows.appendChild(newPaymentRow);
 
             newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
@@ -1101,8 +1247,6 @@
             initializeDateTimePickers();
         });
 
-
-
         function togglePaymentFields(selectElement) {
             const paymentMethod = selectElement.value;
             const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
@@ -1111,66 +1255,66 @@
 
             if (paymentMethod === 'card') {
                 conditionalFields.innerHTML = `
-            <div class="col-md-4">
-                <label for="cardNumber" class="form-label">Card Number</label>
-                <input type="text" class="form-control" name="card_number">
-            </div>
-            <div class="col-md-4">
-                <label for="cardHolderName" class="form-label">Card Holder Name</label>
-                <input type="text" class="form-control" name="card_holder_name">
-            </div>
-            <div class="col-md-4">
-                <label for="cardType" class="form-label">Card Type</label>
-                <select class="form-select" name="card_type">
-                    <option value="visa">Visa</option>
-                    <option value="mastercard">MasterCard</option>
-                    <option value="amex">American Express</option>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label for="expiryMonth" class="form-label">Expiry Month</label>
-                <input type="text" class="form-control" name="card_expiry_month">
-            </div>
-            <div class="col-md-4">
-                <label for="expiryYear" class="form-label">Expiry Year</label>
-                <input type="text" class="form-control" name="card_expiry_year">
-            </div>
-            <div class="col-md-4">
-                <label for="securityCode" class="form-label">Security Code</label>
-                <input type="text" class="form-control" name="card_security_code">
-            </div>
-        `;
+                    <div class="col-md-4">
+                        <label for="cardNumber" class="form-label">Card Number</label>
+                        <input type="text" class="form-control" name="card_number" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="cardHolderName" class="form-label">Card Holder Name</label>
+                        <input type="text" class="form-control" name="card_holder_name">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="cardType" class="form-label">Card Type</label>
+                        <select class="form-select" name="card_type">
+                            <option value="visa">Visa</option>
+                            <option value="mastercard">MasterCard</option>
+                            <option value="amex">American Express</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="expiryMonth" class="form-label">Expiry Month</label>
+                        <input type="text" class="form-control" name="card_expiry_month">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="expiryYear" class="form-label">Expiry Year</label>
+                        <input type="text" class="form-control" name="card_expiry_year">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="securityCode" class="form-label">Security Code</label>
+                        <input type="text" class="form-control" name="card_security_code">
+                    </div>
+                `;
             } else if (paymentMethod === 'cheque') {
                 conditionalFields.innerHTML = `
-            <div class="col-md-6">
-                <label for="chequeNumber" class="form-label">Cheque Number</label>
-                <input type="text" class="form-control" name="cheque_number">
-            </div>
-            <div class="col-md-6">
-                <label for="bankBranch" class="form-label">Bank Branch</label>
-                <input type="text" class="form-control" name="cheque_bank_branch">
-            </div>
-            <div class="col-md-6">
-                <label for="cheque_received_date" class="form-label">Cheque Received Date</label>
-                <input type="text" class="form-control datetimepicker cheque-received-date" name="cheque_received_date">
-            </div>
-            <div class="col-md-6">
-                <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
-                <input type="text" class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date">
-            </div>
-            <div class="col-md-6">
-                <label for="cheque_given_by" class="form-label">Cheque Given by</label>
-                <input type="text" class="form-control" name="cheque_given_by">
-            </div>
-        `;
+                    <div class="col-md-6">
+                        <label for="chequeNumber" class="form-label">Cheque Number</label>
+                        <input type="text" class="form-control" name="cheque_number" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="bankBranch" class="form-label">Bank Branch</label>
+                        <input type="text" class="form-control" name="cheque_bank_branch">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="cheque_received_date" class="form-label">Cheque Received Date</label>
+                        <input type="text" class="form-control datetimepicker cheque-received-date" name="cheque_received_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
+                        <input type="text" class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="cheque_given_by" class="form-label">Cheque Given by</label>
+                        <input type="text" class="form-control" name="cheque_given_by">
+                    </div>
+                `;
                 initializeDateTimePickers();
             } else if (paymentMethod === 'bank_transfer') {
                 conditionalFields.innerHTML = `
-            <div class="col-md-12">
-                <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
-                <input type="text" class="form-control" name="bank_account_number">
-            </div>
-        `;
+                    <div class="col-md-12">
+                        <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
+                        <input type="text" class="form-control" name="bank_account_number">
+                    </div>
+                `;
             }
         }
 
@@ -1198,33 +1342,33 @@
         document.getElementById('paymentModal').addEventListener('hidden.bs.modal', function() {
             document.getElementById('paymentForm').reset();
             document.getElementById('paymentRows').innerHTML = `
-        <div class="card mb-3 payment-row position-relative">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <label for="paymentMethod" class="form-label">Payment Method</label>
-                        <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
-                            <option value="cash" selected>Cash</option>
-                            <option value="card">Credit Card</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
+                <div class="card mb-3 payment-row position-relative">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="paymentMethod" class="form-label">Payment Method</label>
+                                <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                    <option value="cash" selected>Cash</option>
+                                    <option value="card">Credit Card</option>
+                                    <option value="cheque">Cheque</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="paidOn" class="form-label">Paid On</label>
+                                <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="payAmount" class="form-label">Amount</label>
+                                <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
+                                <div class="text-danger amount-error" style="display:none;"></div>
+                            </div>
+                        </div>
+                        <div class="conditional-fields row mt-3"></div>
                     </div>
-                    <div class="col-md-4">
-                        <label for="paidOn" class="form-label">Paid On</label>
-                        <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="payAmount" class="form-label">Amount</label>
-                        <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
-                        <div class="text-danger amount-error" style="display:none;"></div>
-                    </div>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
                 </div>
-                <div class="conditional-fields row mt-3"></div>
-            </div>
-            <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
-        </div>
-    `;
+            `;
             updatePaymentSummary();
             initializeDateTimePickers();
         });
@@ -1299,40 +1443,40 @@
     </script>
 
     <!-- JavaScript for Calculator Functionality -->
-<script>
-    function calcInput(value) {
-        document.getElementById('calcDisplay').value += value;
-    }
-
-    function clearCalc() {
-        document.getElementById('calcDisplay').value = '';
-    }
-
-    function calculateResult() {
-        try {
-            document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
-        } catch (e) {
-            document.getElementById('calcDisplay').value = 'Error';
+    <script>
+        function calcInput(value) {
+            document.getElementById('calcDisplay').value += value;
         }
-    }
 
-    // Prevent dropdown from closing when clicking inside
-    document.getElementById('calculatorDropdown').addEventListener('click', function (event) {
-        event.stopPropagation();
-    });
+        function clearCalc() {
+            document.getElementById('calcDisplay').value = '';
+        }
 
-    // Handle keyboard input, allowing only numbers and operators
-    function handleKeyboardInput(event) {
-        const allowedKeys = "0123456789+-*/.";
-        if (!allowedKeys.includes(event.key) && event.key !== "Backspace" && event.key !== "Enter") {
-            event.preventDefault();
+        function calculateResult() {
+            try {
+                document.getElementById('calcDisplay').value = eval(document.getElementById('calcDisplay').value);
+            } catch (e) {
+                document.getElementById('calcDisplay').value = 'Error';
+            }
         }
-        if (event.key === "Enter") {
-            calculateResult();
+
+        // Prevent dropdown from closing when clicking inside
+        document.getElementById('calculatorDropdown').addEventListener('click', function(event) {
+            event.stopPropagation();
+        });
+
+        // Handle keyboard input, allowing only numbers and operators
+        function handleKeyboardInput(event) {
+            const allowedKeys = "0123456789+-*/.";
+            if (!allowedKeys.includes(event.key) && event.key !== "Backspace" && event.key !== "Enter") {
+                event.preventDefault();
+            }
+            if (event.key === "Enter") {
+                calculateResult();
+            }
         }
-    }
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
