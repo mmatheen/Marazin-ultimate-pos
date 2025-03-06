@@ -719,7 +719,17 @@ function addProductToTable(product, isEditing = false, prices = {}) {
                                     ?.last_name || '') + '</td>');
                                 row.append('<td>' + item.purchasing_status +
                                     '</td>');
-                                row.append('<td>' + item.payment_status + '</td>');
+                                let paymentStatusBadge = '';
+                                if (item.payment_status === 'Due') {
+                                    paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
+                                } else if (item.payment_status === 'Partial') {
+                                    paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
+                                } else if (item.payment_status === 'Paid') {
+                                    paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
+                                } else {
+                                    paymentStatusBadge = '<span class="badge bg-secondary">' + item.payment_status + '</span>';
+                                }
+                                row.append('<td>' + paymentStatusBadge + '</td>');
                                 row.append('<td>' + item.final_total + '</td>');
                                 row.append('<td>' + item.total_due + '</td>');
                                 row.append('<td>' + (item.supplier?.assign_to ||

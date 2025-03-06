@@ -124,7 +124,17 @@
                                     .customer.last_name + '</td>');
                                 row.append('<td>' + item.customer.mobile_no + '</td>');
                                 row.append('<td>' + item.location.name + '</td>');
-                                row.append('<td>' + item.payment_status + '</td>');
+                                let paymentStatusBadge = '';
+                                if (item.payment_status === 'Due') {
+                                    paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
+                                } else if (item.payment_status === 'Partial') {
+                                    paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
+                                } else if (item.payment_status === 'Paid') {
+                                    paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
+                                } else {
+                                    paymentStatusBadge = '<span class="badge bg-secondary">' + item.payment_status + '</span>';
+                                }
+                                row.append('<td>' + paymentStatusBadge + '</td>');
                                 row.append('<td>' + (item.payments && item.payments[0] ?
                                         item.payments[0].payment_method : 'N/A') +
                                     '</td>');

@@ -627,6 +627,12 @@
             align-items: center;
             justify-content: center;
         }
+
+        .star {
+            color: gold;
+            font-size: 20px;
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -895,28 +901,26 @@
             </div>
         </div>
 
-        <!-- Bootstrap Modal for Suspend -->
-        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog">
+
+
+
+        <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                        <h5 class="modal-title" id="productModalLabel">Product Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
-                        <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
-                        <textarea class="form-control" id="suspendNote" rows="3" placeholder="Write reason..."></textarea>
+                    <div class="modal-body" id="productModalBody">
+                        <!-- Product details will be injected here -->
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" class="btn btn-danger" id="confirmSuspend">Suspend</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveProductChanges">Save changes</button>
                     </div>
                 </div>
             </div>
-        </div>
-
+        </div>                                                                                                                                                                                                                       
         <!-- Bootstrap Modal for Suspended Sales -->
         <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
             aria-hidden="true">
