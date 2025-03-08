@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,39 +31,43 @@ class Product extends Model
         'max_retail_price',
     ];
 
-    // Relationship to locations (many-to-many)
     public function locations()
     {
         return $this->belongsToMany(Location::class)->withPivot('qty');
     }
 
-    // Relationship to main category (belongsTo)
     public function mainCategory()
     {
         return $this->belongsTo(MainCategory::class, 'main_category_id');
     }
 
-    // Relationship to brand (belongsTo)
     public function brand()
     {
         return $this->belongsTo(Brand::class, 'brand_id');
     }
 
-    // Relationship to unit (belongsTo)
     public function unit()
     {
         return $this->belongsTo(Unit::class, 'unit_id');
     }
 
-    // Relationship to batches (hasMany)
     public function batches()
     {
         return $this->hasMany(Batch::class);
     }
 
-    // Relationship to stock histories (hasMany)
     public function stockHistories()
     {
-        return $this->hasMany(StockHistory::class);
+        return $this->hasManyThrough(StockHistory::class, LocationBatch::class, 'batch_id', 'loc_batch_id', 'id', 'id');
+    }
+
+    public function salesProducts()
+    {
+        return $this->hasManyThrough(SalesProduct::class, Batch::class, 'product_id', 'batch_id', 'id', 'id');
+    }
+
+    public function purchases()
+    {
+        return $this->hasManyThrough(Purchase::class, PurchaseProduct::class, 'product_id', 'purchase_id', 'id', 'id');
     }
 }

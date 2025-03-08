@@ -34,26 +34,6 @@ class StockHistory extends Model
         return $this->belongsTo(LocationBatch::class, 'loc_batch_id');
     }
 
-    public function purchase()
-    {
-        return $this->belongsTo(Purchase::class, 'reference_id');
-    }
-
-    public function sale()
-    {
-        return $this->belongsTo(Sale::class, 'reference_id');
-    }
-
-    public function saleReturn()
-    {
-        return $this->belongsTo(SalesReturn::class, 'reference_id');
-    }
-
-    public function purchaseReturn()
-    {
-        return $this->belongsTo(PurchaseReturn::class, 'reference_id');
-    }
-
     /**
      * Get all valid stock types.
      *
