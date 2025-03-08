@@ -30,10 +30,29 @@ class Batch extends Model
     {
         return $this->hasMany(PurchaseProduct::class);
     }
-    
+
     public function salesProducts()
     {
         return $this->hasMany(SalesProduct::class, 'batch_id');
+    }
+    public function purchaseReturns()
+    {
+        return $this->hasMany(PurchaseReturnProduct::class, 'batch_no', 'id');
+    }
+
+    public function saleReturns()
+    {
+        return $this->hasMany(SalesReturnProduct::class, 'batch_id', 'id');
+    }
+
+    public function stockAdjustments()
+    {
+        return $this->hasMany(AdjustmentProduct::class);
+    }
+
+    public function stockTransfers()
+    {
+        return $this->hasMany(StockTransferProduct::class);
     }
 
     public function stockHistories()

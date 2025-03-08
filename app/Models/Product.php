@@ -70,4 +70,9 @@ class Product extends Model
     {
         return $this->hasManyThrough(Purchase::class, PurchaseProduct::class, 'product_id', 'purchase_id', 'id', 'id');
     }
+    
+    public function purchaseReturn()
+    {
+        return $this->hasManyThrough(PurchaseReturn::class, PurchaseReturnProduct::class, 'product_id', 'purchase_id', 'id', 'id');
+    }
 }

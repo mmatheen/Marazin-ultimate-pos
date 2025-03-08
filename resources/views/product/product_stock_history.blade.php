@@ -155,8 +155,16 @@
         function getReferenceNo(history) {
             if (history.stock_type === 'purchase' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_products) {
                 return history.location_batch.batch.purchase_products[0]?.purchase?.reference_no || 'N/A';
-            } else if (history.stock_type === 'sale' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_products) {
-                return history.location_batch.batch.purchase_products[0]?.sale?.invoice_no || 'N/A';
+            } else if (history.stock_type === 'sale' && history.location_batch && history.location_batch.batch && history.location_batch.batch.sales_products) {
+                return history.location_batch.batch.sales_products[0]?.sale?.invoice_no || 'N/A';
+            } else if (history.stock_type === 'purchase_return' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_returns) {
+                return history.location_batch.batch.purchase_returns[0]?.purchase_return?.reference_no || 'N/A';
+            } else if (history.stock_type === 'sale_return' && history.location_batch && history.location_batch.batch && history.location_batch.batch.sale_returns) {
+                return history.location_batch.batch.sale_returns[0]?.sales_return?.reference_no || 'N/A';
+            } else if (history.stock_type === 'adjustment' && history.location_batch && history.location_batch.batch && history.location_batch.batch.stock_adjustments) {
+                return history.location_batch.batch.stock_adjustments[0]?.stock_adjustment?.reference_no || 'N/A';
+            } else if (history.stock_type === 'transfer_in' || history.stock_type === 'transfer_out') {
+                return history.location_batch.batch.stock_transfers[0]?.stock_transfer?.reference_no || 'N/A';
             } else {
                 return 'N/A';
             }
@@ -166,8 +174,14 @@
             if (history.stock_type === 'purchase' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_products) {
                 const supplier = history.location_batch.batch.purchase_products[0]?.purchase?.supplier;
                 return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
-            } else if (history.stock_type === 'sale' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_products) {
-                const customer = history.location_batch.batch.purchase_products[0]?.sale?.customer;
+            } else if (history.stock_type === 'sale' && history.location_batch && history.location_batch.batch && history.location_batch.batch.sales_products) {
+                const customer = history.location_batch.batch.sales_products[0]?.sale?.customer;
+                return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
+            } else if (history.stock_type === 'purchase_return' && history.location_batch && history.location_batch.batch && history.location_batch.batch.purchase_returns) {
+                const supplier = history.location_batch.batch.purchase_returns[0]?.purchase_return?.supplier;
+                return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
+            } else if (history.stock_type === 'sale_return' && history.location_batch && history.location_batch.batch && history.location_batch.batch.sale_returns) {
+                const customer = history.location_batch.batch.sale_returns[0]?.sales_return?.customer;
                 return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
             } else {
                 return 'N/A';
