@@ -1,13 +1,13 @@
 <?php
 
 namespace App\Models;
-
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
 
     protected $table = 'customers';
     protected $fillable = [
@@ -18,7 +18,7 @@ class Customer extends Model
         'email',
         'address',
         'opening_balance',
-        'location_id',
+        // 'location_id',
     ];
 
     public static function boot()

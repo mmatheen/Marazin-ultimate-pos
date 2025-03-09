@@ -749,17 +749,19 @@ $(document).ready(function() {
             },
             data: JSON.stringify(saleData),
             success: function(response) {
-                if (response.message) {
+                if (response.message && response.invoice_html) {
                     document.getElementsByClassName('successSound')[0].play();
                     toastr.success(response.message);
-
-                    // Open a hidden print area in the same window
+                    
+                    // Create a print area dynamically
                     var printArea = document.createElement('div');
                     printArea.innerHTML = response.invoice_html;
                     document.body.appendChild(printArea);
-
-                    // Print and then remove the print area
+                    
+                    // Print the invoice
                     window.print();
+                    
+                    // Remove print area after printing
                     document.body.removeChild(printArea);
 
                     // Reset the form and refresh products
@@ -773,7 +775,7 @@ $(document).ready(function() {
                 toastr.error('An error occurred: ' + xhr.responseText);
             }
         });
-    }
+}
 
     function gatherCashPaymentData() {
         const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists

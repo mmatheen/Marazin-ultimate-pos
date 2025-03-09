@@ -51,7 +51,7 @@ class ProductController extends Controller
     // }
 
     public function getStockHistory($productId)
-    {
+    { 
         $product = Product::with([
             'stockHistories.locationBatch.batch.purchaseProducts.purchase.supplier',
             'stockHistories.locationBatch.batch.salesProducts.sale.customer',

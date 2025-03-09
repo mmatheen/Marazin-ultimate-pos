@@ -1,11 +1,12 @@
 <?php
 namespace App\Models;
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Supplier extends Model
 {
-    use HasFactory;
+    use HasFactory,LocationTrait;
     protected $table = 'suppliers';
     protected $fillable = [
         'prefix',
@@ -16,7 +17,7 @@ class Supplier extends Model
         'address',
         'opening_balance',
         'current_balance',
-        'location_id',
+
     ];
 
     public function getFullNameAttribute()
