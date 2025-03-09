@@ -53,7 +53,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
     <title>ARB - Distribution</title>
-    <link rel="shortcut icon" href="{{ URL::to('assets/img/favicon.png') }}">
+    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/icons/flags/flags.css') }}">
@@ -83,13 +83,13 @@
             <div class="container">
                 <div class="loginbox">
                     <div class="login-left">
-                        <img class="img-fluid" src="{{'/assets/images/1728739712.jpg' }}" alt="student login image">
+                        <img class="img-fluid" src="{{'/assets/images/ARB Logo.png' }}" alt="ARB login image">
                     </div>
 
                     <div class="login-right">
                         <div class="login-right-wrap">
                             <div class="d-flex justify-content-center mb-3">
-                                <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px" height="100px" src="{{ URL::to('assets/img/logo-small.png') }}" alt="Logo"></a>
+                                <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px" height="100px" src="{{ URL::to('assets/img/ARB Logo.png') }}" alt="Logo"></a>
                             </div>
                             <h1 class="mb-4 text-center">ARB Distribution</h1>
                             {{-- <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p> --}}

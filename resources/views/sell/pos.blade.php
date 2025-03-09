@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS Page</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="shortcut icon" href={{ asset('assets/img/favicon.png') }}>
+    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
@@ -815,16 +815,17 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Total</label>
-                                <p id="total-amount" class="form-control">0.00</p>
+                                <p id="total-amount" class="form-control" >0.00</p>
                             </div>
                         </div>
 
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Amount Given</label>
-                                <input type="text" id="amount-given" class="form-control" placeholder="0.00">
+                                <input type="text" id="amount-given" class="form-control" placeholder="0.00" oninput="formatAmount(this)">
                             </div>
                         </div>
+
                     </div>
                 </div>
             </div>

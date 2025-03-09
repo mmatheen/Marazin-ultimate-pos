@@ -553,7 +553,7 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
                 </div>
 
             </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input amount-input" data-currency data-quantity="${batchQuantity}"></td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input" data-quantity="${batchQuantity}" oninput="formatAmount(this)"></td>
             <td class="subtotal">${price.toFixed(2)}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
             <td class="product-id" style="display:none">${product.id}</td>
@@ -752,15 +752,15 @@ $(document).ready(function() {
                 if (response.message && response.invoice_html) {
                     document.getElementsByClassName('successSound')[0].play();
                     toastr.success(response.message);
-                    
+
                     // Create a print area dynamically
                     var printArea = document.createElement('div');
                     printArea.innerHTML = response.invoice_html;
                     document.body.appendChild(printArea);
-                    
+
                     // Print the invoice
                     window.print();
-                    
+
                     // Remove print area after printing
                     document.body.removeChild(printArea);
 
@@ -1247,18 +1247,15 @@ $(document).ready(function() {
 
     });
 
-    $(document).ready(function(){
-            $(".amount-input").inputmask({
-                alias: 'numeric',
-                groupSeparator: ',',
-                autoGroup: true,
-                digits: 2,
-                digitsOptional: false,
-                placeholder: '0',
-                rightAlign: false,
-                removeMaskOnSubmit: true
-            });
-    });
+    function formatAmount(input) {
+        let value = input.value.replace(/,/g, '');
+        if (!isNaN(value) && value !== '') {
+            let formattedValue = parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            let cursorPosition = input.selectionStart;
+            input.value = formattedValue;
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        }
+    }
 
 </script>
 

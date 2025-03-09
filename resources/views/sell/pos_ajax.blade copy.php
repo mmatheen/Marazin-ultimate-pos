@@ -513,7 +513,7 @@ function showProductModal(product, stockEntry, row) {
     //     }
     //     });
 
-function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
+    function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
     const billingBody = document.getElementById('billing-body');
     const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
         const productNameCell = row.querySelector('.product-name');
@@ -530,8 +530,8 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
         }
 
         quantityInput.value = newQuantity;
-        existingRow.querySelector('.price-input').value = price.toFixed(2);
-        existingRow.querySelector('.subtotal').textContent = (newQuantity * price).toFixed(2);
+        existingRow.querySelector('.price-input').value = formatNumber(price);
+        existingRow.querySelector('.subtotal').textContent = formatNumber(newQuantity * price);
 
     } else {
         const row = document.createElement('tr');
@@ -551,10 +551,9 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
                     <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
                     <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
                 </div>
-
             </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input amount-input" data-currency data-quantity="${batchQuantity}"></td>
-            <td class="subtotal">${price.toFixed(2)}</td>
+            <td><input type="text" value="${formatNumber(price)}" class="form-control price-input" data-quantity="${batchQuantity}" oninput="formatAmount(this)"></td>
+            <td class="subtotal">${formatNumber(price)}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
             <td class="product-id" style="display:none">${product.id}</td>
             <td class="location-id" style="display:none">${locationId}</td>
@@ -608,6 +607,7 @@ function attachRowEventListeners(row, product, stockEntry) {
     });
 
     priceInput.addEventListener('input', () => {
+        priceInput.value = formatNumber(parseFloat(priceInput.value.replace(/,/g, '')) || 0);
         updateTotals();
     });
 
@@ -638,11 +638,11 @@ document.getElementById('saveProductChanges').onclick = function() {
         const priceInput = selectedRow.querySelector('.price-input');
         const productNameCell = selectedRow.querySelector('.product-name');
 
-        priceInput.value = price.toFixed(2);
+        priceInput.value = formatNumber(price);
         priceInput.setAttribute('data-quantity', batchQuantity);
 
         const subtotal = parseFloat(quantityInput.value) * price;
-        selectedRow.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+        selectedRow.querySelector('.subtotal').textContent = formatNumber(subtotal);
 
         selectedRow.querySelector('.batch-id').textContent = batchId;
 
@@ -667,28 +667,35 @@ function updateTotals() {
 
     billingBody.querySelectorAll('tr').forEach(row => {
         const quantity = parseInt(row.querySelector('.quantity-input').value);
-        const price = parseFloat(row.querySelector('.price-input').value);
+        const price = parseFloat(row.querySelector('.price-input').value.replace(/,/g, ''));
         const subtotal = quantity * price;
 
-        row.querySelector('.subtotal').textContent = subtotal.toFixed(2);
+        row.querySelector('.subtotal').textContent = formatNumber(subtotal);
 
         totalItems += quantity;
         totalAmount += subtotal;
     });
 
-    const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const discount = parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0;
 
     const subtotalAmount = totalAmount - discount;
     const totalAmountWithTaxAndShipping = subtotalAmount;
 
     document.getElementById('items-count').textContent = totalItems.toFixed(2);
     document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-    document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+    document.getElementById('total-amount').textContent = formatNumber(totalAmountWithTaxAndShipping);
+    document.getElementById('total').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
+    document.getElementById('payment-amount').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
 }
 
-document.getElementById('discount').addEventListener('input', updateTotals);
+document.getElementById('discount').addEventListener('input', () => {
+    document.getElementById('discount').value = formatNumber(parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0);
+    updateTotals();
+});
+
+function formatNumber(value) {
+    return new Intl.NumberFormat('en-IN').format(value.toFixed(2));
+}
 
 $(document).ready(function() {
     function gatherSaleData(status) {
@@ -749,17 +756,19 @@ $(document).ready(function() {
             },
             data: JSON.stringify(saleData),
             success: function(response) {
-                if (response.message) {
+                if (response.message && response.invoice_html) {
                     document.getElementsByClassName('successSound')[0].play();
                     toastr.success(response.message);
 
-                    // Open a hidden print area in the same window
+                    // Create a print area dynamically
                     var printArea = document.createElement('div');
                     printArea.innerHTML = response.invoice_html;
                     document.body.appendChild(printArea);
 
-                    // Print and then remove the print area
+                    // Print the invoice
                     window.print();
+
+                    // Remove print area after printing
                     document.body.removeChild(printArea);
 
                     // Reset the form and refresh products
@@ -773,7 +782,7 @@ $(document).ready(function() {
                 toastr.error('An error occurred: ' + xhr.responseText);
             }
         });
-    }
+}
 
     function gatherCashPaymentData() {
         const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
@@ -1245,18 +1254,15 @@ $(document).ready(function() {
 
     });
 
-    $(document).ready(function(){
-            $(".amount-input").inputmask({
-                alias: 'numeric',
-                groupSeparator: ',',
-                autoGroup: true,
-                digits: 2,
-                digitsOptional: false,
-                placeholder: '0',
-                rightAlign: false,
-                removeMaskOnSubmit: true
-            });
-    });
+    function formatAmount(input) {
+        let value = input.value.replace(/,/g, '');
+        if (!isNaN(value) && value !== '') {
+            let formattedValue = parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            let cursorPosition = input.selectionStart;
+            input.value = formattedValue;
+            input.setSelectionRange(cursorPosition, cursorPosition);
+        }
+    }
 
 </script>
 

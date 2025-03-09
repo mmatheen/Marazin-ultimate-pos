@@ -241,16 +241,6 @@ class SaleController extends Controller
                     'total_discount' => $totalDiscount,
                 ])->render();
 
-                // Dump all data for debugging
-                // dumb([
-                //     'sale' => $sale,
-                //     'customer' => $customer,
-                //     'products' => $products,
-                //     'payments' => $payments,
-                //     'total_discount' => $totalDiscount,
-                //     'html' => $html,
-                // ]);
-
                 return response()->json(['message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 'invoice_html' => $html], 200);
             } catch (\Exception $e) {
                 return response()->json(['message' => $e->getMessage()], 400);

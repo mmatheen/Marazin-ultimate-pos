@@ -2,11 +2,11 @@
     <div class="header">
 
         <div class="header-left">
-            <a href="{{ url('index.html') }}" class="logo">
-                <img src="{{ asset('assets/img/logo.png') }}" alt="Logo">
+            <a href="{{ route('dashboard') }}" class="logo">
+            <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="Logo" width="100" height="50">
             </a>
-            <a href="{{ url('index.html') }}" class="logo logo-small">
-                <img src="{{ asset('assets/img/logo-small.png') }}" alt="Logo" width="30" height="30">
+            <a href="{{ route('dashboard') }}" class="logo logo-small">
+            <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="Logo" width="50" height="50">
             </a>
         </div>
         <div class="menu-toggle">
@@ -41,11 +41,11 @@
                 <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
             </li>
            <!-- POS Link -->
-           <li class="nav-item me-2">
-            <a href="{{ route('pos-create') }}" class="nav-link header-nav-list fw-semibold">
-                POS
+        <li class="nav-item dropdown noti-dropdown me-2">
+            <a href="{{ route('pos-create') }}" class="nav-link header-nav-list btn btn-primary text-white" style="background-color: #007bff; border-color: #007bff;" onmouseover="this.style.backgroundColor='#0056b3'; this.style.borderColor='#0056b3';" onmouseout="this.style.backgroundColor='#007bff'; this.style.borderColor='#007bff';">
+                <i class="bi bi-cash-coin text-white"></i> POS
             </a>
-             </li>
+        </li>
             <li class="nav-item dropdown noti-dropdown me-2">
                 <a href="#" class="dropdown-toggle nav-link header-nav-list" data-bs-toggle="dropdown">
                     <img src="{{ asset('assets/img/icons/header-icon-05.svg') }}" alt="">
