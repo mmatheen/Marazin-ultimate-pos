@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('main_categories', function (Blueprint $table) {
             $table->id();
             $table->string('mainCategoryName');
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
 

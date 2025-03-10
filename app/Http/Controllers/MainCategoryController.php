@@ -65,7 +65,7 @@ class MainCategoryController extends Controller
 
             $getValue = MainCategory::create([
                 'mainCategoryName' => $request->mainCategoryName,
-                'description' => $request->description ?? '',
+                'description' => $request->description,
 
             ]);
 
@@ -157,7 +157,7 @@ class MainCategoryController extends Controller
                 $getValue->update([
 
                 'mainCategoryName' => $request->mainCategoryName,
-                'description' => $request->description ?? '',
+                'description' => $request->description,
 
                 ]);
                 return response()->json([

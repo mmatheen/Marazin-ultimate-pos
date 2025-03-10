@@ -51,13 +51,19 @@ class SupplierController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'prefix' => 'required|string|max:10',
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'mobile_no' => 'required|numeric|digits_between:10,15',
-                'email' => 'required|email|max:255',
-                'address' => 'required|string|max:255',
-                'opening_balance' => 'required|numeric',
+
+            'prefix' => 'required|string|max:10',  // Add max length if applicable
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
+            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
+            'contact_id' => 'required|string|max:255',
+            'contact_type' => 'required|string|max:255',
+            'date' => 'required|string',
+            'assign_to' => 'required|string|max:255',
+            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
+
+
             ]
         );
 
@@ -140,13 +146,16 @@ class SupplierController extends Controller
         $validator = Validator::make(
             $request->all(),
             [
-                'prefix' => 'required|string|max:10',
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'mobile_no' => 'required|numeric|digits_between:10,15',
-                'email' => 'required|email|max:255',
-                'address' => 'required|string|max:255',
-                'opening_balance' => 'required|numeric',
+
+            'prefix' => 'required|string|max:10',  // Add max length if applicable
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15',  // Ensure valid mobile number length
+            'email' => 'required|email|max:255',  // Use 'email' for proper email format validation
+            'contact_type' => 'required|string|max:255',
+            'date' => 'required|string',
+            'assign_to' => 'required|string|max:255',
+            'opening_balance' => 'required|numeric',  // Ensure opening balance is a valid number
             ]
         );
 

@@ -161,6 +161,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
         Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
 
+        // import / export excel
+        Route::get('/excel-product-blank-template-export', [ProductController::class, 'exportBlankTemplate'])->name('excel-product-blank-template-export');
+        Route::post('/import-product-excel-store', [ProductController::class, 'importProductStore'])->name('import-product-excel-store');
+
         Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
         Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);

@@ -2,22 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Brand;
-use App\Models\Location;
-use App\Models\MainCategory;
-use App\Models\SubCategory;
-use App\Models\Product;
-use App\Models\Unit;
-use App\Models\LocationBatch;
-use App\Models\StockHistory;
 use App\Models\Sale;
+use App\Models\Unit;
 use App\Models\Batch;
+use App\Models\Brand;
+use App\Models\Product;
+use App\Models\Location;
 use App\Models\Purchase;
+use App\Models\SubCategory;
+use App\Models\MainCategory;
+use App\Models\StockHistory;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
+use App\Models\LocationBatch;
+use App\Imports\importProduct;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
@@ -51,7 +54,7 @@ class ProductController extends Controller
     // }
 
     public function getStockHistory($productId)
-    { 
+    {
         $product = Product::with([
             'stockHistories.locationBatch.batch.purchaseProducts.purchase.supplier',
             'stockHistories.locationBatch.batch.salesProducts.sale.customer',
@@ -848,4 +851,70 @@ class ProductController extends Controller
             ]);
         }
     }
+
+    public function exportBlankTemplate()
+    {
+        return Excel::download(new ExportProductTemplate, 'Import Product Blank Template.xlsx');
+    }
+
+    public function importProductStore(Request $request)
+    {
+        // Validate the request file
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|mimes:xlsx,xls',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'errors' => $validator->messages()
+            ]);
+        }
+
+        // Check if the file is present in the request
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+
+            // Check if file upload was successful
+            if ($file->isValid()) {
+                // Create an instance of the import class
+                $import = new importProduct();
+
+                // Process the Excel file
+                Excel::import($import, $file);
+
+                // Get validation errors from the import process
+                $validationErrors = $import->getValidationErrors();
+                $records = $import->getData();
+
+                // If there are validation errors, return them in the response
+                if (!empty($validationErrors)) {
+                    return response()->json([
+                        'status' => 401,
+                        'validation_errors' => $validationErrors, // Return specific error messages
+
+                    ]);
+                }
+
+                return response()->json([
+                    'status' => 200,
+                    'data' => $records,
+                    'message' => "Import Products Excel file uploaded successfully!"
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 500,
+                    'message' => "File upload failed. Please try again."
+                ]);
+            }
+        }
+
+        return response()->json([
+            'status' => 400,
+            'message' => "No file uploaded or file is invalid."
+        ]);
+    }
+
+
+
 }

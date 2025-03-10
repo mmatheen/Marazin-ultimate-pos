@@ -86,6 +86,7 @@
                             <ul class="nav nav-tabs nav-tabs-solid">
                                 <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1" data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
                                 <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li>
+                                <li class="nav-item"><a class="nav-link" href="#solid-justified-tab3" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Import Bulk Product</a></li>
                             </ul>
                         </div>
                     </div>
@@ -147,6 +148,53 @@
                                                 <!-- Data from AJAX will be dynamically appended here -->
                                             </tbody>
                                         </table>
+                                    </div>
+                                </div>
+                                <div class="tab-pane" id="solid-justified-tab3">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <div class="card card-table">
+                                                <div class="card-body">
+                                                    <div class="page-header">
+                                                        <div class="row align-items-center">
+                                                            <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data">
+                                                                @csrf
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <label>File To Import</label>
+                                                                        <div class="invoices-upload-btn">
+                                                                            <input type="file" name="file" id="file" class="hide-input">
+                                                                            <label for="file" class="upload"><i class="far fa-folder-open">
+                                                                                    &nbsp;</i> Browse..</label>
+                                                                        </div>
+                                                                        <button type="submit" id="import_btn" class="btn btn-outline-primary mt-3">Upload</button>
+                                                                    </div>
+
+                                                                </div>
+                                                                <!-- Add other elements if needed -->
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <div class="progress mt-3" style="display: none;">
+                                                                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                        </div>
+                                                                        <span class="text-danger" id="file_error"></span>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <div class="mb-3">
+
+                                                                            <a class="btn btn-outline-success mt-2" id="export_btn" href="{{ route('excel-product-blank-template-export') }}"><i class="fas fa-download"></i> &nbsp; Download template file</a>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -9,18 +9,12 @@
             rules: {
                 name: {
                     required: true,
-                },
-                short_name: {
-                    required: true,
-                },
+                }
             },
             messages: {
                 name: {
                     required: "Name is required",
-                },
-                short_name: {
-                    required: "Short Name is required",
-                },
+                }
             },
             errorElement: 'span',
             errorPlacement: function (error, element) {

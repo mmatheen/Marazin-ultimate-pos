@@ -1211,3 +1211,82 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         });
     });
 </script>
+
+
+{{-- impoprt lead file code start --}}
+<script>
+    $(document).on('submit', '#importProductForm', function(e) {
+        e.preventDefault();
+        let formData = new FormData($('#importProductForm')[0]);
+        let fileInput = $('input[name="file"]')[0];
+
+        // Check if a file is selected
+        if (fileInput.files.length === 0) {
+            $('#file_error').html('Please select the excel format file.');
+            document.getElementsByClassName('errorSound')[0].play(); //for sound
+            toastr.error('Please select the excel format file' ,'Error');
+            return;
+        } else {
+            $('#file_error').html('');
+        }
+
+        $.ajax({
+            xhr: function() {
+                let xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        let percentComplete = e.loaded / e.total * 100;
+                        $('.progress').show();
+                        $('.progress-bar').css('width', percentComplete + '%');
+                        $('.progress-bar').attr('aria-valuenow', percentComplete);
+                        $('.progress-bar').text(Math.round(percentComplete) + '%'); // Display the percentage
+                    }
+                }, false);
+                return xhr;
+            },
+            url: 'import-product-excel-store',
+            type: 'post',
+            data: formData,
+            contentType: false,
+            processData: false,
+            dataType: 'json',
+            beforeSend: function() {
+                $('.progress-bar').css('width', '0%').text('0%');
+                $('.progress').show();
+            },
+            success: function(response) {
+                if (response.status == 400) {
+                    $.each(response.errors, function(key, err_value) {
+                        $('#' + key + '_error').html(err_value); // Assuming there's only one file input with id 'leadFile'
+                        document.getElementsByClassName('errorSound')[0].play(); //for sound
+                        toastr.error(err_value,'Error');
+
+                    });
+                    $('.progress').hide(); // Hide progress bar on validation error
+                } else if (response.status == 200) {
+                    $("#importProductForm")[0].reset();
+                    document.getElementsByClassName('successSound')[0].play(); //for sound
+                        toastr.success(response.message, 'Uploaded');
+                    $('.progress').hide();
+                }
+                else if (response.status == 401) {
+                    $("#importProductForm")[0].reset();
+                    document.getElementsByClassName('errorSound')[0].play(); //for sound
+                        toastr.error(response.validation_errors, 'Error');
+                    $('.progress').hide();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr.responseText);
+                document.getElementsByClassName('errorSound')[0].play(); //for sound
+                toastr.error('An error occurred while processing the request.');
+                $('.progress').hide(); // Hide progress bar on request error
+
+            },
+            complete: function() {
+                $("#importProductForm")[0].reset();
+                $('.progress').hide(); // Ensure progress bar is hidden after completion
+            }
+        });
+    });
+</script>

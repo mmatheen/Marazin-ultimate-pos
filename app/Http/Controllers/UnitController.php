@@ -60,7 +60,6 @@ class UnitController extends Controller
             $request->all(),
             [
                 'name' => 'required|string',
-                'short_name' => 'required|string',
             ]
         );
 
@@ -150,7 +149,6 @@ class UnitController extends Controller
             [
 
                 'name' => 'required|string',
-                'short_name' => 'required|string',
             ]
         );
 
