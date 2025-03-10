@@ -639,103 +639,179 @@
 
 <body>
     <div class="container-fluid p-3">
-        <div class="row mt-2">
+        <div class="row">
             <div class="col-md-12">
-                <div class="card bg-white p-3">
-                    <div class="row align-items-center">
-                        <!-- Location and Date Section -->
-                        <div class="col-md-6 d-flex align-items-center">
-                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                            <input type="text" class="form-control bg-light border-1 px-2 py-1"
-                                style="width: auto; color: #333;" value="{{ now()->format('Y-m-d H:i') }}" readonly />
+            <div class="card bg-white p-1">
+                <div class="row align-items-center">
+                <!-- Location and Date Section -->
+                <div class="col-md-6 d-flex align-items-center">
+                    <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
+                    <button class="btn btn-primary text-white border-1 px-2 py-1"
+                    style="width: auto; height: 30px;" id="currentTimeButton" disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const currentTimeButton = document.getElementById('currentTimeButton');
+                        setInterval(() => {
+                        const now = new Date();
+                        const formattedTime = now.getFullYear() + '-' +
+                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                            ('0' + now.getDate()).slice(-2) + ' ' +
+                            ('0' + now.getHours()).slice(-2) + ':' +
+                            ('0' + now.getMinutes()).slice(-2) + ':' +
+                            ('0' + now.getSeconds()).slice(-2);
+                        currentTimeButton.textContent = formattedTime;
+                        }, 1000);
+                    });
+                    </script>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end gap-3 d-none d-md-flex">
+                    <button class="btn btn-light btn-sm" onclick="history.back()"><i
+                        class="fas fa-backward"></i></button>
+                    <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
+                    <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
+
+                    <!-- Calculator Button with Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-calculator"></i>
+                        </button>
+                        <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                        <div class="text-center">
+                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
+                            onkeydown="handleKeyboardInput(event)" autofocus>
                         </div>
-
-                        <!-- Action Buttons -->
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-end gap-3">
-                                <button class="btn btn-light btn-sm" onclick="history.back()"><i
-                                        class="fas fa-backward"></i></button>
-                                <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
-                                <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
-
-                                <!-- Calculator Button with Dropdown -->
-                                <div class="dropdown">
-                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-calculator"></i>
-                                    </button>
-                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
-                                        <div class="text-center">
-                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
-                                                onkeydown="handleKeyboardInput(event)" autofocus>
-                                        </div>
-                                        <div class="d-grid gap-1">
-                                            <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('7')">7</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('8')">8</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('9')">9</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('/')">/</button>
-                                            </div>
-                                            <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('4')">4</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('5')">5</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('6')">6</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('*')">×</button>
-                                            </div>
-                                            <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('1')">1</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('2')">2</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('3')">3</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('-')">-</button>
-                                            </div>
-                                            <div class="row g-1">
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('0')">0</button>
-                                                <button class="btn btn-light btn-sm col"
-                                                    onclick="calcInput('.')">.</button>
-                                                <button class="btn btn-danger btn-sm col"
-                                                    onclick="clearCalc()">C</button>
-                                                <button class="btn btn-warning btn-sm col"
-                                                    onclick="calcInput('+')">+</button>
-                                            </div>
-                                            <div class="row g-1">
-                                                <button class="btn btn-success btn-sm col"
-                                                    onclick="calculateResult()">=</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
-                                <button class="btn btn-primary btn-sm"><i class="fas fa-stop"></i></button>
-                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
-                                    data-bs-target="#suspendSalesModal">
-                                    <i class="fas fa-pause-circle"></i> Suspended Sales
-                                </button>
-
-                                <!-- Add Expense Button -->
-                                <button class="btn btn-dark btn-sm d-flex align-items-center">
-                                    <i class="fas fa-minus-circle me-2"></i> Add Expense
-                                </button>
+                        <div class="d-grid gap-1">
+                            <div class="row g-1">
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('7')">7</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('8')">8</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('9')">9</button>
+                            <button class="btn btn-warning btn-sm col"
+                                onclick="calcInput('/')">/</button>
+                            </div>
+                            <div class="row g-1">
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('4')">4</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('5')">5</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('6')">6</button>
+                            <button class="btn btn-warning btn-sm col"
+                                onclick="calcInput('*')">×</button>
+                            </div>
+                            <div class="row g-1">
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('1')">1</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('2')">2</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('3')">3</button>
+                            <button class="btn btn-warning btn-sm col"
+                                onclick="calcInput('-')">-</button>
+                            </div>
+                            <div class="row g-1">
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('0')">0</button>
+                            <button class="btn btn-light btn-sm col"
+                                onclick="calcInput('.')">.</button>
+                            <button class="btn btn-danger btn-sm col"
+                                onclick="clearCalc()">C</button>
+                            <button class="btn btn-warning btn-sm col"
+                                onclick="calcInput('+')">+</button>
+                            </div>
+                            <div class="row g-1">
+                            <button class="btn btn-success btn-sm col"
+                                onclick="calculateResult()">=</button>
                             </div>
                         </div>
+                        </div>
+                    </div>
 
+                    <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
 
+                    <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
+                        data-bs-target="#suspendSalesModal">
+                        <i class="fas fa-pause-circle"></i> Suspended Sales
+                    </button>
 
+                    <!-- Add Expense Button -->
+                    <button class="btn btn-dark btn-sm d-flex align-items-center">
+                        <i class="fas fa-minus-circle me-2"></i> Add Expense
+                    </button>
+                    </div>
+
+                    <!-- Hamburger Button for Mobile and Tablet -->
+                    <div class="d-flex d-lg-none justify-content-center mb-3">
+                        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
+                            <i class="fas fa-bars"></i>
+                        </button>
                     </div>
                 </div>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <!-- Offcanvas for Mobile and Tablet -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
+            <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Actions</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+            <button class="btn btn-light btn-sm w-100 mb-2" onclick="history.back()"><i class="fas fa-backward"></i> Back</button>
+            <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-window-close"></i> Close</button>
+            <button class="btn btn-success btn-sm w-100 mb-2"><i class="fas fa-briefcase"></i> Briefcase</button>
+            <button class="btn btn-warning btn-sm w-100 mb-2 dropdown-toggle" id="calculatorButtonMobile" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-calculator"></i> Calculator
+            </button>
+            <div class="dropdown-menu p-2 shadow" id="calculatorDropdownMobile" style="width: 220px;">
+                <div class="text-center">
+                <input type="text" id="calcDisplayMobile" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
+                </div>
+                <div class="d-grid gap-1">
+                <div class="row g-1">
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
+                    <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                </div>
+                <div class="row g-1">
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
+                    <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                </div>
+                <div class="row g-1">
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
+                    <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                </div>
+                <div class="row g-1">
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
+                    <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
+                    <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
+                    <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                </div>
+                <div class="row g-1">
+                    <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                </div>
+                </div>
+            </div>
+            <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-redo-alt"></i> Redo</button>
+            <button class="btn btn-outline-danger w-100 mb-2" id="pauseCircleButtonMobile" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
+                <i class="fas fa-pause-circle"></i> Suspended Sales
+            </button>
+            <button class="btn btn-dark btn-sm w-100 mb-2 d-flex align-items-center">
+                <i class="fas fa-minus-circle me-2"></i> Add Expense
+            </button>
             </div>
         </div>
 
@@ -744,20 +820,10 @@
             <div class="col-md-7">
                 <div class="card bg-white p-3">
                     <div class="row">
-                        <div class="col-md-4">
-                            {{-- <div class="input-group local-forms d-flex align-items-center">
-                                <label class="flex-grow-1">Customer <span class="login-danger">*</span></label>
-                                <select class="form-control select2Box" id="customer-id" style="width: calc(100% - 40px);">
-                                    <option selected disabled>Please Select</option>
-                                    <!-- Options will be populated dynamically -->
-                                </select>
-                                <button type="button" class="btn btn-outline-info ml-2" id="addCustomerButton">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
-                            </div> --}}
+                        <div class="col-md-5">
                             <div class="input-group mb-3">
                                 <select class="form-control select2Box" id="customer-id"
-                                    style="width: calc(100% - 40px);">
+                                    style="width: calc(100% - 40px);" autofocus>
                                     <option selected disabled>Please Select</option>
                                     <!-- Options will be populated dynamically -->
                                 </select>
@@ -765,12 +831,11 @@
                                     <i class="fas fa-plus-circle"></i>
                                 </button>
                             </div>
-                            <p id="total-due-amount" class="text-danger mt-2">Total due amount: Rs. 0.00</p>
+                            <p id="total-due-amount" class="text-danger mt-1">Total due amount: Rs. 0.00</p>
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-7">
                             <input type="text" class="form-control" id="productSearchInput"
                                 placeholder="Enter Product name / SKU / Scan bar code">
-
                         </div>
 
 
@@ -780,11 +845,11 @@
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
                                         <tr>
-                                            <th>Product</th>
-                                            <th>Quantity</th>
-                                            <th>Price inc. tax</th>
-                                            <th>Subtotal</th>
-                                            <th>Remove</th>
+                                            <th style="width: 30%;">Product</th>
+                                            <th style="width: 15%; text-align: center;">Quantity</th>
+                                            <th style="width: 20%; text-align: center;">Price inc. tax</th>
+                                            <th style="width: 20%; text-align: center;">Subtotal</th>
+                                            <th style="width: 5%; color: red; text-align: center;">X</th>
                                         </tr>
                                     </thead>
                                     <tbody id="billing-body" class="bg-white">
@@ -792,6 +857,7 @@
                                     </tbody>
                                 </table>
                             </div>
+
                         </div>
                     </div>
                 </div>

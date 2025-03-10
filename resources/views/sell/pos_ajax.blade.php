@@ -293,8 +293,8 @@
 
                 const cardHTML = `
                 <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                    <div class="product-card">
-                        <img src="/assets/images/${product.product_image}" alt="${product.product_name}">
+                    <div class="product-card"> <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                       
                         <div class="product-card-body">
                             <h6>${product.product_name} <br>
                                 <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
@@ -428,7 +428,7 @@ function showProductModal(product, stockEntry, row) {
 
     modalBody.innerHTML = `
         <div class="d-flex align-items-center">
-            <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
             <div>
                 <div class="font-weight-bold">${product.product_name}</div>
                 <div class="text-muted">${product.sku}</div>
@@ -536,35 +536,36 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
     } else {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                    <div>
-                        <div class="font-weight-bold product-name">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
-                    </div>
-                </div>
-            </td>
-            <td>
-               <div class="input-group quantity-container mb-3">
-                    <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
-                    <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
-                    <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
-                </div>
+    <td>
+        <div class="d-flex align-items-center">
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+            <div class="product-info">
+                <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
+                <div class="text-muted">${product.sku}</div>
+            </div>
+        </div>
+    </td>
+    <td>
+        <div class="input-group quantity-container mb-3">
+            <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
+            <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
+            <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
+        </div>
+    </td>
+    <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input" data-quantity="${batchQuantity}" ></td>
+    <td class="subtotal text-center mt-2">${price.toFixed(2)}</td>
+    <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
+    <td class="product-id" style="display:none">${product.id}</td>
+    <td class="location-id" style="display:none">${locationId}</td>
+    <td class="batch-id" style="display:none">${batchId}</td>
+    <td class="discount-data" style="display:none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+`;
 
-            </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input" data-quantity="${batchQuantity}" oninput="formatAmount(this)"></td>
-            <td class="subtotal">${price.toFixed(2)}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
-            <td class="product-id" style="display:none">${product.id}</td>
-            <td class="location-id" style="display:none">${locationId}</td>
-            <td class="batch-id" style="display:none">${batchId}</td>
-            <td class="discount-data" style="display:none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-        `;
 
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
         row.querySelector('.quantity-input').focus();
+        row.querySelector('.quantity-input').select();
     }
 
     updateTotals();
@@ -1263,7 +1264,8 @@ $(document).ready(function() {
 
 {{-- For jQuery --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
-
+<!-- Include cleave.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
 {{-- For sound --}}
 <audio class="successSound" src="{{ asset('assets/sounds/success.mp3') }}"></audio>
 <audio class="errorSound" src="{{ asset('assets/sounds/error.mp3') }}"></audio>
@@ -1311,6 +1313,8 @@ $(document).ready(function() {
     // In your Javascript (external .js resource or <script> tag)
     $(document).ready(function() {
         $('.select2Box').select2();
+
+
     });
 </script>
 

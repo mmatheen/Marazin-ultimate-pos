@@ -3,155 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food City Receipt</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Invoice and Bill Print</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background: #f8f9fa;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            padding: 20px; /* Added padding */
-        }
-        .receipt-box {
-            width: 80mm;
-            margin: 0 auto;
-            padding: 10px;
-            border: 1px solid #ddd;
-            background: #fff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .receipt-title {
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        .receipt-header, .receipt-footer {
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-        }
-        .table th, .table td {
-            text-align: left;
-            font-size: 12px;
-            padding: 4px;
-            border-top: none;
-        }
-        .table thead th {
-            border-bottom: 1px solid #ddd;
-        }
-        .table th,td:nth-child(2), .table td:nth-child(3), .table td:nth-child(4) {
-            text-align: right;
-        }
-        .total-section {
-            font-weight: bold;
-            font-size: 14px;
-            color: #333;
-        }
-        .text-end p {
-            margin: 0;
-        }
-        .print-btn {
-            display: block;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .small-text {
-            font-size: 10px;
-        }
+        /* A4 Invoice format */
         @media print {
-            .print-btn {
+            .invoice {
+                display: block;
+                width: 100%;
+                max-width: 21cm;
+                margin: 0 auto;
+            }
+            .bill {
                 display: none;
             }
-
             body {
-                margin: 10px; /* Added padding outside the content */
-                padding: 0;
-                -webkit-print-color-adjust: exact;
-            }
-            body * {
                 visibility: hidden;
             }
-            .receipt-box, .receipt-box * {
+            .invoice, .invoice * {
                 visibility: visible;
             }
-            .receipt-box {
-                margin: 0;
-                padding: 10px; /* Added padding inside the content */
+        }
+
+        /* Thermal POS 80mm Bill format */
+        @media print {
+            .thermal-bill {
+                display: block;
                 width: 80mm;
-                height: 210mm;
-                box-shadow: none;
-                border: none;
-            }
-            @page {
                 margin: 0;
-                size: 80mm 210mm;
+                padding: 10px;
+            }
+            .invoice {
+                display: none;
             }
         }
+
+        /* General Layout */
+        .invoice {
+            padding: 20px;
+            border: 1px solid #000;
+        }
+        .thermal-bill {
+            font-family: monospace;
+            padding: 5px;
+            border: 1px solid #000;
+            font-size: 12px;
+        }
+        .header, .footer {
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
-    <div class="receipt-box">
-        <h2 class="receipt-title">ARB Distribution</h2>
-        <p class="receipt-header">123, Supermarket Street, City, Country</p>
-        <p class="receipt-header">Phone: +94 123 456 789</p>
-        <hr>
-        <p class="d-flex justify-content-between small-text">
-            <span><strong>Date:</strong> 2025-03-09</span>
-            <span><strong>Invoice: </strong> FC12345</span>
-        </p>
-        <p class="small-text"><strong>Customer:</strong> John Doe</p>
-        <table class="table table-sm">
+
+<div class="container">
+    <!-- Button to trigger printing -->
+    <button class="btn btn-primary my-3" onclick="printInvoice()">Print Invoice</button>
+
+    <!-- Invoice format (A4 size) -->
+    <div class="invoice">
+        <div class="header">
+            <h2>FoodCity Invoice</h2>
+            <p>Address: 123 FoodCity St, City, Country</p>
+            <p>Phone: +1234567890</p>
+            <hr>
+        </div>
+        <h4>Invoice #12345</h4>
+        <p>Date: 2025-03-10</p>
+        <table class="table">
             <thead>
-            <tr>
-            <th>Item Name</th>
-            <th>Rate</th>
-            <th>Qty</th>
-            <th>Amt</th>
-            </tr>
+                <tr>
+                    <th>Description</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
             </thead>
             <tbody>
-            <tr>
-            <td>Product 01 <br> <del>4.00</del> (1)</td>
-            <td>10000</td>
-            <td>1pcs</td>
-            <td>0909000</td>
-            </tr>
-            <tr>
-            <td>Test Item 03</td>
-            <td>20000</td>
-            <td>17pcs</td>
-            <td>10990.00</td>
-            </tr>
-            <tr>
-            <td>Test Item 03</td>
-            <td>3000000000</td>
-            <td>30pcs</td>
-            <td>340000000.00</td>
-            </tr>
+                <tr>
+                    <td>Item 1</td>
+                    <td>$10.00</td>
+                    <td>2</td>
+                    <td>$20.00</td>
+                </tr>
+                <tr>
+                    <td>Item 2</td>
+                    <td>$5.00</td>
+                    <td>1</td>
+                    <td>$5.00</td>
+                </tr>
             </tbody>
         </table>
-        <hr>
-        <div class="d-flex justify-content-between" style="font-size: 12px;">
-            <div>
-            <p><strong>Payment Method:</strong> Cash</p>
-            </div>
-            <div class="text-end">
-            <p><strong>Total:</strong> Rs. 30000000.00</p>
-            <p><strong>Advance Paid:</strong> Rs. 5000000.00</p>
-            <p><strong>Balance:</strong> Rs. 30000000.00</p>
-            </div>
+        <div class="footer">
+            <p>Total: $25.00</p>
+            <p>Thank you for shopping with us!</p>
         </div>
-        <hr>
-        <div class="text-center">
-            <p class="total-section" style="font-size: 12px;">Total Discount: Rs. 1.00</p>
-        </div>
-        <hr>
-        <p class="receipt-footer">Thank you for shopping with us!</p>
-        <p class="receipt-footer">Visit again!</p>
-        <p class="receipt-footer">Software: Marzin Pvt.Ltd | www.marazin.lk</p>
-        <hr>
-        <button class="btn btn-primary print-btn" onclick="window.print()">Print This Bill</button>
     </div>
+
+    <!-- Thermal POS Bill format (80mm) -->
+    <div class="thermal-bill">
+        <div class="header">
+            <h2>FoodCity</h2>
+            <p>123 FoodCity St, City, Country</p>
+            <p>Phone: +1234567890</p>
+            <hr>
+        </div>
+        <h4>Invoice #12345</h4>
+        <p>Date: 2025-03-10</p>
+        <div>Item 1 x 2 = $20.00</div>
+        <div>Item 2 x 1 = $5.00</div>
+        <hr>
+        <div>Total: $25.00</div>
+        <div>Thank you for shopping!</div>
+    </div>
+</div>
+
+<script>
+    function printInvoice() {
+        window.print();
+    }
+</script>
+
 </body>
 </html>

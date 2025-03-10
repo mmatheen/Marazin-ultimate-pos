@@ -200,7 +200,7 @@ function formatProductData(product) {
     }
 
     let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
-        '/assets/images/default.jpg';
+        '/assets/images/No Product Image Available.png';
     return `
     <tr data-product-id="${product.id}">
         <td>
@@ -218,7 +218,7 @@ function formatProductData(product) {
             </div>
         </td>
         <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
-        
+
         <td>${product.product_name}</td>
         <td>${locationName}</td>
         <td>${product.retail_price}</td>

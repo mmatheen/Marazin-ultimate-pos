@@ -1,107 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARB Receipt</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <style>
-
-
-
+        /* Hide receipt by default */
+        .receipt-box {
+            display: none;
+        }
 
         @media print {
+            /* Hide everything except the receipt */
+
+            .receipt-title,
+            .receipt-header,
+            .d-flex,
+            .table,
+            .total-section,
+            .receipt-footer {
+                font-size: 12px;
+                margin: 0;
+                padding: 2px 0;
+                width: 100%;
+                text-align: center;
+            }
+
+            .d-flex {
+                display: flex;
+                justify-content: space-between;
+                width: 100%;
+            }
+
+            .table th, .table td {
+                padding: 1px;
+                font-size: 11px;
+            }
+
+            .text-end {
+                text-align: right;
+            }
+
+            hr {
+                border: 0;
+                border-top: 1px dashed #000;
+                margin: 2px 0;
+                width: 100%;
+                display: block;
+                opacity: 0.3;
+            }
+
+            .receipt-footer {
+                margin-bottom: 0; /* Remove extra space at bottom */
+                padding-bottom: 0;
+            }
             body * {
                 visibility: hidden;
             }
 
-            .receipt-box,
-            .receipt-box * {
+            .receipt-box, .receipt-box * {
                 visibility: visible;
             }
 
-            .receipt-title,
-        .receipt-header,
-        .d-flex,
-        .table,
-        .total-section,
-        .receipt-footer {
-            font-size: 12px;
-            margin: 0;
-            padding: 2px 0;
-            width: 100%;
-            text-align: center;
-        }
-
-        .d-flex {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-        }
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .table th, .table td {
-    padding: 1px; /* Reduce padding */
-    font-size: 11px; /* Make font slightly smaller if needed */
-}
-
-        .text-end {
-            text-align: right;
-        }
-
-        hr {
-            border: 0;
-            border-top: 1px dashed #000;
-            margin: 2px 0;
-            width: 100%;
-            display: block;
-            opacity: 0.3;
-        }
-
 
             .receipt-box {
-                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-                position: absolute;
-                top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 85mm;
-                border: none;
-                overflow: hidden;
+                width: auto;
+                box-sizing: border-box;
+                display: flex;
                 flex-direction: column;
                 align-items: center;
+                padding: 3px;
+                margin: 5px auto;
+                overflow: hidden;
+                height: auto;
+                page-break-inside: avoid;
             }
 
-            .print-btn {
-                display: none;
-            }
         }
     </style>
-
 </head>
-
 <body>
+    <button class="print-btn" onclick="window.print()">Print Receipt</button>
+
     <div class="receipt-box">
         <h2 class="receipt-title">ARB Distribution</h2>
         <hr>
         <p class="receipt-header" style="line-height: 1.5;">
             {{ Auth::user()->location->address }} <br>
-            {{-- {{ Auth::user()->location->city }} <br> --}}
             {{ Auth::user()->location->email }}
         </p>
         <p class="receipt-header">Phone: {{ Auth::user()->location->mobile }}</p>
         <hr>
         <p class="d-flex justify-content-between">
             <span><strong>Date:</strong> {{ $sale->sales_date }}</span>
-            <span><strong>Invoice: </strong> {{ $sale->invoice_no }}</span>
+            <span><strong>Invoice:</strong> {{ $sale->invoice_no }}</span>
         </p>
         <hr>
-        <p style="font-size: 12px; margin-top: 5px;"><strong>Customer:</strong> {{ $customer->first_name }}
-            {{ $customer->last_name }}</p>
+        <p style="font-size: 12px; margin-top: 5px;"><strong>Customer:</strong> {{ $customer->first_name }} {{ $customer->last_name }}</p>
         <hr>
         <table class="table table-sm">
             <thead>
@@ -173,5 +169,4 @@
         <p class="receipt-footer">Software: Marzin Pvt.Ltd | www.marazin.lk</p>
     </div>
 </body>
-
 </html>
