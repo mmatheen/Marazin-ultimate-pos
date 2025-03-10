@@ -1,129 +1,157 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food City POS Receipt</title>
-    <style>
-        /* General receipt style for thermal printer (80mm width) */
-        @media print {
-            body {
-                width: 80mm;
-                margin: 0;
-                padding: 0;
-                font-family: 'Arial', sans-serif;
-                font-size: 12px;
-            }
-
-            .receipt {
-                width: 100%;
-                padding: 5mm;
-                box-sizing: border-box;
-            }
-
-            .header, .footer {
-                text-align: center;
-                font-size: 12px;
-            }
-
-            .header h3 {
-                font-size: 16px;
-                font-weight: bold;
-                margin: 0;
-            }
-
-            .header p {
-                margin: 2px 0;
-                font-size: 10px;
-            }
-
-            .items {
-                margin-top: 10px;
-            }
-
-            .items table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 10px;
-            }
-
-            .items table td,
-            .items table th {
-                padding: 3px;
-                text-align: left;
-                font-size: 12px;
-                line-height: 1.5;
-                border-bottom: 1px solid #000;
-            }
-
-            .items table .text-right {
-                text-align: right;
-            }
-
-            .total {
-                font-weight: bold;
-                font-size: 14px;
-                text-align: right;
-                padding-top: 10px;
-            }
-
-            .footer p {
-                font-size: 10px;
-                margin: 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="receipt">
-        <!-- Header Section -->
-        <div class="header">
-            <h3>FOOD CITY</h3>
-            <p>123 Main St, City, Country</p>
-            <p>Phone: +123 456 7890</p>
-            <p>Date: 2025-03-10 | Time: 12:00 PM</p>
-            <hr>
-        </div>
-
-        <!-- Items List -->
-        <div class="items">
-            <table>
-                <tr>
-                    <td>Item 1</td>
-                    <td class="text-right">$10.00</td>
-                </tr>
-                <tr>
-                    <td>Item 2</td>
-                    <td class="text-right">$5.50</td>
-                </tr>
-                <tr>
-                    <td>Item 3</td>
-                    <td class="text-right">$2.75</td>
-                </tr>
-                <tr>
-                    <td>Item 4</td>
-                    <td class="text-right">$3.25</td>
-                </tr>
-                <tr class="total">
-                    <td>Total</td>
-                    <td class="text-right">$21.50</td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- Footer Section -->
-        <div class="footer">
-            <p>Thank you for shopping at Food City!</p>
-            <p>Visit us again soon.</p>
-            <p>Store #12345</p>
-        </div>
-    </div>
-
-    <!-- Print functionality -->
-    <script>
-        window.onload = function () {
-            window.print();
-        }
-    </script>
-</body>
-</html>
+<!-- business information here -->\n\n<div class=\"row\" style=\"color: #000000
+!important;\">\n\t\t<!-- Logo -->\n\t\t\t\t\t\n\t\t\t<!-- Header text -->\n\t\t\t\n\t\t\t<!-- business information here -->\n\t\t\t<div
+class=\"col-xs-12 text-center\">\n\t\t\t\t<h2 class=\"text-center\">\n\t\t\t\t\t<!-- Shop & Location Name  -->\n\t\t\t\t\t\t\t\t\t\t\tAwesome
+Shop\n\t\t\t\t\t\t\t\t\t<\/h2>\n\n\t\t\t\t<!-- Address -->\n\t\t\t\t
+<p>
+    \n\t\t\t\t\t\t\t\t\t\t<small class=\"text-center\">\n\t\t\t\t\t\tLinking
+    Street, Phoenix, Arizona, 85001,
+    USA\n\t\t\t\t\t\t<\/small>\n\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t<\/p>\n\t\t\t\t
+</p>
+<p>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n\t\t\t\t\t\t\t\t<\/p>\n\t\t\t\t</p>
+<p>
+    \n\t\t\t\t\t\t\t\t\t<b
+        >GSTIN: <\/b>
+        3412569900\n\t\t\t\t\n\t\t\t\t\t\t\t\t<\/p>\n\t\t\t\n\n\t\t\t<!-- Title of receipt -->\n\t\t\t\t\t\t\t<h3
+        class=\"text-center\">\n\t\t\t\t\tInvoice\n\t\t\t\t<\/h3>\n\t\t\t\t\t<\/div>\n\t\t\t<div
+        class=\"col-xs-12 text-center\">\n\t\t<!-- Invoice  number, Date  -->\n\t\t<p
+        style=\"width: 100% !important\" class=\"word-wrap\">\n\t\t\t<span
+        class=\"pull-left text-left word-wrap\">\n\t\t\t\t\t\t\t\t\t<b
+            >Invoice No.<\/b>\n\t\t\t\t\t\t\t\tAS0031\n\n\t\t\t\t\n\t\t\t\t<!-- Table information-->\n\t\t
+            \n\t\t\t\t<!-- customer info -->\n\t\t\t\t\t\t\t\t\t<br\ />\n\t\t\t\t\t<b
+                >Customer<\/b> <br />
+                Walk-In Customer, <br />Linking Street, <br />Phoenix, Arizona,
+                USA<br /><b
+                    >Mobile<\/b>: (378) 400-1234
+                    <br />\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t<\/span>\n\n\t\t\t<span
+                    class=\"pull-right text-left\">\n\t\t\t\t<b
+                        >Date<\/b> 03\/10\/2025
+                        02:22\n\n\t\t\t\t\n\t\t\t\t\n\n\t\t
+                        \n\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t \n\t\t \t\t \n\t\t\t\t<!-- Waiter info -->\n\t\t\t\t\t\t
+                        \n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t\t\n\t\t\t<\/span>\n\t\t<\/p>\n\t<\/div>\n<\/div>\n\n<div
+                        class=\"row\" style=\"color: #000000 !important;\">\n\t<!-- \/.col --><\/div>\n\n<div
+                        class=\"row\" style=\"color: #000000
+                        !important;\">\n\t<div class=\"col-xs-12\">\n\t\t<br\ />\n\t\t\t\t\t\t\t\t<table
+                        class=\"table table-responsive table-slim\">\n\t\t\t
+                        <thead>
+                            \n\t\t\t\t
+                            <tr>
+                                \n\t\t\t\t\t<th
+                                width=\"45%\">Product<\/th>\n\t\t\t\t\t<th
+                                class=\"text-right\"
+                                width=\"15%\">Quantity<\/th>\n\t\t\t\t\t<th
+                                class=\"text-right\" width=\"15%\">Unit
+                                Price<\/th>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t<th
+                                class=\"text-right\"
+                                width=\"15%\">Subtotal<\/th>\n\t\t\t\t<\/tr>\n\t\t\t<\/thead>\n\t\t\t
+                                <tbody>
+                                    \n\t\t\t\t\t\t\t\t\t
+                                    <tr>
+                                        \n\t\t\t\t\t\t
+                                        <td>
+                                            \n\t\t\t\t\t\t\t Apple iPhone 8
+                                            Color Gray \n , AS0015-2 \n \n \n \n
+                                            \n <\/td>\n\t\t\t\t\t\t<td
+                                            class=\"text-right\">\n\t\t\t\t\t\t\t1.00
+                                            Pc(s)
+                                            \n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<\/td>\n\t\t\t\t\t\t<td
+                                            class=\"text-right\">1,187.50<\/td>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t<td
+                                            class=\"text-right\">1,306.25<\/td>\n\t\t\t\t\t<\/tr>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t
+                                            <tr>
+                                                \n\t\t\t\t\t\t
+                                                <td>
+                                                    \n\t\t\t\t\t\t\t Acer Aspire
+                                                    E 15 Color Black \n ,
+                                                    AS0017-1 \n \n \n \n \n
+                                                    <\/td>\n\t\t\t\t\t\t<td
+                                                    class=\"text-right\">\n\t\t\t\t\t\t\t1.00
+                                                    Pc(s)
+                                                    \n\n\t\t\t\t\t\t\t\t\t\t\t\t\t<\/td>\n\t\t\t\t\t\t<td
+                                                    class=\"text-right\">437.50<\/td>\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t<td
+                                                    class=\"text-right\">437.50<\/td>\n\t\t\t\t\t<\/tr>\n\t\t\t\t\t\t\t\t\t\t\t\t<\/tbody>\n\t\t<\/table>\n\t<\/div>\n<\/div>\n\n<div
+                                                    class=\"row\" style=\"color:
+                                                    #000000
+                                                    !important;\">\n\t<div
+                                                    class=\"col-md-12\"><hr\ /><\/div>\n\t<div
+                                                    class=\"col-xs-6\">\n\n\t\t<table
+                                                    class=\"table
+                                                    table-slim\">\n\n\t\t\t\t\t\t\t\t\t\t\t\t
+                                                    <tr>
+                                                        \n\t\t\t\t\t\t
+                                                        <td>
+                                                            Cash<\/td>\n\t\t\t\t\t\t<td
+                                                            class=\"text-right\"
+                                                            >$
+                                                            1,569.38<\/td>\n\t\t\t\t\t\t<td
+                                                            class=\"text-right\">03\/10\/2025<\/td>\n\t\t\t\t\t<\/tr>\n\t\t\t\t\t\t\t\n\t\t\t<!-- Total Paid-->\n\t\t\t\t\t\t\t
+                                                            <tr>
+                                                                \n\t\t\t\t\t
+                                                                <th>
+                                                                    \n\t\t\t\t\t\tTotal
+                                                                    Paid\n\t\t\t\t\t<\/th>\n\t\t\t\t\t<td
+                                                                    class=\"text-right\">\n\t\t\t\t\t\t$
+                                                                    1,569.38\n\t\t\t\t\t<\/td>\n\t\t\t\t<\/tr>\n\t\t\t\n\t\t\t<!-- Total Due-->\n\t\t\t\n\t\t\t\t\t<\/table>\n\t<\/div>\n\n\t<div
+                                                                    class=\"col-xs-6\">\n
+                                                                    <div
+                                                                    class=\"table-responsive\">\n
+                                                                    \t<table
+                                                                    class=\"table
+                                                                    table-slim\">\n\t\t\t\t
+                                                                    <tbody>
+                                                                        \n\t\t\t\t\t\n\t\t\t\t\t\t\t\t\t\t
+                                                                        <tr>
+                                                                            \n\t\t\t\t\t\t<th
+                                                                            style=\"width:70%\">\n\t\t\t\t\t\t\tSubtotal:\n\t\t\t\t\t\t<\/th>\n\t\t\t\t\t\t<td
+                                                                            class=\"text-right\">\n\t\t\t\t\t\t\t$
+                                                                            1,743.75\n\t\t\t\t\t\t<\/td>\n\t\t\t\t\t<\/tr>\n\t\t\t\t\t\t\t\t\t\t<!-- Shipping Charges -->\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t<!-- Discount -->\n\t\t\t\t\t\t\t\t\t\t\t
+                                                                        </tr>
+                                                                        <tr>
+                                                                            \n\t\t\t\t\t\t\t
+                                                                            <th>
+                                                                                \n\t\t\t\t\t\t\t\tDiscount
+                                                                                <small
+                                                                                    >(10.00%)<\/small>
+                                                                                    :\n\t\t\t\t\t\t\t<\/th>\n\n\t\t\t\t\t\t\t<td
+                                                                                    class=\"text-right\">\n\t\t\t\t\t\t\t\t(-)
+                                                                                    $
+                                                                                    174.38\n\t\t\t\t\t\t\t<\/td>\n\t\t\t\t\t\t<\/tr>\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t<!-- Tax -->\n\t\t\t\t\t\n\t\t\t\t\t\n\t\t\t\t\t<!-- Total -->\n\t\t\t\t\t
+                                                                                    <tr>
+                                                                                        \n\t\t\t\t\t\t
+                                                                                        <th>
+                                                                                            \n\t\t\t\t\t\t\tTotal:\n\t\t\t\t\t\t<\/th>\n\t\t\t\t\t\t<td
+                                                                                            class=\"text-right\">\n\t\t\t\t\t\t\t$
+                                                                                            1,569.38\n\t\t\t\t\t\t\t\t\t\t\t\t\t<\/td>\n\t\t\t\t\t<\/tr>\n\t\t\t\t<\/tbody>\n
+                                                                                            \t<\/table>\n
+                                                                                            <\/div>\n
+                                                                                            <\/div>\n\n
+                                                                                            <div
+                                                                                            class=\"border-bottom
+                                                                                            col-md-12\">\n\t
+                                                                                            \t<\/div>\n\n\t
+                                                                                            \n<\/div>\n<div
+                                                                                            class=\"row\"
+                                                                                            style=\"color:
+                                                                                            #000000
+                                                                                            !important;\">\n\t\t<\/div>",
+                                                                                        </th>
+                                                                                    </tr></small
+                                                                                >
+                                                                            </th>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </th>
+                                                            </tr>
+                                                        </td>
+                                                    </tr>
+                                                </td>
+                                            </tr>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </tr>
+                        </thead></b
+                    ></b
+                ></b
+            ></b
+        ></b
+    >
+</p>
