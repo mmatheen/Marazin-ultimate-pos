@@ -54,15 +54,6 @@
             color: #000 !important;
             font-weight: normal !important;
         }
-        .printArea .logo {
-           max-width: 100%;
-            height: auto;
-            image-rendering: -webkit-optimize-contrast; /* Enhance image rendering */
-            image-rendering: crisp-edges; /* For better clarity on some browsers */
-            image-rendering: pixelated; /* For better clarity on some browsers */
-            filter: contrast(120%); /* Increase contrast for better boldness */
-            filter: brightness(110%); /* Increase brightness for better clarity */
-        }
     }
 </style>
 </head>
@@ -70,9 +61,7 @@
 <body class="billBody" style="font-family: Arial, sans-serif; font-size: 14px;">
 
 <div id="printArea">
-    <div style="text-align: center; margin-bottom: 10px;">
-        <img src="../../../public/assets/img/ARB Logo.png" alt="Company Logo" class="logo">
-    </div>
+<img src="../../../public/assets/img/ARB Logo.png" style="width: 100px; height: auto; display: block; margin: 0 auto;" alt="ARB Logo"/>
     <h2 class="receipt-title">ARB Distribution</h2>
     <div class="billAddress" style="font-size: 14px; color: #000;">
         Address: {{ Auth::user()->location->address }}<br>
@@ -90,8 +79,10 @@
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">
+                <div style="border: 2px solid #000; border-radius: 100px; padding: 5px;">
                     <div style="font-size: 16px; color: #000;">{{ $sale->invoice_no }}</div>
-                    <div style="font-size: 12px; color: #000;">{{ Auth::user()->role_name }}</div>
+                    <div style="font-size: 12px; color: #000;">{{ Auth::user()->name }}</div>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -180,8 +171,8 @@
     <hr>
     <div class="billFooter" style="padding-bottom: 4px;"></div>
 
-    <div class="attribute" style="font-size: 16px; color: #000; font-weight: bolder !important;">
-        Software: Marzin Pvt.Ltd | www.marazin.lk
+    <div class="attribute" style="font-size: 16px; color: #000;">
+        Software: Marazin Pvt.Ltd | www.marazin.lk
     </div>
 </div>
 

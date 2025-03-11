@@ -3,93 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Food City Receipt</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Print Image</title>
     <style>
+        /* General body styling */
         body {
-            background: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #fff; /* White background for better print contrast */
         }
-        .receipt-box {
-            max-width: 380px;
-            margin: auto;
-            padding: 15px;
-            border: 1px solid #ddd;
-            background: #fff;
-            font-family: Arial, sans-serif;
-        }
-        .receipt-title, .receipt-header {
+
+        /* Container for the image to center it */
+        .print-container {
             text-align: center;
+            width: 80mm; /* Set width for 80mm thermal printer */
         }
-        .receipt-title {
-            font-size: 20px;
-            font-weight: bold;
-            margin-bottom: 10px;
+
+        /* Image styling for better clarity */
+        .print-container img {
+            max-width: 100%;
+            height: auto;
+            image-rendering: -webkit-optimize-contrast; /* Enhance image rendering */
+            image-rendering: crisp-edges; /* For better clarity on some browsers */
+            image-rendering: pixelated; /* For better clarity on some browsers */
+            filter: contrast(120%); /* Increase contrast for better boldness */
+            filter: brightness(110%); /* Increase brightness for better clarity */
         }
-        .receipt-header {
-            font-size: 14px;
-        }
-        .receipt-body, .receipt-footer {
-            font-size: 13px;
-        }
-        .total-section {
-            font-weight: bold;
-        }
-        .print-btn {
-            width: 100%;
-            margin-top: 10px;
+
+        /* Print-specific styles */
+        @media print {
+            /* Hide everything outside the print container */
+            body * {
+                visibility: hidden;
+            }
+            .print-container, .print-container * {
+                visibility: visible;
+            }
+            .print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                margin: 0;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="receipt-box">
-        <p class="receipt-header">Phone: 0776791656</p>
-        <h2 class="receipt-title">Cash Customer</h2>
-        <p class="receipt-header">04-03-2025 01:34 PM</p>
-        <div class="text-center border rounded p-2 mb-2">
-            <h4 class="m-0">2025-89</h4>
-            <small>Admin</small>
-        </div>
-        <hr>
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Items</th>
-                    <th>Rate × Qty</th>
-                    <th>Amt</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>Product 01 <br> <del>4.00</del> (1)</td>
-                    <td>3.00 × 1pcs</td>
-                    <td>3.00</td>
-                </tr>
-                <tr>
-                    <td>2</td>
-                    <td>Test Item 03</td>
-                    <td>0.00 × 17pcs</td>
-                    <td>0.00</td>
-                </tr>
-                <tr>
-                    <td>3</td>
-                    <td>Test Item 03</td>
-                    <td>0.00 × 30pcs</td>
-                    <td>0.00</td>
-                </tr>
-            </tbody>
-        </table>
-        <hr>
-        <div class="text-end">
-            <p><strong>TOTAL:</strong> 3.00</p>
-            <p><strong>ADVANCE PAID:</strong> 0.00</p>
-            <p><strong>BALANCE:</strong> (3.00)</p>
-        </div>
-        <hr>
-        <p class="total-section">Total Discount: 1.00</p>
-        <p class="text-center">Software: Syntaks Shopman | www.syntaks.lk</p>
-        <button class="btn btn-primary print-btn" onclick="window.print()">Print This Bill</button>
+    <div class="print-container">
+        <img src="../../../public/assets/img/ARB Logo.png" alt="Center Image">
     </div>
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
 </body>
 </html>
