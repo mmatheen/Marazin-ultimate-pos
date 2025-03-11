@@ -63,6 +63,16 @@
             filter: contrast(120%); /* Increase contrast for better boldness */
             filter: brightness(110%); /* Increase brightness for better clarity */
         }
+         /* Adjustments for thermal printer */
+         .logo-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .logo-container img {
+            max-width: 100%;
+            height: auto;
+            width: 150px; /* You can adjust this for thermal printer width */
+        }
     }
 </style>
 </head>
@@ -70,6 +80,11 @@
 <body class="billBody" style="font-family: Arial, sans-serif; font-size: 14px; padding: 10px;">
 
 <div id="printArea">
+
+    <div class="logo-container">
+        <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="ARB Distribution Logo" class="logo" />
+    </div>
+
     <h2 class="receipt-title" style="font-size: 20px; margin-bottom: 10px;">ARB Distribution</h2>
 
     <div class="billAddress" style="font-size: 14px; color: #000; margin-bottom: 15px;">
@@ -85,8 +100,10 @@
               <td>
                 <div style="font-size: 16px; color: #000; margin-bottom: 5px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
                 <div style="font-size: 14px; color: #000;">
-                    [{{ date('d-m-Y h:i A', strtotime($sale->sales_date)) }}]
-                </div>
+                    [{{ date('d-m-Y ', strtotime($sale->sales_date)) }}]
+                    {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
+                    </div>
+                    
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">

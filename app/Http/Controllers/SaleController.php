@@ -658,5 +658,7 @@ class SaleController extends Controller
         });
 
         return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
+
+     
     }
 }
