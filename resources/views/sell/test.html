@@ -3,61 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Image</title>
+    <title>Receipt</title>
     <style>
-        /* General body styling */
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #fff; /* White background for better print contrast */
-        }
-
-        /* Container for the image to center it */
-        .print-container {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
             text-align: center;
-            width: 80mm; /* Set width for 80mm thermal printer */
         }
-
-        /* Image styling for better clarity */
-        .print-container img {
-            max-width: 100%;
-            height: auto;
-            image-rendering: -webkit-optimize-contrast; /* Enhance image rendering */
-            image-rendering: crisp-edges; /* For better clarity on some browsers */
-            image-rendering: pixelated; /* For better clarity on some browsers */
-            filter: contrast(120%); /* Increase contrast for better boldness */
-            filter: brightness(110%); /* Increase brightness for better clarity */
+        .receipt {
+            width: 300px;
+            margin: auto;
+            padding: 10px;
+            border: 1px solid #000;
         }
-
-        /* Print-specific styles */
-        @media print {
-            /* Hide everything outside the print container */
-            body * {
-                visibility: hidden;
-            }
-            .print-container, .print-container * {
-                visibility: visible;
-            }
-            .print-container {
-                position: absolute;
-                left: 0;
-                top: 0;
-                margin: 0;
-            }
+        .header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .line {
+            border-top: 1px dashed #000;
+            margin: 5px 0;
+        }
+        .table {
+            width: 100%;
+            text-align: left;
+        }
+        .table td {
+            padding: 2px 0;
+        }
+        .table .right {
+            text-align: right;
         }
     </style>
 </head>
 <body>
-    <div class="print-container">
-        <img src="../../../public/assets/img/ARB Logo.png" alt="Center Image">
+    <div class="receipt">
+        <div class="header">Receipt</div>
+        <div>Customer: John Doe</div>
+        <div>Date: 2025-03-11</div>
+        <div class="line"></div>
+        <table class="table">
+            <tr>
+                <td>Description</td>
+                <td class="right">Amount (LKR)</td>
+            </tr>
+            <tr>
+                <td>Item 1</td>
+                <td class="right">1,500</td>
+            </tr>
+            <tr>
+                <td>Item 2</td>
+                <td class="right">140,000</td>
+            </tr>
+        </table>
+        <div class="line"></div>
+        <table class="table">
+            <tr>
+                <td><strong>Total</strong></td>
+                <td class="right"><strong>141,500</strong></td>
+            </tr>
+        </table>
+        <div class="line"></div>
+        <div>Thank you for your purchase!</div>
     </div>
-    <script>
-        window.onload = function() {
-            window.print();
-        }
-    </script>
 </body>
 </html>
