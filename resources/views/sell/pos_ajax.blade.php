@@ -294,7 +294,7 @@
                 const cardHTML = `
                 <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
                     <div class="product-card"> <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
-                       
+
                         <div class="product-card-body">
                             <h6>${product.product_name} <br>
                                 <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
@@ -738,44 +738,70 @@ $(document).ready(function() {
     }
 
     function sendSaleData(saleData, saleId = null) {
-        const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-        const method = 'POST';
+    const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+    const method = 'POST';
 
-        $.ajax({
-            url: url,
-            type: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-            },
-            data: JSON.stringify(saleData),
-            success: function(response) {
-                if (response.message && response.invoice_html) {
-                    document.getElementsByClassName('successSound')[0].play();
-                    toastr.success(response.message);
+    $.ajax({
+        url: url,
+        type: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+        },
+        data: JSON.stringify(saleData),
+        success: function(response) {
+            if (response.message && response.invoice_html) {
+                document.getElementsByClassName('successSound')[0].play();
+                toastr.success(response.message);
 
-                    // Create a print area dynamically
-                    var printArea = document.createElement('div');
-                    printArea.innerHTML = response.invoice_html;
-                    document.body.appendChild(printArea);
+                // Create a print area dynamically
+                var printArea = document.createElement('div');
+                printArea.id = 'printArea';
+                printArea.innerHTML = response.invoice_html;
+                document.body.appendChild(printArea);
 
-                    // Print the invoice
-                    window.print();
+                // Apply print styles
+                var printStyles = document.createElement('style');
+                printStyles.id = 'printStyles';
+                printStyles.innerHTML = `
+                    @media print {
+                        body * {
+                            visibility: hidden;
+                        }
+                        #printArea, #printArea * {
+                            visibility: visible;
+                        }
+                        #printArea {
+                            position: absolute;
+                            left: 0;
+                            top: 0;
+                            width: 100%;
+                            height: 100%;
+                            font-size: 14px;
+                            font-weight: bold;
+                        }
+                    }
+                `;
+                document.head.appendChild(printStyles);
 
-                    // Remove print area after printing
-                    document.body.removeChild(printArea);
+                // Print the invoice
+                window.print();
 
-                    // Reset the form and refresh products
-                    resetForm();
-                    fetchAllProducts();
-                } else {
-                    toastr.error('Failed to record sale: ' + response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                toastr.error('An error occurred: ' + xhr.responseText);
+                // Remove print area and styles after printing
+                document.body.removeChild(printArea);
+                document.head.removeChild(printStyles);
+
+                // Reset the form and refresh products
+                resetForm();
+                fetchAllProducts();
+            } else {
+                toastr.error('Failed to record sale: ' + response.message);
             }
-        });
+        },
+        error: function(xhr, status, error) {
+            toastr.error('An error occurred: ' + xhr.responseText);
+        }
+    });
 }
 
     function gatherCashPaymentData() {

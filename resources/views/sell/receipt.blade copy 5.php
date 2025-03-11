@@ -20,11 +20,12 @@
             top: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            font-size: 16px !important;
+            font-size: 18px !important;
+            font-weight: bold !important;
             font-family: Arial, sans-serif !important;
         }
         .receipt-title, .receipt-header, .d-flex, .table, .total-section, .receipt-footer {
-            font-weight: normal !important;
+            font-weight: bold !important;
             margin: 0 !important;
             padding: 5px 0 !important;
             width: 100% !important;
@@ -36,7 +37,7 @@
         }
         .table th, .table td {
             padding: 5px !important;
-            font-size: 14px !important;
+            font-size: 16px !important;
         }
         .text-end {
             text-align: right !important;
@@ -47,41 +48,43 @@
             margin: 5px 0 !important;
             width: 100% !important;
             display: block !important;
-            opacity: 0.6 !important;
+            opacity: 0.3 !important;
         }
+        /* Ensure high print quality */
+        /* body, #printArea {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            image-rendering: high-quality !important;
+            -webkit-font-smoothing: antialiased !important;
+            -moz-osx-font-smoothing: grayscale !important;
+        } */
         .attribute {
             font-size: 16px !important;
             color: #000 !important;
-            font-weight: normal !important;
+            font-weight: bolder !important;
         }
     }
 </style>
 </head>
 
-<body class="billBody" style="font-family: Arial, sans-serif; font-size: 14px;">
+<body class="billBody" style="font-family: Arial, sans-serif; font-size: 18px;">
 
 <div id="printArea">
-    <img src="https://example.com/path/to/your/image/ARB_Logo.png" style="width: 100px; height: auto; display: block; margin: 0 auto;" alt="ARB Logo"/>
-    <h2 class="receipt-title">ARB Distribution</h2>
-    <div class="billAddress" style="font-size: 14px; color: #000;">
-        Address: {{ Auth::user()->location->address }}<br>
-        Phone: {{ Auth::user()->location->mobile }}<br>
-        Email: {{ Auth::user()->location->email }}
-    </div>
+    <div class="billAddress" style="font-size: 18px; color: #000; font-weight: bolder !important;">Phone: {{ Auth::user()->location->mobile }}</div>
 
-    <div style="font-size: 14px; margin-bottom: 5px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
+    <div style="font-size: 18px; margin-bottom: 5px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000; font-weight: bolder !important;">
         <table width="100%" border="0">
           <tbody>
             <tr>
               <td>
-                <div style="font-size: 16px; color: #000;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
-                <div style="font-size: 14px; color: #000;">{{ date('d-m-Y h:i A', strtotime($sale->sales_date)) }}</div>
+                <div style="font-size: 18px; font-weight: bolder !important; color: #000;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
+                <div style="font-size: 16px; font-weight: bolder !important; color: #000;">{{ date('d-m-Y h:i A', strtotime($sale->sales_date)) }}</div>
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">
-                <div style="border: 2px solid #000; border-radius: 100px; padding: 5px;">
-                    <div style="font-size: 16px; color: #000;">{{ $sale->invoice_no }}</div>
-                    <div style="font-size: 12px; color: #000;">{{ Auth::user()->name }}</div>
+                <div style="border: 3px solid #000; border-radius: 100px; padding: 5px;">
+                    <div style="font-size: 20px; font-weight: bolder !important; color: #000;">{{ $sale->invoice_no }}</div>
+                    <div style="font-size: 16px; font-weight: bolder !important; color: #000;">{{ Auth::user()->name }}</div>
                 </div>
               </td>
             </tr>
@@ -89,7 +92,7 @@
         </table>
     </div>
 
-    <table width="100%" border="0" style="color: #000;">
+    <table width="100%" border="0" style="color: #000; font-weight: bolder !important;">
       <tbody>
         <tr>
           <th width="20" align="left" valign="top" scope="col">#</th>
@@ -103,15 +106,7 @@
         @foreach ($products as $index => $product)
         <tr>
           <td width="20" valign="top">{{ $index + 1 }}</td>
-          <td colspan="3" valign="top">{{ $product->product->product_name }}
-            @if ($product->price_type == 'retail')
-                <span>*</span>
-            @elseif($product->price_type == 'wholesale')
-                <span>**</span>
-            @elseif($product->price_type == 'special')
-                <span>***</span>
-            @endif
-          </td>
+          <td colspan="3" valign="top">{{ $product->product->product_name }}</td>
         </tr>
         <tr style="display: table-row">
           <td width="20" valign="top">&nbsp;</td>
@@ -132,14 +127,14 @@
     <div style="margin: 5px 0; border-top-style: dashed; border-width: 1px; border-color: #000;"></div>
 
     <div style="position: relative">
-        <table width="100%" border="0" style="color: #000;">
+        <table width="100%" border="0" style="color: #000; font-weight: bolder !important;">
           <tbody>
             <tr>
               <td align="right"><strong>TOTAL</strong></td>
               <td width="80" align="right"><strong>{{ number_format($sale->final_total, 2) }}</strong></td>
             </tr>
             <tr>
-              <td align="right"><strong>PAID</strong></td>
+              <td align="right"><strong>ADVANCE PAID</strong></td>
               <td width="80" align="right"><strong>{{ number_format($sale->total_paid, 2) }}</strong></td>
             </tr>
             <tr>
@@ -150,7 +145,7 @@
         </table>
 
         <div style="position: absolute; left: 0; bottom: 0; display: block;">
-            <div style="border-right: 1px dashed #000; padding-right: 10px; padding-bottom: 5px; font-size: 12px; color: #000;">
+            <div style="border-right: 1px dashed #000; padding-right: 10px; padding-bottom: 5px; font-size: 16px; color: #000; font-weight: bolder !important;">
                 <strong>Total Items: {{ count($products) }}</strong><br>
                 <strong>Total Qty: {{ $products->sum('quantity') }}</strong>
             </div>
@@ -159,19 +154,13 @@
 
     <hr style="margin: 5px 0; border-top-style: dashed; border-width: 1px;">
 
-    @php
-            $total_discount = $products->sum(function($product) {
-                return ($product->product->max_retail_price - $product->price) * ($product->quantity > 1 ? 1 : $product->quantity);
-            });
-        @endphp
-
-    <div style="font-size: 18px; display: block; text-align: center; color: #000;">
+    <div style="font-size: 20px; display: block; text-align: center; font-weight: bolder; color: #000 !important;">
         Total Discount : Rs. {{ number_format($total_discount, 2) }}
     </div>
-    <hr>
+
     <div class="billFooter" style="padding-bottom: 4px;"></div>
 
-    <div class="attribute" style="font-size: 16px; color: #000;">
+    <div class="attribute" style="font-size: 16px; color: #000; font-weight: bolder !important;">
         Software: Marzin Pvt.Ltd | www.marazin.lk
     </div>
 </div>
