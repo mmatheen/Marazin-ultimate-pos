@@ -218,7 +218,7 @@
     <hr style="margin-top: 10px; border-top-style: dashed; border-width: 1px;">
 
     <div class="attribute" style="font-size: 16px; color: #000; font-weight: bolder !important; text-align: center;">
-        Software: Marzin Pvt.Ltd | www.marazin.lk
+        Software: Marazin Pvt.Ltd | www.marazin.lk
     </div>
 </div>
 
