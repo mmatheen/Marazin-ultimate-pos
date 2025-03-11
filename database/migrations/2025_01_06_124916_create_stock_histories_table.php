@@ -13,7 +13,7 @@ return new class extends Migration
     {
             Schema::create('stock_histories', function (Blueprint $table) {
                 $table->bigIncrements('id');
-                $table->unsignedBigInteger('loc_batch_id');
+                $table->unsignedBigInteger('loc_batch_id')->nullable();
                 $table->integer('quantity');
                 $table->enum('stock_type', [
                     'opening_stock',

@@ -150,58 +150,52 @@
                                                     <div class="col-md-4">
                                                         <div class="mb-5">
                                                             <div class="form-check">
-                                                                <input type="hidden" name="stock_alert"
-                                                                    value="0">
-                                                                <input class="form-check-input" name="stock_alert"
-                                                                    type="checkbox" id="edit_stock_alert" checked
-                                                                    value="1">
-                                                                <label class="form-check-label"
-                                                                    for="edit_stock_alert" id="stock_alert_label">
-                                                                    Hide Alert Stock
+                                                                <input type="hidden" name="stock_alert" value="0">
+                                                                <input class="form-check-input" name="stock_alert" type="checkbox" id="edit_stock_alert" checked value="1">
+                                                                <label class="form-check-label" for="edit_stock_alert" id="stock_alert_label">
+                                                                    Manage Stock?
                                                                 </label>
-                                                                <span class="text-danger"
-                                                                    id="stock_alert_error"></span>
+                                                                <span class="text-danger" id="stock_alert_error"></span>
                                                             </div>
                                                         </div>
                                                     </div>
-
+            
                                                     <div class="col-md-4" id="alert_quantity_container">
                                                         <div class="mb-5">
                                                             <div class="form-group local-forms">
-                                                                <label>Alert Quantity<span
-                                                                        class="login-danger"></span></label>
-                                                                <input class="form-control" type="number"
-                                                                    id="edit_alert_quantity" name="alert_quantity"
-                                                                    placeholder="0">
-                                                                <span class="text-danger"
-                                                                    id="alert_quantity_error"></span>
+                                                                <label>Alert Quantity<span class="login-danger"></span></label>
+                                                                <input class="form-control" type="number" id="edit_alert_quantity" name="alert_quantity" placeholder="0">
+                                                                <span class="text-danger" id="alert_quantity_error"></span>
                                                             </div>
                                                         </div>
                                                     </div>
-
+            
                                                     <script>
                                                         $(document).ready(function() {
                                                             // Set initial state when the page loads
                                                             toggleAlertQuantity();
-
+            
                                                             // Event listener for the checkbox change
                                                             $('#edit_stock_alert').change(function() {
                                                                 toggleAlertQuantity();
                                                             });
-
+            
                                                             // Function to toggle the alert quantity field based on checkbox status
                                                             function toggleAlertQuantity() {
                                                                 if ($('#edit_stock_alert').is(':checked')) {
                                                                     $('#alert_quantity_container').show();
-                                                                    $('#stock_alert_label').text('Show Alert Stock');
+                                                                    $('#stock_alert_label').text('Manage Stock?');
+                                                                    $('#openingStockAndProduct').prop('disabled', false);
                                                                 } else {
                                                                     $('#alert_quantity_container').hide();
-                                                                    $('#stock_alert_label').text('Hide Alert Stock');
+                                                                    $('#stock_alert_label').text('Manage Stock?');
+                                                                    $('#openingStockAndProduct').prop('disabled', true);
                                                                 }
                                                             }
                                                         });
                                                     </script>
                                                 </div>
+                                                
                                                 <div class="row">
 
                                                     <div class="col-md-8">

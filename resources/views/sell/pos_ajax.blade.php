@@ -199,168 +199,165 @@
                     console.error('Error fetching brands:', error);
                 });
         }
-
         function fetchAllProducts() {
-            showLoader();
-            fetch('/products/stocks')
-                .then(response => response.json())
-                .then(data => {
-                    hideLoader(); // Hide loader after fetching
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        stockData = data.data;
-                        // Populate the global allProducts array
-                        allProducts = stockData.map(stock => stock.product);
-                        displayProducts(stockData);
-                        initAutocomplete();
-                    } else {
-                        console.error('Invalid data:', data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
-        }
-
-        function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.product_name && product.product_name.toLowerCase().includes(
-                            searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
-
-                    if (filteredProducts.length === 0) {
-                        // Optionally display a "No products found" in the dropdown
-                        response([{
-                            label: "No products found",
-                            value: ""
-                        }]);
-                    } else {
-                        response(filteredProducts.map(product => ({
-                            label: `${product.product_name} (${product.sku || 'No SKU'})`,
-                            value: product.product_name,
-                            product: product
-                        })));
-                    }
-                },
-                select: function(event, ui) {
-                    // If no valid product is selected, ignore
-                    if (!ui.item.product) return false;
-
-                    // Populate the input field with the selected product name
-                    $("#productSearchInput").val(ui.item.value);
-
-                    // Add the selected product to the data table
-                    addProductToTable(ui.item.product);
-                    return false;
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                // Customize the dropdown appearance
-                if (!item.product) {
-                    return $("<li>")
-                        .append(`<div style="color: red;">${item.label}</div>`)
-                        .appendTo(ul);
-                }
-
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
-            };
-
-            // Prevent default aria-live and aria-autocomplete attributes
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-
-            // Remove the default autocomplete status element
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-        }
-
-        function displayProducts(products) {
-            posProduct.innerHTML = ''; // Clear previous products
-
-            if (products.length === 0) {
-                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                return;
+    showLoader();
+    fetch('/products/stocks')
+        .then(response => response.json())
+        .then(data => {
+            hideLoader(); // Hide loader after fetching
+            if (data.status === 200 && Array.isArray(data.data)) {
+                stockData = data.data;
+                // Populate the global allProducts array
+                allProducts = stockData.map(stock => stock.product);
+                displayProducts(stockData);
+                initAutocomplete();
+            } else {
+                console.error('Invalid data:', data);
             }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+}
 
+function initAutocomplete() {
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts.filter(product =>
+                (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            );
 
-            products.forEach(stock => {
-                const product = stock.product;
-                const totalQuantity = stock.total_stock;
-                const price = product.retail_price;
-                const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
+            if (filteredProducts.length === 0) {
+                // Optionally display a "No products found" in the dropdown
+                response([{
+                    label: "No products found",
+                    value: ""
+                }]);
+            } else {
+                response(filteredProducts.map(product => ({
+                    label: `${product.product_name} (${product.sku || 'No SKU'})`,
+                    value: product.product_name,
+                    product: product
+                })));
+            }
+        },
+        select: function(event, ui) {
+            // If no valid product is selected, ignore
+            if (!ui.item.product) return false;
 
-                const cardHTML = `
-                <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                    <div class="product-card"> <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+            // Populate the input field with the selected product name
+            $("#productSearchInput").val(ui.item.value);
 
-                        <div class="product-card-body">
-                            <h6>${product.product_name} <br>
-                                <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                            </h6>
-                            <h6>
-                                <span class="badge bg-success">${totalQuantity} Pc(s) in stock</span>
-                            </h6>
-                        </div>
+            // Add the selected product to the data table
+            addProductToTable(ui.item.product);
+            return false;
+        }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        // Customize the dropdown appearance
+        if (!item.product) {
+            return $("<li>")
+                .append(`<div style="color: red;">${item.label}</div>`)
+                .appendTo(ul);
+        }
+
+        return $("<li>")
+            .append(`<div>${item.label}</div>`)
+            .appendTo(ul);
+    };
+
+    // Prevent default aria-live and aria-autocomplete attributes
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+
+    // Remove the default autocomplete status element
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+}
+
+function displayProducts(products) {
+    posProduct.innerHTML = ''; // Clear previous products
+
+    if (products.length === 0) {
+        posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+        return;
+    }
+
+    products.forEach(stock => {
+        const product = stock.product;
+        const totalQuantity = stock.total_stock;
+        const price = product.retail_price;
+        const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
+
+        // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
+        const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' : `${totalQuantity} Pc(s) in stock`;
+
+        const cardHTML = `
+            <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
+                <div class="product-card"> <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+
+                    <div class="product-card-body">
+                        <h6>${product.product_name} <br>
+                            <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                        </h6>
+                        <h6>
+                            <span class="badge bg-success">${quantityDisplay}</span>
+                        </h6>
                     </div>
                 </div>
-            `;
-                posProduct.insertAdjacentHTML('beforeend', cardHTML);
-            });
-            // Add click event to product cards
-            const productCards = document.querySelectorAll('.product-card');
+            </div>
+        `;
+        posProduct.insertAdjacentHTML('beforeend', cardHTML);
+    });
 
-            productCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const productId = card.querySelector('img').getAttribute(
-                        'alt'); // Get the product ID from the alt attribute
-                    const selectedProduct = stockData.find(stock => stock.product
-                        .product_name === productId).product;
-                    addProductToTable(selectedProduct);
-                });
-            });
-        }
+    // Add click event to product cards
+    const productCards = document.querySelectorAll('.product-card');
 
-        // Filter products by category
-        function filterProductsByCategory(categoryId) {
-            showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.main_category_id ===
-                    categoryId);
-                displayProducts(filteredProducts);
-            }, 500);
-        }
+    productCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const productId = card.querySelector('img').getAttribute('alt'); // Get the product ID from the alt attribute
+            const selectedProduct = stockData.find(stock => stock.product.product_name === productId).product;
+            addProductToTable(selectedProduct);
+        });
+    });
+}
 
-        // Filter products by subcategory
-        function filterProductsBySubCategory(subCategoryId) {
-            showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.sub_category_id ===
-                    subCategoryId);
-                displayProducts(filteredProducts);
-            }, 500);
-        }
+// Filter products by category
+function filterProductsByCategory(categoryId) {
+    showLoader();
+    setTimeout(() => {
+        const filteredProducts = stockData.filter(stock => stock.product.main_category_id === categoryId);
+        displayProducts(filteredProducts);
+    }, 500);
+}
 
-        // Filter products by brand
-        function filterProductsByBrand(brandId) {
-            showLoader();
-            setTimeout(() => {
-                const filteredProducts = stockData.filter(stock => stock.product.brand_id === brandId);
-                displayProducts(filteredProducts);
-            }, 500);
-        }
+// Filter products by subcategory
+function filterProductsBySubCategory(subCategoryId) {
+    showLoader();
+    setTimeout(() => {
+        const filteredProducts = stockData.filter(stock => stock.product.sub_category_id === subCategoryId);
+        displayProducts(filteredProducts);
+    }, 500);
+}
 
-        // Function to close the offcanvas
-        function closeOffcanvas(offcanvasId) {
-            const offcanvasElement = document.getElementById(offcanvasId);
-            const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
-            if (bsOffcanvas) {
-                bsOffcanvas.hide();
-            }
-        }
+// Filter products by brand
+function filterProductsByBrand(brandId) {
+    showLoader();
+    setTimeout(() => {
+        const filteredProducts = stockData.filter(stock => stock.product.brand_id === brandId);
+        displayProducts(filteredProducts);
+    }, 500);
+}
 
-        let locationId;
+// Function to close the offcanvas
+function closeOffcanvas(offcanvasId) {
+    const offcanvasElement = document.getElementById(offcanvasId);
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+    if (bsOffcanvas) {
+        bsOffcanvas.hide();
+    }
+}
+
+let locationId;
 let priceType = 'retail';
 let selectedRow;
 
@@ -382,14 +379,21 @@ function addProductToTable(product) {
     }
 
     const totalQuantity = stockEntry.total_stock;
-    if (totalQuantity === 0) {
+
+    if (totalQuantity === 0 && product.stock_alert !== 0) {
         toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
         return;
     }
 
     if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-        toastr.error('No batches found for the product', 'Error');
-        return;
+        if (product.stock_alert === 0) {
+            // Product does not have batches but has unlimited stock
+            addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity, 'retail');
+            return;
+        } else {
+            toastr.error('No batches found for the product', 'Error');
+            return;
+        }
     }
 
     const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
@@ -470,49 +474,6 @@ function showProductModal(product, stockEntry, row) {
     });
 }
 
-
-    // $(document).keydown(function(e) {
-    //     // Define key codes for shortcuts
-    //     const keyCodes = {
-    //         addProduct: 65, // 'A' key for adding a product
-    //         selectCustomer: 67, // 'C' key for selecting a customer
-    //         cashButton: 83, // 'S' key for cash sale
-    //         suspendButton: 80, // 'P' key for suspending a sale
-    //         creditSaleButton: 84, // 'T' key for credit sale
-    //     };
-
-    //     // Handle shortcuts
-    //     switch (e.which) {
-    //         case keyCodes.addProduct:
-    //             e.preventDefault();
-    //             // Focus on product search or add product to billing body
-    //             $('#productSearchInput').focus();
-    //             break;
-    //         case keyCodes.selectCustomer:
-    //             e.preventDefault();
-    //             // Open the customer selection modal
-    //             $('#customerModal').modal('show');
-    //             break;
-    //         case keyCodes.cashButton:
-    //             e.preventDefault();
-    //             // Trigger the cash sale button
-    //             $('#cashButton').trigger('click');
-    //             break;
-    //         case keyCodes.suspendButton:
-    //             e.preventDefault();
-    //             // Trigger the suspend sale button
-    //             $('#suspendModal').trigger('click');
-    //             break;
-    //         case keyCodes.creditSaleButton:
-    //             e.preventDefault();
-    //             // Trigger the credit sale button
-    //             $('#creditSaleButton').trigger('click');
-    //             break;
-    //         default:
-    //             break;
-    //     }
-    //     });
-
 function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
     const billingBody = document.getElementById('billing-body');
     const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
@@ -524,7 +485,7 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
         const quantityInput = existingRow.querySelector('.quantity-input');
         let newQuantity = parseInt(quantityInput.value, 10) + 1;
 
-        if (newQuantity > batchQuantity) {
+        if (newQuantity > batchQuantity && product.stock_alert !== 0) {
             toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
             return;
         }
@@ -561,7 +522,6 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
     <td class="discount-data" style="display:none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
 `;
 
-
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
         row.querySelector('.quantity-input').focus();
@@ -589,7 +549,7 @@ function attachRowEventListeners(row, product, stockEntry) {
 
     quantityPlus.addEventListener('click', () => {
         let newQuantity = parseInt(quantityInput.value, 10) + 1;
-        if (newQuantity > parseInt(priceInput.getAttribute('data-quantity'), 10)) {
+        if (newQuantity > parseInt(priceInput.getAttribute('data-quantity'), 10) && product.stock_alert !== 0) {
             document.getElementsByClassName('errorSound')[0].play();
             toastr.error(`You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`, 'Error');
         } else {
@@ -600,7 +560,7 @@ function attachRowEventListeners(row, product, stockEntry) {
 
     quantityInput.addEventListener('input', () => {
         const quantityValue = parseInt(quantityInput.value, 10);
-        if (quantityValue > parseInt(priceInput.getAttribute('data-quantity'), 10)) {
+        if (quantityValue > parseInt(priceInput.getAttribute('data-quantity'), 10) && product.stock_alert !== 0) {
             quantityInput.value = priceInput.getAttribute('data-quantity');
             document.getElementsByClassName('errorSound')[0].play();
             toastr.error(`You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`, 'Error');
@@ -817,6 +777,7 @@ $(document).ready(function() {
 
     $('#cashButton').on('click', function() {
         const saleData = gatherSaleData('completed');
+        console.log(saleData);
         if (!saleData) {
             toastr.error('Please add at least one product before completing the sale.');
             return;

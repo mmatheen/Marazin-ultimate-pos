@@ -8,7 +8,6 @@ use App\Models\Customer;
 use App\Models\Ledger;
 use App\Models\LocationBatch;
 use App\Models\Payment;
-use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesProduct;
 use App\Models\SalesPayment;
@@ -158,13 +157,6 @@ class SaleController extends Controller
                 }
 
                 foreach ($request->products as $productData) {
-                    $product = Product::findOrFail($productData['product_id']);
-
-                    if ($product->stock_alert === 0) {
-                        // Handle unlimited stock product
-                        $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-                    } else {
-
                     $availableStock = $sale->getBatchQuantityPlusSold(
                         $productData['batch_id'],
                         $request->location_id,
@@ -176,7 +168,6 @@ class SaleController extends Controller
                     }
 
                     $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-                 }
                 }
 
                 // Insert ledger entry for the sale
@@ -387,33 +378,6 @@ class SaleController extends Controller
             'stock_type' => $stockType,
         ]);
     }
-
-    private function processUnlimitedStockProductSale($productData, $saleId, $locationId, $stockType)
-    {
-        // Record the sales product for unlimited stock product
-        SalesProduct::create([
-            'sale_id' => $saleId,
-            'product_id' => $productData['product_id'],
-            'quantity' => $productData['quantity'],
-            'price' => $productData['unit_price'],
-            'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'],
-            'batch_id' => null,
-            'location_id' => $locationId,
-            'price_type' => $productData['price_type'],
-            'discount' => $productData['discount'],
-            'tax' => $productData['tax'],
-        ]);
-
-        // Add stock history for unlimited stock product
-        StockHistory::create([
-            'loc_batch_id' => null,
-            'quantity' => -$productData['quantity'],
-            'stock_type' => $stockType,
-          
-        ]);
-    }
-
 
     private function restoreStock($product, $stockType)
     {

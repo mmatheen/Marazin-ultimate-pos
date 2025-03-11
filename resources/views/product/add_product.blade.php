@@ -136,7 +136,7 @@
                                                     <input type="hidden" name="stock_alert" value="0">
                                                     <input class="form-check-input" name="stock_alert" type="checkbox" id="edit_stock_alert" checked value="1">
                                                     <label class="form-check-label" for="edit_stock_alert" id="stock_alert_label">
-                                                        Hide Alert Stock
+                                                        Manage Stock?
                                                     </label>
                                                     <span class="text-danger" id="stock_alert_error"></span>
                                                 </div>
@@ -167,10 +167,12 @@
                                                 function toggleAlertQuantity() {
                                                     if ($('#edit_stock_alert').is(':checked')) {
                                                         $('#alert_quantity_container').show();
-                                                        $('#stock_alert_label').text('Show Alert Stock');
+                                                        $('#stock_alert_label').text('Manage Stock?');
+                                                        $('#openingStockAndProduct').prop('disabled', false);
                                                     } else {
                                                         $('#alert_quantity_container').hide();
-                                                        $('#stock_alert_label').text('Hide Alert Stock');
+                                                        $('#stock_alert_label').text('Manage Stock?');
+                                                        $('#openingStockAndProduct').prop('disabled', true);
                                                     }
                                                 }
                                             });

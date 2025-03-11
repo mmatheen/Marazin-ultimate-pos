@@ -140,7 +140,8 @@ function fetchProducts() {
                         max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
                         retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
                         expiry_date: stock.batches?.[0]?.expiry_date || '',
-                        batch_no: stock.batches?.[0]?.batch_no || ''
+                        batch_no: stock.batches?.[0]?.batch_no || '',
+                        stock_alert: stock.product.stock_alert || 0
                     };
                 }).filter(product => product !== null);
                 initAutocomplete(allProducts); // Initialize autocomplete
@@ -161,14 +162,18 @@ function initAutocomplete(products) {
                 product.sku.toLowerCase().includes(searchTerm)
             );
 
-            if (filteredProducts.length === 0) {
+            // Filter out products with stock_alert set to 0
+            const filteredAndAlertedProducts = filteredProducts.filter(product => product.stock_alert !== 0);
+
+            if (filteredAndAlertedProducts.length === 0) {
                 response([{
                     label: "No products found",
                     value: ""
                 }]);
             } else {
+                // Limit to showing only one product
                 response(
-                    filteredProducts.map(product => ({
+                    filteredAndAlertedProducts.slice(0, 1).map(product => ({
                         label: `${product.name} (${product.sku})`,
                         value: product.name,
                         product: product,
@@ -201,6 +206,9 @@ function initAutocomplete(products) {
         };
     }
 }
+
+// Call fetchProducts when the page loads or when needed
+fetchProducts();
 
 function addProductToTable(product, isEditing = false, prices = {}) {
     const table = $("#purchase_product").DataTable();
