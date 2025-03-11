@@ -3,69 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Receipt</title>
+    <title>Select2 Autofocus with Blinking Cursor</title>
+
+    <!-- jQuery & Select2 CSS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            text-align: center;
-        }
-        .receipt {
-            width: 300px;
-            margin: auto;
-            padding: 10px;
-            border: 1px solid #000;
-        }
-        .header {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .line {
-            border-top: 1px dashed #000;
-            margin: 5px 0;
-        }
-        .table {
-            width: 100%;
-            text-align: left;
-        }
-        .table td {
-            padding: 2px 0;
-        }
-        .table .right {
-            text-align: right;
+        /* Ensures the search box is focused properly */
+        .select2-container--open .select2-search__field {
+            outline: none !important;
+            border: 1px solid #ccc;
         }
     </style>
 </head>
 <body>
-    <div class="receipt">
-        <div class="header">Receipt</div>
-        <div>Customer: John Doe</div>
-        <div>Date: 2025-03-11</div>
-        <div class="line"></div>
-        <table class="table">
-            <tr>
-                <td>Description</td>
-                <td class="right">Amount (LKR)</td>
-            </tr>
-            <tr>
-                <td>Item 1</td>
-                <td class="right">1,500</td>
-            </tr>
-            <tr>
-                <td>Item 2</td>
-                <td class="right">140,000</td>
-            </tr>
-        </table>
-        <div class="line"></div>
-        <table class="table">
-            <tr>
-                <td><strong>Total</strong></td>
-                <td class="right"><strong>141,500</strong></td>
-            </tr>
-        </table>
-        <div class="line"></div>
-        <div>Thank you for your purchase!</div>
+
+    <div class="container mt-5">
+        <h2>Select2 Autofocus with Blinking Cursor</h2>
+
+        <!-- Select2 Dropdown -->
+        <select id="yourSelect2" class="form-control">
+            <option value="">Select an option</option>
+            <option value="1">Option 1</option>
+            <option value="2">Option 2</option>
+            <option value="3">Option 3</option>
+        </select>
     </div>
+
+    <script>
+        $(document).ready(function() {
+            // Initialize Select2
+            $('#yourSelect2').select2();
+
+            // Function to open Select2 and focus the search box
+            function openAndFocusSelect2() {
+                $('#yourSelect2').select2('open'); // Open the dropdown
+                
+                setTimeout(function() {
+                    $('.select2-container--open .select2-search__field').focus(); // Focus search field
+                }, 100);
+            }
+
+            // Open Select2 automatically when page loads
+            setTimeout(openAndFocusSelect2, 500);
+
+            // Also focus search field when manually opened
+            $('#yourSelect2').on('select2:open', function() {
+                setTimeout(function() {
+                    $('.select2-container--open .select2-search__field').focus();
+                }, 100);
+            });
+        });
+    </script>
+
 </body>
 </html>

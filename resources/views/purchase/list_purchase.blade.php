@@ -672,7 +672,7 @@
                             <div class="card-body">
                                 <div class="form-group">
                                     <label for="supplierSelect">Select Supplier</label>
-                                    <select id="supplierSelect" class="form-control">
+                                    <select id="supplierSelect" class="form-control select2Box">
                                         <option value="">Select Supplier</option>
                                     </select>
                                 </div>

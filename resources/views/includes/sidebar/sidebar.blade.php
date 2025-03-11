@@ -86,6 +86,17 @@
                         <li><a href="invoices-settings.html">Import Sales</a></li> --}}
                     </ul>
                 </li>
+                <li class="submenu">
+                    <a href="#"><i class="fas fa-clipboard"></i> <span>Add Bulk Payments</span> <span
+                            class="menu-arrow"></span></a>
+                    <ul>
+                        <li><a href={{ route('add-sale-bulk-payments') }} class="{{ set_active(['add-sale-bulk-payments'])}}">All Sales Bulk Payments</a></li>
+                        <li><a href={{ route('add-purchase-bulk-payments') }} class="{{ set_active(['add-purchase-bulk-payments'])}}">Add Purchase Bulk Payments</a></li>
+                        
+
+    
+                    </ul>
+                </li>
                 <li class="menu-title">
                     <span>Management</span>
                 </li>

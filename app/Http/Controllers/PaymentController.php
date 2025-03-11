@@ -26,9 +26,21 @@ class PaymentController extends Controller
         return response()->json(['status' => 200, 'data' => $payments]);
     }
 
-    /**
-     * Store or update a payment in storage.
-     */
+    public function addSaleBulkPayments()
+    {
+       
+        return view('bulk_payments.sales_bulk_payments');
+    }
+
+    public function addPurchaseBulkPayments()
+    {
+       
+        return view('bulk_payments.purchases_bulk_payments');
+    }
+
+   
+
+
     public function storeOrUpdate(Request $request, $paymentId = null)
     {
         $validator = Validator::make($request->all(), $this->getValidationRules());

@@ -384,5 +384,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
                 // web.php (Routes)
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
 
+        //bulk payments pages
+        Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
+        Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
+
     });
 });

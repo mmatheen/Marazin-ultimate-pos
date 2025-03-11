@@ -579,7 +579,7 @@
                                 <div class="card-body">
                                     <div class="form-group">
                                         <label for="customerSelect">Select Customer</label>
-                                        <select id="customerSelect" class="form-control">
+                                        <select id="customerSelect" class="form-control select2Box">
                                             <option value="">Select Customer</option>
                                         </select>
                                     </div>

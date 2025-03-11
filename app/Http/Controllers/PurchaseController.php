@@ -123,7 +123,7 @@ class PurchaseController extends Controller
             // Insert ledger entry for the payment if paid_amount is provided
             if ($request->paid_amount > 0) {
                 Ledger::create([
-                    'transaction_date' => $request->paid_date ?? now(),
+                    'transaction_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
                     'reference_no' => $purchase->reference_no,
                     'transaction_type' => 'payments',
                     'debit' => 0,
