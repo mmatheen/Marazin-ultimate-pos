@@ -24,32 +24,41 @@
                     <div class="card-body">
                         <div class="page-header">
                             <div class="row align-items-center">
-                                <form action="#" method="">
+                                <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data">
+                                    @csrf
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <label>File To Import</label>
-                                            <div class="invoices-upload-btn">
-                                                <input type="file" accept="image/*" name="image" id="file"
-                                                    class="hide-input">
-                                                <label for="file" class="upload"><i class="far fa-folder-open">
-                                                        &nbsp;</i> Browse..</label>
-                                            </div>
-                                            <button type="button" class="btn btn-primary mt-3">Submit</button>
+
+                                        <div class="col-md-6 mt-4">
+                                            <a class="btn btn-outline-success mt-2" id="export_btn" href="{{ route('excel-product-blank-template-export') }}"><i class="fas fa-download"></i> &nbsp; Download template file</a>
                                         </div>
+
+                                        <div class="col-md-6">
+                                            <div class="d-flex justify-content-start">
+                                                <div class="mb-3">
+                                                    <label>File To Import</label>
+                                                    <div class="invoices-upload-btn">
+                                                        <input type="file" name="file" id="file" class="hide-input">
+                                                        <label for="file" class="upload"><i class="far fa-folder-open">
+                                                                &nbsp;</i> Browse..</label>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-3">
+                                                    <button type="submit" id="import_btn" class="btn btn-outline-primary ms-4 mt-3">Upload</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                         <div class="col-md-6 mt-3">
+                                            <div class="progress mt-3" style="display: none;">
+                                                <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                            <span class="text-danger" id="file_error"></span>
+                                        </div>
+
 
                                     </div>
 
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <button type="button" class="btn btn-outline-success mt-2"><i
-                                                        class="fas fa-download"></i> &nbsp; Download template file</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Add other elements if needed -->
+
                                 </form>
-
                             </div>
                         </div>
                     </div>
@@ -337,8 +346,7 @@
                 </div>
             </div>
         </div>
-
-
-
     </div>
+
+    @include('product.product_ajax')
 @endsection
