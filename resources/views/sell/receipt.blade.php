@@ -71,7 +71,7 @@
 
 <div id="printArea">
     <div style="text-align: center; margin-bottom: 10px;">
-        <img src="../../../public/assets/img/ARB Logo.png" alt="Company Logo" class="logo">
+        <img src="/assets/img/ARB Logo.png" alt="Company Logo" class="logo">
     </div>
     <h2 class="receipt-title">ARB Distribution</h2>
     <div class="billAddress" style="font-size: 14px; color: #000;">
