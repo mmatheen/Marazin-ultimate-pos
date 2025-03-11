@@ -271,15 +271,8 @@ class ProductController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
+        // Validation rules
         $rules = [
-            'sku' => [
-                'nullable', 'string', 'max:255', 'unique:products,sku,'.$id,
-                function ($attribute, $value, $fail) {
-                    if (!preg_match('/^SKU\d{4}$/', $value)) {
-                        $fail('The ' . $attribute . ' must be in the format SKU followed by 4 digits. eg: SKU0001');
-                    }
-                }
-            ],
             'product_name' => 'required|string|max:255',
             'unit_id' => 'required|integer|exists:units,id',
             'brand_id' => 'required|integer|exists:brands,id',
@@ -300,6 +293,7 @@ class ProductController extends Controller
             'special_price' => 'nullable|numeric|min:0',
             'original_price' => 'required|numeric|min:0',
             'max_retail_price' => 'nullable|numeric|min:0',
+            'sku' => 'nullable|string|unique:products,sku,' . $id,
         ];
 
         $validator = Validator::make($request->all(), $rules);
@@ -323,13 +317,19 @@ class ProductController extends Controller
             return response()->json(['status' => 404, 'message' => 'Product not found!']);
         }
 
-        // Auto-generate SKU
-        $sku = $request->sku ?: 'SKU' . sprintf("%04d", Product::count() + 1);
+        // Auto-increment SKU logic
+        if (!$request->has('sku') || empty($request->sku)) {
+            $lastProduct = Product::orderBy('id', 'desc')->first();
+            $lastId = $lastProduct ? $lastProduct->id : 0;
+            $autoIncrementSku = str_pad($lastId + 1, 4, '0', STR_PAD_LEFT);
+            $product->sku = $autoIncrementSku;
+        } else {
+            $product->sku = $request->sku;
+        }
 
         // Update product details
         $product->fill([
             'product_name' => $request->product_name,
-            'sku' => $sku,
             'unit_id' => $request->unit_id,
             'brand_id' => $request->brand_id,
             'main_category_id' => $request->main_category_id,
@@ -355,7 +355,6 @@ class ProductController extends Controller
         $message = $id ? 'Product Details Updated Successfully!' : 'New Product Details Created Successfully!';
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
     }
-
 
     // private function removeUnusedLocationBatchesAndStockHistory($product, $newLocations)
     // {
