@@ -73,13 +73,18 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 return null;
             }
 
-            // **Process the SKU if it's not provided**
-            if (empty($row['sku'])) {
-                $lastProduct = Product::where('sku', 'LIKE', 'SKU%')->orderBy('id', 'desc')->first();
-                $lastSkuNumber = $lastProduct ? (int) filter_var($lastProduct->sku, FILTER_SANITIZE_NUMBER_INT) : 0;
-                $row['sku'] = 'SKU' . str_pad($lastSkuNumber + 1, 4, '0', STR_PAD_LEFT); // Format SKU as 'SKU0001', 'SKU0002', etc.
-            }
 
+            // **Generate SKU if not provided**
+            if (empty($row['sku'])) {
+                $lastProduct = Product::whereRaw("sku REGEXP '^[0-9]+$'")->orderBy('id', 'desc')->first();
+                if ($lastProduct && is_numeric($lastProduct->sku)) {
+                    $lastSkuNumber = (int) $lastProduct->sku;
+                } else {
+                    $lastSkuNumber = 0;
+                }
+                $row['sku'] = str_pad($lastSkuNumber + 1, 4, '0', STR_PAD_LEFT); // Format: 0001, 0002, 0003
+            }
+            
             // **Resolve Unit, Brand, and Category**
             $authId = auth()->id(); // Get current authenticated user's ID
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authId]);
