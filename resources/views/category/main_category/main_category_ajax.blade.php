@@ -112,50 +112,102 @@
         });
 
 
-        // Submit Add/Update Form
-        $('#mainCategoryAddAndUpdateForm').submit(function(e) {
-            e.preventDefault();
+// Submit Add/Update Form
+$('#mainCategoryAddAndUpdateForm').submit(function (e) {
+    e.preventDefault();
 
-             // Validate the form before submitting
-            if (!$('#mainCategoryAddAndUpdateForm').valid()) {
-                   document.getElementsByClassName('warningSound')[0].play(); //for sound
-                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                       toastr.warning('Invalid inputs, Check & try again!!','Warning');
-                return; // Return if form is not valid
+    // Validate the form before submitting
+    if (!$('#mainCategoryAddAndUpdateForm').valid()) {
+        document.getElementsByClassName('warningSound')[0].play(); // For sound
+        toastr.options = { "closeButton": true, "positionClass": "toast-top-right" };
+        toastr.warning('Invalid inputs, Check & try again!!', 'Warning');
+        return; // Return if form is not valid
+    }
+
+    let formData = new FormData(this);
+    let id = $('#edit_id').val(); // For edit
+    let url = id ? '/main-category-update/' + id : '/main-category-store';
+    let type = 'post';
+
+    $.ajax({
+        url: url,
+        type: type,
+        headers: { 'X-CSRF-TOKEN': csrfToken },
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function (response) {
+            if (response.status == 400) {
+                $.each(response.errors, function (key, err_value) {
+                    $('#' + key + '_error').html(err_value);
+                });
+            } else {
+                let newCategoryId = response.newCategoryId; // Get the new category ID from response
+
+                $('#addAndEditMainCategoryModal').modal('hide');
+                showFetchData(); // Refresh data list
+
+                // Repopulate dropdown and ensure the new category is selected
+                populateItemMainCategoryDropdown(newCategoryId);
+
+                document.getElementsByClassName('successSound')[0].play(); // For sound
+                toastr.options = { "closeButton": true, "positionClass": "toast-top-right" };
+                toastr.success(response.message, id ? 'Updated' : 'Added');
+
+                resetFormAndValidation();
             }
+        }
+    });
+});
 
-            let formData = new FormData(this);
-            let id = $('#edit_id').val(); // for edit
-            let url = id ? '/main-category-update/' + id : '/main-category-store';
-            let type = id ? 'post' : 'post';
+// Function to Populate the Dropdown and Select the Newly Added Category
+function populateItemMainCategoryDropdown(selectedId = null) {
+    $.ajax({
+        url: 'main-category-get-all',
+        type: 'GET',
+        success: function (response) {
+            if (response.status === 200) {
+                const MainSelect1 = $('#edit_main_category_id_sub');
+                const MainSelect2 = $('#edit_main_category_id');
 
-            $.ajax({
-                url: url,
-                type: type,
-                headers: {'X-CSRF-TOKEN': csrfToken},
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
+                // Clear existing options
+                MainSelect1.html('');
+                MainSelect2.html('');
 
-                    } else {
-                        $('#addAndEditMainCategoryModal').modal('hide');
-                           // Clear validation error messages
-                        showFetchData();
-                        populateItemMainCategoryDropdown();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                        toastr.success(response.message, id ? 'Updated' : 'Added');
-                        resetFormAndValidation();
-                    }
+                const mainCategories = response.message;
+
+                if (mainCategories && mainCategories.length > 0) {
+                    // Add the default option
+                    MainSelect1.append('<option disabled>Main Category</option>');
+                    MainSelect2.append('<option disabled>Main Category</option>');
+
+                    // Populate both dropdowns with data
+                    mainCategories.forEach(mainCategory => {
+                        const option = `<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`;
+                        MainSelect1.append(option);
+                        MainSelect2.append(option);
+                    });
+
+                    // Ensure the new category is selected **after** options are added
+                    setTimeout(() => {
+                        if (selectedId) {
+                            MainSelect1.val(selectedId).trigger('change'); // Select new category
+                            MainSelect2.val(selectedId).trigger('change'); // Select new category
+                        }
+                    }, 300); // Short delay to ensure options are loaded before selecting
+                } else {
+                    // If no records are found, show appropriate message
+                    MainSelect1.append('<option disabled>No item Main Categories available</option>');
+                    MainSelect2.append('<option disabled>No item Main Categories available</option>');
                 }
-            });
-        });
+            }
+        },
+        error: function (error) {
+            console.log("Error:", error);
+        }
+    });
+}
 
 
         // Delete Warranty
@@ -188,40 +240,8 @@
             });
         });
 
-        function populateItemMainCategoryDropdown() {
-            // Fetch unit details to select box code start
-            $.ajax({
-                url: 'main-category-get-all', // Replace with your endpoint URL
-                type: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        const MainSelect = $('#edit_main_category_id_sub');
-                        MainSelect.empty(); // Clear existing options
-                        // Access itemMainCategories and subcategories from response data
-                        const mainCategories = response.message;
 
-                        if (mainCategories && mainCategories.length > 0) {
 
-                            // If there are itemMainCategories or subcategories, add the default options and populate with data
-                            MainSelect.append('<option selected disabled>Main Category</option>');
-                            mainCategories.forEach(mainCategory => {
-                                MainSelect.append(
-                                    `<option value="${mainCategory.id}">${mainCategory.mainCategoryName}</option>`);
-                            });
-                        } else {
-                            // If no records are found, show appropriate message
-                            itemMainSelect.append(
-                                '<option selected disabled>No item Main Categories available</option>');
-
-                        }
-                    }
-                },
-                error: function(error) {
-                    console.log("Error:", error);
-                }
-            });
-            // Fetch unit details to select box code start
-        }
 
 
     });

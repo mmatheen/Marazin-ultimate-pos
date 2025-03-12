@@ -58,6 +58,7 @@
                                                 <div class="input-group local-forms d-flex ">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_unit_id" name="unit_id">
+                                                        <option>Select Unit</option>
                                                     </select>
                                                     <button type="button" class="btn btn-outline-info" id="addUnitButton">
                                                         <i class="fas fa-plus-circle"></i>
@@ -72,6 +73,7 @@
                                                 <div class="input-group local-forms d-flex" >
                                                     <label>Product Brand <span class="login-danger">*</span></label>
                                                     <select class="form-control form-select" id="edit_brand_id" name="brand_id">
+                                                        <option>Select Brand</option>
                                                     </select>
                                                     <button type="button" class="btn btn-outline-info " id="addBrandButton">
                                                         <i class="fas fa-plus-circle"></i>

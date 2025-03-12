@@ -142,12 +142,9 @@
                         populateUnitDropdown();
 
                     } else {
-                        populateUnitDropdown(function() {
-                            if (!id) {
-                                // If it's a new unit, set it as selected
-                                $('#edit_unit_id').val(response.unit.id);
-                            }
-                        });
+
+                        let newUnitId = response.newUnitId || id; // Get new brand ID or use existing ID
+                        populateUnitDropdown(newUnitId);
                         $('#addAndEditUnitModal').modal('hide');
                         // Clear validation error messages
                         showFetchData();
@@ -190,7 +187,7 @@
             });
         });
 
-        function populateUnitDropdown(callback) {
+        function populateUnitDropdown(selectedId = null) {
             $.ajax({
                 url: '/get-unit',
                 method: 'GET',
@@ -202,7 +199,12 @@
                     $.each(data, function(key, value) {
                         unitSelect.append('<option value="'+value.id+'">'+value.name+'</option>');
                     });
-                    if (callback) callback();
+
+                    setTimeout(() => {
+                        if (selectedId) {
+                            unitSelect.val(selectedId).trigger('change');
+                        }
+                    }, 300);
                 },
                 error: function(xhr, status, error) {
                     console.error('Failed to fetch unit data:', error); // Log any errors

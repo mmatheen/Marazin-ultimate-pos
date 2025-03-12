@@ -55,43 +55,40 @@ class BrandController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-    {
-        // dd($request->all());
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'name' => 'required|string',
+{
+    // dd($request->all());
+    $validator = Validator::make(
+        $request->all(),
+        [
+            'name' => 'required|string',
+        ]
+    );
 
-            ]
-        );
+    if ($validator->fails()) {
+        return response()->json([
+            'status' => 400,
+            'errors' => $validator->messages()
+        ]);
+    } else {
+        $getValue = Brand::create([
+            'name' => $request->name,
+            'description' => $request->description ?? '',
+        ]);
 
-        if ($validator->fails()) {
+        if ($getValue) {
             return response()->json([
-                'status' => 400,
-                'errors' => $validator->messages()
+                'status' => 200,
+                'message' => "New Brand Details Created Successfully!",
+                'newBrandId' => $getValue->id
             ]);
         } else {
-
-            $getValue = Brand::create([
-                'name' => $request->name,
-                'description' => $request->description ?? '',
-                'location_id'
+            return response()->json([
+                'status' => 500,
+                'message' => "Something went wrong!"
             ]);
-
-
-            if ($getValue) {
-                return response()->json([
-                    'status' => 200,
-                    'message' => "New Brand Details Created Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Something went wrong!"
-                ]);
-            }
         }
     }
+}
 
     /**
      * Display the specified resource.

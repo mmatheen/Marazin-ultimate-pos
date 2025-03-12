@@ -112,53 +112,88 @@
             });
         });
 
+            // Submit Add/Update Form
+$('#brandAddAndUpdateForm').submit(function(e) {
+    e.preventDefault();
 
-        // Submit Add/Update Form
-        $('#brandAddAndUpdateForm').submit(function(e) {
-            e.preventDefault();
+    // Validate the form before submitting
+    if (!$('#brandAddAndUpdateForm').valid()) {
+        document.getElementsByClassName('warningSound')[0].play(); // For sound
+        toastr.options = {
+            "closeButton": true,
+            "positionClass": "toast-top-right"
+        };
+        toastr.warning('Invalid inputs, Check & try again!!', 'Warning');
+        return; // Return if form is not valid
+    }
 
-             // Validate the form before submitting
-            if (!$('#brandAddAndUpdateForm').valid()) {
-                   document.getElementsByClassName('warningSound')[0].play(); //for sound
-                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                       toastr.warning('Invalid inputs, Check & try again!!','Warning');
-                return; // Return if form is not valid
+    let formData = new FormData(this);
+    let id = $('#edit_id').val(); // For edit
+    let url = id ? 'brand-update/' + id : 'brand-store';
+    let type = 'post';
+
+    $.ajax({
+        url: url,
+        type: type,
+        headers: { 'X-CSRF-TOKEN': csrfToken },
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(response) {
+            if (response.status == 400) {
+                $.each(response.errors, function(key, err_value) {
+                    $('#' + key + '_error').html(err_value);
+                });
+            } else {
+                let newBrandId = response.newBrandId || id; // Get new brand ID or use existing ID
+
+                $('#addEditBrandModal').modal('hide');
+                showFetchData(); // Refresh data list
+
+                // Repopulate dropdown and ensure the new brand is selected
+                populateBrandDropdown(newBrandId);
+
+                document.getElementsByClassName('successSound')[0].play(); // For sound
+                toastr.options = {
+                    "closeButton": true,
+                    "positionClass": "toast-top-right"
+                };
+                toastr.success(response.message, id ? 'Updated' : 'Added');
+
+                resetFormAndValidation();
             }
+        }
+    });
+});
 
-            let formData = new FormData(this);
-            let id = $('#edit_id').val(); // for edit
-            let url = id ? 'brand-update/' + id : 'brand-store';
-            let type = id ? 'post' : 'post';
-
-            $.ajax({
-                url: url,
-                type: type,
-                headers: {'X-CSRF-TOKEN': csrfToken},
-                data: formData,
-                contentType: false,
-                processData: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-
-                        populateBrandDropdown();
-
-                    } else {
-                        populateBrandDropdown();
-                        $('#addEditBrandModal').modal('hide');
-                           // Clear validation error messages
-                        showFetchData();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                        toastr.success(response.message, id ? 'Updated' : 'Added');
-                        resetFormAndValidation();
-                    }
-                }
+// Function to Populate the Dropdown and Select the Newly Added Brand
+function populateBrandDropdown(selectedId = null) {
+    $.ajax({
+        url: '/get-brand',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            let brandSelect = $('#edit_brand_id');
+            brandSelect.empty(); // Clear existing options
+            brandSelect.append('<option selected disabled> Select Brand</option>'); // Add default option
+            $.each(data, function(key, value) {
+                brandSelect.append('<option value="' + value.id + '">' + value.name + '</option>');
             });
-        });
+
+            // Ensure the new brand is selected **after** options are added
+            setTimeout(() => {
+                if (selectedId) {
+                    brandSelect.val(selectedId).trigger('change'); // Select new brand
+                }
+            }, 300); // Short delay to ensure options are loaded before selecting
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to fetch brand data:', error); // Log any errors
+        }
+    });
+}
+
 
 
         // Delete Warranty
@@ -191,24 +226,6 @@
             });
         });
 
-        function populateBrandDropdown() {
-            $.ajax({
-                url: '/get-brand',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    let brandSelect = $('#edit_brand_id');
-                    brandSelect.empty(); // Clear existing options
-                    brandSelect.append('<option selected disabled>Brand</option>'); // Add default option
-                    $.each(data, function(key, value) {
-                        brandSelect.append('<option value="'+value.id+'">'+value.name+'</option>');
-                    });
-                },
-                error: function(xhr, status, error) {
-                    console.error('Failed to fetch brand data:', error); // Log any errors
-                }
-            });
-        }
 
     });
 

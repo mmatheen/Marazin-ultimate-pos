@@ -66,14 +66,13 @@ class MainCategoryController extends Controller
             $getValue = MainCategory::create([
                 'mainCategoryName' => $request->mainCategoryName,
                 'description' => $request->description,
-
             ]);
-
 
             if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Main Category Details Created Successfully!"
+                    'message' => "New Main Category Details Created Successfully!",
+                    'newCategoryId' => $getValue->id // Include the new category ID in the response
                 ]);
             } else {
                 return response()->json([
@@ -83,7 +82,6 @@ class MainCategoryController extends Controller
             }
         }
     }
-
     /**
      * Display the specified resource.
      *

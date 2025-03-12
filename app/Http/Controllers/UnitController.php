@@ -80,7 +80,8 @@ class UnitController extends Controller
             if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Unit Details Created Successfully!"
+                    'message' => "New Unit Details Created Successfully!",
+                    'newUnitId' => $getValue->id
                 ]);
             } else {
                 return response()->json([
