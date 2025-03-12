@@ -234,7 +234,7 @@
                 <a href="#">
                     <div class="media d-flex">
                         <span class="avatar avatar-sm flex-shrink-0">
-                            <img class="avatar-img rounded-circle" alt="Product Image" src="/assets/images/${notification.product_image}">
+                            <img class="avatar-img rounded-circle" alt="Product Image" src="${notification.product_image ? '/assets/images/' + notification.product_image : '/assets/images/No Product Image Available.png'}">
                         </span>
                         <div class="media-body flex-grow-1">
                             <p class="noti-details">

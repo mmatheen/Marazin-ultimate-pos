@@ -25,19 +25,58 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
 
+    // public function store(LoginRequest $request): RedirectResponse
+    // {
+
+    //     $request->authenticate();
+    //     $request->session()->regenerate();
+    //     if(Auth::user()->role_name){
+    //         $selectedLocation = Location::first();
+    //         if(!empty($selectedLocation)){
+    //             session()->put('selectedLocation', $selectedLocation->id);
+    //         }
+    //     }
+    //     return redirect()->intended(RouteServiceProvider::HOME)->with('toastr-success', "Welcome back system user");
+    // }
+
+
+    // it will take for login user_name or password
     public function store(LoginRequest $request): RedirectResponse
     {
+        $login = $request->input('login'); // Get the login input (either user_name or email)
 
-        $request->authenticate();
-        $request->session()->regenerate();
-        if(Auth::user()->role_name){
-            $selectedLocation = Location::first();
-            if(!empty($selectedLocation)){
-                session()->put('selectedLocation', $selectedLocation->id);
+        // Check if the login is an email or username
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name'; // Default to 'username' if not email
+
+        // Attempt to authenticate based on either email or username
+        if (Auth::attempt([$field => $login, 'password' => $request->password])) {
+            $request->session()->regenerate(); // Regenerate session on successful login
+
+            // Check user's role and handle the selected location
+            if (Auth::user()->role_name) {
+                $selectedLocation = Location::first();
+                if (!empty($selectedLocation)) {
+                    session()->put('selectedLocation', $selectedLocation->id);
+                }
             }
+
+            // Get the user's name for the success message
+            $userName = Auth::user()->user_name;
+            $roleName = Auth::user()->role_name;
+
+            // Redirect to the intended page after successful login and show the success message with user name
+
+                return redirect()->intended(RouteServiceProvider::HOME)
+             ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
+
         }
-        return redirect()->intended(RouteServiceProvider::HOME)->with('toastr-success', "Welcome back system user");
+
+        // If authentication fails, return with an error message
+        return back()->withErrors([
+            'login' => 'The provided credentials do not match our records.',
+        ]);
     }
+
 
     /**
      * Destroy an authenticated session.

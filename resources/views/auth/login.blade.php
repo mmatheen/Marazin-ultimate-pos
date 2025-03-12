@@ -95,7 +95,7 @@
                             {{-- <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p> --}}
                             <form action="{{ route('login') }}" method="POST">
                                 @csrf
-                                <div class="form-group">
+                                {{-- <div class="form-group">
                                     <label>Email<span class="login-danger">*</span></label>
                                     <input type="email" id="email" class="form-control @error('email') is-invalid @enderror" autofocus autocomplete="username" name="email">
                                     <span class="profile-views"><i class="fas fa-envelope"></i></span>
@@ -103,7 +103,17 @@
                                     <span class="text-danger mt-2">{{ $errors->first('email') }}</span>
                                     @endif
 
+                                </div> --}}
+                                <div class="form-group">
+                                    <label for="login">Username or Email<span class="login-danger">*</span></label>
+                                    <input type="text" id="login" class="form-control @error('login') is-invalid @enderror" autofocus autocomplete="username" name="login">
+                                    <span class="profile-views"><i class="fas fa-user"></i></span>
+
+                                    @if ($errors->has('login'))
+                                        <span class="text-danger mt-2">{{ $errors->first('login') }}</span>
+                                    @endif
                                 </div>
+
 
                                 <div class="form-group">
                                     <label>Password<span class="login-danger">*</span></label>
