@@ -17,10 +17,12 @@ class Sale extends Model
         'status',
         'sale_type',
         'invoice_no',
-        'final_total',
+        'subtotal',
         'total_paid',
         'total_due',
-        'payment_status'
+        'payment_status',
+        'discount_type',
+        'discount_amount'
     ];
 
     public function products()
@@ -133,5 +135,24 @@ class Sale extends Model
         $this->total_paid = $this->payments()->sum('amount');
         $this->total_due = $this->final_total - $this->total_paid;
         $this->save();
+    }
+
+     // Ensure final_total is calculated correctly before saving
+     protected static function boot()
+     {
+         parent::boot();
+
+         static::saving(function ($sale) {
+             $sale->final_total = $sale->calculateFinalTotal();
+         });
+     }
+
+     public function calculateFinalTotal()
+    {
+        if ($this->discount_type === 'percentage') {
+            return $this->subtotal - ($this->subtotal * $this->discount_amount / 100);
+        } else {
+            return $this->subtotal - $this->discount_amount;
+        }
     }
 }

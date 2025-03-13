@@ -1006,12 +1006,12 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             return location;
         });
 
-        if (!validateBatchNumbers(locations)) {
-            toastr.error(
-                'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
-                'Warning');
-            return;
-        }
+        // if (!validateBatchNumbers(locations)) {
+        //     toastr.error(
+        //         'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
+        //         'Warning');
+        //     return;
+        // }
 
         let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
         $.ajax({
@@ -1044,15 +1044,15 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         });
     }
 
-    function validateBatchNumbers(locations) {
-        let isValid = true;
-        locations.forEach(location => {
-            if (location.batch_no && !/^BATCH[0-9]{3,}$/.test(location.batch_no)) {
-                isValid = false;
-            }
-        });
-        return isValid;
-    }
+    // function validateBatchNumbers(locations) {
+    //     let isValid = true;
+    //     locations.forEach(location => {
+    //         if (location.batch_no && !/^BATCH[0-9]{3,}$/.test(location.batch_no)) {
+    //             isValid = false;
+    //         }
+    //     });
+    //     return isValid;
+    // }
 });
         // Extract the product ID from the URL and fetch data if valid
         $(document).ready(function() {

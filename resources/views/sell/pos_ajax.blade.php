@@ -201,6 +201,7 @@
         }
         function fetchAllProducts() {
     showLoader();
+
     fetch('/products/stocks')
         .then(response => response.json())
         .then(data => {
@@ -638,18 +639,35 @@ function updateTotals() {
     });
 
     const discount = parseFloat(document.getElementById('discount').value) || 0;
+    const discountType = document.getElementById('discount-type').value;
 
-    const subtotalAmount = totalAmount - discount;
-    const totalAmountWithTaxAndShipping = subtotalAmount;
+    let totalAmountWithDiscount;
+
+    if (discountType === 'percentage') {
+        totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
+    } else {
+        totalAmountWithDiscount = totalAmount - discount;
+    }
 
     document.getElementById('items-count').textContent = totalItems.toFixed(2);
     document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-    document.getElementById('total-amount').textContent = totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('total').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
-    document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithTaxAndShipping.toFixed(2);
+    document.getElementById('total-amount').textContent = totalAmount.toFixed(2);
+    document.getElementById('final-total-amount').textContent = totalAmountWithDiscount.toFixed(2);
+    document.getElementById('total').textContent = totalAmountWithDiscount.toFixed(2);
+    document.getElementById('payment-amount').textContent = 'Rs ' + totalAmountWithDiscount.toFixed(2);
 }
 
 document.getElementById('discount').addEventListener('input', updateTotals);
+document.getElementById('discount-type').addEventListener('change', updateTotals);
+
+function formatAmount(input) {
+    let value = parseFloat(input.value);
+    if (isNaN(value)) {
+        input.value = '0.00';
+    } else {
+        input.value = value.toFixed(2);
+    }
+}
 
 $(document).ready(function() {
     function gatherSaleData(status) {
@@ -658,18 +676,20 @@ $(document).ready(function() {
         const salesDate = new Date().toISOString().slice(0, 10);
 
         if (!locationId) {
-            // toastr.error('Location ID is required.');
-
+            toastr.error('Location ID is required.');
             return;
         }
 
         const saleData = {
             customer_id: customerId,
             sales_date: salesDate,
-            location_id: locationId, // Use the global locationId
+            location_id: locationId,
             status: status,
             sale_type: "POS",
-            products: []
+            products: [],
+            discount_type: $('#discount-type').val(),
+            discount_amount: parseFloat($('#discount').val()) || 0,
+            total_amount: parseFloat($('#total-amount').text()) || 0,
         };
 
         $('#billing-body tr').each(function() {
@@ -696,6 +716,7 @@ $(document).ready(function() {
 
         return saleData;
     }
+
 
     function sendSaleData(saleData, saleId = null) {
     const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
@@ -1126,109 +1147,97 @@ $(document).ready(function() {
 
     })
 
-    function fetchAllSales() {
-        $.ajax({
-            url: '/sales',
-            method: 'GET',
-            success: function(response) {
-                var salesData = response.sales.filter(sale => sale.sale_type === 'POS');
-                var tableBody = $('#posTable tbody');
-                tableBody.empty();
+   function fetchAllSales() {
+    fetch('/sales')
+        .then(response => response.json())
+        .then(response => {
+            var salesData = response.sales.filter(sale => sale.sale_type === 'POS');
+            var tableBody = document.querySelector('#posTable tbody');
+            tableBody.innerHTML = ''; // Clear existing table data
 
-                salesData.forEach(sale => {
-                    var customerName = sale.customer.prefix + ' ' + sale.customer.first_name + ' ' +
-                        sale.customer.last_name;
-                    var row = `<tr>
-                            <td><input type="checkbox" class="checked" /></td>
-                            <td>
-                                                        <div class="dropdown dropdown-action">
-                                                            <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                                            </a>
-                                                            <div class="dropdown-menu dropdown-menu-end">
-                                                                <a class="dropdown-item view-sale-return" href="#" data-id="${sale.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                                <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                                                <a class="dropdown-item edit-link" href="/sale-return/edit/${sale.id}" data-id="${sale.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                                                <a class="dropdown-item add-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
-                                                                <a class="dropdown-item view-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                            <td>${sale.sales_date}</td>
-                            <td>${sale.invoice_no || ''}</td>
-                            <td>${customerName}</td>
-                            <td>${sale.customer.mobile_no}</td>
-                            <td>${sale.location.name}</td>
-                            <td>
-                                ${(() => {
-                                    let paymentStatusBadge = '';
-                                    if (sale.payment_status === 'Due') {
-                                        paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
-                                    } else if (sale.payment_status === 'Partial') {
-                                        paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
-                                    } else if (sale.payment_status === 'Paid') {
-                                        paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
-                                    } else {
-                                        paymentStatusBadge = '<span class="badge bg-secondary">' + sale.payment_status + '</span>';
-                                    }
-                                    return paymentStatusBadge;
-                                })()}
-                            </td>
-                            <td>${sale.payments.length > 0 ? sale.payments[0].payment_method : ''}</td>
-                            <td>${sale.final_total}</td>
-                            <td>${sale.total_paid}</td>
-                            <td>${sale.total_due}</td>
-                            <td>${sale.products.length}</td>
-                            <td>${sale.customer.first_name}</td>
-                        </tr>`;
-                    tableBody.append(row);
+            salesData.forEach(sale => {
+                var customerName = `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`;
+                var row = `
+                    <tr>
+                        <td><input type="checkbox" class="checked" /></td>
+                        <td>
+                            <div class="dropdown dropdown-action">
+                                <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <a class="dropdown-item view-sale-return" href="#" data-id="${sale.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                    <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
+                                    <a class="dropdown-item edit-link" href="/sale-return/edit/${sale.id}" data-id="${sale.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
+                                    <a class="dropdown-item add-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
+                                    <a class="dropdown-item view-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${sale.sales_date}</td>
+                        <td>${sale.invoice_no || ''}</td>
+                        <td>${customerName}</td>
+                        <td>${sale.customer.mobile_no}</td>
+                        <td>${sale.location.name}</td>
+                        <td>
+                            ${(() => {
+                                let paymentStatusBadge = '';
+                                if (sale.payment_status === 'Due') {
+                                    paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
+                                } else if (sale.payment_status === 'Partial') {
+                                    paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
+                                } else if (sale.payment_status === 'Paid') {
+                                    paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
+                                } else {
+                                    paymentStatusBadge = `<span class="badge bg-secondary">${sale.payment_status}</span>`;
+                                }
+                                return paymentStatusBadge;
+                            })()}
+                        </td>
+                        <td>${sale.payments.length > 0 ? sale.payments[0].payment_method : ''}</td>
+                        <td>${sale.final_total}</td>
+                        <td>${sale.total_paid}</td>
+                        <td>${sale.total_due}</td>
+                        <td>${sale.products.length}</td>
+                        <td>${sale.customer.first_name}</td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            });
+
+            // Initialize DataTable
+            $('#posTable').DataTable();
+            feather.replace(); // Initialize Feather icons
+
+            // Attach event listeners to dynamically created buttons
+            document.querySelectorAll('.view-sale-return').forEach(button => {
+                button.addEventListener('click', function () {
+                    console.log('View details for sale ID:', this.dataset.id);
                 });
+            });
 
-                $('#posTable').DataTable();
-                feather.replace(); // Initialize Feather icons
-
-                // Attach event listeners to dynamically created buttons
-                $('.view-details').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement view details functionality here
-                    console.log('View details for sale ID:', saleId);
+            document.querySelectorAll('.edit-link').forEach(button => {
+                button.addEventListener('click', function () {
+                    console.log('Edit sale ID:', this.dataset.id);
                 });
+            });
 
-                $('.edit_btn').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement edit functionality here
-                    console.log('Edit sale ID:', saleId);
+            document.querySelectorAll('.add-payment-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    console.log('Add payment for sale ID:', this.dataset.id);
                 });
+            });
 
-                $('.delete_btn').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement delete functionality here
-                    console.log('Delete sale ID:', saleId);
+            document.querySelectorAll('.view-payment-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    console.log('View payments for sale ID:', this.dataset.id);
                 });
+            });
 
-                $('.add-payment').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement add payment functionality here
-                    console.log('Add payment for sale ID:', saleId);
-                });
+        })
+        .catch(error => console.error('Error fetching sales data:', error));
+}
 
-                $('.view-payments').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement view payments functionality here
-                    console.log('View payments for sale ID:', saleId);
-                });
-
-                $('.sell-return').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement sell return functionality here
-                    console.log('Sell return for sale ID:', saleId);
-                });
-            },
-            error: function(error) {
-                console.error('Error fetching sales data:', error);
-            }
-        });
-    }
 
     $(document).ready(function() {
         fetchAllSales();

@@ -873,6 +873,21 @@
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
+                                <label>Total</label>
+                                <p id="total-amount" class="form-control">0.00</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="discount-type">Discount Type</label>
+                                <select id="discount-type" class="form-control">
+                                    <option value="fixed">Fixed</option>
+                                    <option value="percentage">Percentage</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
                                 <label>Discount</label>
                                 <input type="text" id="discount" class="form-control" placeholder="0.00">
                             </div>
@@ -880,18 +895,16 @@
 
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label>Total</label>
-                                <p id="total-amount" class="form-control" >0.00</p>
+                                <label>Final Total</label>
+                                <p id="final-total-amount" class="form-control">0.00</p>
                             </div>
                         </div>
-
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Amount Given</label>
                                 <input type="text" id="amount-given" class="form-control" placeholder="0.00" oninput="formatAmount(this)">
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -996,7 +1009,7 @@
                 <div class="col-md-5 text-end">
                     <h4 class="d-inline">Total Payable:</h4>
                     <span id="total" class="text-success fs-4 fw-bold">Rs 0.00</span>
-                    <button class="btn btn-primary ms-3"><i class="fas fa-clock"></i> Recent Transactions</button>
+                    {{-- <button class="btn btn-primary ms-3"><i class="fas fa-clock"></i> Recent Transactions</button> --}}
                 </div>
             </div>
         </div>

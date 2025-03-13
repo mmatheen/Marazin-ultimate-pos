@@ -118,6 +118,9 @@ class SaleController extends Controller
             'payment_status' => 'nullable|string',
             'payment_reference' => 'nullable|string',
             'payment_date' => 'nullable|date',
+            'total_amount' => 'nullable|numeric|min:0',
+            'discount_type' => 'required|string|in:fixed,percentage',
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -130,9 +133,16 @@ class SaleController extends Controller
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-                $finalTotal = array_reduce($request->products, function ($carry, $product) {
+                $subtotal = array_reduce($request->products, function ($carry, $product) {
                     return $carry + $product['subtotal'];
                 }, 0);
+
+                $discount = $request->discount_amount ?? 0;
+                if ($request->discount_type === 'percentage') {
+                    $finalTotal = $subtotal - ($subtotal * $discount / 100);
+                } else {
+                    $finalTotal = $subtotal - $discount;
+                }
 
                 $totalPaid = $request->total_paid ?? 0;
                 $totalDue = $finalTotal - $totalPaid;
@@ -145,9 +155,12 @@ class SaleController extends Controller
                     'status' => $request->status,
                     'invoice_no' => Sale::generateInvoiceNo(),
                     'reference_no' => $referenceNo,
+                    'subtotal' => $subtotal,
                     'final_total' => $finalTotal,
                     'total_paid' => $totalPaid,
                     'total_due' => $totalDue,
+                    'discount_type' => $request->discount_type,
+                    'discount_amount' => $discount,
                 ])->save();
 
                 if ($isUpdate) {
@@ -164,19 +177,18 @@ class SaleController extends Controller
                         // Handle unlimited stock product
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
+                        $availableStock = $sale->getBatchQuantityPlusSold(
+                            $productData['batch_id'],
+                            $request->location_id,
+                            $productData['product_id']
+                        );
 
-                    $availableStock = $sale->getBatchQuantityPlusSold(
-                        $productData['batch_id'],
-                        $request->location_id,
-                        $productData['product_id']
-                    );
+                        if ($productData['quantity'] > $availableStock) {
+                            throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
+                        }
 
-                    if ($productData['quantity'] > $availableStock) {
-                        throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
+                        $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     }
-
-                    $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-                 }
                 }
 
                 // Insert ledger entry for the sale
@@ -410,7 +422,7 @@ class SaleController extends Controller
             'loc_batch_id' => null,
             'quantity' => -$productData['quantity'],
             'stock_type' => $stockType,
-          
+
         ]);
     }
 
@@ -695,6 +707,6 @@ class SaleController extends Controller
 
         return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
 
-     
+
     }
 }

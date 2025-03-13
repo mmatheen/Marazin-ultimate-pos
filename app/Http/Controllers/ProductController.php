@@ -479,7 +479,6 @@ class ProductController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                'regex:/^BATCH[0-9]{3,}$/',
             ],
             'locations.*.expiry_date' => 'nullable|date',
         ]);
