@@ -580,7 +580,7 @@
 
                     Mousetrap.bind('f2', function () {
                         const quantityInputs = document.querySelectorAll('.quantity-input');
-                        
+
                         if (quantityInputs.length > 0) {
                             // Focus and select the current input
                             quantityInputs[currentRowIndex].focus();
@@ -588,7 +588,7 @@
 
                             // Move to the next row
                             currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
-                            
+
                             return false; // Prevent default browser behavior
                         }
                     });
@@ -1220,6 +1220,9 @@
 
                 });
 
+
+                document.getElementById('cancelButton').addEventListener('click', resetForm);
+
                 function resetForm() {
                     document.getElementById('customer-id').value = 1;
                     const quantityInputs = document.querySelectorAll('.quantity-input');
@@ -1236,6 +1239,8 @@
 
                     updateTotals();
                 }
+
+
 
 
 

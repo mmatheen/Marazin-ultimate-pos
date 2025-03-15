@@ -984,12 +984,12 @@
                         <button class="btn btn-outline-pink" id="chequeButton">
                             <i class="fas fa-money-check"></i> Cheque
                         </button>
-                        <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
                             <i class="fas fa-list"></i> Multiple Pay
                         </button>
-                        <button class="btn btn-success" id="cashButton"><i class="fas fa-money-bill-wave"></i>
+                        <button class="btn btn-outline-success" id="cashButton"><i class="fas fa-money-bill-wave"></i>
                             Cash</button>
-                        <button class="btn btn-danger"><i class="fas fa-times"></i> Cancel</button>
+                        <button class="btn btn-danger" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
                     </div>
                 </div>
 
