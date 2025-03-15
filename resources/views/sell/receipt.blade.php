@@ -20,7 +20,7 @@
             top: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            font-size: 14px !important;
+            font-size: 12px !important;
             font-family: Arial, sans-serif !important;
         }
         .receipt-title, .receipt-header, .d-flex, .table, .total-section, .receipt-footer {
@@ -35,8 +35,12 @@
             border-collapse: collapse !important;
         }
         .table th, .table td {
-            padding: 8px !important;
-            font-size: 12px !important;
+            padding: 6px !important;
+            font-size: 10px !important;
+            font-weight: bold !important;
+        }
+        .table th {
+            font-weight: bold !important;
         }
         .text-end {
             text-align: right !important;
@@ -44,13 +48,13 @@
         hr {
             border: 0 !important;
             border-top: 1px dashed #000 !important;
-            margin: 10px 0 !important;
+            margin: 8px 0 !important;
             width: 100% !important;
             display: block !important;
             opacity: 0.6 !important;
         }
         .attribute {
-            font-size: 16px !important;
+            font-size: 12px !important;
             color: #000 !important;
             font-weight: normal !important;
         }
@@ -66,18 +70,18 @@
          /* Adjustments for thermal printer */
          .logo-container {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .logo-container img {
             max-width: 100%;
             height: auto;
-            width: 150px; /* You can adjust this for thermal printer width */
+            width: 120px; /* Adjusted for thermal printer width */
         }
     }
 </style>
 </head>
 
-<body class="billBody" style="font-family: Arial, sans-serif; font-size: 14px; padding: 10px;">
+<body class="billBody" style="font-family: Arial, sans-serif; font-size: 12px; padding: 8px;">
 
 <div id="printArea">
 
@@ -85,21 +89,21 @@
         <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="ARB Distribution Logo" class="logo" />
     </div>
 
-    <h2 class="receipt-title" style="font-size: 20px; margin-bottom: 10px;">ARB Distribution</h2>
+    <h2 class="receipt-title" style="font-size: 18px; margin-bottom: 8px;">ARB Distribution</h2>
 
-    <div class="billAddress" style="font-size: 14px; color: #000; margin-bottom: 15px;">
+    <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
         <div>Address: {{ Auth::user()->location->address }}</div>
         <div>Phone: {{ Auth::user()->location->mobile }}</div>
         <div>Email: {{ Auth::user()->location->email }}</div>
     </div>
 
-    <div style="font-size: 14px; margin-bottom: 10px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
+    <div style="font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
         <table width="100%" border="0">
           <tbody>
             <tr>
               <td>
-                <div style="font-size: 14px; color: #000; margin-bottom: 5px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
-                <div style="font-size: 12px; color: #000;">
+                <div style="font-size: 12px; color: #000; margin-bottom: 4px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
+                <div style="font-size: 10px; color: #000;">
                     [{{ date('d-m-Y ', strtotime($sale->sales_date)) }}]
                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
                     </div>
@@ -107,15 +111,15 @@
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">
-                    <div style="font-size: 14px; color: #000;">{{ $sale->invoice_no }}</div>
-                    <div style="font-size: 12px; color: #000;">({{ Auth::user()->name }})</div>
+                    <div style="font-size: 12px; color: #000;">{{ $sale->invoice_no }}</div>
+                    <div style="font-size: 10px; color: #000;">({{ Auth::user()->name }})</div>
                 </td>
             </tr>
           </tbody>
         </table>
     </div>
 
-    <table width="100%" border="0" style="color: #000; margin-bottom: 15px;">
+    <table width="100%" border="0" style="color: #000; margin-bottom: 12px;">
         <tbody>
             <tr>
                 <th width="20" align="left" valign="top" scope="col">#</th>
@@ -126,7 +130,7 @@
             </tr>
             <tr>
                 <th colspan="5" align="left" valign="top" scope="col">
-                    <hr style="margin: 10px 0; border-top-style: dashed; border-width: 1px;">
+                    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
                 </th>
             </tr>
             @foreach ($products as $index => $product)
@@ -166,9 +170,9 @@
         </tbody>
     </table>
 
-    <div style="margin: 10px 0; border-top-style: dashed; border-width: 1px; border-color: #000;"></div>
+    <div style="margin: 8px 0; border-top-style: dashed; border-width: 1px; border-color: #000;"></div>
 
-    <div style="position: relative; margin-bottom: 15px;">
+    <div style="position: relative; margin-bottom: 12px;">
         <table width="100%" border="0" style="color: #000;">
           <tbody>
             <tr>
@@ -182,7 +186,7 @@
             <tr>
               <td align="right"><strong>BALANCE</strong></td>
               <td width="80" align="right">
-                <div style="border: 0.5px solid #000; padding: 5px; display: inline-block; min-width: 60px; text-align: right;">
+                <div style="border: 0.5px solid #000; padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
                     {{ number_format($sale->total_due, 0, '.', ',') }}
                 </div>
               </td>
@@ -191,19 +195,19 @@
         </table>
 
         <div style="position: absolute; left: 0; bottom: 0; display: block;">
-            <div style="border-right: 1px dashed #000; padding-right: 10px; padding-bottom: 5px; font-size: 12px; color: #000;">
+            <div style="border-right: 1px dashed #000; padding-right: 8px; padding-bottom: 4px; font-size: 10px; color: #000;">
                 <strong>Total Items: {{ count($products) }}</strong><br>
                 <strong>Total Qty: {{ $products->sum('quantity') }}</strong>
             </div>
         </div>
     </div>
 
-    <hr style="margin: 10px 0; border-top-style: dashed; border-width: 1px;">
-    <div style="font-size: 14px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
+    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
+    <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
         <p><strong>Payment Method:</strong> {{ $payments->first()->payment_method ?? 'N/A' }}</p>
     </div>
 
-    <hr style="margin: 10px 0; border-top-style: dashed; border-width: 1px;">
+    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
 
     @php
         $total_discount = $products->sum(function($product) {
@@ -211,13 +215,13 @@
         });
     @endphp
 
-    <div style="font-size: 14px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
+    <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
         Total Discount : Rs. {{ number_format($total_discount, 0, '.', ',') }}
     </div>
 
-    <hr style="margin-top: 10px; border-top-style: dashed; border-width: 1px;">
+    <hr style="margin-top: 8px; border-top-style: dashed; border-width: 1px;">
 
-    <div class="attribute" style="font-size: 14px; color: #000; font-weight: bolder !important; text-align: center;">
+    <div class="attribute" style="font-size: 12px; color: #000; font-weight: normal !important; text-align: center;">
         Software: Marazin Pvt.Ltd | www.marazin.lk | +94 75 757 1411
     </div>
 </div>
