@@ -199,6 +199,7 @@
                     console.error('Error fetching brands:', error);
                 });
         }
+
         function fetchAllProducts() {
     showLoader();
 
@@ -242,6 +243,11 @@ function initAutocomplete() {
                     value: product.product_name,
                     product: product
                 })));
+
+                // If exactly one product matches, trigger addProductToTable
+                if (filteredProducts.length === 1) {
+                    addProductToTable(filteredProducts[0]);
+                }
             }
         },
         select: function(event, ui) {
@@ -495,38 +501,58 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
         existingRow.querySelector('.price-input').value = price.toFixed(2);
         existingRow.querySelector('.subtotal').textContent = (newQuantity * price).toFixed(2);
 
+        // Focus on the quantity input field
+        quantityInput.focus();
+        quantityInput.select();
     } else {
         const row = document.createElement('tr');
         row.innerHTML = `
-    <td>
-        <div class="d-flex align-items-center">
-            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-            <div class="product-info">
-                <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
-                <div class="text-muted">${product.sku}</div>
+        <td>
+            <div class="d-flex align-items-center">
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                <div class="product-info">
+                    <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
+                    <div class="text-muted">${product.sku}</div>
+                </div>
             </div>
-        </div>
-    </td>
-    <td>
-        <div class="input-group quantity-container mb-3">
-            <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
-            <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
-            <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
-        </div>
-    </td>
-    <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input" data-quantity="${batchQuantity}" ></td>
-    <td class="subtotal text-center mt-2">${price.toFixed(2)}</td>
-    <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
-    <td class="product-id" style="display:none">${product.id}</td>
-    <td class="location-id" style="display:none">${locationId}</td>
-    <td class="batch-id" style="display:none">${batchId}</td>
-    <td class="discount-data" style="display:none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-`;
+        </td>
+        <td>
+            <div class="d-flex justify-content-center">
+                <button class="btn btn-danger quantity-minus btn-sm">-</button>
+                <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
+                <button class="btn btn-success quantity-plus btn-sm">+</button>
+            </div>
+        </td>
+        <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
+        <td class="subtotal text-center mt-2">${price.toFixed(2)}</td>
+        <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
+        <td class="product-id d-none">${product.id}</td>
+        <td class="location-id d-none">${locationId}</td>
+        <td class="batch-id d-none">${batchId}</td>
+        <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+        `;
 
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
-        row.querySelector('.quantity-input').focus();
-        row.querySelector('.quantity-input').select();
+
+        // Focus on the quantity input field and select the text
+        const quantityInput = row.querySelector('.quantity-input');
+        quantityInput.focus();
+        quantityInput.select();
+
+        // Add event listener for Enter key to focus back on search input
+        quantityInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                const searchInput = document.getElementById('productSearchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                } else {
+                    console.error("Element with ID 'productSearchInput' not found.");
+                }
+            }
+        });
+
     }
 
     updateTotals();
@@ -786,7 +812,7 @@ $(document).ready(function() {
 }
 
     function gatherCashPaymentData() {
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
+        const totalAmount = parseFloat($('#final-total-amount').text().trim()); // Ensure #total-amount element exists
         const today = new Date().toISOString().slice(0, 10);
 
         return [{
@@ -821,7 +847,7 @@ $(document).ready(function() {
         const cardExpiryMonth = $('#card_expiry_month').val().trim();
         const cardExpiryYear = $('#card_expiry_year').val().trim();
         const cardSecurityCode = $('#card_security_code').val().trim();
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
+        const totalAmount = parseFloat($('#final-total-amount').text().trim()); // Ensure #total-amount element exists
         const today = new Date().toISOString().slice(0, 10);
 
         return [{
@@ -865,7 +891,7 @@ $(document).ready(function() {
         const chequeReceivedDate = $('#cheque_received_date').val().trim();
         const chequeValidDate = $('#cheque_valid_date').val().trim();
         const chequeGivenBy = $('#cheque_given_by').val().trim();
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
+        const totalAmount = parseFloat($('#final-total-amount').text().trim()); // Ensure #total-amount element exists
         const today = new Date().toISOString().slice(0, 10);
 
         return [{
@@ -1308,7 +1334,7 @@ $(document).ready(function() {
 <script>
     // In your Javascript (external .js resource or <script> tag)
     $(document).ready(function() {
-        $('.select2Box').select2();
+        $('.selectBox').select2();
 
 
     });

@@ -20,7 +20,7 @@
             top: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            font-size: 16px !important;
+            font-size: 14px !important;
             font-family: Arial, sans-serif !important;
         }
         .receipt-title, .receipt-header, .d-flex, .table, .total-section, .receipt-footer {
@@ -36,7 +36,7 @@
         }
         .table th, .table td {
             padding: 8px !important;
-            font-size: 14px !important;
+            font-size: 12px !important;
         }
         .text-end {
             text-align: right !important;
@@ -98,16 +98,16 @@
           <tbody>
             <tr>
               <td>
-                <div style="font-size: 16px; color: #000; margin-bottom: 5px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
-                <div style="font-size: 14px; color: #000;">
+                <div style="font-size: 14px; color: #000; margin-bottom: 5px;">{{ $customer->first_name }} {{ $customer->last_name }}</div>
+                <div style="font-size: 12px; color: #000;">
                     [{{ date('d-m-Y ', strtotime($sale->sales_date)) }}]
                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
                     </div>
-                    
+
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">
-                    <div style="font-size: 16px; color: #000;">{{ $sale->invoice_no }}</div>
+                    <div style="font-size: 14px; color: #000;">{{ $sale->invoice_no }}</div>
                     <div style="font-size: 12px; color: #000;">({{ Auth::user()->name }})</div>
                 </td>
             </tr>
@@ -199,7 +199,7 @@
     </div>
 
     <hr style="margin: 10px 0; border-top-style: dashed; border-width: 1px;">
-    <div style="font-size: 18px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
+    <div style="font-size: 14px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
         <p><strong>Payment Method:</strong> {{ $payments->first()->payment_method ?? 'N/A' }}</p>
     </div>
 
@@ -211,13 +211,13 @@
         });
     @endphp
 
-    <div style="font-size: 16px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
+    <div style="font-size: 14px; display: block; text-align: center; color: #000; margin-bottom: 10px;">
         Total Discount : Rs. {{ number_format($total_discount, 0, '.', ',') }}
     </div>
 
     <hr style="margin-top: 10px; border-top-style: dashed; border-width: 1px;">
 
-    <div class="attribute" style="font-size: 16px; color: #000; font-weight: bolder !important; text-align: center;">
+    <div class="attribute" style="font-size: 14px; color: #000; font-weight: bolder !important; text-align: center;">
         Software: Marazin Pvt.Ltd | www.marazin.lk | +94 75 757 1411
     </div>
 </div>

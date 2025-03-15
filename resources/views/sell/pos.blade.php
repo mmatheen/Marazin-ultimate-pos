@@ -23,7 +23,8 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
 
     <style>
@@ -69,41 +70,21 @@
             margin-top: 20px;
         }
 
-        /* Quantity Container */
-        .quantity-container {
-            display: flex;
-            align-items: center;
-        }
 
-        .quantity-container input {
-            width: 60px;
-            text-align: center;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin: 0 5px;
-            height: 35px;
-        }
+                    /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
+            .quantity-input::-webkit-outer-spin-button,
+            .quantity-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
 
-        .quantity-container button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
+            /* Hide number input arrows in Firefox */
+            .quantity-input {
+                -moz-appearance: textfield;
+            }
 
-        .quantity-container button:hover {
-            background-color: #0056b3 !important;
-        }
 
-        .quantity-minus {
-            background-color: red !important;
-        }
 
-        .quantity-plus {
-            background-color: green !important;
-        }
 
         /* Button Styles */
         .btn-outline-teal {
@@ -241,8 +222,8 @@
         }
 
         .product-card h6 {
-            font-size: 12px;
-            margin: 8px 0;
+            font-size: 14px;
+            margin: 6px 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -623,11 +604,11 @@
             font-weight: bold;
         }
 
-        .remove-btn {
+        /* .remove-btn {
             display: flex;
             align-items: center;
             justify-content: center;
-        }
+        } */
 
         .star {
             color: gold;
@@ -641,177 +622,184 @@
     <div class="container-fluid p-3">
         <div class="row">
             <div class="col-md-12">
-            <div class="card bg-white p-1">
-                <div class="row align-items-center">
-                <!-- Location and Date Section -->
-                <div class="col-md-6 d-flex align-items-center">
-                    <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                    <button class="btn btn-primary text-white border-1 px-2 py-1"
-                    style="width: auto; height: 30px;" id="currentTimeButton" disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const currentTimeButton = document.getElementById('currentTimeButton');
-                        setInterval(() => {
-                        const now = new Date();
-                        const formattedTime = now.getFullYear() + '-' +
-                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                            ('0' + now.getDate()).slice(-2) + ' ' +
-                            ('0' + now.getHours()).slice(-2) + ':' +
-                            ('0' + now.getMinutes()).slice(-2) + ':' +
-                            ('0' + now.getSeconds()).slice(-2);
-                        currentTimeButton.textContent = formattedTime;
-                        }, 1000);
-                    });
-                    </script>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="col-md-6">
-                    <div class="d-flex justify-content-end gap-3 d-none d-md-flex">
-                    <button class="btn btn-light btn-sm" onclick="history.back()"><i
-                        class="fas fa-backward"></i></button>
-                    <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
-                    <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
-
-                    <!-- Calculator Button with Dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
-                        data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-calculator"></i>
-                        </button>
-                        <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
-                        <div class="text-center">
-                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
-                            onkeydown="handleKeyboardInput(event)" autofocus>
+                <div class="card bg-white p-1">
+                    <div class="row align-items-center">
+                        <!-- Location and Date Section -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
+                            <button class="btn btn-primary text-white border-1 px-2 py-1"
+                                style="width: auto; height: 30px;" id="currentTimeButton"
+                                disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const currentTimeButton = document.getElementById('currentTimeButton');
+                                    setInterval(() => {
+                                        const now = new Date();
+                                        const formattedTime = now.getFullYear() + '-' +
+                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                                            ('0' + now.getDate()).slice(-2) + ' ' +
+                                            ('0' + now.getHours()).slice(-2) + ':' +
+                                            ('0' + now.getMinutes()).slice(-2) + ':' +
+                                            ('0' + now.getSeconds()).slice(-2);
+                                        currentTimeButton.textContent = formattedTime;
+                                    }, 1000);
+                                });
+                            </script>
                         </div>
-                        <div class="d-grid gap-1">
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('7')">7</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('8')">8</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('9')">9</button>
-                            <button class="btn btn-warning btn-sm col"
-                                onclick="calcInput('/')">/</button>
+
+                        <!-- Action Buttons -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end gap-3 d-none d-md-flex">
+                                <button class="btn btn-light btn-sm" onclick="history.back()"><i
+                                        class="fas fa-backward"></i></button>
+                                <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
+                                <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
+
+                                <!-- Calculator Button with Dropdown -->
+                                <div class="dropdown">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-calculator"></i>
+                                    </button>
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                        <div class="text-center">
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
+                                                onkeydown="handleKeyboardInput(event)" autofocus>
+                                        </div>
+                                        <div class="d-grid gap-1">
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('/')">/</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('*')">×</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('-')">-</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col"
+                                                    onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('+')">+</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-success btn-sm col"
+                                                    onclick="calculateResult()">=</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
+
+                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
+                                    data-bs-target="#suspendSalesModal">
+                                    <i class="fas fa-pause-circle"></i> Suspended Sales
+                                </button>
+
+                                <!-- Add Expense Button -->
+                                <button class="btn btn-dark btn-sm d-flex align-items-center">
+                                    <i class="fas fa-minus-circle me-2"></i> Add Expense
+                                </button>
                             </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('4')">4</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('5')">5</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('6')">6</button>
-                            <button class="btn btn-warning btn-sm col"
-                                onclick="calcInput('*')">×</button>
+
+                            <!-- Hamburger Button for Mobile and Tablet -->
+                            <div class="d-flex d-lg-none justify-content-center mb-3">
+                                <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas"
+                                    data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
+                                    <i class="fas fa-bars"></i>
+                                </button>
                             </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('1')">1</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('2')">2</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('3')">3</button>
-                            <button class="btn btn-warning btn-sm col"
-                                onclick="calcInput('-')">-</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('0')">0</button>
-                            <button class="btn btn-light btn-sm col"
-                                onclick="calcInput('.')">.</button>
-                            <button class="btn btn-danger btn-sm col"
-                                onclick="clearCalc()">C</button>
-                            <button class="btn btn-warning btn-sm col"
-                                onclick="calcInput('+')">+</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-success btn-sm col"
-                                onclick="calculateResult()">=</button>
-                            </div>
-                        </div>
                         </div>
                     </div>
-
-                    <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
-
-                    <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
-                        data-bs-target="#suspendSalesModal">
-                        <i class="fas fa-pause-circle"></i> Suspended Sales
-                    </button>
-
-                    <!-- Add Expense Button -->
-                    <button class="btn btn-dark btn-sm d-flex align-items-center">
-                        <i class="fas fa-minus-circle me-2"></i> Add Expense
-                    </button>
-                    </div>
-
-                    <!-- Hamburger Button for Mobile and Tablet -->
-                    <div class="d-flex d-lg-none justify-content-center mb-3">
-                        <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                    </div>
                 </div>
-                </div>
-            </div>
             </div>
         </div>
 
         <!-- Offcanvas for Mobile and Tablet -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasResponsive" aria-labelledby="offcanvasResponsiveLabel">
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasResponsive"
+            aria-labelledby="offcanvasResponsiveLabel">
             <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Actions</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                <h5 class="offcanvas-title" id="offcanvasResponsiveLabel">Actions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
-            <button class="btn btn-light btn-sm w-100 mb-2" onclick="history.back()"><i class="fas fa-backward"></i> Back</button>
-            <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-window-close"></i> Close</button>
-            <button class="btn btn-success btn-sm w-100 mb-2"><i class="fas fa-briefcase"></i> Briefcase</button>
-            <button class="btn btn-warning btn-sm w-100 mb-2 dropdown-toggle" id="calculatorButtonMobile" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fas fa-calculator"></i> Calculator
-            </button>
-            <div class="dropdown-menu p-2 shadow" id="calculatorDropdownMobile" style="width: 220px;">
-                <div class="text-center">
-                <input type="text" id="calcDisplayMobile" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
+                <button class="btn btn-light btn-sm w-100 mb-2" onclick="history.back()"><i
+                        class="fas fa-backward"></i> Back</button>
+                <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-window-close"></i> Close</button>
+                <button class="btn btn-success btn-sm w-100 mb-2"><i class="fas fa-briefcase"></i> Briefcase</button>
+                <button class="btn btn-warning btn-sm w-100 mb-2 dropdown-toggle" id="calculatorButtonMobile"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-calculator"></i> Calculator
+                </button>
+                <div class="dropdown-menu p-2 shadow" id="calculatorDropdownMobile" style="width: 220px;">
+                    <div class="text-center">
+                        <input type="text" id="calcDisplayMobile" class="form-control text-end mb-2"
+                            onkeydown="handleKeyboardInput(event)" autofocus>
+                    </div>
+                    <div class="d-grid gap-1">
+                        <div class="row g-1">
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
+                            <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                        </div>
+                        <div class="row g-1">
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
+                            <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                        </div>
+                        <div class="row g-1">
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
+                            <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                        </div>
+                        <div class="row g-1">
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
+                            <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
+                            <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
+                            <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                        </div>
+                        <div class="row g-1">
+                            <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="d-grid gap-1">
-                <div class="row g-1">
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
-                    <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
-                </div>
-                <div class="row g-1">
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
-                    <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
-                </div>
-                <div class="row g-1">
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
-                    <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
-                </div>
-                <div class="row g-1">
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
-                    <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
-                    <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
-                    <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
-                </div>
-                <div class="row g-1">
-                    <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
-                </div>
-                </div>
-            </div>
-            <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-redo-alt"></i> Redo</button>
-            <button class="btn btn-outline-danger w-100 mb-2" id="pauseCircleButtonMobile" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
-                <i class="fas fa-pause-circle"></i> Suspended Sales
-            </button>
-            <button class="btn btn-dark btn-sm w-100 mb-2 d-flex align-items-center">
-                <i class="fas fa-minus-circle me-2"></i> Add Expense
-            </button>
+                <button class="btn btn-danger btn-sm w-100 mb-2"><i class="fas fa-redo-alt"></i> Redo</button>
+                <button class="btn btn-outline-danger w-100 mb-2" id="pauseCircleButtonMobile" data-bs-toggle="modal"
+                    data-bs-target="#suspendSalesModal">
+                    <i class="fas fa-pause-circle"></i> Suspended Sales
+                </button>
+                <button class="btn btn-dark btn-sm w-100 mb-2 d-flex align-items-center">
+                    <i class="fas fa-minus-circle me-2"></i> Add Expense
+                </button>
             </div>
         </div>
 
@@ -821,13 +809,12 @@
                 <div class="card bg-white p-3">
                     <div class="row">
                         <div class="col-md-5">
-                            <div class="input-group mb-3">
-                                <select class="form-control select2Box" id="customer-id"
-                                    style="width: calc(100% - 40px);" autofocus>
+                            <div class="d-flex justify-content-center">
+                                <select class="form-control selectBox rounded-start" id="customer-id">
                                     <option selected disabled>Please Select</option>
                                     <!-- Options will be populated dynamically -->
                                 </select>
-                                <button type="button" class="btn btn-outline-info" id="addCustomerButton">
+                                <button type="button" class="btn btn-outline-info rounded-0" id="addCustomerButton">
                                     <i class="fas fa-plus-circle"></i>
                                 </button>
                             </div>
@@ -840,16 +827,15 @@
 
 
                         <div class="col-md-12 mt-3">
-
                             <div class="table-responsive" style="height: 300px; overflow-y: auto;">
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
                                         <tr>
-                                            <th style="width: 30%;">Product</th>
-                                            <th style="width: 15%; text-align: center;">Quantity</th>
-                                            <th style="width: 20%; text-align: center;">Price inc. tax</th>
-                                            <th style="width: 20%; text-align: center;">Subtotal</th>
-                                            <th style="width: 5%; color: red; text-align: center;">X</th>
+                                            <th>Product</th>
+                                            <th class="text-center">Quantity</th>
+                                            <th class="text-center">Unit Price</th>
+                                            <th class="text-center">Subtotal</th>
+                                            <th class="text-center" style="color: red;">X</th>
                                         </tr>
                                     </thead>
                                     <tbody id="billing-body" class="bg-white">
@@ -857,7 +843,6 @@
                                     </tbody>
                                 </table>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -902,12 +887,15 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Amount Given</label>
-                                <input type="text" id="amount-given" class="form-control" placeholder="0.00" oninput="formatAmount(this)">
+                                <input type="text" id="amount-given" class="form-control" placeholder="0.00"
+                                    oninput="formatAmount(this)">
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+
 
             <!-- Product List -->
             <div class="col-md-5">
@@ -1095,12 +1083,14 @@
 
 
     <div class="container mt-5">
-        <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+            aria-labelledby="paymentModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="paymentModalLabel">Add Payment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
@@ -1114,7 +1104,8 @@
                                             <input type="hidden" id="reference_no" name="reference_no">
                                             <div class="row mb-3">
                                                 <div class="col-md-12">
-                                                    <label for="advanceBalance" class="form-label">Advance Balance : Rs. 0.00</label>
+                                                    <label for="advanceBalance" class="form-label">Advance Balance :
+                                                        Rs. 0.00</label>
                                                 </div>
                                             </div>
                                             <div id="paymentRows">
@@ -1122,30 +1113,46 @@
                                                     <div class="card-body">
                                                         <div class="row">
                                                             <div class="col-md-4">
-                                                                <label for="paymentMethod" class="form-label">Payment Method</label>
-                                                                <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                                                                <label for="paymentMethod" class="form-label">Payment
+                                                                    Method</label>
+                                                                <select class="form-select payment-method"
+                                                                    name="payment_method"
+                                                                    onchange="togglePaymentFields(this)">
                                                                     <option value="cash" selected>Cash</option>
                                                                     <option value="card">Credit Card</option>
                                                                     <option value="cheque">Cheque</option>
-                                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                                    <option value="bank_transfer">Bank Transfer
+                                                                    </option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label for="paidOn" class="form-label">Paid On</label>
-                                                                <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                                                                <label for="paidOn" class="form-label">Paid
+                                                                    On</label>
+                                                                <input class="form-control datetimepicker payment-date"
+                                                                    type="text" name="payment_date"
+                                                                    placeholder="DD-MM-YYYY"
+                                                                    value="${moment().format('DD-MM-YYYY')}">
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label for="payAmount" class="form-label">Amount</label>
-                                                                <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
-                                                                <div class="text-danger amount-error" style="display:none;"></div>
+                                                                <label for="payAmount"
+                                                                    class="form-label">Amount</label>
+                                                                <input type="text"
+                                                                    class="form-control payment-amount"
+                                                                    id="payment-amount" name="amount"
+                                                                    oninput="validateAmount()">
+                                                                <div class="text-danger amount-error"
+                                                                    style="display:none;"></div>
                                                             </div>
                                                         </div>
                                                         <div class="conditional-fields row mt-3"></div>
                                                     </div>
-                                                    <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+                                                    <button type="button"
+                                                        class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row"
+                                                        aria-label="Close"></button>
                                                 </div>
                                             </div>
-                                            <button type="button" class="btn btn-primary w-100 mb-3" id="addPaymentRow">Add Payment Row</button>
+                                            <button type="button" class="btn btn-primary w-100 mb-3"
+                                                id="addPaymentRow">Add Payment Row</button>
                                             <div class="mb-3">
                                                 <label for="paymentNote" class="form-label">Payment Note</label>
                                                 <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
@@ -1159,13 +1166,17 @@
                                     <div class="card-body bg-warning text-dark rounded" style="padding: 20px;">
                                         <div class="text-start">
                                             <p>Total Items:</p>
-                                            <h5><strong id="modal-total-items">0.00</strong></h5><hr>
+                                            <h5><strong id="modal-total-items">0.00</strong></h5>
+                                            <hr>
                                             <p>Total Payable:</p>
-                                            <h5><strong id="modal-total-payable">0.00</strong></h5><hr>
+                                            <h5><strong id="modal-total-payable">0.00</strong></h5>
+                                            <hr>
                                             <p>Total Paying:</p>
-                                            <h5><strong id="modal-total-paying">0.00</strong></h5><hr>
+                                            <h5><strong id="modal-total-paying">0.00</strong></h5>
+                                            <hr>
                                             <p>Change Return:</p>
-                                            <h5><strong id="modal-change-return">0.00</strong></h5><hr>
+                                            <h5><strong id="modal-change-return">0.00</strong></h5>
+                                            <hr>
                                             <p>Balance:</p>
                                             <h5><strong id="modal-balance">0.00</strong></h5>
                                         </div>
@@ -1175,8 +1186,10 @@
                         </div>
                         <div class="row mt-4">
                             <div class="col-12 text-end">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
+                                <button type="button" class="btn btn-secondary"
+                                    data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
+                                    Payment</button>
                             </div>
                         </div>
                     </div>
@@ -1254,17 +1267,20 @@
                         </div>
                         <div class="col-md-6">
                             <label for="bankBranch" class="form-label">Bank Branch</label>
-                            <input type="text" class="form-control" name="cheque_bank_branch" id="cheque_bank_branch">
+                            <input type="text" class="form-control" name="cheque_bank_branch"
+                                id="cheque_bank_branch">
                             <div id="bankBranchError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">
                             <label for="cheque_received_date" class="form-label">Cheque Received Date</label>
-                            <input type="text" class="form-control datetimepicker cheque-received-date" name="cheque_received_date" id="cheque_received_date">
+                            <input type="text" class="form-control datetimepicker cheque-received-date"
+                                name="cheque_received_date" id="cheque_received_date">
                             <div id="chequeReceivedDateError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">
                             <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
-                            <input type="text" class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date" id="cheque_valid_date">
+                            <input type="text" class="form-control datetimepicker cheque-valid-date"
+                                name="cheque_valid_date" id="cheque_valid_date">
                             <div id="chequeValidDateError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">

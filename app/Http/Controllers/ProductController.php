@@ -21,6 +21,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
+use App\Events\StockUpdated;
 
 class ProductController extends Controller
 {
