@@ -573,7 +573,37 @@
                                 document.getElementById('productSearchInput').focus();
                             }
                         });
-                    }
+
+
+                   // Initialize Mousetrap for keyboard shortcuts
+                    let currentRowIndex = 0;
+
+                    Mousetrap.bind('f2', function () {
+                        const quantityInputs = document.querySelectorAll('.quantity-input');
+                        
+                        if (quantityInputs.length > 0) {
+                            // Focus and select the current input
+                            quantityInputs[currentRowIndex].focus();
+                            quantityInputs[currentRowIndex].select();
+
+                            // Move to the next row
+                            currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
+                            
+                            return false; // Prevent default browser behavior
+                        }
+                    });
+
+
+
+                    Mousetrap.bind('f4', function() {
+                        // Focus on the product search input to add a new product
+                        const productSearchInput = document.getElementById('productSearchInput');
+                        if (productSearchInput) {
+                            productSearchInput.focus();
+                        }
+                    });
+
+                }
 
                     updateTotals();
                 }
@@ -638,6 +668,7 @@
                         showProductModal(product, stockEntry, row);
                     });
                 }
+
 
                 document.getElementById('saveProductChanges').onclick = function() {
                     const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
@@ -1329,6 +1360,9 @@
 
 {{-- For jQuery --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+<!-- Include Mousetrap library -->
+<script src="{{ asset('assets/js/mousetrap.js') }}"></script>
+
 <!-- Include cleave.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
 {{-- For sound --}}
