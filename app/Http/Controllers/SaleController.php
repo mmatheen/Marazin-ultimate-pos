@@ -709,4 +709,30 @@ class SaleController extends Controller
 
 
     }
+
+
+    public function printRecentTransaction($id)
+    {
+        try {
+            $sale = Sale::findOrFail($id);
+            $customer = Customer::findOrFail($sale->customer_id);
+            $products = SalesProduct::where('sale_id', $sale->id)->get();
+            $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
+            $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
+                return $carry + ($product['discount'] ?? 0);
+            }, 0);
+
+            $html = view('sell.receipt', [
+                'sale' => $sale,
+                'customer' => $customer,
+                'products' => $products,
+                'payments' => $payments,
+                'total_discount' => $totalDiscount,
+            ])->render();
+
+            return response()->json(['invoice_html' => $html], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
 }

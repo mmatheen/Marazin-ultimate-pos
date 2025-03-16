@@ -89,7 +89,7 @@
         <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="ARB Distribution Logo" class="logo" />
     </div>
 
-    <h2 class="receipt-title" style="font-size: 18px; margin-bottom: 8px;">ARB Distribution</h2>
+    <h2 class="receipt-title" style="font-size: 18px; margin-bottom: 8px;">ARB Fashion</h2>
 
     <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
         <div>Address: {{ Auth::user()->location->address }}</div>

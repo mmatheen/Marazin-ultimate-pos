@@ -315,6 +315,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         // Route to delete a suspended sale
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
+        Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
 
         // Expense Parent Category Routes
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');

@@ -1088,7 +1088,7 @@
                     <td>${sale.final_total}</td>
                     <td>
                         <button class='btn btn-primary btn-sm'>Edit</button>
-                        <button class='btn btn-success btn-sm'>Print</button>
+                        <button class='btn btn-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
                         <button class='btn btn-danger btn-sm'>Delete</button>
                     </td>
                 </tr>`;
@@ -1098,6 +1098,26 @@
     }
 
     document.addEventListener('DOMContentLoaded', fetchSalesData);
+
+    // Add this JavaScript function to your view or a separate JS file
+    function printReceipt(saleId) {
+        fetch(`/sales/print-recent-transaction/${saleId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.invoice_html) {
+                    const receiptWindow = window.open('', '_blank');
+                    receiptWindow.document.write(data.invoice_html);
+                    receiptWindow.document.close();
+                    receiptWindow.print();
+                } else {
+                    alert('Failed to fetch the receipt. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching the receipt:', error);
+                alert('An error occurred while fetching the receipt. Please try again.');
+            });
+    }
 </script>
 
 <style>
