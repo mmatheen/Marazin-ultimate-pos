@@ -814,71 +814,57 @@
                     }
 
                     function sendSaleData(saleData, saleId = null) {
-                        const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-                        const method = 'POST';
+                const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+                const method = 'POST';
 
-                        $.ajax({
-                            url: url,
-                            type: method,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                            },
-                            data: JSON.stringify(saleData),
-                            success: function(response) {
-                                if (response.message && response.invoice_html) {
-                                    document.getElementsByClassName('successSound')[0].play();
-                                    toastr.success(response.message);
+                $.ajax({
+                    url: url,
+                    type: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    },
+                    data: JSON.stringify(saleData),
+                    success: function(response) {
+                        if (response.message && response.invoice_html) {
+                            document.getElementsByClassName('successSound')[0].play();
+                            toastr.success(response.message);
 
-                                    // Create a print area dynamically
-                                    var printArea = document.createElement('div');
-                                    printArea.id = 'printArea';
-                                    printArea.innerHTML = response.invoice_html;
-                                    document.body.appendChild(printArea);
+                            // Create a hidden iframe
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'fixed';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            document.body.appendChild(iframe);
 
-                                    // Apply print styles
-                                    var printStyles = document.createElement('style');
-                                    printStyles.id = 'printStyles';
-                                    printStyles.innerHTML = `
-                        @media print {
-                            body * {
-                                visibility: hidden;
-                            }
-                            #printArea, #printArea * {
-                                visibility: visible;
-                            }
-                            #printArea {
-                                position: absolute;
-                                left: 0;
-                                top: 0;
-                                width: 100%;
-                                height: 100%;
-                                font-size: 14px;
-                                font-weight: bold;
-                            }
+                            // Write the receipt content to the iframe
+                            iframe.contentDocument.open();
+                            iframe.contentDocument.write(response.invoice_html);
+                            iframe.contentDocument.close();
+
+                            iframe.onload = function() {
+                                // Trigger the print dialog from the iframe
+                                iframe.contentWindow.print();
+
+                                iframe.contentWindow.onafterprint = function() {
+                                    // Remove the iframe after printing
+                                    document.body.removeChild(iframe);
+                                };
+                            };
+
+                            // Reset the form and refresh products
+                            resetForm();
+                            fetchAllProducts();
+                        } else {
+                            toastr.error('Failed to record sale: ' + response.message);
                         }
-                    `;
-                                    document.head.appendChild(printStyles);
-
-                                    // Print the invoice
-                                    window.print();
-
-                                    // Remove print area and styles after printing
-                                    document.body.removeChild(printArea);
-                                    document.head.removeChild(printStyles);
-
-                                    // Reset the form and refresh products
-                                    resetForm();
-                                    fetchAllProducts();
-                                } else {
-                                    toastr.error('Failed to record sale: ' + response.message);
-                                }
-                            },
-                            error: function(xhr, status, error) {
-                                toastr.error('An error occurred: ' + xhr.responseText);
-                            }
-                        });
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('An error occurred: ' + xhr.responseText);
                     }
+                });
+            }
 
                     function gatherCashPaymentData() {
                         const totalAmount = parseFormattedAmount($('#final-total-amount').text()

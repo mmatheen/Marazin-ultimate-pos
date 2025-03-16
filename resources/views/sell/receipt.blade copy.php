@@ -8,6 +8,12 @@
         margin: 10px;
     }
     @media print {
+        * {
+            visibility: hidden !important;
+        }
+        #printArea, #printArea * {
+            visibility: visible !important;
+        }
         #printArea {
             position: absolute !important;
             left: 0 !important;
@@ -31,6 +37,10 @@
         .table th, .table td {
             padding: 6px !important;
             font-size: 10px !important;
+            font-weight: bold !important;
+        }
+        .table th {
+            font-weight: bold !important;
         }
         .text-end {
             text-align: right !important;
@@ -48,14 +58,24 @@
             color: #000 !important;
             font-weight: normal !important;
         }
-        .logo-container {
+        .printArea .logo {
+            max-width: 100%;
+            height: auto;
+            image-rendering: -webkit-optimize-contrast; /* Enhance image rendering */
+            image-rendering: crisp-edges; /* For better clarity on some browsers */
+            image-rendering: pixelated; /* For better clarity on some browsers */
+            filter: contrast(120%); /* Increase contrast for better boldness */
+            filter: brightness(110%); /* Increase brightness for better clarity */
+        }
+         /* Adjustments for thermal printer */
+         .logo-container {
             text-align: center;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
         .logo-container img {
             max-width: 100%;
             height: auto;
-            width: 80px; /* Adjusted for thermal printer width */
+            width: 120px; /* Adjusted for thermal printer width */
         }
     }
 </style>
@@ -66,8 +86,11 @@
 <div id="printArea">
 
     <div class="logo-container">
-        <img src="{{ asset('assets/img/ARB_Fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
+        <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="ARB Distribution Logo" class="logo" />
     </div>
+
+    <h2 class="receipt-title" style="font-size: 18px; margin-bottom: 8px;">ARB Fashion</h2>
+
     <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
         <div>Address: {{ Auth::user()->location->address }}</div>
         <div>Phone: {{ Auth::user()->location->mobile }}</div>
@@ -164,7 +187,7 @@
               <td align="right"><strong>BALANCE</strong></td>
               <td width="80" align="right">
                 <div style="border: 0.5px solid #000; padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
-                    ({{ number_format($sale->total_due, 0, '.', ',') }})
+                    {{ number_format($sale->total_due, 0, '.', ',') }}
                 </div>
               </td>
             </tr>

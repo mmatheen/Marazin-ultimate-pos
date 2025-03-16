@@ -1013,7 +1013,7 @@
             <div class="modal-body">
                 <ul class="nav nav-tabs" id="transactionTabs">
                     <li class="nav-item">
-                        <a class="nav-link active" data-bs-toggle="tab" href="#completed" onclick="loadTableData('completed')">Completed</a>
+                        <a class="nav-link active" data-bs-toggle="tab" href="#completed" onclick="loadTableData('final')">Completed</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" data-bs-toggle="tab" href="#quotation" onclick="loadTableData('quotation')">Quotation</a>
@@ -1063,7 +1063,7 @@
                 console.error('Unexpected data format:', data);
             }
             // Load the default tab data
-            loadTableData('completed');
+            loadTableData('final');
         } catch (error) {
             console.error('Error fetching sales data:', error);
         }
@@ -1099,25 +1099,43 @@
 
     document.addEventListener('DOMContentLoaded', fetchSalesData);
 
-    // Add this JavaScript function to your view or a separate JS file
     function printReceipt(saleId) {
-        fetch(`/sales/print-recent-transaction/${saleId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.invoice_html) {
-                    const receiptWindow = window.open('', '_blank');
-                    receiptWindow.document.write(data.invoice_html);
-                    receiptWindow.document.close();
-                    receiptWindow.print();
-                } else {
-                    alert('Failed to fetch the receipt. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching the receipt:', error);
-                alert('An error occurred while fetching the receipt. Please try again.');
-            });
-    }
+    fetch(`/sales/print-recent-transaction/${saleId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.invoice_html) {
+                // Create a hidden iframe
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+                document.body.appendChild(iframe);
+
+                // Write the receipt content to the iframe
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(data.invoice_html);
+                iframe.contentDocument.close();
+
+                iframe.onload = function() {
+                    // Trigger the print dialog from the iframe
+                    iframe.contentWindow.print();
+
+                    iframe.contentWindow.onafterprint = function() {
+                        // Remove the iframe after printing
+                        document.body.removeChild(iframe);
+                    };
+                };
+            } else {
+                alert('Failed to fetch the receipt. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching the receipt:', error);
+            alert('An error occurred while fetching the receipt. Please try again.');
+        });
+}
+
 </script>
 
 <style>
