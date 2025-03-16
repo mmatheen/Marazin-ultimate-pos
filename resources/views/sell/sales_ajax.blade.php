@@ -883,132 +883,164 @@ $('#customer-id').on('change', function() {
         $('#customer-phone').text(customerDetails.mobile_no);
     }
 });
+// Global variable to store combined product data
+let allProducts = [];
 
-        // Global variable to store combined product data
-        let allProducts = [];
+// Fetch data from the single API and combine it
+fetch('/products/stocks')
+    .then(response => response.json())
+    .then(data => {
+        console.log('Stock Data:', data); // Log stock data
+        if (data.status === 200 && Array.isArray(data.data)) {
+            allProducts = data.data.map(stock => {
+                const product = stock.product;
+                const totalQuantity = stock.total_stock;
 
-        // Fetch data from the single API and combine it
-        fetch('/products/stocks')
-            .then(response => response.json())
-            .then(data => {
-                console.log('Stock Data:', data); // Log stock data
-                if (data.status === 200 && Array.isArray(data.data)) {
-                    allProducts = data.data.map(stock => {
-                        const product = stock.product;
-                        const totalQuantity = stock.total_stock;
-
-                        // Ensure product object and necessary properties are defined
-                        if (product && typeof product.id !== 'undefined' && typeof product
-                            .product_name !== 'undefined') {
-                            return {
-                                id: product.id,
-                                name: product.product_name,
-                                sku: product.sku,
-                                quantity: totalQuantity,
-                                price: product.retail_price,
-                                product_details: product,
-                                batches: stock.batches
-                            };
-                        } else {
-                            console.error('Invalid product data:', product);
-                            return null;
-                        }
-                    }).filter(product => product !== null); // Filter out invalid products
-
-                    initAutocomplete();
+                // Ensure product object and necessary properties are defined
+                if (product && typeof product.id !== 'undefined' && typeof product.product_name !== 'undefined') {
+                    return {
+                        id: product.id,
+                        name: product.product_name,
+                        sku: product.sku,
+                        quantity: totalQuantity,
+                        price: product.retail_price,
+                        product_details: product,
+                        batches: stock.batches
+                    };
                 } else {
-                    console.error('Unexpected format or status for stocks data:', data);
+                    console.error('Invalid product data:', product);
+                    return null;
                 }
-            })
-            .catch(err => console.error('Error fetching product data:', err));
+            }).filter(product => product !== null); // Filter out invalid products
 
-        // Function to initialize autocomplete functionality
-        function initAutocomplete() {
-            if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
-                console.error('jQuery UI Autocomplete is not loaded.');
-                return;
-            }
-
-            const autocompleteInstance = $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
-                    response(filteredProducts.map(product => ({
-                        label: `${product.name} (${product.sku || 'No SKU'})`,
-                        value: product.name,
-                        product: product
-                    })));
-                },
-                select: function(event, ui) {
-                    $("#productSearchInput").val(ui.item.value);
-                    ui.item.product.quantity =
-                        1; // Ensure quantity is set to 1 when adding a new product
-                    addProductToTable(ui.item.product);
-                    return false;
-                }
-            }).autocomplete("instance");
-
-            if (autocompleteInstance) {
-                console.log('Autocomplete instance initialized successfully.');
-                autocompleteInstance._renderItem = function(ul, item) {
-                    return $("<li>")
-                        .append(`<div>${item.label}</div>`)
-                        .appendTo(ul);
-                };
-            } else {
-                console.error('Failed to initialize autocomplete instance.');
-            }
+            initAutocomplete();
+        } else {
+            console.error('Unexpected format or status for stocks data:', data);
         }
+    })
+    .catch(err => console.error('Error fetching product data:', err));
 
-        // Function to get batches
-        function getBatches(product, selectedBatchId, isEditing) {
-            if (!Array.isArray(product.batches)) {
-                return [];
-            }
+// Function to initialize autocomplete functionality
+function initAutocomplete() {
+    if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
+        console.error('jQuery UI Autocomplete is not loaded.');
+        return;
+    }
 
-            if (isEditing) {
-                return product.batches.map(batch => ({
-                    batch_id: batch.id,
-                    batch_price: parseFloat(batch.retail_price) || 0,
-                    batch_quantity: batch.qty || 0,
-                    batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product
-                        .quantity : 0) // Adjust batch quantity if editing
-                }));
-            } else {
-                return product.batches.flatMap(batch =>
-                    Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_price: parseFloat(batch.retail_price) || 0,
-                        batch_quantity: locationBatch.quantity || 0
-                    })) : []
-                );
+    const autocompleteInstance = $("#productSearchInput").autocomplete({
+        minLength: 2, // Trigger autocomplete after at least 2 letters
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts.filter(product =>
+                (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            );
+            response(filteredProducts.map(product => ({
+                label: `${product.name} (${product.sku || 'No SKU'})`,
+                value: product.name,
+                product: product
+            })));
+        },
+        response: function(event, ui) {
+            // If only one result, automatically add the product
+            if (ui.content.length === 1) {
+                const product = ui.content[0].product;
+                $("#productSearchInput").val(ui.content[0].value);
+                product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
+                addProductToTable(product);
+                $(this).autocomplete('close');
             }
+        },
+        select: function(event, ui) {
+            $("#productSearchInput").val(ui.item.value);
+            ui.item.product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
+            addProductToTable(ui.item.product);
+            $(this).autocomplete('close');
+            return false;
         }
+    }).autocomplete("instance");
 
-        // Function to add product to table
-        function addProductToTable(product, selectedBatchId = null, isEditing = false) {
-            // Validate product data
-            if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
-                console.error("Invalid product data:", product);
-                return;
-            }
+    if (autocompleteInstance) {
+        console.log('Autocomplete instance initialized successfully.');
+        autocompleteInstance._renderItem = function(ul, item) {
+            return $("<li>")
+                .append(`<div>${item.label}</div>`)
+                .appendTo(ul);
+        };
+    } else {
+        console.error('Failed to initialize autocomplete instance.');
+    }
+}
 
-            // Set default quantity if it's not provided
-            if (typeof product.quantity === 'undefined') {
-                product.quantity = 1;
-            }
+// Function to get batches
+function getBatches(product, selectedBatchId, isEditing) {
+    if (!Array.isArray(product.batches)) {
+        return [];
+    }
 
-            const batches = getBatches(product, selectedBatchId, isEditing);
+    if (isEditing) {
+        return product.batches.map(batch => ({
+            batch_id: batch.id,
+            batch_price: parseFloat(batch.retail_price) || 0,
+            batch_quantity: batch.qty || 0,
+            batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product.quantity : 0) // Adjust batch quantity if editing
+        }));
+    } else {
+        return product.batches.flatMap(batch =>
+            Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
+                batch_id: batch.id,
+                batch_price: parseFloat(batch.retail_price) || 0,
+                batch_quantity: locationBatch.quantity || 0
+            })) : []
+        );
+    }
+}
 
-            const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch
-                .batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
-            const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
+// Function to add product to table
+function addProductToTable(product, selectedBatchId = null, isEditing = false) {
+    // Check if product already added
+    const existingRow = $(`#addSaleProduct tbody tr[data-id="${product.id}"]`);
+    if (existingRow.length > 0) {
+        // Update quantity if product already added
+        const quantityInput = existingRow.find('.quantity-input');
+        quantityInput.val(parseInt(quantityInput.val(), 10) + 1);
+        updateRow(existingRow);
+        updateTotals();
+        return;
+    }
 
-            // Generate batch options
-            const batchOptions = batches.map(batch => `
+    // Validate product data
+    if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
+        console.error("Invalid product data:", product);
+        return;
+    }
+
+    // Set default quantity if it's not provided
+    if (typeof product.quantity === 'undefined') {
+        product.quantity = 1;
+    }
+
+    const batches = getBatches(product, selectedBatchId, isEditing);
+
+    const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
+    const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
+
+    // Calculate discount and net price
+    const discountPercent = product.discount || 0;
+    const discountType = product.discount_type || 'fixed';
+    let discountAmount = 0;
+
+    if (discountType === 'fixed') {
+        discountAmount = discountPercent;
+    } else if (discountType === 'percentage') {
+        discountAmount = finalPrice * (discountPercent / 100);
+    }
+
+    const netPrice = finalPrice - discountAmount;
+    const subtotal = netPrice * product.quantity;
+
+    // Generate batch options
+    const batchOptions = batches.map(batch => `
         <option value="${batch.batch_id}"
                 data-price="${batch.batch_price}"
                 data-quantity="${batch.batch_quantity}"
@@ -1018,7 +1050,7 @@ $('#customer-id').on('change', function() {
         </option>
     `).join('');
 
-            const newRow = `
+    const newRow = `
         <tr data-id="${product.id}">
             <td>${product.name || '-'} <br><span style="font-size:12px;">Current stock: ${totalQuantity}</span>
                 <select class="form-select batch-dropdown" aria-label="Select Batch">
@@ -1035,10 +1067,14 @@ $('#customer-id').on('change', function() {
                 <input type="number" class="form-control price-input" value="${finalPrice.toFixed(2)}" min="0">
             </td>
             <td>
-                <input type="number" class="form-control discount-percent" value="${product.discount || 0}" min="0" max="100">
+                <input type="number" class="form-control discount-percent" value="${discountPercent}" min="0" max="100">
+                <select class="form-select mt-4 discount-type" aria-label="Select Discount Type">
+                    <option value="fixed" ${discountType === 'fixed' ? 'selected' : ''}>Fixed</option>
+                    <option value="percentage" ${discountType === 'percentage' ? 'selected' : ''}>Percentage</option>
+                </select>
             </td>
-            <td class="retail-price">${finalPrice.toFixed(2)}</td>
-            <td class="subtotal">${(finalPrice * product.quantity).toFixed(2)}</td>
+            <td class="retail-price">${netPrice.toFixed(2)}</td>
+            <td class="subtotal">${subtotal.toFixed(2)}</td>
             <td>
                 <button class="btn btn-danger btn-sm remove-btn">
                     <i class="fas fa-trash"></i>
@@ -1047,241 +1083,286 @@ $('#customer-id').on('change', function() {
         </tr>
     `;
 
-            const $newRow = $(newRow);
-            $('#addSaleProduct').DataTable().row.add($newRow).draw();
-            allProducts = allProducts.filter(p => p.id !== product.id);
 
-            // Update footer and set up event listeners
-            updateFooter();
-            toastr.success('Product added to the table!', 'Success');
+    const $newRow = $(newRow);
+    $('#addSaleProduct').DataTable().row.add($newRow).draw();
+    allProducts = allProducts.filter(p => p.id !== product.id);
 
-            // Event listeners for row updates
-            const quantityInput = $newRow.find('.quantity-input');
-            const priceInput = $newRow.find('.price-input');
-            const batchDropdown = $newRow.find('.batch-dropdown');
+    // Update footer and set up event listeners
+    updateFooter();
+    toastr.success('Product added to the table!', 'Success');
 
-            $newRow.find('.remove-btn').on('click', function(event) {
-                event.preventDefault(); // Prevent form submission
-                var row = $(this).closest('tr');
-                $('#confirmRemoveModal').data('row', row).modal('show');
-            });
+    // Event listeners for row updates
+    const quantityInput = $newRow.find('.quantity-input');
+    const priceInput = $newRow.find('.price-input');
+    const discountTypeSelect = $newRow.find('.discount-type');
+    const batchDropdown = $newRow.find('.batch-dropdown');
 
-            $newRow.find('.quantity-minus').on('click', () => {
-                if (quantityInput.val() > 1) {
-                    quantityInput.val(quantityInput.val() - 1);
-                    updateTotals();
-                }
-            });
+    $newRow.find('.remove-btn').on('click', function(event) {
+        event.preventDefault(); // Prevent form submission
+        var row = $(this).closest('tr');
+        $('#confirmRemoveModal').data('row', row).modal('show');
+    });
 
-            $newRow.find('.quantity-plus').on('click', () => {
-                let newQuantity = parseInt(quantityInput.val(), 10) + 1;
-                const selectedOption = batchDropdown.find(':selected');
-                const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-                );
+    $newRow.find('.quantity-minus').on('click', () => {
+        if (quantityInput.val() > 1) {
+            quantityInput.val(quantityInput.val() - 1);
+            updateTotals();
+        }
+    });
 
-                if (newQuantity > maxQuantity) {
-                    document.getElementsByClassName('errorSound')[0].play();
-                    toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
-                        'Error');
-                } else {
-                    quantityInput.val(newQuantity);
-                    updateTotals();
-                }
-            });
+    $newRow.find('.quantity-plus').on('click', () => {
+        let newQuantity = parseInt(quantityInput.val(), 10) + 1;
+        const selectedOption = batchDropdown.find(':selected');
+        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+            selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+        );
 
-            quantityInput.on('input', () => {
-                const quantityValue = parseInt(quantityInput.val(), 10);
-                const selectedOption = batchDropdown.find(':selected');
-                const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-                );
+        if (newQuantity > maxQuantity) {
+            document.getElementsByClassName('errorSound')[0].play();
+            toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+                'Error');
+        } else {
+            quantityInput.val(newQuantity);
+            updateTotals();
+        }
+    });
 
-                if (quantityValue > maxQuantity) {
-                    quantityInput.val(maxQuantity);
-                    document.getElementsByClassName('errorSound')[0].play();
-                    toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
-                        'Error');
-                }
-                updateTotals();
-            });
+    // quantityInput.on('input', () => {
+    //     const quantityValue = parseInt(quantityInput.val(), 10);
+    //     const selectedOption = batchDropdown.find(':selected');
+    //     const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+    //         selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+    //     );
 
-            priceInput.on('input', () => {
-                updateTotals();
-            });
+    //     if (quantityValue > maxQuantity) {
+    //         quantityInput.val(maxQuantity);
+    //         document.getElementsByClassName('errorSound')[0].play();
+    //         toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+    //             'Error');
+    //     }
+    //     updateTotals();
+    // });
 
-            batchDropdown.on('change', () => {
-                const selectedOption = batchDropdown.find(':selected');
-                const batchPrice = parseFloat(selectedOption.data('price')) || 0;
-                const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-                );
+    quantityInput.on('input', () => {
+        // Update row and totals when quantity is changed
+        updateRow($newRow);
+        updateTotals();
+    });
 
-                if (quantityInput.val() > batchQuantity) {
-                    quantityInput.val(batchQuantity);
-                    toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
-                        'Error');
-                }
-                priceInput.val(batchPrice.toFixed(2));
-                const subtotal = parseFloat(quantityInput.val()) * batchPrice;
-                $newRow.find('.subtotal').text(subtotal.toFixed(2));
-                quantityInput.attr('max', batchQuantity);
-                updateTotals();
-            });
+    priceInput.on('input', () => {
+        // Update row and totals when price is changed
+        updateRow($newRow);
+        updateTotals();
+    });
+
+    discountTypeSelect.on('change', () => {
+        // Update row and totals when discount type is changed
+        updateRow($newRow);
+        updateTotals();
+    });
+
+    batchDropdown.on('change', () => {
+        const selectedOption = batchDropdown.find(':selected');
+        const batchPrice = parseFloat(selectedOption.data('price')) || 0;
+        const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+            selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+        );
+
+        if (quantityInput.val() > batchQuantity) {
+            quantityInput.val(batchQuantity);
+            toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
+                'Error');
+        }
+        priceInput.val(batchPrice.toFixed(2));
+        updateRow($newRow); // Update row when batch is changed
+        updateTotals();
+    });
+}
+
+function updateRow($row) {
+    const batchElement = $row.find('.batch-dropdown option:selected');
+    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+    const price = parseFloat($row.find('.price-input').val()) || 0;
+    const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+    const discountType = $row.find('.discount-type').val();
+    const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
+
+    if (quantity > batchQuantity) {
+        alert('Requested quantity exceeds available batch quantity.');
+        $row.find('.quantity-input').val(batchQuantity);
+        quantity = batchQuantity;
+    }
+
+    const subTotal = quantity * price;
+    let discountAmount = 0;
+
+    if (discountType === 'fixed') {
+        discountAmount = discountPercent;
+    } else if (discountType === 'percentage') {
+        discountAmount = subTotal * (discountPercent / 100);
+    }
+
+    const netCost = subTotal - discountAmount;
+    const lineTotal = netCost;
+
+    $row.find('.subtotal').text(subTotal.toFixed(2));
+    $row.find('.net-cost').text(netCost.toFixed(2));
+    $row.find('.line-total').text(lineTotal.toFixed(2));
+    $row.find('.retail-price').text(price.toFixed(2));
+
+    // Update batch quantity if the quantity is updated
+    batchElement.data('quantity', batchQuantity - quantity);
+}
+
+function updateTotals() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
+
+    $('#addSaleProduct tbody tr').each(function() {
+        totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
+        netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
+    });
+
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+
+    const discountType = $('#discount_type').val();
+    const discountAmount = parseFloat($('#discount_amount').val()) || 0;
+    let discountNetTotalAmount = netTotalAmount;
+
+    if (discountType === 'percentage') {
+        discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
+    } else if (discountType === 'fixed') {
+        discountNetTotalAmount -= discountAmount;
+    }
+
+    $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
+
+    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+    const paymentDue = discountNetTotalAmount - paidAmount;
+    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+}
+
+// Function to update calculations
+function updateCalculations() {
+    let totalItems = 0;
+    let netTotalAmount = 0;
+
+    $('#addSaleProduct tbody tr').each(function() {
+        // Get the quantity, price, and discount details
+        const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+        const price = parseFloat($(this).find('.price-input').val()) || 0;
+        const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
+        const discountType = $(this).find('.discount-type').val();
+
+        // Calculate the subtotal before discount
+        const subTotal = quantity * price;
+        let discountAmount = 0;
+
+        // Calculate the discount amount based on the discount type
+        if (discountType === 'fixed') {
+            discountAmount = discountPercent;
+        } else if (discountType === 'percentage') {
+            discountAmount = subTotal * (discountPercent / 100);
         }
 
-        // Function to update row totals
-        function updateRow($row) {
-            const batchElement = $row.find('.batch-dropdown option:selected');
-            const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-            const price = parseFloat(batchElement.data('price')) || 0;
-            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-            const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
+        // Calculate the net cost after discount
+        const netCost = subTotal - discountAmount;
 
-            if (quantity > batchQuantity) {
-                alert('Requested quantity exceeds available batch quantity.');
-                $row.find('.quantity-input').val(batchQuantity);
-                quantity = batchQuantity;
-            }
+        // Update the subtotal and net cost in the respective columns
+        $(this).find('.subtotal').text(subTotal.toFixed(2));
+        $(this).find('.net-cost').text(netCost.toFixed(2));
 
-            const subTotal = quantity * price;
-            const discountAmount = subTotal * (discountPercent / 100);
-            const netCost = subTotal - discountAmount;
-            const lineTotal = netCost;
+        // Add the quantity and net cost to the total items and net total amount
+        totalItems += quantity;
+        netTotalAmount += netCost;
+    });
 
-            $row.find('.subtotal').text(subTotal.toFixed(2));
-            $row.find('.net-cost').text(netCost.toFixed(2));
-            $row.find('.line-total').text(lineTotal.toFixed(2));
-            $row.find('.retail-price').text(price.toFixed(2));
+    const discountTypeOverall = $('#discount-type').val();
+    const discountInput = parseFloat($('#discount-amount').val()) || 0;
+    let discountAmountOverall = 0;
 
-            // Update batch quantity if the quantity is updated
-            batchElement.data('quantity', batchQuantity - quantity);
-        }
+    if (discountTypeOverall === 'fixed') {
+        discountAmountOverall = discountInput;
+    } else if (discountTypeOverall === 'percentage') {
+        discountAmountOverall = (netTotalAmount * discountInput) / 100;
+    }
 
-        function updateTotals() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
+    const taxType = $('#tax-type').val();
+    let taxAmount = 0;
 
-            $('#addSaleProduct tbody tr').each(function() {
-                totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
-                netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
-            });
+    if (taxType === 'vat10' || taxType === 'cgst10') {
+        taxAmount = (netTotalAmount - discountAmountOverall) * 0.10;
+    }
 
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
+    const finalTotal = netTotalAmount - discountAmountOverall + taxAmount;
 
-            const discountType = $('#discount_type').val();
-            const discountAmount = parseFloat($('#discount_amount').val()) || 0;
-            let discountNetTotalAmount = netTotalAmount;
+    $('#total-items').text(totalItems.toFixed(2));
+    $('#net-total-amount').text(netTotalAmount.toFixed(2));
+    $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
+    $('#discount-display').text(`(-) Rs. ${discountAmountOverall.toFixed(2)}`);
+    $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
+    updatePaymentDue(finalTotal, discountAmountOverall);
+}
 
-            if (discountType === 'percentage') {
-                discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
-            } else if (discountType === 'fixed') {
-                discountNetTotalAmount -= discountAmount;
-            }
+// Function to update payment due amount
+function updatePaymentDue(finalTotal, discountAmount) {
+    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+    const discountNetTotalAmount = finalTotal - discountAmount;
+    const paymentDue = discountNetTotalAmount - paidAmount;
+    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+}
 
-            $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
+// Function to update footer
+function updateFooter() {
+    // Example footer update logic
+    const totalItems = parseFloat($('#total-items').text());
+    const netTotalAmount = parseFloat($('#net-total-amount').text());
+    // Update footer elements with these values
+    $('#footer-total-items').text(totalItems);
+    $('#footer-net-total-amount').text(`Rs. ${netTotalAmount.toFixed(2)}`);
+}
 
-            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-            const paymentDue = discountNetTotalAmount - paidAmount;
-            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-        }
+// Event listener for remove button click
+$(document).on('click', '.remove-btn', function(event) {
+    event.preventDefault(); // Prevent form submission
+    var row = $(this).closest('tr');
+    $('#confirmRemoveModal').data('row', row).modal('show');
+});
 
-          // Function to update calculations
-          function updateCalculations() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
+// Event listener for confirmation modal
+$('#confirmRemoveButton').on('click', function() {
+    var row = $('#confirmRemoveModal').data('row');
+    removeProduct(row);
+    $('#confirmRemoveModal').modal('hide');
+});
 
-            $('#addSaleProduct tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-                const price = parseFloat($(this).find('.price-input').val()) || 0;
-                const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
+// Function to handle the removal of the product from the DataTable
+function removeProduct(row) {
+    var table = $('#addSaleProduct').DataTable();
+    var productId = row.data('id');
+    var product = allProducts.find(p => p.id === productId);
 
-                const subTotal = quantity * price;
-                const discountAmount = subTotal * (discountPercent / 100);
-                const netCost = subTotal - discountAmount;
-                const lineTotal = netCost;
+    // Re-add the removed product back to the allProducts array
+    if (product) {
+        allProducts.push(product);
+    }
 
-                $(this).find('.sub-total').text(subTotal.toFixed(2));
-                $(this).find('.net-cost').text(netCost.toFixed(2));
-                $(this).find('.line-total').text(lineTotal.toFixed(2));
-                $(this).find('.retail-price').text(price.toFixed(2));
+    table.row(row).remove().draw();
 
-                totalItems += quantity;
-                netTotalAmount += lineTotal;
-            });
+    toastr.success('Product removed successfully!', 'Success');
+    updateCalculations();
+    updateFooter();
+    initAutocomplete(); // Re-initialize autocomplete to include the removed product
+}
 
-            const discountType = $('#discount-type').val();
-            const discountInput = parseFloat($('#discount-amount').val()) || 0;
-            let discountAmount = 0;
-
-            if (discountType === 'fixed') {
-                discountAmount = discountInput;
-            } else if (discountType === 'percentage') {
-                discountAmount = (netTotalAmount * discountInput) / 100;
-            }
-
-            const taxType = $('#tax-type').val();
-            let taxAmount = 0;
-
-            if (taxType === 'vat10' || taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            }
-
-            const finalTotal = netTotalAmount - discountAmount + taxAmount;
-
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
-            $('#discount-display').text(`(-) Rs. ${discountAmount.toFixed(2)}`);
-            $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
-            updatePaymentDue(finalTotal, discountAmount);
-        }
-
-        // Function to update payment due amount
-        function updatePaymentDue(finalTotal, discountAmount) {
-            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-            const discountNetTotalAmount = finalTotal - discountAmount;
-            const paymentDue = discountNetTotalAmount - paidAmount;
-            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-        }
-
-        // Event listener for remove button click
-        $(document).on('click', '.remove-btn', function(event) {
-            event.preventDefault(); // Prevent form submission
-            var row = $(this).closest('tr');
-            $('#confirmRemoveModal').data('row', row).modal('show');
-        });
-
-        // Event listener for confirmation modal
-        $('#confirmRemoveButton').on('click', function() {
-            var row = $('#confirmRemoveModal').data('row');
-            removeProduct(row);
-            $('#confirmRemoveModal').modal('hide');
-        });
-
-        // Function to handle the removal of the product from the DataTable
-        function removeProduct(row) {
-            var table = $('#addSaleProduct').DataTable();
-            var productId = row.data('id');
-            var product = allProducts.find(p => p.id === productId);
-
-            // Re-add the removed product back to the allProducts array
-            allProducts.push(product);
-
-            table.row(row).remove().draw();
-
-            toastr.success('Product removed successfully!', 'Success');
-            updateCalculations();
-            updateFooter();
-        }
-
-        // Trigger calculations on events
-        $(document).on('change keyup',
-            '.quantity-input, .discount-percent, .price-input, #discount-amount, #discount-type, #tax-type',
-            function() {
-                updateCalculations();
-            });
+// Trigger calculations on events
+$(document).on('change keyup',
+    '.quantity-input, .discount-percent, .price-input, .discount-type, #discount-amount, #discount-type, #tax-type',
+    function() {
+        updateCalculations();
+    });
 
 
         // Function to reset form and validation messages

@@ -56,7 +56,7 @@ class CustomerController extends Controller
                 'current_balance' => $customer->current_balance,
                 'total_sale_due' => $customer->total_sale_due,
                 'total_return_due' => $customer->total_return_due,
-                'current_due' => $customer->current_due, 
+                'current_due' => $customer->current_due,
             ];
         });
 
@@ -71,14 +71,13 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'prefix' => 'required|string|max:10',
+            'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'required|email|max:255',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
-            'opening_balance' => 'required|numeric',
-            // 'location_id' => 'required|integer|exists:locations,id',
+            'opening_balance' => 'nullable|numeric',
         ]);
 
         if ($validator->fails()) {
@@ -96,7 +95,6 @@ class CustomerController extends Controller
             'email',
             'address',
             'opening_balance',
-            // 'location_id',
         ]));
 
         return $customer ? response()->json(['status' => 200, 'message' => "New Customer Created Successfully!"])
@@ -118,14 +116,13 @@ class CustomerController extends Controller
     public function update(Request $request, int $id)
     {
         $validator = Validator::make($request->all(), [
-            'prefix' => 'required|string|max:10',
+            'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'required|email|max:255',
+            'email' => 'nullable|email|max:255',
             'address' => 'nullable|string|max:500',
-            'opening_balance' => 'required|numeric',
-            // 'location_id' => 'required|integer|exists:locations,id',
+            'opening_balance' => 'nullable|numeric',
         ]);
 
         if ($validator->fails()) {

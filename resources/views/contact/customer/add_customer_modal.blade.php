@@ -13,7 +13,7 @@
 
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label>Prefix<span class="login-danger">*</span></label>
+                                    <label>Prefix</label>
                                     <select class="form-control form-select" id="edit_prefix" name="prefix">
                                         <option selected disabled>Mr / Mrs / Miss</option>
                                         <option>Mr</option>

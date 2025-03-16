@@ -997,11 +997,119 @@
                 <div class="col-md-5 text-end">
                     <h4 class="d-inline">Total Payable:</h4>
                     <span id="total" class="text-success fs-4 fw-bold">Rs 0.00</span>
-                    {{-- <button class="btn btn-primary ms-3"><i class="fas fa-clock"></i> Recent Transactions</button> --}}
+                    <button class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal"><i class="fas fa-clock"></i> Recent Transactions</button>
                 </div>
             </div>
         </div>
 
+     <!-- Bootstrap Modal with Tabs and Dynamic Table -->
+<div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recentTransactionsLabel">Recent Transactions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" id="transactionTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#completed" onclick="loadTableData('completed')">Completed</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#quotation" onclick="loadTableData('quotation')">Quotation</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#draft" onclick="loadTableData('draft')">Draft</a>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Invoice No</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionTableBody">
+                                <!-- Dynamic Rows Will Be Injected Here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let sales = [];
+
+    async function fetchSalesData() {
+        try {
+            const response = await fetch('/sales');
+            const data = await response.json();
+            if (Array.isArray(data)) {
+                sales = data;
+            } else if (data.sales && Array.isArray(data.sales)) {
+                sales = data.sales;
+            } else {
+                console.error('Unexpected data format:', data);
+            }
+            // Load the default tab data
+            loadTableData('completed');
+        } catch (error) {
+            console.error('Error fetching sales data:', error);
+        }
+    }
+
+    function loadTableData(status) {
+        const tableBody = document.getElementById('transactionTableBody');
+        tableBody.innerHTML = '';
+
+        const filteredSales = sales
+            .filter(sale => sale.status === status)
+            .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
+
+        if (filteredSales.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
+        } else {
+            filteredSales.forEach((sale, index) => {
+                const row = `<tr>
+                    <td>${index + 1}</td>
+                    <td>${sale.invoice_no}</td>
+                    <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
+                    <td>${sale.final_total}</td>
+                    <td>
+                        <button class='btn btn-primary btn-sm'>Edit</button>
+                        <button class='btn btn-success btn-sm'>Print</button>
+                        <button class='btn btn-danger btn-sm'>Delete</button>
+                    </td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchSalesData);
+</script>
+
+<style>
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+</style>
 
 
 

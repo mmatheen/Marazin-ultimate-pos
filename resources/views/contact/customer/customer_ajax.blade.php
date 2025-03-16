@@ -8,50 +8,30 @@
               var addAndUpdateValidationOptions = {
         rules: {
 
-            prefix: {
-                required: true,
-
-            },
             first_name: {
                 required: true,
 
             },
-            last_name: {
-                required: true,
 
-            },
             mobile_no: {
                 required: true,
 
             },
-            email: {
-                required: true,
 
-            },
-            contact_id: {
-                required: true,
-
-            }
 
         },
         messages: {
 
-            prefix: {
-                required: "Prefix is required",
-            },
+
 
             first_name: {
                 required: "First Name is required",
             },
-            last_name: {
-                required: "Last Name  is required",
-            },
+
             mobile_no: {
                 required: "Mobile No  is required",
             },
-            email: {
-                required: "Email  is required",
-            },
+
 
         },
         errorElement: 'span',

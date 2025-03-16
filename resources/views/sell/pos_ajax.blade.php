@@ -894,7 +894,7 @@
                     }
 
                     $('#cashButton').on('click', function() {
-                        const saleData = gatherSaleData('completed');
+                        const saleData = gatherSaleData('final');
                         if (!saleData) {
                             toastr.error('Please add at least one product before completing the sale.');
                             return;
@@ -931,7 +931,7 @@
                     }
 
                     $('#confirmCardPayment').on('click', function() {
-                        const saleData = gatherSaleData('completed');
+                        const saleData = gatherSaleData('final');
 
                         if (!saleData) {
                             toastr.error('Please add at least one product before completing the sale.');
@@ -1002,7 +1002,7 @@
                             return;
                         }
 
-                        const saleData = gatherSaleData('completed');
+                        const saleData = gatherSaleData('final');
 
                         if (!saleData) {
                             toastr.error('Please add at least one product before completing the sale.');
@@ -1042,7 +1042,7 @@
                             return;
                         }
 
-                        const saleData = gatherSaleData('completed');
+                        const saleData = gatherSaleData('final');
 
                         if (!saleData) {
                             toastr.error('Please add at least one product before completing the sale.');
