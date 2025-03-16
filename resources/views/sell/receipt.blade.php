@@ -161,13 +161,14 @@
               <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
             </tr>
             <tr>
-              <td align="right"><strong>BALANCE</strong></td>
-              <td width="80" align="right">
-                <div style="border: 0.5px solid #000; padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
-                    ({{ number_format($sale->total_due, 0, '.', ',') }})
-                </div>
-              </td>
+                <td align="right"><strong>BALANCE</strong></td>
+                <td width="80" align="right">
+                    <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
+                        ({{ number_format($sale->total_due, 0, '.', ',') }})
+                    </div>
+                </td>
             </tr>
+
           </tbody>
         </table>
 

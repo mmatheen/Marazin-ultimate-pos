@@ -968,37 +968,39 @@
         <!-- Bottom Fixed Section -->
         <div class="bottom-fixed mt-3">
             <div class="row align-items-center">
-                <!-- Left Side: Actions -->
-                <div class="col-md-7">
-                    <div class="d-flex gap-2 flex-wrap">
-                        {{-- <button class="btn btn-outline-primary"><i class="fas fa-edit"></i> Draft</button>
-                        <button class="btn btn-outline-warning"><i class="fas fa-file-alt"></i> Quotation</button> --}}
-                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
-                            <i class="fas fa-pause"></i> Suspend
-                        </button>
-                        <button class="btn btn-outline-success" id="creditSaleButton"><i class="fas fa-check"></i>
-                            Credit Sale</button>
-                        <button class="btn btn-outline-pink" id="cardButton">
-                            <i class="fas fa-credit-card"></i> Card
-                        </button>
-                        <button class="btn btn-outline-pink" id="chequeButton">
-                            <i class="fas fa-money-check"></i> Cheque
-                        </button>
-                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
-                            <i class="fas fa-list"></i> Multiple Pay
-                        </button>
-                        <button class="btn btn-outline-success" id="cashButton"><i class="fas fa-money-bill-wave"></i>
-                            Cash</button>
-                        <button class="btn btn-danger" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
-                    </div>
-                </div>
-
-                <!-- Right Side: Total Payable -->
-                <div class="col-md-5 text-end">
+                 <!-- Right Side: Total Payable -->
+                <div class="col-md-5">
                     <h4 class="d-inline">Total Payable:</h4>
                     <span id="total" class="text-success fs-4 fw-bold">Rs 0.00</span>
                     <button class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal"><i class="fas fa-clock"></i> Recent Transactions</button>
+                    <button class="btn btn-danger me-2" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
                 </div>
+
+
+               <!-- Left Side: Actions (Aligned to Right) -->
+<div class="col-md-7 text-end">
+    <div class="d-flex justify-content-end gap-2 flex-wrap">
+        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
+            <i class="fas fa-pause"></i> Suspend
+        </button>
+        <button class="btn btn-outline-success" id="creditSaleButton">
+            <i class="fas fa-check"></i> Credit Sale
+        </button>
+        <button class="btn btn-outline-primary" id="cardButton">
+            <i class="fas fa-credit-card"></i> Card
+        </button>
+        <button class="btn btn-outline-warning" id="chequeButton">
+            <i class="fas fa-money-check"></i> Cheque
+        </button>
+        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
+            <i class="fas fa-list"></i> Multiple Pay
+        </button>
+        <button class="btn btn-outline-success" id="cashButton">
+            <i class="fas fa-money-bill-wave"></i> Cash
+        </button>
+    </div>
+</div>
+
             </div>
         </div>
 
