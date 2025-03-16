@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('reference_no')->nullable();
             $table->unsignedBigInteger('location_id');
             $table->date('return_date');
-            $table->decimal('return_total', 12, 2)->nullable(); // Total value of the return
+            $table->decimal('return_total', 12, 2);
             $table->decimal('total_paid', 15, 2)->default(0);
             $table->decimal('total_due', 15, 2)
                 ->generatedAs('return_total - total_paid')
