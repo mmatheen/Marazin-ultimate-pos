@@ -465,7 +465,10 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         if (buttonType === 'onlySave') {
                             resetFormAndValidation();
                             fetchLastAddedProducts();
-                            // window.location.href = '/list-product';
+                            if (window.location.pathname === '/add-product') {
+                                window.location.href = '/list-product';
+                            }
+                            $('#new_purchase_product').modal('hide');
                         } else if (buttonType === 'saveAndAnother') {
                             resetFormAndValidation();
                         } else if (buttonType === 'saveAndOpeningStock') {
@@ -521,7 +524,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
-                const rowProductId = $(this).data('id');
+                const rowProductId = $(this).data('id')
                 if (rowProductId === product.id) {
                     existingRow = $(this);
                     return false;
