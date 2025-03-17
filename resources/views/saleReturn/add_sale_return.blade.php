@@ -1,6 +1,6 @@
 @extends('layout.layout')
 @section('content')
-    <div class="container my-5">
+    <div class="container-fluid my-5">
         <div class="row">
             <div class="page-header">
                 <div class="row align-items-center">
@@ -18,27 +18,49 @@
         </div>
 
         <!-- Billing Option Selection -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <h4 class="card-title">Select Billing Option</h4>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="billingOption" id="withBill" value="withBill" checked>
-                            <label class="form-check-label" for="withBill">
-                                With Bill
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="billingOption" id="withoutBill" value="withoutBill">
-                            <label class="form-check-label" for="withoutBill">
-                                Without Bill
-                            </label>
-                        </div>
-                    </div>
+        <div class="card mb-4 shadow-sm border-0">
+            <div class="card-body text-center">
+                <h4 class="card-title mb-4 fw-bold">Select Billing Option</h4>
+                <div class="d-flex justify-content-center gap-3">
+                    <input type="radio" name="billingOption" id="withBill" value="withBill" class="d-none" checked>
+                    <label for="withBill" class="billing-btn">With Bill</label>
+
+                    <input type="radio" name="billingOption" id="withoutBill" value="withoutBill" class="d-none">
+                    <label for="withoutBill" class="billing-btn">Without Bill</label>
                 </div>
             </div>
         </div>
+
+        <style>
+            .billing-btn {
+                padding: 12px 24px;
+                font-size: 16px;
+                font-weight: 600;
+                border-radius: 30px;
+                cursor: pointer;
+                transition: all 0.3s ease-in-out;
+                background: #f8f9fa;
+                border: 2px solid #ddd;
+                color: #333;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                text-align: center;
+                display: inline-block;
+                min-width: 140px;
+            }
+
+            .billing-btn:hover {
+                background: #e9ecef;
+                border-color: #bbb;
+            }
+
+            input[type="radio"]:checked + .billing-btn {
+                background: #007bff;
+                border-color: #007bff;
+                color: white;
+                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+            }
+        </style>
+
 
         <!-- Common Details Section -->
 
@@ -48,33 +70,36 @@
                 <form id="salesReturnForm">
 
                     <div class="card mb-4">
-                        <div class="card-body">
-                            <h4 class="card-title">Common Details</h4>
-                            <div class="row">
-                                 <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label for="date" class="form-label">Date:</label>
-                                            <input type="date" class="form-control" id="date" name="return_date" required>
-                                        </div>
-                                    </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="locationId" class="form-label">Location:</label>
-                                        <select id="locationId" name="location_id" class="form-select" required>
-                                            <option value="">Select Location</option>
-                                            <!-- Populate with locations -->
-                                        </select>
-                                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title">Common Details</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="date" class="form-label">Date:</label>
+                                    <input type="date" class="form-control" id="date" name="return_date" required>
                                 </div>
-                                <div class="col-md-12">
-                                    <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective" value="1">
-                                        <label class="form-check-label" for="isDefective">Is Defective</label>
-                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="locationId" class="form-label">Location:</label>
+                                    <select id="locationId" name="location_id" class="form-select" required>
+                                        <option value="">Select Location</option>
+                                        <!-- Populate with locations -->
+                                    </select>
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective" value="1">
+                                    <label class="form-check-label" for="isDefective">Is Defective</label>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <!-- Invoice Details Section -->
                     <div class="card mb-4" id="invoiceDetailsSection">
@@ -277,6 +302,15 @@
         .form-check {
             padding-top: 10px;
         }
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .quantity-error {
+            display: none;
+            color: red;
+        }
     </style>
 
 <script>
@@ -320,6 +354,23 @@
 
         // Initial toggle based on the default selected option
         toggleSearchSections();
+    });
+</script>
+<script>
+   document.addEventListener('DOMContentLoaded', function () {
+        // Set the default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').value = today;
+
+        // Initialize the date picker
+        $('#date').on('focus', function () {
+            $(this).attr('type', 'date');
+        });
+
+        // Show date picker on click anywhere on the input
+        $('#date').on('click', function () {
+            $(this).attr('type', 'date').focus();
+        });
     });
 </script>
 

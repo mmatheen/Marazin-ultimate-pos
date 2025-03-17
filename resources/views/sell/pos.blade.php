@@ -715,8 +715,18 @@
                                     </div>
                                 </div>
 
-                                <button class="btn btn-danger btn-sm"><i class="fas fa-redo-alt"></i></button>
+                                <div class="dropdown">
+                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-redo-alt"></i>
+                                    </button>
 
+                                    <!-- Dropdown menu -->
+                                    <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
+                                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
+                                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
+                                    </div>
+                                </div>
                                 <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
                                     data-bs-target="#suspendSalesModal">
                                     <i class="fas fa-pause-circle"></i> Suspended Sales
@@ -978,28 +988,28 @@
 
 
                <!-- Left Side: Actions (Aligned to Right) -->
-<div class="col-md-7 text-end">
-    <div class="d-flex justify-content-end gap-2 flex-wrap">
-        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
-            <i class="fas fa-pause"></i> Suspend
-        </button>
-        <button class="btn btn-outline-success" id="creditSaleButton">
-            <i class="fas fa-check"></i> Credit Sale
-        </button>
-        <button class="btn btn-outline-primary" id="cardButton">
-            <i class="fas fa-credit-card"></i> Card
-        </button>
-        <button class="btn btn-outline-warning" id="chequeButton">
-            <i class="fas fa-money-check"></i> Cheque
-        </button>
-        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
-            <i class="fas fa-list"></i> Multiple Pay
-        </button>
-        <button class="btn btn-outline-success" id="cashButton">
-            <i class="fas fa-money-bill-wave"></i> Cash
-        </button>
-    </div>
-</div>
+                <div class="col-md-7 text-end">
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
+                            <i class="fas fa-pause"></i> Suspend
+                        </button>
+                        <button class="btn btn-outline-success" id="creditSaleButton">
+                            <i class="fas fa-check"></i> Credit Sale
+                        </button>
+                        <button class="btn btn-outline-primary" id="cardButton">
+                            <i class="fas fa-credit-card"></i> Card
+                        </button>
+                        <button class="btn btn-outline-warning" id="chequeButton">
+                            <i class="fas fa-money-check"></i> Cheque
+                        </button>
+                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                            <i class="fas fa-list"></i> Multiple Pay
+                        </button>
+                        <button class="btn btn-outline-success" id="cashButton">
+                            <i class="fas fa-money-bill-wave"></i> Cash
+                        </button>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -1719,8 +1729,51 @@
                 calculateResult();
             }
         }
+
+
+        document.addEventListener('DOMContentLoaded', function () {
+            function handleInvoiceSubmission() {
+                const invoiceNo = document.getElementById('invoiceNo').value.trim().toLowerCase();
+                if (invoiceNo) {
+                    // Fetch sales data from the API
+                    $.ajax({
+                        url: '/api/sales', // Update this URL if necessary
+                        method: 'GET',
+                        success: function (data) {
+                            // Check if the entered invoice number matches any sales data
+                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() === invoiceNo);
+                            if (sale) {
+                                // Redirect to the sale return page with the invoice number as a query parameter
+                                window.location.href = `/sale-return/add?invoiceNo=${invoiceNo}`;
+                            } else {
+                                // Show toastr message indicating sale not found
+                                toastr.error('Sale not found. Please enter a valid invoice number.');
+                            }
+                        },
+                        error: function (error) {
+                            console.error('Error fetching sales data:', error);
+                            toastr.error('An error occurred while fetching sales data.');
+                        }
+                    });
+                } else {
+                    alert('Please enter an invoice number');
+                }
+            }
+
+            // Capture the Submit button click
+            document.querySelector('.dropdown-menu .btn-primary').addEventListener('click', handleInvoiceSubmission);
+
+            // Capture the Enter key press in the input field
+            document.getElementById('invoiceNo').addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleInvoiceSubmission();
+                }
+            });
+        });
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
+
 
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')

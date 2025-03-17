@@ -40,6 +40,20 @@
             });
         }
 
+                // Function to get query parameters
+            function getQueryParam(param) {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get(param);
+            }
+
+            const invoiceNo = getQueryParam('invoiceNo');
+
+            if (invoiceNo) {
+                document.getElementById('invoiceNo').value = invoiceNo;
+
+                fetchSaleProducts(invoiceNo);
+            }
+
         $("#invoiceNo").autocomplete({
             source: function (request, response) {
                 $.ajax({

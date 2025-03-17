@@ -500,116 +500,120 @@
                     });
                 }
 
-                function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
-    const billingBody = document.getElementById('billing-body');
-    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-        const productNameCell = row.querySelector('.product-name');
-        return productNameCell && productNameCell.textContent === product.product_name;
-    });
-
-    if (existingRow) {
-        const quantityInput = existingRow.querySelector('.quantity-input');
-        let newQuantity = parseInt(quantityInput.value, 10) + 1;
-
-        if (newQuantity > batchQuantity && product.stock_alert !== 0) {
-            toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
-            return;
-        }
-
-        quantityInput.value = newQuantity;
-        existingRow.querySelector('.price-input').value = price.toFixed(2);
-        existingRow.querySelector('.subtotal').textContent = formatAmountWithSeparators((newQuantity * price).toFixed(2));
-
-        // Focus on the quantity input field
-        quantityInput.focus();
-        quantityInput.select();
-
-        // Add event listener for Enter key to focus back on search input
-        quantityInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                document.getElementById('productSearchInput').focus();
-            }
+ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
+        const billingBody = document.getElementById('billing-body');
+        const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+            const productNameCell = row.querySelector('.product-name');
+            return productNameCell && productNameCell.textContent === product.product_name;
         });
-    } else {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                    <div class="product-info">
-                        <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
+
+        if (existingRow) {
+            const quantityInput = existingRow.querySelector('.quantity-input');
+            let newQuantity = parseInt(quantityInput.value, 10) + 1;
+
+            if (newQuantity > batchQuantity && product.stock_alert !== 0) {
+                toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
+                return;
+            }
+
+            quantityInput.value = newQuantity;
+            existingRow.querySelector('.price-input').value = price.toFixed(2);
+            existingRow.querySelector('.subtotal').textContent = formatAmountWithSeparators((newQuantity * price).toFixed(2));
+
+            // Focus on the quantity input field
+            quantityInput.focus();
+            quantityInput.select();
+
+            // Add event listener for Enter key to focus back on search input
+            quantityInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    document.getElementById('productSearchInput').focus();
+                }
+            });
+        } else {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                        <div class="product-info">
+                            <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
+                            <div class="text-muted">${product.sku}</div>
+                        </div>
                     </div>
-                </div>
-            </td>
-            <td>
-                <div class="d-flex justify-content-center">
-                    <button class="btn btn-danger quantity-minus btn-sm">-</button>
-                    <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
-                    <button class="btn btn-success quantity-plus btn-sm">+</button>
-                </div>
-            </td>
-            <td><input type="number" value="${price}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
-            <td class="subtotal text-center mt-2">${formatAmountWithSeparators(price.toFixed(2))}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
-            <td class="product-id d-none">${product.id}</td>
-            <td class="location-id d-none">${locationId}</td>
-            <td class="batch-id d-none">${batchId}</td>
-            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-        `;
+                </td>
+                <td>
+                    <div class="d-flex justify-content-center">
+                        <button class="btn btn-danger quantity-minus btn-sm">-</button>
+                        <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
+                        <button class="btn btn-success quantity-plus btn-sm">+</button>
+                    </div>
+                </td>
+                <td><input type="number" value="${price}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
+                <td class="subtotal text-center mt-2">${formatAmountWithSeparators(price.toFixed(2))}</td>
+                <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
+                <td class="product-id d-none">${product.id}</td>
+                <td class="location-id d-none">${locationId}</td>
+                <td class="batch-id d-none">${batchId}</td>
+                <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+            `;
 
-        billingBody.insertBefore(row, billingBody.firstChild);
-        attachRowEventListeners(row, product, stockEntry);
+            billingBody.insertBefore(row, billingBody.firstChild);
+            attachRowEventListeners(row, product, stockEntry);
 
-        // Focus on the quantity input field and select the text
-        const quantityInput = row.querySelector('.quantity-input');
-        quantityInput.focus();
-        quantityInput.select();
+            // Focus on the quantity input field and select the text
+            const quantityInput = row.querySelector('.quantity-input');
+            quantityInput.focus();
+            quantityInput.select();
 
-        // Add event listener for Enter key to focus back on search input
-        quantityInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                document.getElementById('productSearchInput').focus();
-            }
-        });
+            // Add event listener for Enter key to focus back on search input
+            quantityInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    document.getElementById('productSearchInput').focus();
+                    document.getElementById('productSearchInput').select();
+                }
+            });
 
-        // Initialize Mousetrap for keyboard shortcuts
-        let currentRowIndex = 0;
 
-        Mousetrap.bind('f2', function () {
-            const quantityInputs = document.querySelectorAll('.quantity-input');
 
-            if (quantityInputs.length > 0) {
-                // Focus and select the current input
-                quantityInputs[currentRowIndex].focus();
-                quantityInputs[currentRowIndex].select();
-
-                // Move to the next row
-                currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
-
-                return false; // Prevent default browser behavior
-            }
-        });
-
-        Mousetrap.bind('f4', function() {
-            // Focus on the product search input to add a new product
-            const productSearchInput = document.getElementById('productSearchInput');
-            if (productSearchInput) {
-                productSearchInput.focus();
-            }
-        });
-
-        // Bind F5 key to show a confirmation dialog
-        Mousetrap.bind('f5', function(event) {
-            event.preventDefault();
-            if (confirm('Are you sure you want to reload the page?')) {
-                window.location.reload();
-            }
-        });
-    }
-
-    updateTotals();
+        updateTotals();
 }
+
+            // Initialize Mousetrap for keyboard shortcuts
+            let currentRowIndex = 0;
+
+            Mousetrap.bind('f2', function () {
+                const quantityInputs = document.querySelectorAll('.quantity-input');
+
+                if (quantityInputs.length > 0) {
+                    // Focus and select the current input
+                    quantityInputs[currentRowIndex].focus();
+                    quantityInputs[currentRowIndex].select();
+
+                    // Move to the next row
+                    currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
+
+                    return false; // Prevent default browser behavior
+                }
+            });
+
+            Mousetrap.bind('f4', function() {
+                // Focus on the product search input to add a new product
+                const productSearchInput = document.getElementById('productSearchInput');
+                if (productSearchInput) {
+                    productSearchInput.focus();
+                    productSearchInput.select();
+                }
+            });
+
+            // Bind F5 key to show a confirmation dialog
+            Mousetrap.bind('f5', function(event) {
+                event.preventDefault();
+                if (confirm('Are you sure you want to reload the page?')) {
+                    window.location.reload();
+                }
+            });
+            }
 
                 function attachRowEventListeners(row, product, stockEntry) {
                     const quantityInput = row.querySelector('.quantity-input');
