@@ -74,7 +74,7 @@
                         <li><a href="{{ route('sale-return/list') }}" class="{{ set_active(['sale-return/list']) }}">List Sale Return</a></li>
                         <li><a href="{{ route('sale-return/add') }}" class="{{ set_active(['sale-return/add']) }}">Add Sale Return</a></li>
 
-                        <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a></li>
+                        {{-- <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a></li> --}}
                         <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>
                         {{-- <li><a href="view-invoice.html">Add Draft</a></li>
                         <li><a href="invoices-settings.html">List Draft</a></li>
@@ -120,14 +120,14 @@
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="fees-collections.html">List Expenses</a></li>
-                        <li><a href="expenses.html">Add Expense</a></li>
+                        {{-- <li><a href="fees-collections.html">List Expenses</a></li> --}}
+                        {{-- <li><a href="expenses.html">Add Expense</a></li> --}}
                         <li><a href={{ route('expense-parent-catergory') }} class="{{ set_active(['expense-parent-catergory'])}}">Parent Expense Catergories</a></li>
                         <li><a href={{ route('sub-expense-category') }} class="{{ set_active(['sub-expense-category'])}}">Child Expense Catergories</a></li>
                     </ul>
                 </li>
 
-                <li class="submenu">
+                {{-- <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Payment Accounts</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
@@ -137,12 +137,12 @@
                         <li><a href="expenses.html">Cash Flow</a></li>
                         <li><a href="expenses.html">Payment Account Report</a></li>
                     </ul>
-                </li>
+                </li> --}}
 
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Reports</span> <span
                             class="menu-arrow"></span></a>
-                    <ul>
+                    {{-- <ul>
                         <li><a href="fees-collections.html">Profit / Loss Report</a></li>
                         <li><a href="expenses.html">Purchase & Sale</a></li>
                         <li><a href="expenses.html">Tax Report</a></li>
@@ -160,24 +160,24 @@
                         <li><a href="expenses.html">Register Report</a></li>
                         <li><a href="expenses.html">Sales Representative Report</a></li>
                         <li><a href="expenses.html">Activity Log</a></li>
-                    </ul>
+                    </ul> --}}
                 </li>
 
-                <li>
+                {{-- <li>
                     <a href="holiday.html"><i class="fas fa-holly-berry"></i> <span>Notification Templates</span></a>
-                </li>
+                </li> --}}
 
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Settings</span> <span
                             class="menu-arrow"></span></a>
                     <ul>
-                        <li><a href="fees-collections.html">Business Settings</a></li>
+                        {{-- <li><a href="fees-collections.html">Business Settings</a></li> --}}
                         <li><a href="{{ route('location') }}" class="{{ set_active(['location'])}}">Business Locations</a></li>
-                        <li><a href="expenses.html">Invoice Settings</a></li>
+                        {{-- <li><a href="expenses.html">Invoice Settings</a></li>
                         <li><a href="expenses.html">Barcode Settings</a></li>
                         <li><a href="expenses.html">Receipt Printers</a></li>
                         <li><a href="expenses.html">Tax Rates</a></li>
-                        <li><a href="expenses.html">Package Subscription</a></li>
+                        <li><a href="expenses.html">Package Subscription</a></li> --}}
                     </ul>
                 </li>
             </ul>
