@@ -615,6 +615,12 @@
             font-size: 20px;
             margin-left: 5px;
         }
+
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
     </style>
 </head>
 
