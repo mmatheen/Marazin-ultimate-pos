@@ -43,25 +43,21 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
 
         try {
             $validator = Validator::make($row, [
-
                 'sku' => [
                     'nullable', // Allow SKU to be nullable
                     'string',   // Ensure SKU is always treated as a string
                     'max:255',  // Maximum length for SKU
                     Rule::unique('products', 'sku') // Simply ensure the SKU is unique
                 ],
-
                 'product_name' => 'required|string',
                 'unit_name' => 'required|string',
-                'brand_name' => 'required|string',
-                'main_category_name' => 'required|string',
-                'sub_category_name' => 'required|string',
+                'brand_name' => 'nullable|string',
+                'main_category_name' => 'nullable|string',
+                'sub_category_name' => 'nullable|string',
             ], [
                 // Custom error messages for SKU validation
                 'sku.unique' => 'The SKU "' . $row['sku'] . '" already exists. Please provide a unique SKU.',
-            ]
-        );
-
+            ]);
 
             // If validation fails, store the error messages
             if ($validator->fails()) {
@@ -72,7 +68,6 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 DB::rollBack(); // Roll back the transaction on validation failure
                 return null;
             }
-
 
             // **Generate SKU if not provided**
             if (empty($row['sku'])) {
@@ -88,12 +83,12 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
             // **Resolve Unit, Brand, and Category**
             $authId = auth()->id(); // Get current authenticated user's ID
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authId]);
-            $brand = Brand::firstOrCreate(['name' => $row['brand_name']], ['location_id' => $authId]);
-            $mainCategory = MainCategory::firstOrCreate(['mainCategoryName' => $row['main_category_name']], ['location_id' => $authId]);
-            $subCategory = SubCategory::firstOrCreate([
+            $brand = !empty($row['brand_name']) ? Brand::firstOrCreate(['name' => $row['brand_name']], ['location_id' => $authId]) : null;
+            $mainCategory = !empty($row['main_category_name']) ? MainCategory::firstOrCreate(['mainCategoryName' => $row['main_category_name']], ['location_id' => $authId]) : null;
+            $subCategory = !empty($row['sub_category_name']) ? SubCategory::firstOrCreate([
                 'subCategoryname' => $row['sub_category_name'],
-                'main_category_id' => $mainCategory->id,
-            ], ['location_id' => $authId]);
+                'main_category_id' => $mainCategory ? $mainCategory->id : null,
+            ], ['location_id' => $authId]) : null;
 
             // **Store data for later use if necessary**
             $this->data[] = $row;
@@ -103,10 +98,10 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'product_name' => $row['product_name'],
                 'sku' => $row['sku'], // Use generated or provided SKU
                 'unit_id' => $unit->id, // Use resolved Unit ID
-                'brand_id' => $brand->id, // Use resolved Brand ID
-                'main_category_id' => $mainCategory->id, // Use resolved MainCategory ID
-                'sub_category_id' => $subCategory->id, // Use resolved SubCategory ID
-                'stock_alert' => $row['stock_alert'],
+                'brand_id' => $brand ? $brand->id : null, 
+                'main_category_id' => $mainCategory ? $mainCategory->id : null,
+                'sub_category_id' => $subCategory ? $subCategory->id : null, 
+                'stock_alert' => 1,
                 'stock_alert_quantity' => $row['stock_alert_quantity'],
                 'product_image_name' => $row['product_image_name'],
                 'description' => $row['description'],
@@ -133,49 +128,54 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'product_id' => $productId,
             ]);
 
-            $formattedExpiryDate = $row['expiry_date']
-            ? \Carbon\Carbon::parse($row['expiry_date'])->format('Y-m-d')
-            : null;
+            // Check if quantity is provided
+            if (!empty($row['qty'])) {
+                $formattedExpiryDate = $row['expiry_date']
+                ? \Carbon\Carbon::parse($row['expiry_date'])->format('Y-m-d')
+                : null;
 
-            // Batch processing
-            $batch = Batch::updateOrCreate(
-                [
-                    'batch_no' => $row['batch_no'] ?? Batch::generateNextBatchNo(),
-                    'product_id' => $productId,
-                ],
-                [
-                    'qty' => $row['qty'],
-                    'unit_cost' => $row['original_price'],
-                    'retail_price' => $row['retail_price'],
-                    'wholesale_price' => $row['whole_sale_price'],
-                    'special_price' => $row['special_price'],
-                    'max_retail_price' => $row['max_retail_price'],
-                    'expiry_date' => $formattedExpiryDate,
-                ]
-            );
+                // Batch processing
+                $batch = Batch::updateOrCreate(
+                    [
+                        'batch_no' => $row['batch_no'] ?? Batch::generateNextBatchNo(),
+                        'product_id' => $productId,
+                    ],
+                    [
+                        'qty' => $row['qty'],
+                        'unit_cost' => $row['original_price'],
+                        'retail_price' => $row['retail_price'],
+                        'wholesale_price' => $row['whole_sale_price'],
+                        'special_price' => $row['special_price'],
+                        'max_retail_price' => $row['max_retail_price'],
+                        'expiry_date' => $formattedExpiryDate,
+                    ]
+                );
 
-            $locationBatch = LocationBatch::updateOrCreate(
-                [
-                    'batch_id' => $batch->id,
-                    'location_id' => auth()->id(),
-                ],
-                [
-                    'qty' => $row['qty'],
-                ]
-            );
+                $locationBatch = LocationBatch::updateOrCreate(
+                    [
+                        'batch_id' => $batch->id,
+                        'location_id' => auth()->id(),
+                    ],
+                    [
+                        'qty' => $row['qty'],
+                    ]
+                );
 
-            // Create stock history entry
-            StockHistory::updateOrCreate(
-                [
-                    'loc_batch_id' => $locationBatch->id,
-                    'stock_type' => StockHistory::STOCK_TYPE_OPENING,
-                ],
-                [
-                    'quantity' => $row['qty'],
-                ]
-            );
+                // Create stock history entry
+                StockHistory::updateOrCreate(
+                    [
+                        'loc_batch_id' => $locationBatch->id,
+                        'stock_type' => StockHistory::STOCK_TYPE_OPENING,
+                    ],
+                    [
+                        'quantity' => $row['qty'],
+                    ]
+                );
+            }
 
             DB::commit(); // Commit the transaction if everything is successful
+
+            return $product; // Return the created Product instance
         } catch (\Exception $e) {
             DB::rollBack(); // Roll back the transaction if an exception occurs
             Log::error('Transaction failed: ' . $e->getMessage()); // Log the error
