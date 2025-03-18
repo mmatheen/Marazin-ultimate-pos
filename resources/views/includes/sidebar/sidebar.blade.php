@@ -142,9 +142,9 @@
                 <li class="submenu">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Reports</span> <span
                             class="menu-arrow"></span></a>
-                    {{-- <ul>
-                        <li><a href="fees-collections.html">Profit / Loss Report</a></li>
-                        <li><a href="expenses.html">Purchase & Sale</a></li>
+                    <ul>
+                        <li><a href="">Daily Sales Report</a></li>
+                        {{-- <li><a href="expenses.html">Purchase & Sale</a></li>
                         <li><a href="expenses.html">Tax Report</a></li>
                         <li><a href="expenses.html">Supplier & Customer Report</a></li>
                         <li><a href="expenses.html">Customer Groups Report</a></li>
@@ -159,8 +159,8 @@
                         <li><a href="expenses.html">Expense Report</a></li>
                         <li><a href="expenses.html">Register Report</a></li>
                         <li><a href="expenses.html">Sales Representative Report</a></li>
-                        <li><a href="expenses.html">Activity Log</a></li>
-                    </ul> --}}
+                        <li><a href="expenses.html">Activity Log</a></li> --}}
+                    </ul>
                 </li>
 
                 {{-- <li>

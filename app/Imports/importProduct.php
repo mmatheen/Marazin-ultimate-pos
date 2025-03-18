@@ -44,10 +44,10 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
         try {
             $validator = Validator::make($row, [
                 'sku' => [
-                    'nullable', // Allow SKU to be nullable
-                    'regex:/^[a-zA-Z0-9\-]+$/', // Allow SKU to contain letters, numbers, and hyphens
-                    'max:255',  // Maximum length for SKU
-                    Rule::unique('products', 'sku') // Ensure the SKU is unique
+                    'nullable',
+                    'regex:/^[a-zA-Z0-9\-]+$/',
+                    'max:255',  
+                    Rule::unique('products', 'sku') 
                 ],
                 'product_name' => 'required|string',
                 'unit_name' => 'required|string',
@@ -55,18 +55,15 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'main_category_name' => 'nullable|string',
                 'sub_category_name' => 'nullable|string',
             ], [
-                // Custom error messages for SKU validation
                 'sku.unique' => 'The SKU "' . $row['sku'] . '" already exists. Please provide a unique SKU.',
                 'sku.regex' => 'The SKU must be a string containing only letters, numbers, and hyphens.',
             ]);
     
-            // If validation fails, store the error messages
             if ($validator->fails()) {
-                // Store all error messages for this row
                 $this->validationErrors[] = $validator->errors()->all();
                 Log::error('Validation Errors for SKU:', $validator->errors()->toArray());
     
-                DB::rollBack(); // Roll back the transaction on validation failure
+                DB::rollBack(); 
                 return null;
             }
     
@@ -81,8 +78,8 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 $row['sku'] = str_pad($lastSkuNumber + 1, 4, '0', STR_PAD_LEFT); // Format: 0001, 0002, 0003
             }
             
-            // **Resolve Unit, Brand, and Category**
-            $authId = auth()->id(); // Get current authenticated user's ID
+        
+            $authId = auth()->id();
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authId]);
             $brand = !empty($row['brand_name']) ? Brand::firstOrCreate(['name' => $row['brand_name']], ['location_id' => $authId]) : null;
             $mainCategory = !empty($row['main_category_name']) ? MainCategory::firstOrCreate(['mainCategoryName' => $row['main_category_name']], ['location_id' => $authId]) : null;

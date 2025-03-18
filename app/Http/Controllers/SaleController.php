@@ -515,178 +515,86 @@ class SaleController extends Controller
         return response()->json($suspendedSales, 200);
     }
 
-    // public function editSale($id)
-    // {
-    //     try {
-    //         $sale = Sale::with([
-    //             'products.product',
-    //             'products.batch.locationBatches',
-    //             'payments',
-    //             'customer',
-    //             'location',
-    //         ])->findOrFail($id);
 
-    //         // Fetch all related records
-    //         $products = $sale->products;
-    //         $payments = $sale->payments;
-    //         $customer = $sale->customer;
-    //         $location = $sale->location;
 
-    //         // Ensure authenticated user's location is retrieved separately if needed
-    //         $user = Auth::user();
-    //         $userLocation = Location::find($user->location_id);
-
-    //         $response = [
-    //             'message' => 'Sale details fetched successfully.',
-    //             'sale' => $sale,
-    //             'products' => $products,
-    //             'payments' => $payments,
-    //             'customer' => $customer,
-    //             'location' => $location,
-    //             // 'user_location' => $userLocation
-    //         ];
-
-    //         if (request()->ajax() || request()->is('api/*')) {
-    //             return response()->json(['status' => 200, 'sale' => $response], 200);
-    //         }
-
-    //         return view('sell.pos', compact('sale', 'products', 'payments', 'customer', 'location', 'userLocation'));
-    //     } catch (ModelNotFoundException $e) {
-    //         if (request()->ajax() || request()->is('api/*')) {
-    //             return response()->json(['message' => 'Sale not found'], 404);
-    //         }
-    //         return redirect()->route('list-sale')->with('error', 'Sale not found.');
-    //     }
-    // }
-
-    public function show($id)
-{
-    try {
-        $user = Auth::user();
-
-        if (!$user) {
-            return response()->json([
-                'status' => 401,
-                'message' => 'Unauthorized access'
-            ], 401);
+    public function editSale($id)
+    {
+        try {
+            // Fetch sale details with related models
+            $sale = Sale::with(['products.product', 'products.batch', 'customer', 'location'])
+                ->findOrFail($id);
+    
+            // Prepare detailed response
+            $saleDetails = [
+                'sale' => $sale->only([
+                    'id', 'customer_id', 'location_id', 'sales_date', 'sale_type', 'status', 'invoice_no',
+                    'subtotal', 'discount_type', 'discount_amount', 'final_total', 'total_paid', 'total_due',
+                    'payment_status', 'created_at', 'updated_at'
+                ]),
+                'sale_products' => $sale->products->map(function ($product) use ($sale) {
+                    // Get the batch ID or 'all' if no specific batch is selected
+                    $batchId = $product->batch_id ?? 'all';
+    
+                    // Calculate the total available quantity (stock + sold) for the batch or all batches
+                    $totalQuantity = $sale->getBatchQuantityPlusSold(
+                        $batchId,
+                        $product->location_id,
+                        $product->product_id
+                    );
+    
+                    return [
+                        'id' => $product->id,
+                        'sale_id' => $product->sale_id,
+                        'product_id' => $product->product_id,
+                        'batch_id' => $product->batch_id,
+                        'location_id' => $product->location_id,
+                        'quantity' => $product->quantity,
+                        'price_type' => $product->price_type,
+                        'price' => $product->price,
+                        'discount' => $product->discount,
+                        'tax' => $product->tax,
+                        'created_at' => $product->created_at,
+                        'updated_at' => $product->updated_at,
+                        'total_quantity' => $totalQuantity, // Add total quantity (stock + sold)
+                        'product' => optional($product->product)->only([
+                            'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
+                            'stock_alert', 'alert_quantity', 'product_image', 'description', 'is_imei_or_serial_no',
+                            'is_for_selling', 'product_type', 'pax', 'original_price', 'retail_price',
+                            'whole_sale_price', 'special_price', 'max_retail_price'
+                        ]),
+                        'batch' => optional($product->batch)->only([
+                            'id', 'batch_no', 'product_id', 'qty', 'unit_cost', 'wholesale_price', 'special_price',
+                            'retail_price', 'max_retail_price', 'expiry_date'
+                        ])
+                    ];
+                }),
+                'customer' => optional($sale->customer)->only([
+                    'id', 'prefix', 'first_name', 'last_name', 'mobile_no', 'email', 'address', 'opening_balance',
+                    'current_balance', 'location_id'
+                ]),
+                'location' => optional($sale->location)->only([
+                    'id', 'name', 'location_id', 'address', 'province', 'district', 'city', 'email', 'mobile',
+                    'telephone_no'
+                ])
+            ];
+    
+            // Handle API or AJAX requests
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 200,
+                    'sale_details' => $saleDetails,
+                ]);
+            }
+    
+            return view('sell.pos', compact('saleDetails'));
+    
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['status' => 404, 'message' => 'Sale not found.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 400, 'message' => $e->getMessage()]);
         }
-
-        // Load user's location
-        $location = Location::find($user->location_id);
-        if (!$location) {
-            return response()->json([
-                'status' => 400,
-                'message' => 'User location not found'
-            ], 400);
-        }
-
-        // Load sale with relationships
-        $sale = Sale::with([
-            'products.product',
-            'customer',
-            'products.batch.locationBatches' => function($query) use ($user) {
-                $query->where('location_id', $user->location_id);
-            },
-            'payments' // Include payments for complete sale information
-        ])->findOrFail($id);
-
-        // Check if user has permission to access this sale
-        if ($sale->location_id !== $user->location_id) {
-            return response()->json([
-                'status' => 403,
-                'message' => 'You do not have permission to access this sale.'
-            ], 403);
-        }
-
-        // Format the sale data for response
-        $formattedSale = [
-            'id' => $sale->id,
-            'customer_id' => $sale->customer_id,
-            'location_id' => $sale->location_id,
-            'invoice_no' => $sale->invoice_no,
-            'reference_no' => $sale->reference_no,
-            'sales_date' => $sale->sales_date,
-            'status' => $sale->status,
-            'sale_type' => $sale->sale_type,
-            'final_total' => $sale->final_total,
-            'total_paid' => $sale->total_paid,
-            'total_due' => $sale->total_due,
-            'payment_status' => $sale->payment_status,
-            'customer' => $sale->customer,
-            'products' => $sale->products->map(function($product) {
-                return [
-                    'id' => $product->id,
-                    'product_id' => $product->product_id,
-                    'product' => [
-                        'id' => $product->product->id,
-                        'product_name' => $product->product->product_name,
-                        'sku' => $product->product->sku,
-                        'product_image' => $product->product->product_image,
-                        'description' => $product->product->description,
-                    ],
-                    'batch_id' => $product->batch_id,
-                    'quantity' => $product->quantity,
-                    'unit_price' => $product->unit_price,
-                    'price' => $product->price,
-                    'subtotal' => $product->subtotal,
-                    'discount' => $product->discount,
-                    'tax' => $product->tax,
-                    'batch' => [
-                        'id' => $product->batch_id,
-                        'location_batches' => $product->batch ? $product->batch->locationBatches : []
-                    ]
-                ];
-            }),
-            'payments' => $sale->payments,
-            'created_at' => $sale->created_at->format('Y-m-d H:i:s'),
-            'updated_at' => $sale->updated_at->format('Y-m-d H:i:s'),
-        ];
-
-        // Handle different types of requests
-        if (request()->ajax() || request()->is('api/*')) {
-            return response()->json([
-                'status' => 200,
-                'sale' => $formattedSale,
-                'location' => [
-                    'id' => $location->id,
-                    'name' => $location->name,
-                    'address' => $location->address,
-                    // Add other necessary location fields
-                ],
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'location_id' => $user->location_id,
-                ],
-                'timestamp' => now()->format('Y-m-d H:i:s'),
-                'timezone' => config('app.timezone')
-            ]);
-        }
-
-        // For web requests, return view with data
-        return view('sell.pos', compact('sale', 'location'));
-
-    } catch (ModelNotFoundException $e) {
-        return response()->json([
-            'status' => 404,
-            'message' => 'Sale not found'
-        ], 404);
-    } catch (\Exception $e) {
-        // \Log::error('Sale show error: ' . $e->getMessage(), [
-        //     'user' => Auth::user()->id ?? 'unknown',
-        //     'sale_id' => $id,
-        //     'timestamp' => now()->format('Y-m-d H:i:s'),
-        //     'trace' => $e->getTraceAsString()
-        // ]);
-
-        return response()->json([
-            'status' => 400,
-            'message' => 'An error occurred while fetching the sale details',
-            'debug' => config('app.debug') ? $e->getMessage() : null
-        ], 400);
     }
-}
+
 
 
 

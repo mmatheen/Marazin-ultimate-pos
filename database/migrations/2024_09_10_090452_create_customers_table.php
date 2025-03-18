@@ -19,8 +19,8 @@ return new class extends Migration
             $table->string('mobile_no')->unique();
             $table->string('email')->nullable()->unique();
             $table->text('address')->nullable();
-            $table->decimal('opening_balance', 15, 2)->default(0);
-            $table->decimal('current_balance', 15, 2)->default(0);
+            $table->decimal('opening_balance', 15, 2)->nullable()->default(0);
+            $table->decimal('current_balance', 15, 2)->nullable()->default(0);
             $table->unsignedBigInteger('location_id')->nullable();
             $table->timestamps();
              // ForeignKey

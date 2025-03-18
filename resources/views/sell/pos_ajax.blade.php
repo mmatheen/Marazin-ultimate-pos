@@ -222,66 +222,63 @@
         }
 
         function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.product_name && product.product_name.toLowerCase().includes(
-                            searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts.filter(product =>
+                (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            );
 
-                    if (filteredProducts.length === 0) {
-                        // Optionally display a "No products found" in the dropdown
-                        response([{
-                            label: "No products found",
-                            value: ""
-                        }]);
-                    } else {
-                        response(filteredProducts.map(product => ({
-                            label: `${product.product_name} (${product.sku || 'No SKU'})`,
-                            value: product.product_name,
-                            product: product
-                        })));
+            response(filteredProducts.length ? 
+                filteredProducts.map(p => ({
+                    label: `${p.product_name} (${p.sku || 'No SKU'})`,
+                    value: p.product_name,
+                    product: p
+                })) : [{ label: "No products found", value: "" }]
+            );
 
-                        // If exactly one product matches, trigger addProductToTable
-                        if (filteredProducts.length === 1) {
-                            addProductToTable(filteredProducts[0]);
-                        }
-                    }
-                },
-                select: function(event, ui) {
-                    // If no valid product is selected, ignore
-                    if (!ui.item.product) return false;
-
-                    // Populate the input field with the selected product name
-                    $("#productSearchInput").val(ui.item.value);
-
-                    // Add the selected product to the data table
-                    addProductToTable(ui.item.product);
-                    return false;
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                // Customize the dropdown appearance
-                if (!item.product) {
-                    return $("<li>")
-                        .append(`<div style="color: red;">${item.label}</div>`)
-                        .appendTo(ul);
-                }
-
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
-            };
-
-            // Prevent default aria-live and aria-autocomplete attributes
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-
-            // Remove the default autocomplete status element
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+            if (filteredProducts.length === 1) addProductToTable(filteredProducts[0]);
+        },
+        select: function(event, ui) {
+            if (!ui.item.product) return false;
+            $("#productSearchInput").val(ui.item.value);
+            addProductToTable(ui.item.product);
+            return false;
+        },
+        focus: function(event, ui) {
+            // Ensure the focused item is highlighted
+            $("#productSearchInput").val(ui.item.value);
+            return false;
+        },
+        minLength: 1,
+        open: function() {
+            // Add class to list items to highlight selected item
+            $(this).autocomplete("widget").find("li").each(function() {
+                $(this).removeClass("ui-state-focus");
+            });
         }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        const $li = $("<li>").append(`<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`).appendTo(ul);
+        
+        // Highlight the item on key navigation
+        if (item === ul.find('.ui-state-focus').data('item')) {
+            $li.addClass("ui-state-focus");
+        }
+        
+        return $li;
+    };
+
+    // Prevent default aria-live and aria-autocomplete attributes
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+
+    // Remove the default autocomplete status element
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+}
+
 
         function displayProducts(products) {
+           
             posProduct.innerHTML = ''; // Clear previous products
 
             if (products.length === 0) {
@@ -432,190 +429,167 @@
         }
 
         function showProductModal(product, stockEntry, row) {
-            const modalBody = document.getElementById('productModalBody');
-            const basePrice = product.retail_price;
-            const discountAmount = product.discount_amount || 0;
-            const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) :
-                basePrice - discountAmount;
+    const modalBody = document.getElementById('productModalBody');
+    const basePrice = product.retail_price;
+    const discountAmount = product.discount_amount || 0;
+    const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) :
+        basePrice - discountAmount;
 
-            const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch
-                .location_batches.map(locationBatch => ({
-                    batch_id: batch.id,
-                    batch_no: batch.batch_no,
-                    retail_price: parseFloat(batch.retail_price),
-                    wholesale_price: parseFloat(batch.wholesale_price),
-                    special_price: parseFloat(batch.special_price),
-                    batch_quantity: locationBatch.quantity
-                }))) : [];
+    // Validate and process batches safely
+    const batches = Array.isArray(stockEntry.batches) && stockEntry.batches.length > 0 ?
+        stockEntry.batches.flatMap(batch =>
+            Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
+                batch_id: batch.id,
+                batch_no: batch.batch_no,
+                retail_price: parseFloat(batch.retail_price),
+                wholesale_price: parseFloat(batch.wholesale_price),
+                special_price: parseFloat(batch.special_price),
+                batch_quantity: locationBatch.quantity
+            })) : []
+        ).flat() : [];
 
-            const batchOptions = batches
-                .filter(batch => batch.batch_quantity > 0)
-                .map(batch => `
-            <option value="${batch.batch_id}" data-retail-price="${batch.retail_price}" data-wholesale-price="${batch.wholesale_price}" data-special-price="${batch.special_price}" data-quantity="${batch.batch_quantity}">
-              ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
-            </option>
-        `).join('');
+    const batchOptions = batches
+        .filter(batch => batch.batch_quantity > 0)
+        .map(batch => `
+        <option value="${batch.batch_id}" data-retail-price="${batch.retail_price}" data-wholesale-price="${batch.wholesale_price}" data-special-price="${batch.special_price}" data-quantity="${batch.batch_quantity}">
+          ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
+        </option>
+    `).join('');
 
-            modalBody.innerHTML = `
-        <div class="d-flex align-items-center">
-            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-            <div>
-                <div class="font-weight-bold">${product.product_name}</div>
-                <div class="text-muted">${product.sku}</div>
-                ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-            </div>
+    // Get the total available quantity for all batches or a specific batch
+    let totalQuantity = stockEntry.total_stock;
+    if (stockEntry.batches.length > 0) {
+        totalQuantity = stockEntry.batches.reduce((acc, batch) => acc + batch.location_batches.reduce((sum, lb) => sum + lb.quantity, 0), 0);
+    }
+
+    modalBody.innerHTML = `
+    <div class="d-flex align-items-center">
+        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+        <div>
+            <div class="font-weight-bold">${product.product_name}</div>
+            <div class="text-muted">${product.sku}</div>
+            ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
         </div>
-        <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
-            <label class="btn btn-outline-primary active">
-                <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
-            </label>
-            <label class="btn btn-outline-primary">
-                <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
-            </label>
-            <label class="btn btn-outline-primary">
-                <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
-            </label>
-        </div>
-        <select id="modalBatchDropdown" class="form-select mt-3">
-            <option value="all" data-retail-price="${finalPrice}" data-quantity="${stockEntry.total_stock}">
-                All - Qty: ${formatAmountWithSeparators(stockEntry.total_stock)} - Price: ${formatAmountWithSeparators(finalPrice.toFixed(2))}
-            </option>
-            ${batchOptions}
-        </select>
-     `;
+    </div>
+    <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
+        <label class="btn btn-outline-primary active">
+            <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+        </label>
+        <label class="btn btn-outline-primary">
+            <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+        </label>
+        <label class="btn btn-outline-primary">
+            <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+        </label>
+    </div>
+    <select id="modalBatchDropdown" class="form-select mt-3">
+        <option value="all" data-retail-price="${finalPrice}" data-quantity="${totalQuantity}">
+            All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(finalPrice.toFixed(2))}
+        </option>
+        ${batchOptions}
+    </select>
+ `;
 
-            selectedRow = row;
-            const modal = new bootstrap.Modal(document.getElementById('productModal'));
-            modal.show();
+    selectedRow = row;
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    modal.show();
 
-            // Add event listeners for the radio buttons to change the active class
-            const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
-            radioButtons.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-                    this.parentElement.classList.add('active');
-                });
+    // Add event listeners for the radio buttons to change the active class
+    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => {
+                btn.classList.remove('active');
             });
-        }
+            this.parentElement.classList.add('active');
+        });
+    });
+}
 
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
-            const billingBody = document.getElementById('billing-body');
-            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                const productNameCell = row.querySelector('.product-name');
-                return productNameCell && productNameCell.textContent === product.product_name;
-            });
+    // Ensure price is a valid number
+    price = parseFloat(price);
+    if (isNaN(price)) {
+        console.error('Invalid price for product:', product.product_name);
+        toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+        price = 0; // Fallback to a default price
+    }
 
-            if (existingRow) {
-                const quantityInput = existingRow.querySelector('.quantity-input');
-                let newQuantity = parseInt(quantityInput.value, 10) + 1;
+    const billingBody = document.getElementById('billing-body');
+    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+        const productNameCell = row.querySelector('.product-name');
+        return productNameCell && productNameCell.textContent === product.product_name;
+    });
 
-                if (newQuantity > batchQuantity && product.stock_alert !== 0) {
-                    toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
-                    return;
-                }
+    if (existingRow) {
+        const quantityInput = existingRow.querySelector('.quantity-input');
+        let newQuantity = parseInt(quantityInput.value, 10) + 1;
 
-                quantityInput.value = newQuantity;
-                existingRow.querySelector('.price-input').value = price.toFixed(2);
-                existingRow.querySelector('.subtotal').textContent = formatAmountWithSeparators((newQuantity *
-                    price).toFixed(2));
-
-                // Focus on the quantity input field
-                quantityInput.focus();
-                quantityInput.select();
-
-                // Add event listener for Enter key to focus back on search input
-                quantityInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        document.getElementById('productSearchInput').focus();
-                    }
-                });
-            } else {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                <td>
-                    <div class="d-flex align-items-center">
-                        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                        <div class="product-info">
-                            <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
-                            <div class="text-muted">${product.sku}</div>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div class="d-flex justify-content-center">
-                        <button class="btn btn-danger quantity-minus btn-sm">-</button>
-                        <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
-                        <button class="btn btn-success quantity-plus btn-sm">+</button>
-                    </div>
-                </td>
-                <td><input type="number" value="${price}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
-                <td class="subtotal text-center mt-2">${formatAmountWithSeparators(price.toFixed(2))}</td>
-                <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
-                <td class="product-id d-none">${product.id}</td>
-                <td class="location-id d-none">${locationId}</td>
-                <td class="batch-id d-none">${batchId}</td>
-                <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-            `;
-
-                billingBody.insertBefore(row, billingBody.firstChild);
-                attachRowEventListeners(row, product, stockEntry);
-
-                // Focus on the quantity input field and select the text
-                const quantityInput = row.querySelector('.quantity-input');
-                quantityInput.focus();
-                quantityInput.select();
-
-                // Add event listener for Enter key to focus back on search input
-                quantityInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        document.getElementById('productSearchInput').focus();
-                        document.getElementById('productSearchInput').select();
-                    }
-                });
-
-
-
-                updateTotals();
-            }
-
-            // Initialize Mousetrap for keyboard shortcuts
-            let currentRowIndex = 0;
-
-            Mousetrap.bind('f2', function() {
-                const quantityInputs = document.querySelectorAll('.quantity-input');
-
-                if (quantityInputs.length > 0) {
-                    // Focus and select the current input
-                    quantityInputs[currentRowIndex].focus();
-                    quantityInputs[currentRowIndex].select();
-
-                    // Move to the next row
-                    currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
-
-                    return false; // Prevent default browser behavior
-                }
-            });
-
-            Mousetrap.bind('f4', function() {
-                // Focus on the product search input to add a new product
-                const productSearchInput = document.getElementById('productSearchInput');
-                if (productSearchInput) {
-                    productSearchInput.focus();
-                    productSearchInput.select();
-                }
-            });
-
-            // Bind F5 key to show a confirmation dialog
-            Mousetrap.bind('f5', function(event) {
-                event.preventDefault();
-                if (confirm('Are you sure you want to reload the page?')) {
-                    window.location.reload();
-                }
-            });
+        if (newQuantity > batchQuantity && product.stock_alert !== 0) {
+            toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
+            return;
         }
 
+        quantityInput.value = newQuantity;
+        existingRow.querySelector('.price-input').value = price.toFixed(2);
+        existingRow.querySelector('.subtotal').textContent = formatAmountWithSeparators((newQuantity * price).toFixed(2));
+
+        // Focus on the quantity input field
+        quantityInput.focus();
+        quantityInput.select();
+
+        // Add event listener for Enter key to focus back on search input
+        quantityInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                document.getElementById('productSearchInput').focus();
+            }
+        });
+    } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                    <div class="product-info">
+                        <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
+                        <div class="text-muted">${product.sku}</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="d-flex justify-content-center">
+                    <button class="btn btn-danger quantity-minus btn-sm">-</button>
+                    <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
+                    <button class="btn btn-success quantity-plus btn-sm">+</button>
+                </div>
+            </td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
+            <td class="subtotal text-center mt-2">${formatAmountWithSeparators(price.toFixed(2))}</td>
+            <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
+            <td class="product-id d-none">${product.id}</td>
+            <td class="location-id d-none">${locationId}</td>
+            <td class="batch-id d-none">${batchId}</td>
+            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+        `;
+        billingBody.insertBefore(row, billingBody.firstChild);
+        attachRowEventListeners(row, product, stockEntry);
+
+        // Focus on the quantity input field and select the text
+        const quantityInput = row.querySelector('.quantity-input');
+        quantityInput.focus();
+        quantityInput.select();
+
+        // Add event listener for Enter key to focus back on search input
+        quantityInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                document.getElementById('productSearchInput').focus();
+                document.getElementById('productSearchInput').select();
+            }
+        });
+
+        updateTotals();
+    }
+}
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');
             const priceInput = row.querySelector('.price-input');
@@ -766,113 +740,186 @@
         document.getElementById('discount').addEventListener('input', updateTotals);
         document.getElementById('discount-type').addEventListener('change', updateTotals);
 
+        
+        let saleId = null;
 
-        $(document).ready(function() {
-            function gatherSaleData(status) {
-                const uniqueNumber = new Date().getTime() % 10000;
-                const customerId = $('#customer-id').val();
-                const salesDate = new Date().toISOString().slice(0, 10);
+// Extract saleId from the URL path
+const pathSegments = window.location.pathname.split('/');
+saleId = pathSegments[pathSegments.length - 1];
 
-                if (!locationId) {
-                    toastr.error('Location ID is required.');
-                    return;
-                }
+// Validate saleId to ensure it is a numeric value
+if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+    fetchEditSale(saleId);
+} else {
+    console.warn('Invalid or missing saleId:', saleId);
+}
 
-                const saleData = {
-                    customer_id: customerId,
-                    sales_date: salesDate,
-                    location_id: locationId,
-                    status: status,
-                    sale_type: "POS",
-                    products: [],
-                    discount_type: $('#discount-type').val(),
-                    discount_amount: parseFormattedAmount($('#discount').val()) || 0,
-                    total_amount: parseFormattedAmount($('#total-amount').text()) || 0,
-                };
+function fetchEditSale(saleId) {
+    fetchAllProducts();
 
-                $('#billing-body tr').each(function() {
-                    const productRow = $(this);
-                    const batchId = productRow.find('.batch-id').text().trim();
-                    const productData = {
-                        product_id: parseInt(productRow.find('.product-id').text().trim(),
-                            10),
-                        location_id: parseInt(productRow.find('.location-id').text().trim(),
-                            10),
-                        quantity: parseInt(productRow.find('.quantity-input').val().trim(),
-                            10),
-                        price_type: priceType,
-                        unit_price: parseFormattedAmount(productRow.find('.price-input')
-                            .val().trim()),
-                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
-                            .trim()),
-                        discount: parseFloat(productRow.find('.discount-data').data(
-                            'amount')) || 0,
-                        tax: 0,
-                        batch_id: batchId === "all" ? "all" : batchId,
+    // Fetch sale details for billing body
+    fetch(`/api/sales/edit/${saleId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Fetched sale details:', data); // Log the response
+            if (data.status === 200) {
+                const saleDetails = data.sale_details;
+                // Populate billing body with existing sale products
+                saleDetails.sale_products.forEach(saleProduct => {
+                    const price = saleProduct.price || saleProduct.product.retail_price; // Use sale price or fallback to retail price
+
+                    // Normalize the stockEntry.batches structure
+                    const normalizedStockEntry = {
+                        batches: [{
+                            id: saleProduct.batch.id,
+                            batch_no: saleProduct.batch.batch_no,
+                            retail_price: saleProduct.batch.retail_price,
+                            wholesale_price: saleProduct.batch.wholesale_price,
+                            special_price: saleProduct.batch.special_price,
+                            location_batches: [{
+                                location_id: saleProduct.location_id,
+                                quantity: saleProduct.quantity
+                            }]
+                        }],
+                        total_stock: saleProduct.quantity
                     };
-                    saleData.products.push(productData);
-                });
 
-                if (saleData.products.length === 0) {
-                    toastr.error('At least one product is required.');
-                    return null;
+                    addProductToBillingBody(
+                        saleProduct.product,
+                        normalizedStockEntry,
+                        price,
+                        saleProduct.batch_id,
+                        saleProduct.quantity,
+                        saleProduct.price_type
+                    );
+                });
+                // Update totals and other fields
+                document.getElementById('discount').value = saleDetails.sale.discount_amount;
+                document.getElementById('discount-type').value = saleDetails.sale.discount_type;
+                updateTotals();
+            } else {
+                console.error('Invalid sale data:', data);
+                toastr.error('Failed to fetch sale data.', 'Error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching sale data:', error);
+            toastr.error('An error occurred while fetching sale data.', 'Error');
+        });
+}
+
+$(document).ready(function() {
+    function gatherSaleData(status) {
+        const uniqueNumber = new Date().getTime() % 10000;
+        const customerId = $('#customer-id').val();
+        const salesDate = new Date().toISOString().slice(0, 10);
+
+        if (!locationId) {
+            toastr.error('Location ID is required.');
+            return;
+        }
+
+        const saleData = {
+            customer_id: customerId,
+            sales_date: salesDate,
+            location_id: locationId,
+            status: status,
+            sale_type: "POS",
+            products: [],
+            discount_type: $('#discount-type').val(),
+            discount_amount: parseFormattedAmount($('#discount').val()) || 0,
+            total_amount: parseFormattedAmount($('#total-amount').text()) || 0,
+        };
+
+        $('#billing-body tr').each(function() {
+            const productRow = $(this);
+            const batchId = productRow.find('.batch-id').text().trim();
+            const productData = {
+                product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
+                location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
+                quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
+                price_type: priceType,
+                unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
+                subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
+                discount: parseFloat(productRow.find('.discount-data').data('amount')) || 0,
+                tax: 0,
+                batch_id: batchId === "all" ? "all" : batchId,
+            };
+            saleData.products.push(productData);
+        });
+
+        if (saleData.products.length === 0) {
+            toastr.error('At least one product is required.');
+            return null;
+        }
+
+        return saleData;
+    }
+
+    function sendSaleData(saleData, saleId = null) {
+        // Validate saleId before using it
+        if (saleId && isNaN(saleId)) {
+            console.error('Invalid saleId:', saleId);
+            toastr.error('Invalid sale ID provided.');
+            return;
+        }
+
+        const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+        const method = 'POST';
+
+        $.ajax({
+            url: url,
+            type: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            },
+            data: JSON.stringify(saleData),
+            success: function(response) {
+                if (response.message && response.invoice_html) {
+                    document.getElementsByClassName('successSound')[0].play();
+                    toastr.success(response.message);
+
+                    // Create a hidden iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.style.position = 'fixed';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    iframe.style.border = 'none';
+                    document.body.appendChild(iframe);
+
+                    // Write the receipt content to the iframe
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(response.invoice_html);
+                    iframe.contentDocument.close();
+
+                    iframe.onload = function() {
+                        // Trigger the print dialog from the iframe
+                        iframe.contentWindow.print();
+
+                        iframe.contentWindow.onafterprint = function() {
+                            // Remove the iframe after printing
+                            document.body.removeChild(iframe);
+                        };
+                    };
+
+                    // Reset the form and refresh products
+                    resetForm();
+                    fetchAllProducts();
+                } else {
+                    toastr.error('Failed to record sale: ' + response.message);
                 }
-
-                return saleData;
+            },
+            error: function(xhr, status, error) {
+                toastr.error('An error occurred: ' + xhr.responseText);
             }
-
-            function sendSaleData(saleData, saleId = null) {
-                const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-                const method = 'POST';
-
-                $.ajax({
-                    url: url,
-                    type: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                    },
-                    data: JSON.stringify(saleData),
-                    success: function(response) {
-                        if (response.message && response.invoice_html) {
-                            document.getElementsByClassName('successSound')[0].play();
-                            toastr.success(response.message);
-
-                            // Create a hidden iframe
-                            const iframe = document.createElement('iframe');
-                            iframe.style.position = 'fixed';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = 'none';
-                            document.body.appendChild(iframe);
-
-                            // Write the receipt content to the iframe
-                            iframe.contentDocument.open();
-                            iframe.contentDocument.write(response.invoice_html);
-                            iframe.contentDocument.close();
-
-                            iframe.onload = function() {
-                                // Trigger the print dialog from the iframe
-                                iframe.contentWindow.print();
-
-                                iframe.contentWindow.onafterprint = function() {
-                                    // Remove the iframe after printing
-                                    document.body.removeChild(iframe);
-                                };
-                            };
-
-                            // Reset the form and refresh products
-                            resetForm();
-                            fetchAllProducts();
-                        } else {
-                            toastr.error('Failed to record sale: ' + response.message);
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        toastr.error('An error occurred: ' + xhr.responseText);
-                    }
-                });
-            }
+        });
+    }
 
             function gatherCashPaymentData() {
                 const totalAmount = parseFormattedAmount($('#final-total-amount').text()
@@ -1060,7 +1107,7 @@
             });
 
             document.getElementById('finalize_payment').addEventListener('click', function() {
-                const saleData = gatherSaleData('completed');
+                const saleData = gatherSaleData('final');
                 if (!saleData) {
                     toastr.error('Please add at least one product before completing the sale.');
                     return;

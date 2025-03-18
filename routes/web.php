@@ -274,7 +274,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
-        Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
+        // Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
+        Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 

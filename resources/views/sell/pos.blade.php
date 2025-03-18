@@ -615,12 +615,32 @@
             font-size: 20px;
             margin-left: 5px;
         }
-
         .ui-autocomplete {
-            max-height: 200px;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 5px 0;
+    font-size: 14px;
+}
+
+/* Ensure autocomplete items are properly styled */
+.ui-menu .ui-menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+/* Ensure hover and keyboard focus both show highlight */
+.ui-menu .ui-menu-item:hover,
+.ui-menu .ui-menu-item.ui-state-focus,
+.ui-menu .ui-menu-item.ui-state-active { /* Fix for keyboard navigation */
+    background-color: #007bff !important; /* Highlight color */
+    color: #fff !important; /* Text color */
+    border-radius: 4px;
+}
+
+
     </style>
 </head>
 
@@ -1069,60 +1089,65 @@
 <script>
     let sales = [];
 
-    async function fetchSalesData() {
-        try {
-            const response = await fetch('/sales');
-            const data = await response.json();
-            if (Array.isArray(data)) {
-                sales = data;
-            } else if (data.sales && Array.isArray(data.sales)) {
-                sales = data.sales;
-            } else {
-                console.error('Unexpected data format:', data);
-            }
-            // Load the default tab data
-            loadTableData('final');
-        } catch (error) {
-            console.error('Error fetching sales data:', error);
-        }
-    }
-
-    function loadTableData(status) {
-        const tableBody = document.getElementById('transactionTableBody');
-        tableBody.innerHTML = '';
-
-        const filteredSales = sales
-            .filter(sale => sale.status === status)
-            .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
-
-        if (filteredSales.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
+// Function to fetch sales data from the server
+async function fetchSalesData() {
+    try {
+        const response = await fetch('/sales');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            sales = data;
+        } else if (data.sales && Array.isArray(data.sales)) {
+            sales = data.sales;
         } else {
-            filteredSales.forEach((sale, index) => {
-                const row = `<tr>
-                    <td>${index + 1}</td>
-                    <td>${sale.invoice_no}</td>
-                    <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
-                    <td>${sale.final_total}</td>
-                    <td>
-                        <button class='btn btn-primary btn-sm'>Edit</button>
-                        <button class='btn btn-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                        <button class='btn btn-danger btn-sm'>Delete</button>
-                    </td>
-                </tr>`;
-                tableBody.innerHTML += row;
-            });
+            console.error('Unexpected data format:', data);
         }
+        // Load the default tab data (e.g., 'final')
+        loadTableData('final');
+    } catch (error) {
+        console.error('Error fetching sales data:', error);
     }
+}
 
-    document.addEventListener('DOMContentLoaded', fetchSalesData);
+// Function to load the sales data into the table
+function loadTableData(status) {
+    const tableBody = document.getElementById('transactionTableBody');
+    tableBody.innerHTML = '';  // Clear existing table rows
 
-    function printReceipt(saleId) {
+    const filteredSales = sales
+        .filter(sale => sale.status === status)
+        .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
+
+    if (filteredSales.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
+    } else {
+        filteredSales.forEach((sale, index) => {
+            const row = `<tr>
+                <td>${index + 1}</td>
+                <td>${sale.invoice_no}</td>
+                <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
+                <td>${sale.final_total}</td>
+                <td>
+                    <button class='btn btn-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
+                    <button class='btn btn-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                    <button class='btn btn-danger btn-sm'>Delete</button>
+                </td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    }
+}
+
+// Function to navigate to the edit page
+function navigateToEdit(saleId) {
+    window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
+}
+
+// Function to print the receipt for the sale
+function printReceipt(saleId) {
     fetch(`/sales/print-recent-transaction/${saleId}`)
         .then(response => response.json())
         .then(data => {
             if (data.invoice_html) {
-                // Create a hidden iframe
                 const iframe = document.createElement('iframe');
                 iframe.style.position = 'fixed';
                 iframe.style.width = '0';
@@ -1130,17 +1155,13 @@
                 iframe.style.border = 'none';
                 document.body.appendChild(iframe);
 
-                // Write the receipt content to the iframe
                 iframe.contentDocument.open();
                 iframe.contentDocument.write(data.invoice_html);
                 iframe.contentDocument.close();
 
                 iframe.onload = function() {
-                    // Trigger the print dialog from the iframe
                     iframe.contentWindow.print();
-
                     iframe.contentWindow.onafterprint = function() {
-                        // Remove the iframe after printing
                         document.body.removeChild(iframe);
                     };
                 };
@@ -1153,6 +1174,13 @@
             alert('An error occurred while fetching the receipt. Please try again.');
         });
 }
+
+// Event listener to load sales data when the page is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    fetchSalesData(); 
+
+    setInterval(fetchSalesData, 1000); 
+});
 
 </script>
 

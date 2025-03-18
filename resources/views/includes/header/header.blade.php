@@ -40,12 +40,13 @@
                 {{-- dynamically change the location --}}
                 <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
             </li>
-           <!-- POS Link -->
-        <li class="nav-item dropdown noti-dropdown me-2">
-            <a href="{{ route('pos-create') }}" class="nav-link header-nav-list btn btn-primary text-white" style="background-color: #007bff; border-color: #007bff;" onmouseover="this.style.backgroundColor='#0056b3'; this.style.borderColor='#0056b3';" onmouseout="this.style.backgroundColor='#007bff'; this.style.borderColor='#007bff';">
-                <i class="bi bi-cash-coin text-white"></i> POS
+
+            <a href="{{ route('pos-create') }}" class="btn btn-primary me-3" role="button">
+                <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS
             </a>
-        </li>
+                
+            {{-- Notification dropdown --}}
+            
             <li class="nav-item dropdown noti-dropdown me-2">
                 <a href="#" class="dropdown-toggle nav-link header-nav-list" data-bs-toggle="dropdown">
                     <img src="{{ asset('assets/img/icons/header-icon-05.svg') }}" alt="">
