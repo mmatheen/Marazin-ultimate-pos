@@ -848,7 +848,6 @@
                             <div class="d-flex justify-content-center">
                                 <select class="form-control selectBox rounded-start" id="customer-id">
                                     <option selected disabled>Please Select</option>
-                                    <!-- Options will be populated dynamically -->
                                 </select>
                                 <button type="button" class="btn btn-outline-info rounded-0" id="addCustomerButton">
                                     <i class="fas fa-plus-circle"></i>
@@ -863,7 +862,7 @@
 
 
                         <div class="col-md-12 mt-3">
-                            <div class="table-responsive" style="height: calc(100vh - 500px); overflow-y: auto;">
+                            <div class="table-responsive" style="height: calc(100vh - 560px); overflow-y: auto;">
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
                                         <tr>
@@ -1159,9 +1158,9 @@ function loadTableData(status) {
                 <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
                 <td>${sale.final_total}</td>
                 <td>
-                    <button class='btn btn-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
-                    <button class='btn btn-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                    <button class='btn btn-danger btn-sm'>Delete</button>
+                    <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
+                    <button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                    <button class='btn btn-outline-danger btn-sm'>Delete</button>
                 </td>
             </tr>`;
             tableBody.innerHTML += row;
