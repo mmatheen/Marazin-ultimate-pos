@@ -279,6 +279,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
+
+        //report view page
+        Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
+
+        //route fetch All daily report sales
+        Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
+
                 // Route to fetch all suspended sales
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
 

@@ -63,6 +63,73 @@ class SaleController extends Controller
         }
     }
 
+
+    public function saleDailyReport(){
+        return view('reports.daily_sales_report');
+    }
+
+    public function dailyReport(Request $request){
+        try {
+            $date = $request->input('date', Carbon::today()->toDateString());
+
+            $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
+                ->whereDate('created_at', $date);
+
+            // Calculate summaries
+            $summaries = [
+                'billTotal' => $salesQuery->sum('final_total'),
+                'discounts' => $salesQuery->sum('discount_amount'),
+                'cashPayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'cash');
+                })->sum('total_paid'),
+                'chequePayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'cheque');
+                })->sum('total_paid'),
+                'onlinePayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'online');
+                })->sum('total_paid'),
+                'bankTransfer' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'bank_transfer');
+                })->sum('total_paid'),
+                'cardPayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'card');
+                })->sum('total_paid'),
+                'salesReturns' => SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                'paymentTotal' => $salesQuery->sum('total_paid'),
+                'creditTotal' => $salesQuery->sum('total_due'),
+                'salesReturnsTotal' => SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                'paymentTotalSummary' => $salesQuery->sum('total_paid'),
+                'pastSalesReturns' => SalesReturn::whereDate('created_at', '<', $date)->sum('return_total'),
+                'expense' => 0, // Assuming expense is not calculated here
+                'creditCollectionNew' => 0, // Assuming credit collection is not calculated here
+                'creditCollectionOld' => 0, // Assuming credit collection is not calculated here
+                'netIncome' => $salesQuery->sum('final_total') - SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                'cashPaymentsSummary' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'cash');
+                })->sum('total_paid'),
+                'creditCollectionNewSummary' => 0, // Assuming credit collection is not calculated here
+                'creditCollectionOldSummary' => 0, // Assuming credit collection is not calculated here
+                'expenseSummary' => 0, // Assuming expense is not calculated here
+                'cashInHand' => $salesQuery->clone()->whereHas('payments', function($query) {
+                    $query->where('payment_method', 'cash');
+                })->sum('total_paid') - SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+            ];
+
+            $sales = $salesQuery->get();
+
+            // Fetch sales return details based on sale id
+            $salesReturns = SalesReturn::with('customer', 'location', 'returnProducts')
+                                       ->whereIn('sale_id', $sales->pluck('id'))
+                                       ->get();
+
+            return response()->json(['sales' => $sales, 'summaries' => $summaries, 'salesReturns' => $salesReturns], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'An error occurred while fetching sales data.', 'details' => $e->getMessage()], 500);
+        }
+    }
+
+  
+
     public function edit($id)
     {
         try {
