@@ -863,7 +863,7 @@
 
 
                         <div class="col-md-12 mt-3">
-                            <div class="table-responsive" style="height: 300px; overflow-y: auto;">
+                            <div class="table-responsive" style="height: calc(100vh - 500px); overflow-y: auto;">
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
                                         <tr>
@@ -884,7 +884,7 @@
                 </div>
 
                 <!-- Billing Summary (Positioned at the Bottom) -->
-                <div class="card bg-white mt-3 p-3">
+                <div class="card bg-white mt-3 p-2">
                     <div class="row">
                         <div class="col-md-3">
                             <div class="form-group">
@@ -901,18 +901,50 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label for="discount-type">Discount Type</label>
-                                <select id="discount-type" class="form-control">
-                                    <option value="fixed">Fixed</option>
-                                    <option value="percentage">Percentage</option>
-                                </select>
+                                <div class="btn-group w-100" role="group" aria-label="Discount Type">
+                                    <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Fixed</button>
+                                    <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">Percentage</button>
+                                </div>
+                                <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                             </div>
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Discount</label>
-                                <input type="text" id="discount" class="form-control" placeholder="0.00">
+                                <div class="input-group">
+                                    <input type="text" id="discount" name="discount" class="form-control" placeholder="0.00">
+                                    <span class="input-group-text" id="discount-icon">Rs</span>
+                                </div>
                             </div>
                         </div>
+
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
+                                const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
+                                const discountInput = document.getElementById('discount');
+                                const discountIcon = document.getElementById('discount-icon');
+                                const discountTypeInput = document.getElementById('discount-type');
+
+                                // Set default to fixed discount
+                                fixedDiscountBtn.classList.add('active');
+                                discountIcon.textContent = 'Rs';
+
+                                fixedDiscountBtn.addEventListener('click', function() {
+                                    fixedDiscountBtn.classList.add('active');
+                                    percentageDiscountBtn.classList.remove('active');
+                                    discountIcon.textContent = 'Rs';
+                                    discountTypeInput.value = 'fixed';
+                                });
+
+                                percentageDiscountBtn.addEventListener('click', function() {
+                                    percentageDiscountBtn.classList.add('active');
+                                    fixedDiscountBtn.classList.remove('active');
+                                    discountIcon.textContent = '%';
+                                    discountTypeInput.value = 'percentage';
+                                });
+                            });
+                        </script>
 
                         <div class="col-md-3">
                             <div class="form-group">
@@ -935,7 +967,7 @@
 
             <!-- Product List -->
             <div class="col-md-5">
-                <div class="card bg-white p-3" style="height: 560px;">
+                <div class="card bg-white p-3" style="height: calc(100vh - 180px);">
                     <!-- Buttons for Category and Brand -->
                     <div class="row mb-3">
                         <div class="d-flex justify-content-between w-100 mb-2">
@@ -950,7 +982,7 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 overflow-auto" id="posProduct">
+                    <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 300px);">
 
                     </div>
                 </div>

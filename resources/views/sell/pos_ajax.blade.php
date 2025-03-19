@@ -222,23 +222,23 @@
         }
 
         function initAutocomplete() {
-    $("#productSearchInput").autocomplete({
+        $("#productSearchInput").autocomplete({
         source: function(request, response) {
             const searchTerm = request.term.toLowerCase();
             const filteredProducts = allProducts.filter(product =>
-                (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
-                (product.sku && product.sku.toLowerCase().includes(searchTerm))
+            (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+            (product.sku && product.sku.toLowerCase().includes(searchTerm))
             );
 
             response(filteredProducts.length ? 
-                filteredProducts.map(p => ({
-                    label: `${p.product_name} (${p.sku || 'No SKU'})`,
-                    value: p.product_name,
-                    product: p
-                })) : [{ label: "No products found", value: "" }]
+            filteredProducts.map(p => ({
+                label: `${p.product_name} (${p.sku || 'No SKU'})`,
+                value: p.product_name,
+                product: p
+            })) : [{ label: "No products found", value: "" }]
             );
 
-            if (filteredProducts.length === 1) addProductToTable(filteredProducts[0]);
+            if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(filteredProducts[0]);
         },
         select: function(event, ui) {
             if (!ui.item.product) return false;
@@ -247,34 +247,48 @@
             return false;
         },
         focus: function(event, ui) {
-            // Ensure the focused item is highlighted
             $("#productSearchInput").val(ui.item.value);
             return false;
         },
         minLength: 1,
         open: function() {
-            // Add class to list items to highlight selected item
-            $(this).autocomplete("widget").find("li").each(function() {
-                $(this).removeClass("ui-state-focus");
-            });
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+        },
+        close: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
         }
-    }).autocomplete("instance")._renderItem = function(ul, item) {
+        }).autocomplete("instance")._renderItem = function(ul, item) {
         const $li = $("<li>").append(`<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`).appendTo(ul);
         
-        // Highlight the item on key navigation
-        if (item === ul.find('.ui-state-focus').data('item')) {
-            $li.addClass("ui-state-focus");
-        }
+        $li.data("ui-autocomplete-item", item);
+        $li.on("mouseenter", function() {
+            $(this).addClass("ui-state-focus");
+        }).on("mouseleave", function() {
+            $(this).removeClass("ui-state-focus");
+        });
         
         return $li;
-    };
+        };
 
-    // Prevent default aria-live and aria-autocomplete attributes
-    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+        $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+        $("#productSearchInput").autocomplete("instance").liveRegion.remove();
 
-    // Remove the default autocomplete status element
-    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-}
+        $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+        if (!this.menu.element.is(":visible")) {
+            this.search(null, event);
+            return;
+        }
+        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+            this.menu.isLastItem() && /^next/.test(direction)) {
+            this._value(this.term);
+            this.menu.blur();
+            return;
+        }
+        this.menu[direction](event);
+        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+        this.menu.active.addClass("ui-state-focus");
+        };
+    }
 
 
         function displayProducts(products) {
@@ -552,7 +566,8 @@
                     <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
                     <div class="product-info">
                         <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
+                        <div class="text-muted me-2">${product.sku}  <span class="badge bg-secondary">${batchQuantity} Pc(s)</span></div>
+                       
                     </div>
                 </div>
             </td>
@@ -579,11 +594,11 @@
         quantityInput.focus();
         quantityInput.select();
 
-        // Add event listener for Enter key to focus back on search input
+        // Add event listener for Enter key to clear the text and focus back on search input
         quantityInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
-                document.getElementById('productSearchInput').focus();
-                document.getElementById('productSearchInput').select();
+            document.getElementById('productSearchInput').value = '';
+            document.getElementById('productSearchInput').focus();
             }
         });
 
@@ -708,8 +723,11 @@
                 totalAmount += subtotal;
             });
 
-            const discount = parseFloat(document.getElementById('discount').value) || 0;
-            const discountType = document.getElementById('discount-type').value;
+            const discountElement = document.getElementById('discount');
+            const discountTypeElement = document.getElementById('discount-type');
+
+            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
             let totalAmountWithDiscount;
 
@@ -737,8 +755,16 @@
                 totalAmountWithDiscount.toFixed(2));
         }
 
-        document.getElementById('discount').addEventListener('input', updateTotals);
-        document.getElementById('discount-type').addEventListener('change', updateTotals);
+        const discountElement = document.getElementById('discount');
+        const discountTypeElement = document.getElementById('discount-type');
+
+        if (discountElement) {
+            discountElement.addEventListener('input', updateTotals);
+        }
+
+        if (discountTypeElement) {
+            discountTypeElement.addEventListener('change', updateTotals);
+        }
 
         
         let saleId = null;
@@ -799,8 +825,25 @@ function fetchEditSale(saleId) {
                     );
                 });
                 // Update totals and other fields
-                document.getElementById('discount').value = saleDetails.sale.discount_amount;
-                document.getElementById('discount-type').value = saleDetails.sale.discount_type;
+                const discountElement = document.getElementById('discount');
+                const discountTypeElement = document.getElementById('discount-type');
+
+                if (discountElement && saleDetails.sale && saleDetails.sale.discount_amount !== undefined) {
+                    discountElement.value = saleDetails.sale.discount_amount || 0;
+                }
+                
+                if (discountTypeElement && saleDetails.sale && saleDetails.sale.discount_type !== undefined) {
+                    discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
+                }
+
+                // Set the customer ID
+                const customerSelect = document.getElementById('customer-id');
+                if (customerSelect) {
+                    customerSelect.value = saleDetails.sale.customer_id;
+                    $(customerSelect).trigger('change'); // Trigger change event to update the select2 UI
+
+                }
+
                 updateTotals();
             } else {
                 console.error('Invalid sale data:', data);
