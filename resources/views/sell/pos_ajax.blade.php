@@ -984,6 +984,14 @@ $(document).ready(function() {
                     return;
                 } else {
                     saleData.payments = gatherCashPaymentData();
+                    
+                    // Calculate balance amount
+                    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+                    const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
+                    const balance = amountGiven - totalAmount;
+                    saleData.balance_amount = balance; // Add balance amount to saleData
+                    saleData.amount_given = amountGiven; // Add amount given to saleData
+                    
                     sendSaleData(saleData);
                 }
             });
@@ -1334,6 +1342,7 @@ $(document).ready(function() {
 
 
     });
+
 </script>
 
 

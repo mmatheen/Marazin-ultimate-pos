@@ -188,32 +188,38 @@ class SaleController extends Controller
             'total_amount' => 'nullable|numeric|min:0',
             'discount_type' => 'required|string|in:fixed,percentage',
             'discount_amount' => 'nullable|numeric|min:0',
+            'amount_given' => 'nullable|numeric|min:0',
+            'balance_amount' => 'nullable|numeric|min:0',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
-
+    
         try {
             $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
-
+    
                 $subtotal = array_reduce($request->products, function ($carry, $product) {
                     return $carry + $product['subtotal'];
                 }, 0);
-
+    
                 $discount = $request->discount_amount ?? 0;
                 if ($request->discount_type === 'percentage') {
                     $finalTotal = $subtotal - ($subtotal * $discount / 100);
                 } else {
                     $finalTotal = $subtotal - $discount;
                 }
-
+    
                 $totalPaid = $request->total_paid ?? 0;
                 $totalDue = $finalTotal - $totalPaid;
-
+    
+                // Calculate balance amount
+                $amountGiven = $request->amount_given ?? 0;
+                $balanceAmount = $amountGiven - $finalTotal;
+    
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
@@ -228,18 +234,20 @@ class SaleController extends Controller
                     'total_due' => $totalDue,
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
+                    'amount_given' => $amountGiven, // Add amount given
+                    'balance_amount' => $balanceAmount, // Add balance amount
                 ])->save();
-
+    
                 if ($isUpdate) {
                     foreach ($sale->products as $product) {
                         $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         $product->delete();
                     }
                 }
-
+    
                 foreach ($request->products as $productData) {
                     $product = Product::findOrFail($productData['product_id']);
-
+    
                     if ($product->stock_alert === 0) {
                         // Handle unlimited stock product
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
@@ -249,15 +257,15 @@ class SaleController extends Controller
                             $request->location_id,
                             $productData['product_id']
                         );
-
+    
                         if ($productData['quantity'] > $availableStock) {
                             throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
                         }
-
+    
                         $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     }
                 }
-
+    
                 // Insert ledger entry for the sale
                 Ledger::create([
                     'transaction_date' => $request->sales_date,
@@ -269,7 +277,7 @@ class SaleController extends Controller
                     'contact_type' => 'customer',
                     'user_id' => $request->customer_id,
                 ]);
-
+    
                 // Insert ledger entries and create payment records for each payment
                 if (!empty($request->payments)) {
                     foreach ($request->payments as $paymentData) {
@@ -283,7 +291,7 @@ class SaleController extends Controller
                             'contact_type' => 'customer',
                             'user_id' => $request->customer_id,
                         ]);
-
+    
                         Payment::create([
                             'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
                             'amount' => $paymentData['amount'],
@@ -305,30 +313,32 @@ class SaleController extends Controller
                             'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                         ]);
                     }
-
+    
                     $this->updatePaymentStatus($sale);
                 } else {
                     $sale->updateTotalDue();
                 }
-
+    
                 return $sale;
             });
-
+    
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($request->products, function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);
             }, 0);
-
+    
             $html = view('sell.receipt', [
                 'sale' => $sale,
                 'customer' => $customer,
                 'products' => $products,
                 'payments' => $payments,
                 'total_discount' => $totalDiscount,
+                'amount_given' => $sale->amount_given, // Pass amount given to the view
+                'balance_amount' => $sale->balance_amount, // Pass balance amount to the view
             ])->render();
-
+    
             return response()->json(['message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 'invoice_html' => $html], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
@@ -696,15 +706,21 @@ class SaleController extends Controller
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);
             }, 0);
-
+    
+            // Fetch amount_given and balance_amount from the sale
+            $amount_given = $sale->amount_given;
+            $balance_amount = $sale->balance_amount;
+    
             $html = view('sell.receipt', [
                 'sale' => $sale,
                 'customer' => $customer,
                 'products' => $products,
                 'payments' => $payments,
                 'total_discount' => $totalDiscount,
+                'amount_given' => $amount_given, // Pass amount_given to the view
+                'balance_amount' => $balance_amount, // Pass balance_amount to the view
             ])->render();
-
+    
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

@@ -22,7 +22,9 @@ class Sale extends Model
         'total_due',
         'payment_status',
         'discount_type',
-        'discount_amount'
+        'discount_amount',
+        'amount_given',
+        'balance_amount',
     ];
 
     public function products()

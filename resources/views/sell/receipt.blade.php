@@ -31,6 +31,7 @@
         .table th, .table td {
             padding: 6px !important;
             font-size: 10px !important;
+            vertical-align: top; /* Ensure consistent vertical alignment */
         }
         .text-end {
             text-align: right !important;
@@ -56,6 +57,16 @@
             max-width: 100%;
             height: auto;
             width: 80px; /* Adjusted for thermal printer width */
+        }
+        /* Additional padding and alignment adjustments */
+        .billAddress div {
+            margin-bottom: 4px; /* Consistent spacing between address details */
+        }
+        .table td {
+            padding: 4px 6px !important; /* Reduced padding for better compactness */
+        }
+        .quantity-with-pcs {
+            display: inline-block; /* Align "pcs" next to quantity */
         }
     }
 </style>
@@ -84,7 +95,6 @@
                     [{{ date('d-m-Y ', strtotime($sale->sales_date)) }}]
                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
                     </div>
-
               </td>
               <td>&nbsp;</td>
               <td width="120" align="center">
@@ -99,20 +109,20 @@
     <table width="100%" border="0" style="color: #000; margin-bottom: 12px;">
         <tbody>
             <tr>
-                <th width="20" align="left" valign="top" scope="col">#</th>
-                <th align="left" valign="top" scope="col">Items</th>
-                <th align="left" valign="top" scope="col">Rate</th>
-                <th align="center" valign="top" scope="col">Qty</th>
-                <th width="80" align="right" valign="top" scope="col">Amount</th>
+                <th>#</th>
+                <th>Items</th>
+                <th>Rate</th>
+                <th>Qty</th>
+                <th>Amount</th>
             </tr>
             <tr>
-                <th colspan="5" align="left" valign="top" scope="col">
+                <th colspan="5">
                     <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
                 </th>
             </tr>
             @foreach ($products as $index => $product)
             <tr>
-                <td width="20" valign="top">{{ $index + 1 }}</td>
+                <td>{{ $index + 1 }}</td>
                 <td colspan="4" valign="top">
                     {{ $product->product->product_name }}
                     @if ($product->price_type == 'retail')
@@ -126,7 +136,7 @@
             </tr>
 
             <tr>
-                <td width="20" valign="top">&nbsp;</td>
+                <td valign="top">&nbsp;</td>
                 <td valign="top">
                     <span style="text-decoration: line-through">
                         {{ number_format($product->product->max_retail_price, 0, '.', ',') }}
@@ -136,10 +146,10 @@
                 <td align="left" valign="top">
                     <span>{{ number_format($product->price, 0, '.', ',') }}</span>
                 </td>
-                <td align="center" valign="top">
-                    <span>&times; {{ $product->quantity }} pcs</span>
+                <td align="left" valign="top" class="quantity-with-pcs">
+                    <span>&times; {{ $product->quantity }} pcs</span> <!-- Align "pcs" next to quantity -->
                 </td>
-                <td width="80" align="right" valign="top">
+                <td valign="top">
                     <span>{{ number_format($product->price * $product->quantity, 0, '.', ',') }}</span>
                 </td>
             </tr>
@@ -156,19 +166,32 @@
               <td align="right"><strong>TOTAL</strong></td>
               <td width="80" align="right">{{ number_format($sale->final_total, 0, '.', ',') }}</td>
             </tr>
+            @if(!is_null($amount_given) && $amount_given > 0)
+            <tr>
+              <td align="right"><strong>AMOUNT GIVEN</strong></td>
+              <td width="80" align="right">{{ number_format($amount_given, 0, '.', ',') }}</td>
+            </tr>
+            @endif
             <tr>
               <td align="right"><strong>PAID</strong></td>
               <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
             </tr>
+            @if(!is_null($balance_amount) && $balance_amount > 0)
             <tr>
-                <td align="right"><strong>BALANCE</strong></td>
+              <td align="right"><strong>BALANCE GIVEN</strong></td>
+              <td width="80" align="right">{{ number_format($balance_amount, 0, '.', ',') }}</td>
+            </tr>
+            @endif
+            @if(!is_null($sale->total_due) && $sale->total_due > 0)
+            <tr>
+                <td align="right"><strong>BALANCE DUE</strong></td>
                 <td width="80" align="right">
                     <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
                         ({{ number_format($sale->total_due, 0, '.', ',') }})
                     </div>
                 </td>
             </tr>
-
+            @endif
           </tbody>
         </table>
 
