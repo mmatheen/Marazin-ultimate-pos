@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Receipt</title>
+<title>RECEIPT</title>
 <style>
     @page {
         margin: 10px;
@@ -51,28 +51,28 @@
         }
         .logo-container {
             text-align: center;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
+            margin-top: 4px;
         }
         .logo-container img {
             max-width: 100%;
             height: auto;
-            width: 80px; /* Adjusted for thermal printer width */
+            width: 100%;
         }
-        /* Additional padding and alignment adjustments */
         .billAddress div {
-            margin-bottom: 4px; /* Consistent spacing between address details */
+            margin-bottom: 4px; 
         }
         .table td {
-            padding: 4px 6px !important; /* Reduced padding for better compactness */
+            padding: 4px 6px !important; 
         }
         .quantity-with-pcs {
-            display: inline-block; /* Align "pcs" next to quantity */
+            display: inline-block; 
         }
     }
 </style>
 </head>
 
-<body class="billBody" style="font-family: Arial, sans-serif; font-size: 12px; padding: 8px;">
+<body class="billBody" style="font-family: Arial, sans-serif; font-size: 12px; padding: 8px; text-transform: uppercase;">
 
 <div id="printArea">
 
@@ -80,9 +80,9 @@
         <img src="{{ asset('assets/img/ARB_Fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
     </div>
     <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
-        <div>Address: {{ Auth::user()->location->address }}</div>
-        <div>Phone: {{ Auth::user()->location->mobile }}</div>
-        <div>Email: {{ Auth::user()->location->email }}</div>
+        <div>ADDRESS: {{ Auth::user()->location->address }}</div>
+        <div>PHONE: {{ Auth::user()->location->mobile }}</div>
+        <div>EMAIL: {{ Auth::user()->location->email }}</div>
     </div>
 
     <div style="font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
@@ -110,10 +110,10 @@
         <tbody>
             <tr>
                 <th>#</th>
-                <th>Items</th>
-                <th>Rate</th>
-                <th>Qty</th>
-                <th>Amount</th>
+                <th>ITEMS</th>
+                <th>RATE</th>
+                <th>QTY</th>
+                <th>AMOUNT</th>
             </tr>
             <tr>
                 <th colspan="5">
@@ -124,7 +124,7 @@
             <tr>
                 <td>{{ $index + 1 }}</td>
                 <td colspan="4" valign="top">
-                    {{ $product->product->product_name }}
+                    <strong style="font-weight: 520;">{{ $product->product->product_name }}</strong>
                     @if ($product->price_type == 'retail')
                         <span style="font-weight: bold;">*</span>
                     @elseif($product->price_type == 'wholesale')
@@ -149,8 +149,8 @@
                 <td align="left" valign="top" class="quantity-with-pcs">
                     <span>&times; {{ $product->quantity }} pcs</span> <!-- Align "pcs" next to quantity -->
                 </td>
-                <td valign="top">
-                    <span>{{ number_format($product->price * $product->quantity, 0, '.', ',') }}</span>
+                <td valign="top" align="right">
+                    <span style="font-weight: bold;">{{ number_format($product->price * $product->quantity, 2, '.', ',') }}</span>
                 </td>
             </tr>
             @endforeach
@@ -163,31 +163,31 @@
         <table width="100%" border="0" style="color: #000;">
           <tbody>
             <tr>
-              <td align="right"><strong>TOTAL</strong></td>
-              <td width="80" align="right">{{ number_format($sale->final_total, 0, '.', ',') }}</td>
+              <td class="text-end"><strong>TOTAL</strong></td>
+              <td width="80" class="text-end" style="font-weight: bold;">{{ number_format($sale->final_total, 2, '.', ',') }}</td>
             </tr>
             @if(!is_null($amount_given) && $amount_given > 0)
             <tr>
-              <td align="right"><strong>AMOUNT GIVEN</strong></td>
-              <td width="80" align="right">{{ number_format($amount_given, 0, '.', ',') }}</td>
+              <td class="text-end"><strong>AMOUNT GIVEN</strong></td>
+              <td width="80" class="text-end">{{ number_format($amount_given, 2, '.', ',') }}</td>
             </tr>
             @endif
             <tr>
-              <td align="right"><strong>PAID</strong></td>
-              <td width="80" align="right">{{ number_format($sale->total_paid, 0, '.', ',') }}</td>
+              <td class="text-end"><strong>PAID</strong></td>
+              <td width="80" class="text-end">{{ number_format($sale->total_paid, 2, '.', ',') }}</td>
             </tr>
             @if(!is_null($balance_amount) && $balance_amount > 0)
             <tr>
-              <td align="right"><strong>BALANCE GIVEN</strong></td>
-              <td width="80" align="right">{{ number_format($balance_amount, 0, '.', ',') }}</td>
+              <td class="text-end"><strong>BALANCE GIVEN</strong></td>
+              <td width="80" class="text-end">{{ number_format($balance_amount, 2, '.', ',') }}</td>
             </tr>
             @endif
             @if(!is_null($sale->total_due) && $sale->total_due > 0)
             <tr>
-                <td align="right"><strong>BALANCE DUE</strong></td>
-                <td width="80" align="right">
+                <td class="text-end"><strong>BALANCE DUE</strong></td>
+                <td width="80" class="text-end">
                     <div style="padding: 4px; display: inline-block; min-width: 60px; text-align: right;">
-                        ({{ number_format($sale->total_due, 0, '.', ',') }})
+                        ({{ number_format($sale->total_due, 2, '.', ',') }})
                     </div>
                 </td>
             </tr>
@@ -195,35 +195,37 @@
           </tbody>
         </table>
 
-        <div style="position: absolute; left: 0; bottom: 0; display: block;">
-            <div style="border-right: 1px dashed #000; padding-right: 8px; padding-bottom: 4px; font-size: 10px; color: #000;">
-                <strong>Total Items: {{ count($products) }}</strong><br>
-                <strong>Total Qty: {{ $products->sum('quantity') }}</strong>
-            </div>
-        </div>
-    </div>
-
-    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
-    <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-        <p><strong>Payment Method:</strong> {{ $payments->first()->payment_method ?? 'N/A' }}</p>
-    </div>
-
-    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
-
-    @php
+        @php
         $total_discount = $products->sum(function($product) {
             return ($product->product->max_retail_price - $product->price) * ($product->quantity > 1 ? 1 : $product->quantity);
         });
-    @endphp
+      @endphp
+    </div>
+    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
+        <div style="display: flex; text-align: center;">
+            <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
+                <strong>{{ count($products) }}</strong><br>
+                TOTAL ITEMS
+            </div>
+            <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
+                <strong>{{ $products->sum('quantity') }}</strong><br>
+                TOTAL QTY
+            </div>
+            <div style="flex: 1; padding: 4px;">
+                <strong>{{ number_format($total_discount, 2, '.', ',') }}</strong><br>
+                TOTAL DISCOUNT
+            </div>
+        </div>
 
+
+    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
     <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-        Total Discount : Rs. {{ number_format($total_discount, 0, '.', ',') }}
+        <p><strong>PAYMENT METHOD:</strong> {{ $payments->first()->payment_method ?? 'N/A' }}</p>
     </div>
 
-    <hr style="margin-top: 8px; border-top-style: dashed; border-width: 1px;">
-
+    <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
     <div class="attribute" style="font-size: 12px; color: #000; font-weight: normal !important; text-align: center;">
-        Software: Marazin Pvt.Ltd | www.marazin.lk | +94 75 757 1411
+        SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959
     </div>
 </div>
 
