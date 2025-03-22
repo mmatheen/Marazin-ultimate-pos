@@ -66,7 +66,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
     })->middleware(['auth', 'verified'])->name('dashboard');
 
 
-    Route::group(['middleware' => ['roleAndPermissionCheck']], function () {
+    // Route::group(['middleware' => ['roleAndPermissionCheck']], function () {
         // User Routes
         Route::get('/user', [UserController::class, 'user'])->name('user');
         Route::get('/user-edit/{id}', [UserController::class, 'edit']);
@@ -379,4 +379,4 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
     });
-});
+// });
