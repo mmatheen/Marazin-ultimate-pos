@@ -40,7 +40,7 @@ class UserSeeder extends Seeder
                 'is_admin' => false,
                 'email' => 'suraif@arbtrading.lk',
                 'password' => '1234',
-                'role' => 'Cashier',
+                'role' => 'Admin',
                 'location_id' => $location_ids[1] // Assign the first location ID (Colombo)
             ],
             [
@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
                 'is_admin' => false,
                 'email' => 'riskan@arbtrading.lk',
                 'password' => '1234',
-                'role' => 'Manager',
+                'role' => 'Admin',
                 'location_id' => $location_ids[1] // Assign the second location ID (Colombo)
             ],
             [
