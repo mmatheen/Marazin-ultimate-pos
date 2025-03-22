@@ -741,7 +741,7 @@
 
             console.log("finaltotal " + totalAmountWithDiscount);
 
-            document.getElementById('items-count').textContent = totalItems.toFixed(2);
+            document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
             document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
                 .toFixed(2));

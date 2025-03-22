@@ -29,13 +29,6 @@
 
     <style>
         /* General Styles */
-        body {
-            font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            background-color: #dedede;
-        }
-
         .is-invalidRed {
             border-color: #e61414 !important;
         }
@@ -44,18 +37,77 @@
             border-color: rgb(3, 105, 54) !important;
         }
 
-        /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
-        .quantity-input::-webkit-outer-spin-button,
-        .quantity-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
+        /* Scrollable Content */
+        .scrollable-content {
+            max-height: 470px;
+            overflow-y: auto;
+        }
+
+        /* Total Payable Section */
+        .total-payable-section {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .total-payable-section h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .total-payable-section #total {
+            font-size: 24px;
+            font-weight: 800;
+            color: #d9534f;
             margin: 0;
         }
 
-        /* Hide number input arrows in Firefox */
-        .quantity-input {
-            -moz-appearance: textfield;
+        .total-payable-section button {
+            margin-top: 20px;
         }
 
+
+                    /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
+            .quantity-input::-webkit-outer-spin-button,
+            .quantity-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+
+            /* Hide number input arrows in Firefox */
+            .quantity-input {
+                -moz-appearance: textfield;
+            }
+
+
+
+
+        /* Button Styles */
+        .btn-outline-teal {
+            border-color: #20c997;
+            color: #20c997;
+            background: none;
+        }
+
+        .btn-outline-teal:hover {
+            background-color: #20c997;
+            color: white;
+        }
+
+        .btn-outline-purple {
+            border-color: #6f42c1;
+            color: #6f42c1;
+            background: none;
+        }
+
+        .btn-outline-purple:hover {
+            background-color: #6f42c1;
+            color: white;
+        }
 
         /* Button Sizes */
         .btn-sm {
@@ -64,7 +116,31 @@
             border-radius: 5px !important;
         }
 
+        .row .col-auto {
+            margin-right: 20px !important;
+        }
 
+        /* Add Expense Button */
+        .btn-primary {
+            background-color: #4f46e5 !important;
+            border: none !important;
+            color: white !important;
+        }
+
+        .btn-primary:hover {
+            background-color: #3c3aad !important;
+        }
+
+        /* Location and Date Section */
+        .d-flex.align-items-center p {
+            font-size: 16px !important;
+            font-weight: 600 !important;
+        }
+
+        .d-flex.align-items-center h6 {
+            font-size: 16px !important;
+            color: #333 !important;
+        }
 
         /* Bottom Fixed Section */
         .bottom-fixed {
@@ -85,7 +161,46 @@
             border-radius: 5px;
         }
 
+        .bottom-fixed .btn-primary {
+            background-color: #4f46e5;
+            border: none;
+            color: #fff;
+        }
 
+        .bottom-fixed .btn-primary:hover {
+            background-color: #3c3aad;
+        }
+
+        .bottom-fixed .btn-warning {
+            background-color: #f59e0b;
+            border: none;
+            color: #fff;
+        }
+
+        .bottom-fixed .btn-warning:hover {
+            background-color: #d97706;
+        }
+
+        .bottom-fixed .btn-danger {
+            background-color: #dc2626;
+            border: none;
+            color: #fff;
+        }
+
+        .bottom-fixed .btn-danger:hover {
+            background-color: #b91c1c !important;
+        }
+
+        .bottom-fixed .total-payable-section h4,
+        .bottom-fixed .total-payable-section h5 {
+            margin: 0 !important;
+            font-weight: bold !important;
+        }
+
+        .bottom-fixed .total-payable-section h5 {
+            color: #16a34a !important;
+            text-align: left !important;
+        }
 
         .product-card {
             border: 1px solid #ddd;
@@ -159,6 +274,21 @@
                 flex: 0 0 100%;
                 max-width: 100%;
             }
+        }
+
+        .btn-add-to-cart {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-add-to-cart:hover {
+            background-color: #0056b3;
         }
 
         /* Offcanvas Styles */
@@ -475,148 +605,173 @@
         }
 
         /* .remove-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            } */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        } */
 
         .star {
             color: gold;
             font-size: 20px;
             margin-left: 5px;
         }
-
         .ui-autocomplete {
-            max-height: 200px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 0;
-            font-size: 14px;
-        }
+    max-height: 200px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 5px 0;
+    font-size: 14px;
+}
 
-        /* Ensure autocomplete items are properly styled */
-        .ui-menu .ui-menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
+/* Ensure autocomplete items are properly styled */
+.ui-menu .ui-menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
 
-        /* Ensure hover and keyboard focus both show highlight */
-        .ui-menu .ui-menu-item:hover,
-        .ui-menu .ui-menu-item.ui-state-focus,
-        .ui-menu .ui-menu-item.ui-state-active {
-            /* Fix for keyboard navigation */
-            background-color: #007bff !important;
-            /* Highlight color */
-            color: #fff !important;
-            /* Text color */
-            border-radius: 4px;
-        }
+/* Ensure hover and keyboard focus both show highlight */
+.ui-menu .ui-menu-item:hover,
+.ui-menu .ui-menu-item.ui-state-focus,
+.ui-menu .ui-menu-item.ui-state-active { /* Fix for keyboard navigation */
+    background-color: #007bff !important; /* Highlight color */
+    color: #fff !important; /* Text color */
+    border-radius: 4px;
+}
+
+
     </style>
 </head>
 
 <body>
-    <div class="container-fluid p-1">
+    <div class="container-fluid p-3">
         <div class="row">
             <div class="col-md-12">
-            <div class="card bg-white p-2">
-                <div class="row align-items-center">
-                <!-- Location and Date Section -->
-                <div class="col-md-6 d-flex align-items-center">
-                    <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                    <button class="btn btn-primary text-white border-1 px-2 py-1" style="width: auto; height: 30px;" id="currentTimeButton" disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const currentTimeButton = document.getElementById('currentTimeButton');
-                        setInterval(() => {
-                        const now = new Date();
-                        const formattedTime = now.getFullYear() + '-' +
-                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                            ('0' + now.getDate()).slice(-2) + ' ' +
-                            ('0' + now.getHours()).slice(-2) + ':' +
-                            ('0' + now.getMinutes()).slice(-2) + ':' +
-                            ('0' + now.getSeconds()).slice(-2);
-                        currentTimeButton.textContent = formattedTime;
-                        }, 1000);
-                    });
-                    </script>
+                <div class="card bg-white p-1">
+                    <div class="row align-items-center">
+                        <!-- Location and Date Section -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
+                            <button class="btn btn-primary text-white border-1 px-2 py-1"
+                                style="width: auto; height: 30px;" id="currentTimeButton"
+                                disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const currentTimeButton = document.getElementById('currentTimeButton');
+                                    setInterval(() => {
+                                        const now = new Date();
+                                        const formattedTime = now.getFullYear() + '-' +
+                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                                            ('0' + now.getDate()).slice(-2) + ' ' +
+                                            ('0' + now.getHours()).slice(-2) + ':' +
+                                            ('0' + now.getMinutes()).slice(-2) + ':' +
+                                            ('0' + now.getSeconds()).slice(-2);
+                                        currentTimeButton.textContent = formattedTime;
+                                    }, 1000);
+                                });
+                            </script>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end gap-3 d-none d-md-flex">
+                                <button class="btn btn-light btn-sm" onclick="history.back()"><i
+                                        class="fas fa-backward"></i></button>
+                                <button class="btn btn-danger btn-sm"><i class="fas fa-window-close"></i></button>
+                                <button class="btn btn-success btn-sm"><i class="fas fa-briefcase"></i></button>
+
+                                <!-- Calculator Button with Dropdown -->
+                                <div class="dropdown">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-calculator"></i>
+                                    </button>
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                        <div class="text-center">
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2"
+                                                onkeydown="handleKeyboardInput(event)" autofocus>
+                                        </div>
+                                        <div class="d-grid gap-1">
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('/')">/</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('*')">×</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('-')">-</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col"
+                                                    onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col"
+                                                    onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col"
+                                                    onclick="calcInput('+')">+</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-success btn-sm col"
+                                                    onclick="calculateResult()">=</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="dropdown">
+                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-redo-alt"></i>
+                                    </button>
+
+                                    <!-- Dropdown menu -->
+                                    <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
+                                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
+                                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
+                                    data-bs-target="#suspendSalesModal">
+                                    <i class="fas fa-pause-circle"></i> Suspended Sales
+                                </button>
+
+                                <button class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal"><i class="fas fa-clock"></i> Recent Transactions</button>
+
+                            </div>
+
+                            <!-- Hamburger Button for Mobile and Tablet -->
+                            <div class="d-flex d-lg-none justify-content-center mb-3">
+                                <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas"
+                                    data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                <!-- Action Buttons -->
-                <div class="col-md-6">
-                    <div class="d-flex justify-content-end gap-3">
-                    <button class="btn btn-light btn-sm" onclick="history.back()"><i class="fas fa-backward"></i></button>
-
-                    <!-- Calculator Button with Dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-calculator"></i>
-                        </button>
-                        <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
-                        <div class="text-center">
-                            <input type="text" id="calcDisplay" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
-                        </div>
-                        <div class="d-grid gap-1">
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
-                            <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
-                            </div>
-                        </div>
-                        </div>
-                    </div>
-
-                    <div class="dropdown">
-                        <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-redo-alt"></i>
-                        </button>
-
-                        <!-- Dropdown menu -->
-                        <div class="dropdown-menu p-3" style="min-width: 250px;">
-                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
-                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
-                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
-                        </div>
-                    </div>
-                    <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
-                        <i class="fas fa-pause-circle"></i> Suspended Sales
-                    </button>
-
-                    <button class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal"><i class="fas fa-clock"></i> Recent Transactions</button>
-                    </div>
-
-                    <!-- Hamburger Button for Mobile and Tablet -->
-                    <div class="d-flex d-lg-none justify-content-center mt-3">
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    </div>
-                </div>
-                </div>
-            </div>
             </div>
         </div>
 
@@ -675,10 +830,8 @@
                             <div class="form-group">
                                 <label for="discount-type">Discount Type</label>
                                 <div class="btn-group w-100" role="group" aria-label="Discount Type">
-                                    <button type="button" class="btn btn-outline-primary active"
-                                        id="fixed-discount-btn">Fixed</button>
-                                    <button type="button" class="btn btn-outline-primary"
-                                        id="percentage-discount-btn">Percentage</button>
+                                    <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Fixed</button>
+                                    <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">Percentage</button>
                                 </div>
                                 <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                             </div>
@@ -687,8 +840,7 @@
                             <div class="form-group">
                                 <label>Discount</label>
                                 <div class="input-group">
-                                    <input type="text" id="discount" name="discount" class="form-control"
-                                        placeholder="0.00">
+                                    <input type="text" id="discount" name="discount" class="form-control" placeholder="0.00">
                                     <span class="input-group-text" id="discount-icon">Rs</span>
                                 </div>
                             </div>
@@ -702,8 +854,7 @@
                         <div class="col-md-3">
                             <div class="form-group">
                                 <label>Amount Given</label>
-                                <input type="text" id="amount-given" class="form-control" placeholder="0.00"
-                                    oninput="formatAmount(this)">
+                                <input type="text" id="amount-given" class="form-control" placeholder="0.00" oninput="formatAmount(this)">
                             </div>
                         </div>
                     </div>
@@ -811,17 +962,16 @@
         <!-- Bottom Fixed Section -->
         <div class="bottom-fixed mt-3">
             <div class="row align-items-center">
-                <!-- Right Side: Total Payable -->
+                 <!-- Right Side: Total Payable -->
                 <div class="col-md-5 d-flex align-items-center gap-2">
                     <h4 class="mb-0">Total Payable:</h4>
                     <span id="total" class="text-success fs-4 fw-bold ms-2">Rs 0.00</span>
                     <span id="items-count" class="text-secondary fs-5 ms-2">(0)</span>
-                    <button class="btn btn-danger ms-auto" id="cancelButton"><i class="fas fa-times"></i>
-                        Cancel</button>
+                    <button class="btn btn-danger ms-auto" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
                 </div>
 
 
-                <!-- Left Side: Actions (Aligned to Right) -->
+               <!-- Left Side: Actions (Aligned to Right) -->
                 <div class="col-md-7 text-end">
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
                         <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
@@ -847,93 +997,89 @@
 
             </div>
         </div>
-    </div>
-    <!-- Bootstrap Modal with Tabs and Dynamic Table -->
-    <div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="recentTransactionsLabel">Recent Transactions</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <ul class="nav nav-tabs" id="transactionTabs">
-                        <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#completed"
-                                onclick="loadTableData('final')">Completed</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#quotation"
-                                onclick="loadTableData('quotation')">Quotation</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#draft"
-                                onclick="loadTableData('draft')">Draft</a>
-                        </li>
-                    </ul>
-                    <div class="tab-content mt-3">
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Invoice No</th>
-                                        <th>Customer</th>
-                                        <th>Amount</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="transactionTableBody">
-                                    <!-- Dynamic Rows Will Be Injected Here -->
-                                </tbody>
-                            </table>
-                        </div>
+
+     <!-- Bootstrap Modal with Tabs and Dynamic Table -->
+<div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recentTransactionsLabel">Recent Transactions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs" id="transactionTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#completed" onclick="loadTableData('final')">Completed</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#quotation" onclick="loadTableData('quotation')">Quotation</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#draft" onclick="loadTableData('draft')">Draft</a>
+                    </li>
+                </ul>
+                <div class="tab-content mt-3">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Invoice No</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionTableBody">
+                                <!-- Dynamic Rows Will Be Injected Here -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Close</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-dark" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        let sales = [];
+<script>
+    let sales = [];
 
-        // Function to fetch sales data from the server
-        async function fetchSalesData() {
-            try {
-                const response = await fetch('/sales');
-                const data = await response.json();
-                if (Array.isArray(data)) {
-                    sales = data;
-                } else if (data.sales && Array.isArray(data.sales)) {
-                    sales = data.sales;
-                } else {
-                    console.error('Unexpected data format:', data);
-                }
-                // Load the default tab data (e.g., 'final')
-                loadTableData('final');
-            } catch (error) {
-                console.error('Error fetching sales data:', error);
-            }
+// Function to fetch sales data from the server
+async function fetchSalesData() {
+    try {
+        const response = await fetch('/sales');
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            sales = data;
+        } else if (data.sales && Array.isArray(data.sales)) {
+            sales = data.sales;
+        } else {
+            console.error('Unexpected data format:', data);
         }
+        // Load the default tab data (e.g., 'final')
+        loadTableData('final');
+    } catch (error) {
+        console.error('Error fetching sales data:', error);
+    }
+}
 
-        // Function to load the sales data into the table
-        function loadTableData(status) {
-            const tableBody = document.getElementById('transactionTableBody');
-            tableBody.innerHTML = ''; // Clear existing table rows
+// Function to load the sales data into the table
+function loadTableData(status) {
+    const tableBody = document.getElementById('transactionTableBody');
+    tableBody.innerHTML = '';  // Clear existing table rows
 
-            const filteredSales = sales
-                .filter(sale => sale.status === status)
-                .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
+    const filteredSales = sales
+        .filter(sale => sale.status === status)
+        .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
 
-            if (filteredSales.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
-            } else {
-                filteredSales.forEach((sale, index) => {
-                    const row = `<tr>
+    if (filteredSales.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
+    } else {
+        filteredSales.forEach((sale, index) => {
+            const row = `<tr>
                 <td>${index + 1}</td>
                 <td>${sale.invoice_no}</td>
                 <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
@@ -944,142 +1090,146 @@
                     <button class='btn btn-outline-danger btn-sm'>Delete</button>
                 </td>
             </tr>`;
-                    tableBody.innerHTML += row;
-                });
-            }
-        }
-
-        // Function to navigate to the edit page
-        function navigateToEdit(saleId) {
-            window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
-        }
-
-        // Function to print the receipt for the sale
-        function printReceipt(saleId) {
-            fetch(`/sales/print-recent-transaction/${saleId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.invoice_html) {
-                        const iframe = document.createElement('iframe');
-                        iframe.style.position = 'fixed';
-                        iframe.style.width = '0';
-                        iframe.style.height = '0';
-                        iframe.style.border = 'none';
-                        document.body.appendChild(iframe);
-
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(data.invoice_html);
-                        iframe.contentDocument.close();
-
-                        iframe.onload = function() {
-                            iframe.contentWindow.print();
-                            iframe.contentWindow.onafterprint = function() {
-                                document.body.removeChild(iframe);
-                            };
-                        };
-                    } else {
-                        alert('Failed to fetch the receipt. Please try again.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching the receipt:', error);
-                    alert('An error occurred while fetching the receipt. Please try again.');
-                });
-        }
-
-        // Event listener to load sales data when the page is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchSalesData();
-
-            setInterval(fetchSalesData, 1000);
+            tableBody.innerHTML += row;
         });
-    </script>
+    }
+}
 
-    <style>
-        .modal-body {
-            max-height: 70vh;
-            overflow-y: auto;
-        }
+// Function to navigate to the edit page
+function navigateToEdit(saleId) {
+    window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
+}
 
-        .table-responsive {
-            overflow-x: auto;
-        }
-    </style>
+// Function to print the receipt for the sale
+function printReceipt(saleId) {
+    fetch(`/sales/print-recent-transaction/${saleId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.invoice_html) {
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+                document.body.appendChild(iframe);
+
+                iframe.contentDocument.open();
+                iframe.contentDocument.write(data.invoice_html);
+                iframe.contentDocument.close();
+
+                iframe.onload = function() {
+                    iframe.contentWindow.print();
+                    iframe.contentWindow.onafterprint = function() {
+                        document.body.removeChild(iframe);
+                    };
+                };
+            } else {
+                alert('Failed to fetch the receipt. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching the receipt:', error);
+            alert('An error occurred while fetching the receipt. Please try again.');
+        });
+}
+
+// Event listener to load sales data when the page is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    fetchSalesData(); 
+
+    setInterval(fetchSalesData, 1000); 
+});
+
+</script>
+
+<style>
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+</style>
 
 
 
-    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="productModalLabel">Product Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="productModalLabel">Product Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="productModalBody">
+                        <!-- Product details will be injected here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveProductChanges">Save changes</button>
+                    </div>
                 </div>
-                <div class="modal-body" id="productModalBody">
-                    <!-- Product details will be injected here -->
+            </div>
+        </div>
+
+        <!-- Bootstrap Modal for Suspend -->
+        <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
+                        <textarea class="form-control" id="suspendNote" rows="3" placeholder="Write reason..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="confirmSuspend">Suspend</button>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="saveProductChanges">Save changes</button>
+            </div>
+        </div>
+        <!-- Bootstrap Modal for Suspended Sales -->
+        <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="suspendSalesModalLabel">Suspended Sales</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Reference No</th>
+                                    <th>Date</th>
+                                    <th>Customer</th>
+                                    <th>Total Items</th>
+                                    <th>Total</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suspendedSalesContainer">
+                                <!-- Suspended sales will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Bootstrap Modal for Suspend -->
-    <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="suspendModalLabel">Suspend Order</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <label for="suspendNote" class="form-label">Enter Suspension Note:</label>
-                    <textarea class="form-control" id="suspendNote" rows="3" placeholder="Write reason..."></textarea>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmSuspend">Suspend</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Bootstrap Modal for Suspended Sales -->
-    <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="suspendSalesModalLabel">Suspended Sales</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Reference No</th>
-                                <th>Date</th>
-                                <th>Customer</th>
-                                <th>Total Items</th>
-                                <th>Total</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="suspendedSalesContainer">
-                            <!-- Suspended sales will be dynamically inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
 
     <div class="container mt-5">
@@ -1573,7 +1723,7 @@
         }
 
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             function handleInvoiceSubmission() {
                 const invoiceNo = document.getElementById('invoiceNo').value.trim().toLowerCase();
                 if (invoiceNo) {
@@ -1581,10 +1731,9 @@
                     $.ajax({
                         url: '/api/sales', // Update this URL if necessary
                         method: 'GET',
-                        success: function(data) {
+                        success: function (data) {
                             // Check if the entered invoice number matches any sales data
-                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() ===
-                                invoiceNo);
+                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() === invoiceNo);
                             if (sale) {
                                 // Redirect to the sale return page with the invoice number as a query parameter
                                 window.location.href = `/sale-return/add?invoiceNo=${invoiceNo}`;
@@ -1593,7 +1742,7 @@
                                 toastr.error('Sale not found. Please enter a valid invoice number.');
                             }
                         },
-                        error: function(error) {
+                        error: function (error) {
                             console.error('Error fetching sales data:', error);
                             toastr.error('An error occurred while fetching sales data.');
                         }
@@ -1604,11 +1753,10 @@
             }
 
             // Capture the Submit button click
-            document.querySelector('.dropdown-menu .btn-primary').addEventListener('click',
-            handleInvoiceSubmission);
+            document.querySelector('.dropdown-menu .btn-primary').addEventListener('click', handleInvoiceSubmission);
 
             // Capture the Enter key press in the input field
-            document.getElementById('invoiceNo').addEventListener('keydown', function(event) {
+            document.getElementById('invoiceNo').addEventListener('keydown', function (event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     handleInvoiceSubmission();
@@ -1624,7 +1772,7 @@
     @include('contact.customer.customer_ajax')
     @include('contact.customer.add_customer_modal')
 
-
+    
 
 </body>
 
