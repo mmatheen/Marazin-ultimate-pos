@@ -26,9 +26,13 @@
                         <div class="row align-items-center">
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
+
+                                @can('create user')
                                 <button type="button" class="btn btn-outline-info " id="addButton">
                                     New <i class="fas fa-plus px-2"> </i>
                                 </button>
+                                @endcan
+
                             </div>
                         </div>
                     </div>
@@ -41,8 +45,7 @@
                                     <th>Name Title</th>
                                     <th>Full Name</th>
                                     <th>User Name</th>
-                                    <th>Role Name</th>
-                                    <th>Location Name</th>
+                                    <th>Role</th>
                                     <th>Email</th>
                                     <th>Action</th>
                                 </tr>
@@ -112,29 +115,11 @@
                                     <div class="mb-5">
                                         <div class="input-group local-forms">
                                             <label>Role Name<span class="login-danger">*</span></label>
-                                            <select id="edit_role_name" name="roles" class="form-control  form-select">
-                                                <option selected disabled>Please Select </option>
-                                                @foreach($roles as $role)
-                                                <option value="{{ $role->name }}">{{ $role->name }}</option>
 
-                                                @endforeach
+                                            <select id="edit_role_name" name="roles" class=" roleDropdown form-control form-select">
+                                                <option value="" selected disabled>Select Role</option>
                                             </select>
                                             <span class="text-danger" id="role_name_error"></span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="mb-5">
-                                        <div class="input-group local-forms">
-                                            <label>Location Name<span class="login-danger">*</span></label>
-                                            <select id="edit_location_id" name="location_id" class="form-control  form-select">
-                                                <option selected disabled>Please Select </option>
-                                                @foreach($locations as $location)
-                                                <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                                @endforeach
-                                            </select>
-                                            <span class="text-danger" id="location_id_error"></span>
                                         </div>
                                     </div>
                                 </div>

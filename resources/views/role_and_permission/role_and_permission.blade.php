@@ -27,16 +27,20 @@
                                 @csrf <!-- Add CSRF token for form submission -->
                                 <div class="row">
                                     <div class="col-md-5">
-                                        <div class="form-group local-forms">
+                                        <div class="form-group local-forms d-flex justify-content-center">
                                             <label>Role Name<span class="login-danger">*</span></label>
-                                            <select id="edit_permission_group_id" name="role_id" class="form-control form-select">
+                                            <select id="select_role_id" name="role_id" class="form-control form-select">
                                                 <option selected disabled>Please Select </option>
                                                 @foreach($roles as $role)
                                                 <option value="{{ $role->id }}">{{ $role->name }}</option>
                                                 @endforeach
                                             </select>
-                                            <span class="text-danger" id="permission_group_id_error"></span>
+                                       
+                                            {{-- <button type="button" class="btn btn-outline-info" id="addRoleButton">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button> --}}
                                         </div>
+                                        <span class="text-danger" id="permission_group_id_error"></span>
                                     </div>
                                     <div class="col-md-7">
                                         <div class="d-flex justify-content-end">
@@ -149,5 +153,6 @@
 </style>
 
 
-@include('user_permissions.role_and_permission.role_and_permission_ajax')
+@include('role_and_permission.role_and_permission_ajax')
+@include('.role.role_ajax')
 @endsection

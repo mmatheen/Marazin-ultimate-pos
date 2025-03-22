@@ -3,33 +3,37 @@
 use Illuminate\Http\Request;
 use App\Models\VariationTitle;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SellController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\VariationController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\SaleReturnController;
+use App\Http\Controllers\SalesReturnController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\MainCategoryController;
 use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\CustomerGroupController;
+use App\Http\Controllers\StockTransferController;
+
+use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\VariationTitleController;
+use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\RoleInPermissionController;
+use App\Http\Controllers\RoleAndPermissionController;
 use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
-use App\Http\Controllers\SellController;
-use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\PurchaseReturnController;
-
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\SaleReturnController;
-use App\Http\Controllers\SalesReturnController;
-use App\Http\Controllers\StockTransferController;
 
 /*
 |--------------------------------------------------------------------------
@@ -188,31 +192,40 @@ Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
 //stop product route
 
-Route::get('/group-role-and-permission-view', [RoleInPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
-Route::get('/group-role-and-permission', [RoleInPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
-Route::get('/role-and-permission-edit/{role_id}', [RoleInPermissionController::class, 'edit']);
-Route::post('/role-and-permission-store', [RoleInPermissionController::class, 'store'])->name('role-and-permission-store');
-Route::get('/group-and-permission-all', [RoleInPermissionController::class, 'index'])->name('group-and-permission-all');
-Route::get('/role-and-permission-all', [RoleInPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
-Route::delete('/role-and-permission-delete/{role_id}', [RoleInPermissionController::class, 'destroy']);
+// Role Routes
+Route::get('/role', [RoleController::class, 'role'])->name('role');
+Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
+Route::get('/role-get-all', [RoleController::class, 'index']);
+Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
+Route::post('/role-update/{id}', [RoleController::class, 'update']);
+Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
+Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
+
+Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
+Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
+Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
+Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
+Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
+Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
+Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
 //stop role route
 
-  //start unit route
-  Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
-  Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
-  Route::get('/unit-get-all', [UnitController::class, 'index']);
-  Route::post('/unit-store', [UnitController::class, 'store']);
-  Route::post('/unit-update/{id}', [UnitController::class, 'update']);
-  Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
-  //stop  brand route
+//start unit route
+Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
+Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
+Route::get('/unit-get-all', [UnitController::class, 'index']);
+Route::post('/unit-store', [UnitController::class, 'store']);
+Route::post('/unit-update/{id}', [UnitController::class, 'update']);
+Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
+//stop  brand route
 
-  Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
-  Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct']);
-
-
+Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
+Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct']);
 
 
-  Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
+
+
+Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
 Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
 Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
 
@@ -220,14 +233,14 @@ Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOp
 // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
 // Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
-  // Store a new purchase
-  // Store a new purchase
-  Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
-  Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
-  Route::get('/purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
-  Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
-  Route::get('/get-all-purchases-product/{id }', [PurchaseController::class, 'getAllPurchaseProduct']);
-  Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
+// Store a new purchase
+// Store a new purchase
+Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
+Route::post('/purchases/update/{id}', [PurchaseController::class, 'storeOrUpdate']);
+Route::get('/purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
+Route::get('/get-all-purchases', [PurchaseController::class, 'getAllPurchase']);
+Route::get('/get-all-purchases-product/{id }', [PurchaseController::class, 'getAllPurchaseProduct']);
+Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
 
 Route::get('/purchase-returns/get-product-details/{purchaseId}/{supplierId}', [PurchaseReturnController::class, 'getProductDetails']);
 
@@ -263,29 +276,26 @@ Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.des
 Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
 
 
-        // Route to fetch all suspended sales
-        Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
+// Route to fetch all suspended sales
+Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
 
-        // Route to resume a suspended sale
-         // Route to resume a suspended sale
-    Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
+// Route to resume a suspended sale
+// Route to resume a suspended sale
+Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
 
-        // Route to delete a suspended sale
-        Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
+// Route to delete a suspended sale
+Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
 
 
 
-  //start Stock transfer route
-  Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
-  Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
-  // For creating a new stock transfer
-  Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
-  Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
-  Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
+//start Stock transfer route
+Route::get('/list-stock-transfer', [StockTransferController::class, 'stockTransfer'])->name('list-stock-transfer');
+Route::get('/add-stock-transfer', [StockTransferController::class, 'addStockTransfer'])->name('add-stock-transfer');
+// For creating a new stock transfer
+Route::post('/stock-transfer/store', [StockTransferController::class, 'storeOrUpdate']);
+Route::put('/stock-transfer/update/{id}', [StockTransferController::class, 'storeOrUpdate']);
+Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
-use App\Http\Controllers\StockAdjustmentController;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\PaymentController;
 
 // Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store']);
 Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
@@ -313,5 +323,5 @@ Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 
 
 Route::post('/supplier-payment', [PaymentController::class, 'handleSupplierPayment']);
-                // web.php (Routes)
-  Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
+// web.php (Routes)
+Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);

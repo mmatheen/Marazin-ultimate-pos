@@ -2,6 +2,7 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        populateRoleDropdown();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
@@ -154,6 +155,7 @@
                         $('#addAndEditRoleModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();
+                        populateRoleDropdown();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, id ? 'Updated' : 'Added');
@@ -162,6 +164,30 @@
                 }
             });
         });
+
+        function populateRoleDropdown() {
+    $.ajax({
+        url: "{{ route('role.dropdown') }}", // Route URL
+        type: "GET",
+        dataType: "json",
+        success: function(response) {
+            if (response.status === 200) {
+                let dropdown = $(".roleDropdown");
+                dropdown.empty().append('<option value="">Select Role</option>');
+
+                $.each(response.roles, function(index, role) {
+                    dropdown.append('<option value="' + role.name + '">' + role.name + '</option>');
+                });
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function(xhr) {
+            console.log("Error:", xhr);
+        }
+    });
+}
+
 
 
         // Delete Role
@@ -185,6 +211,7 @@
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
+                        populateRoleDropdown();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, 'Deleted');

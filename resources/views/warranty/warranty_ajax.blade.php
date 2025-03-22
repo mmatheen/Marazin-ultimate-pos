@@ -165,7 +165,7 @@
                 url: url,
                 type: type,
                 headers: {'X-CSRF-TOKEN': csrfToken},
-                data: formData,  
+                data: formData,
                 contentType: false,
                 processData: false,
                 dataType: 'json',

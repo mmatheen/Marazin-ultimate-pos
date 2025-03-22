@@ -3,14 +3,21 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role; //it will use the from permission modal
+use Spatie\Permission\Models\Role; //it will use the role from permission modal
 use Illuminate\Support\Facades\Validator;
-
 class RoleController extends Controller
 {
 
+    function __construct()
+    {
+        $this->middleware('permission:view role', ['only' => ['index', 'show','role']]);
+        $this->middleware('permission:create role', ['only' => ['store']]);
+        $this->middleware('permission:edit role', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete role', ['only' => ['destroy']]);
+    }
+
     public function role(){
-        return view('user_permissions.role.role');
+        return view('role.role');
     }
 
     public function index()
@@ -21,6 +28,24 @@ class RoleController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
+            ]);
+        } else {
+            return response()->json([
+                'status' => 404,
+                'message' => "No Records Found!"
+            ]);
+        }
+    }
+
+    public function SelectRoleNameDropdown()
+    {
+        $roles = Role::select('id','name')->get();
+
+        // Check if the collection is not empty
+        if ($roles->isNotEmpty()) {
+            return response()->json([
+                'status' => 200,
+                'roles' => $roles,
             ]);
         } else {
             return response()->json([
@@ -85,7 +110,7 @@ class RoleController extends Controller
 
     /**
      * Display the specified resource.
-  
+
      * @return \Illuminate\Http\Response
      */
     public function show(int $id)

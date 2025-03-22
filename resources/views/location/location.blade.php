@@ -88,8 +88,8 @@
                                     <div class="mb-3">
                                         <div class="form-group local-forms">
                                             <label>Location ID<span class="login-danger">*</span></label>
-                                            <input class="form-control" id="edit_location_id" name="location_id" type="text" placeholder="location ID">
-                                            <span class="text-danger" id="location_id_error"></span>
+                                            <input class="form-control" id="edit_place_id" name="place_id" type="text" placeholder="location ID">
+                                            <span class="text-danger" id="place_id_error"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -122,7 +122,7 @@
                                             <span class="text-danger" id="province_error"></span>
                                         </div>
                                     </div>
-                                
+
                                 </div>
 
 

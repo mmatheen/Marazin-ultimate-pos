@@ -51,6 +51,7 @@
                         <li><a href={{ route('main-category') }} class="{{ set_active(['main-category'])}}">Main Category</a></li>
                         <li><a href={{ route('sub-category') }} class="{{ set_active(['sub-category'])}}">Sub Category</a></li>
                         <li><a href={{ route('brand')}} class="{{ set_active(['brand'])}}">Brands</a></li>
+                        
                         @can('View Warranty')
                         <li><a href={{ route('warranty') }} class="{{ set_active(['warranty'])}}">Warranty</a></li>
                          @endcan
@@ -92,9 +93,9 @@
                     <ul>
                         <li><a href={{ route('add-sale-bulk-payments') }} class="{{ set_active(['add-sale-bulk-payments'])}}">All Sales Bulk Payments</a></li>
                         <li><a href={{ route('add-purchase-bulk-payments') }} class="{{ set_active(['add-purchase-bulk-payments'])}}">Add Purchase Bulk Payments</a></li>
-                        
 
-    
+
+
                     </ul>
                 </li>
                 <li class="menu-title">

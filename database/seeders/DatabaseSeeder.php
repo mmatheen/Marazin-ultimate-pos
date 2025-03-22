@@ -20,15 +20,12 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         // you have to add this according to your forignkey table order
+        $this->call(RolesAndPermissionsSeeder::class);
         $this->call(Location::class);
+        $this->call(UserSeeder::class);
         $this->call(MainCategory::class);
         $this->call(SubCategory::class);
-        $this->call(Role::class);
-        $this->call(Permission::class);
-        $this->call(RoleHasPermission::class);
-        $this->call(User::class);
-        $this->call([
-            WalkInCustomerSeeder::class,
+        $this->call([WalkInCustomerSeeder::class,
         ]);
 
 

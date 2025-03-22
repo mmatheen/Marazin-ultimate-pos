@@ -132,7 +132,7 @@
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name + '</td>');
-                        row.append('<td>' + item.location_id + '</td>');
+                        row.append('<td>' + item.place_id + '</td>');
                         row.append('<td>' + item.address + '</td>');
                         row.append('<td>' + item.province + '</td>');
                         row.append('<td>' + item.district + '</td>');
@@ -168,7 +168,7 @@
                     } else if (response.status == 200) {
 
                         $('#edit_name').val(response.message.name);
-                        $('#edit_location_id').val(response.message.location_id);
+                        $('#edit_place_id').val(response.message.place_id);
                         $('#edit_address').val(response.message.address);
                         $('#edit_province').val(response.message.province).trigger('change'); // when click edit location the provices is not again loaded to give the trigger function
                         $('#edit_district').val(response.message.district);

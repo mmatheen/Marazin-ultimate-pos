@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Events\BrandUpdated;
 use Illuminate\Http\Request;
 use App\Models\Unit;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +17,8 @@ class UnitController extends Controller
         $getValue = Unit::all();
         if ($getValue->count() > 0) {
 
+               // Broadcast the updated brand data
+               broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -78,6 +80,8 @@ class UnitController extends Controller
 
 
             if ($getValue) {
+                   // Broadcast the updated brand data
+             broadcast(new BrandUpdated($getValue));
                 return response()->json([
                     'status' => 200,
                     'message' => "New Unit Details Created Successfully!",
@@ -102,6 +106,8 @@ class UnitController extends Controller
     {
         $getValue = Unit::find($id);
         if ($getValue) {
+               // Broadcast the updated brand data
+               broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -124,6 +130,9 @@ class UnitController extends Controller
     {
         $getValue = Unit::find($id);
         if ($getValue) {
+
+               // Broadcast the updated brand data
+               broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -170,6 +179,8 @@ class UnitController extends Controller
                     'allow_decimal'=>$request->allow_decimal,
 
                 ]);
+                   // Broadcast the updated brand data
+             broadcast(new BrandUpdated($getValue));
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Unit  Details Updated Successfully!"
@@ -195,6 +206,8 @@ class UnitController extends Controller
         if ($getValue) {
 
             $getValue->delete();
+               // Broadcast the updated brand data
+               broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => "Unit Details Deleted Successfully!"

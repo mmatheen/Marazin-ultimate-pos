@@ -22,7 +22,7 @@ class LocationController extends Controller
         if ($context === 'all_locations' || $user->role_name=== 'Super Admin') {
             $locations = Location::all();
         } else {
-            $locations = Location::where('id', $user->location_id)->get();
+            $locations = Location::where('id', $user->place_id)->get();
         }
 
         if ($locations->count() > 0) {
@@ -58,13 +58,13 @@ class LocationController extends Controller
             $request->all(),
             [
                 'name' => 'required|string|unique:locations',
-                'location_id' => [
+                'place_id' => [
                     'nullable',
                     'string',
                     'max:255',
                     'unique:locations',
                     function($attribute, $value, $fail) {
-                        // Custom rule for location_id format
+                        // Custom rule for place_id format
                         if (!preg_match('/^LOC\d{4}$/', $value)) {
                             $fail('The ' . $attribute . ' must be in the format LOC followed by 4 digits. eg:  LOC0001');
                         }
@@ -83,38 +83,38 @@ class LocationController extends Controller
                 'telephone_no.required' => 'Please enter a valid telephone number with 10 digits.',
                 'mobile.regex' => 'Please enter a valid mobile number with 10 digits.',
                 'telephone_no.regex' => 'Please enter a valid telephone number with 10 digits.',
-                'location_id.unique' => 'The location_id has already been taken.',
+                'place_id.unique' => 'The place_id has already been taken.',
             ]
         );
 
 
-    // Custom logic for generating location_id auto-increment code start
+    // Custom logic for generating place_id auto-increment code start
 
-    // Generate location_id only if not provided
-    $location_id = $request->location_id;
-    if (!$location_id) {
-        // Custom logic for generating location_id auto-increment code
-        $prefix = 'LOC'; // The prefix for location_id
-        $latestLocation = Location::where('location_id', 'like', $prefix . '%')->orderBy('location_id', 'desc')->first();
+    // Generate place_id only if not provided
+    $place_id = $request->place_id;
+    if (!$place_id) {
+        // Custom logic for generating place_id auto-increment code
+        $prefix = 'LOC'; // The prefix for place_id
+        $latestLocation = Location::where('place_id', 'like', $prefix . '%')->orderBy('place_id', 'desc')->first();
 
-        // Extract the numeric part of the latest location_id and increment it
+        // Extract the numeric part of the latest place_id and increment it
         if ($latestLocation) {
             // Extract numeric part after the prefix 'LOC'
-            $latestID = intval(substr($latestLocation->location_id, strlen($prefix)));
+            $latestID = intval(substr($latestLocation->place_id, strlen($prefix)));
         } else {
             $latestID = 1; // If no record found, start from 1
         }
 
         $nextID = $latestID + 1;
-        $location_id = $prefix . sprintf("%04d", $nextID); // Format as LOC0001, LOC0002, etc.
+        $place_id = $prefix . sprintf("%04d", $nextID); // Format as LOC0001, LOC0002, etc.
 
-        // Check for uniqueness of the generated location_id and regenerate if necessary
-        while (Location::where('location_id', $location_id)->exists()) {
+        // Check for uniqueness of the generated place_id and regenerate if necessary
+        while (Location::where('place_id', $place_id)->exists()) {
             $nextID++;
-            $location_id = $prefix . sprintf("%04d", $nextID);
+            $place_id = $prefix . sprintf("%04d", $nextID);
         }
     }
-        // Custom logic for generating location_id auto-increment code end
+        // Custom logic for generating place_id auto-increment code end
 
 
 
@@ -128,7 +128,7 @@ class LocationController extends Controller
             $getValue = Location::create([
 
                 'name' => $request->name,
-                'location_id' => $location_id, // Use unique generated location ID
+                'place_id' => $place_id, // Use unique generated location ID
                 'address' => $request->address,
                 'province' => $request->province,
                 'district' => $request->district,
@@ -241,7 +241,7 @@ class LocationController extends Controller
                 $getValue->update([
 
                     'name' => $request->name,
-                    'location_id' => $request->location_id,
+                    'place_id' => $request->place_id,
                     'address' => $request->address,
                     'province' => $request->province,
                     'district' => $request->district,

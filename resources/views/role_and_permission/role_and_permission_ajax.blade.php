@@ -8,15 +8,12 @@
         rules: {
             role_id: {
                 required: true,
-
             },
         },
         messages: {
-
             role_id: {
                 required: "Role Name is required",
             },
-
         },
         errorElement: 'span',
         errorPlacement: function (error, element) {
@@ -50,7 +47,6 @@
             $('#addAndUpdateForm').find('input[type="checkbox"]').prop('checked', false);
         }
 
-        // Fetch and Display Data
        // Fetch and Display Data
        function showFetchData() {
     $.ajax({
@@ -76,34 +72,11 @@
     });
 }
 
-            // Show Edit Modal
-        //     $(document).on('click', '.edit_btn', function() {
-        //     var role_id = $(this).val();
-        //     console.log(role_id);
-        //     $('#addAndUpdateForm')[0].reset();
-        //     $('#edit_id').val(role_id);
-
-        //     $.ajax({
-        //         url: 'role-and-permission/' + role_id,
-        //         type: 'get',
-        //         success: function(response) {
-        //             if (response.status == 404) {
-        //                 toastr.error(response.message, 'Error');
-        //             } else if (response.status == 200) {
-        //                 $('#edit_name').val(response.message.name);
-        //                 $('#edit_description').val(response.message.description);
-        //                 $('#edit_duration').val(response.message.duration);
-        //                 $('#edit_duration_type').val(response.message.duration_type);
-        //                 $('#addAndEditWarrantyModal').modal('show');
-        //             }
-        //         }
-        //     });
-        // });
 
         $(document).on('click', '.edit_btn', function() {
             var role_id = $(this).val(); // Get the ID from the button value
             // Redirect to the edit page for the specific role ID
-            window.location.href = 'role-and-permission-edit/' +role_id;
+            window.location.href = `/role-and-permission-edit/${role_id}`;
             });
 
 
@@ -119,8 +92,10 @@
             }
 
             let formData = new FormData(this);
-            let url = 'role-and-permission-store';
-            let type ='post';
+            const id = window.location.pathname.split('/').pop();
+            console.log(id);
+             let url = id ? '/role-and-permission-update/' + id : 'role-and-permission-store';
+            let type = 'post';
 
             $.ajax({
                 url: url,
@@ -142,7 +117,7 @@
 
                     } else {
                         document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.success(response.message,'Added');
+                        toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
                         window.location.href = '/group-role-and-permission-view';
                     }

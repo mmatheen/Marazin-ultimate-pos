@@ -65,12 +65,14 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
 
+        'roleAndPermissionCheck' => \App\Http\Middleware\RoleAndPermissionCheckMiddleware::class,
+        'check.session' => \App\Http\Middleware\CheckSession::class,
 
         //this middleware coming from spatie
         'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-        'check.session' => \App\Http\Middleware\CheckSession::class,
+
     ];
 
 
