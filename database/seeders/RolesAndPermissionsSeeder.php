@@ -60,8 +60,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $manager = Role::create(['name' => 'Manager']);
         $manager->givePermissionTo(['view role', 'view warranty']);
 
-        // Casheir - Read-Only Access
-        $cashier = Role::create(['name' => 'Cashier']);
-        $cashier->givePermissionTo(['view role', 'view warranty']);
+        // // Casheir - Read-Only Access
+        // $cashier = Role::create(['name' => 'Cashier']);
+        // $cashier->givePermissionTo(['view role', 'view warranty']);
     }
 }
