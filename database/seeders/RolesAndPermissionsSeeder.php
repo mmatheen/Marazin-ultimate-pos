@@ -39,12 +39,16 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
         ];
 
-        //  Create Each Permission & Assign Group
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-                Permission::create(['name' => $permission, 'group_name' => $group]);
+                Permission::firstOrCreate([
+                    'name' => $permission,
+                    'group_name' => $group,
+                    'guard_name' => 'web' // Ensure the correct guard
+                ]);
             }
         }
+        
 
         //  Define Roles & Assign Permissions
 

@@ -32,29 +32,7 @@ class UserSeeder extends Seeder
                 'role' => 'Super Admin',
                 'location_id' => $location_ids[1] // Assign the first location ID (Kalmunai)
             ],
-            [
-                'name_title' => 'Mr',
-                'name' => 'Admin',
-                'user_name' => 'Ahshan',
-                'is_admin' => false,
-                'email' => 'kalmunaidmin@gmail.com',
-                'password' => '1234',
-                'role' => 'admin',
-                'location_id' => $location_ids[1] // Assign the second location ID (Colombo)
-            ],
-            [
-                'name_title' => 'Mr',
-                'name' => 'Manager',
-                'user_name' => 'Aasath',
-                'is_admin' => false,
-                'email' => 'kalmunaimanager@gmail.com',
-                'password' => '1234',
-                'role' => 'manager',
-                'location_id' => $location_ids[1] // Assign the third location ID (Galle)
-            ],
-
-            // colombo
-
+            
             [
                 'name_title' => 'Mr',
                 'name' => 'Ahamed',
