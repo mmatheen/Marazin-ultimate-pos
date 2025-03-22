@@ -30,6 +30,13 @@ return new class extends Migration
             $table->enum('contact_type', ['customer', 'supplier'])->nullable(); // Type of contact: customer or supplier
             $table->bigInteger('user_id')->unsigned()->nullable(); // ID of the customer or supplier (foreign key)
             $table->timestamps(); // created_at, updated_at
+            $table->unsignedBigInteger('location_id');
+
+
+            // Foreign key constraints
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
+
+
         });
     }
 

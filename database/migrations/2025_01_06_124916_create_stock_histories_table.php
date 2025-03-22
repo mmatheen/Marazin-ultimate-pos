@@ -14,6 +14,7 @@ return new class extends Migration
             Schema::create('stock_histories', function (Blueprint $table) {
                 $table->bigIncrements('id');
                 $table->unsignedBigInteger('loc_batch_id')->nullable();
+                $table->unsignedBigInteger('location_id');
                 $table->integer('quantity');
                 $table->enum('stock_type', [
                     'opening_stock',
@@ -31,6 +32,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('loc_batch_id')->references('id')->on('location_batches')->onDelete('cascade');
+                $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
             });
 
     }

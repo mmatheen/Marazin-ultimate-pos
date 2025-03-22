@@ -93,7 +93,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
         Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
 
-
         Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
         Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
         Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
