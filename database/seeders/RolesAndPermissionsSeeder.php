@@ -52,9 +52,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::create(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
 
-        // Admin - Role & Warranty Management
-        $admin = Role::create(['name' => 'Admin']);
-        $admin->givePermissionTo(['create role', 'edit role', 'view role','edit warranty', 'view warranty']);
+        // // Admin - Role & Warranty Management
+        // $admin = Role::create(['name' => 'Admin']);
+        // $admin->givePermissionTo(['create role', 'edit role', 'view role','edit warranty', 'view warranty']);
 
         // // Manager - Read-Only Access
         // $manager = Role::create(['name' => 'Manager']);
