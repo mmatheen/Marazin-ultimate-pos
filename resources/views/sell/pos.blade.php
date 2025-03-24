@@ -27,596 +27,606 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
 
-    <style>
-        /* General Styles */
-        body {
-            font-family: 'Roboto', sans-serif;
-            font-size: 14px;
-            line-height: 1.5;
-            background-color: #dedede;
-        }
-
-        .is-invalidRed {
-            border-color: #e61414 !important;
-        }
-
-        .is-validGreen {
-            border-color: rgb(3, 105, 54) !important;
-        }
-
-        /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
-        .quantity-input::-webkit-outer-spin-button,
-        .quantity-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        /* Hide number input arrows in Firefox */
-        .quantity-input {
-            -moz-appearance: textfield;
-        }
-
-
-        /* Button Sizes */
-        .btn-sm {
-            padding: 8px 12px !important;
-            font-size: 14px !important;
-            border-radius: 5px !important;
-        }
-
-
-
-        /* Bottom Fixed Section */
-        .bottom-fixed {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: #fff;
-            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
-            padding: 10px 20px;
-        }
-
-        .bottom-fixed .btn {
-            font-size: 14px;
-            font-weight: bold;
-            padding: 10px 15px;
-            border-radius: 5px;
-        }
-
-
-
-        .product-card {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-            min-height: 160px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            /* Uniform margin bottom */
-        }
-
-        .product-card img {
-            max-width: 100%;
-            height: auto;
-            max-height: 80px;
-            object-fit: contain;
-        }
-
-        .product-card h6 {
-            font-size: 14px;
-            margin: 6px 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .product-card .product-card-body {
-            display: flex;
-            flex-direction: column;
-            align-items: left;
-        }
-
-        .product-card .badge {
-            font-size: 12px;
-            margin-top: 5px;
-        }
-
-        /* Responsive grid layout */
-        @media (min-width: 1400px) {
-            #posProduct .col-xxl-3 {
-                flex: 0 0 25%;
-                max-width: 25%;
+        <style>
+            /* General Styles */
+            body {
+                font-family: 'Roboto', sans-serif;
+                font-size: 14px;
+                line-height: 1.5;
+                background-color: #dedede;
             }
-        }
-
-        @media (min-width: 1200px) and (max-width: 1399px) {
-            #posProduct .col-xl-4 {
-                flex: 0 0 33.3333%;
-                max-width: 33.3333%;
+        
+            .is-invalidRed {
+                border-color: #e61414 !important;
             }
-        }
-
-        @media (min-width: 992px) and (max-width: 1199px) {
-            #posProduct .col-lg-4 {
-                flex: 0 0 33.3333%;
-                max-width: 33.3333%;
+        
+            .is-validGreen {
+                border-color: rgb(3, 105, 54) !important;
             }
-        }
-
-        @media (min-width: 768px) and (max-width: 991px) {
-            #posProduct .col-md-6 {
-                flex: 0 0 50%;
-                max-width: 50%;
+        
+            /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
+            .quantity-input::-webkit-outer-spin-button,
+            .quantity-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
             }
-        }
-
-        @media (max-width: 767px) {
-            #posProduct .col-sm-12 {
-                flex: 0 0 100%;
+        
+            /* Hide number input arrows in Firefox */
+            .quantity-input {
+                -moz-appearance: textfield;
+            }
+        
+            /* Button Sizes */
+            .btn-sm {
+                padding: 8px 12px !important;
+                font-size: 14px !important;
+                border-radius: 5px !important;
+            }
+        
+            /* Bottom Fixed Section */
+            .bottom-fixed {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background-color: #fff;
+                box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
+                padding: 10px 20px;
+            }
+        
+            .bottom-fixed .btn {
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px 15px;
+                border-radius: 5px;
+            }
+        
+            .product-card {
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: center;
+                min-height: 160px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                /* Uniform margin bottom */
+            }
+        
+            .product-card img {
                 max-width: 100%;
+                height: auto;
+                max-height: 80px;
+                object-fit: contain;
             }
-        }
-
-        /* Offcanvas Styles */
-        .offcanvas {
-            background-color: #f8f9fa;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 40%
-        }
-
-        .offcanvas-body {
-            padding: 15px;
-        }
-
-        .offcanvas-body button {
-            background-color: transparent;
-            /* Remove the background color */
-            color: #007bff;
-            /* Set the text color to blue */
-            border: 2px solid #007bff;
-            /* Add a blue outline border */
-            padding: 8px 16px;
-            margin-bottom: 10px;
-            width: 100%;
-            text-align: left;
-            border-radius: 4px;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .offcanvas-body button:hover {
-            background-color: #007bff;
-            /* Add blue background on hover */
-            color: #fff;
-            /* Change text color to white on hover */
-        }
-
-        /* Category Styles */
-        .category-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .category-card,
-        .brand-card {
-            width: calc(33.33% - 10px);
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            text-align: center;
-            padding: 10px;
-            background-color: #fff;
-            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease-in-out;
-        }
-
-        .category-card:hover,
-        .brand-card:hover {
-            transform: translateY(-10px);
-        }
-
-        .category-card h6,
-        .brand-card h6 {
-            font-size: 14px;
-            margin: 10px 0;
-            color: #333;
-        }
-
-        .category-footer,
-        .brand-footer {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-        }
-
-        /* Category Button Styles */
-        .category-footer button {
-            background-color: transparent;
-            color: #28a745;
-            border: 2px solid #28a745;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .category-footer button:hover {
-            background-color: #28a745;
-            color: #fff;
-        }
-
-        /* Green Outline Button */
-        .btn-outline-green {
-            background-color: transparent;
-            color: #28a745;
-            border: 2px solid #28a745;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .btn-outline-green:hover {
-            background-color: #28a745;
-            color: white;
-        }
-
-        /* Blue Outline Button */
-        .btn-outline-blue {
-            background-color: transparent;
-            color: #007bff;
-            border: 2px solid #007bff;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        .btn-outline-blue:hover {
-            background-color: #007bff;
-            color: white;
-        }
-
-        /* Responsive Styles */
-        @media (max-width: 1200px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(50% - 10px);
+        
+            .product-card h6 {
+                font-size: 14px;
+                margin: 6px 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
-        }
-
-        @media (max-width: 768px) {
-
-            .category-card,
-            .brand-card {
-                width: calc(100% - 10px);
+        
+            .product-card .product-card-body {
+                display: flex;
+                flex-direction: column;
+                align-items: left;
             }
-
-            .bottom-fixed {
-                padding: 5px 10px;
-            }
-
-            .bottom-fixed .btn {
+        
+            .product-card .badge {
                 font-size: 12px;
-                padding: 8px 10px;
+                margin-top: 5px;
             }
-        }
-
-        @media (max-width: 576px) {
-            .bottom-fixed {
-                padding: 5px 5px;
+        
+            /* Responsive grid layout */
+            @media (min-width: 1400px) {
+                #posProduct .col-xxl-3 {
+                    flex: 0 0 25%;
+                    max-width: 25%;
+                }
             }
-
-            .bottom-fixed .btn {
-                font-size: 10px;
-                padding: 5px 8px;
+        
+            @media (min-width: 1200px) and (max-width: 1399px) {
+                #posProduct .col-xl-4 {
+                    flex: 0 0 33.3333%;
+                    max-width: 33.3333%;
+                }
             }
-        }
-
-        /* Updated Loader Styles */
-        .loader-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            /* Use viewport height to ensure full coverage */
-            width: 100vw;
-            /* Use viewport width to ensure full coverage */
-            position: fixed;
-            /* Ensure loader is on top of everything */
-            top: 0;
-            left: 0;
-            z-index: 1;
-            background: rgba(255, 255, 255, 0.8);
-            /* Optional background overlay */
-        }
-
-        .loader {
-            --dim: 3rem;
-            width: var(--dim);
-            height: var(--dim);
-            position: relative;
-            animation: spin988 2s linear infinite;
-        }
-
-        .loader .circle {
-            --color: #333;
-            --dim: 1.2rem;
-            width: var(--dim);
-            height: var(--dim);
-            background-color: var(--color);
-            border-radius: 50%;
-            position: absolute;
-        }
-
-        .loader .circle:nth-child(1) {
-            top: 0;
-            left: 0;
-        }
-
-        .loader .circle:nth-child(2) {
-            top: 0;
-            right: 0;
-        }
-
-        .loader .circle:nth-child(3) {
-            bottom: 0;
-            left: 0;
-        }
-
-        .loader .circle:nth-child(4) {
-            bottom: 0;
-            right: 0;
-        }
-
-        @keyframes spin988 {
-            0% {
-                transform: scale(1) rotate(0);
+        
+            @media (min-width: 992px) and (max-width: 1199px) {
+                #posProduct .col-lg-4 {
+                    flex: 0 0 33.3333%;
+                    max-width: 33.3333%;
+                }
             }
-
-            20%,
-            25% {
-                transform: scale(1.3) rotate(90deg);
+        
+            @media (min-width: 768px) and (max-width: 991px) {
+                #posProduct .col-md-6 {
+                    flex: 0 0 50%;
+                    max-width: 50%;
+                }
             }
-
-            45%,
-            50% {
-                transform: scale(1) rotate(180deg);
+        
+            @media (max-width: 767px) {
+                #posProduct .col-sm-12 {
+                    flex: 0 0 100%;
+                    max-width: 100%;
+                }
             }
-
-            70%,
-            75% {
-                transform: scale(1.3) rotate(270deg);
+        
+            /* Offcanvas Styles */
+            .offcanvas {
+                background-color: #f8f9fa;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+                width: 40%
             }
-
-            95%,
-            100% {
-                transform: scale(1) rotate(360deg);
+        
+            .offcanvas-body {
+                padding: 15px;
             }
-        }
-
-        /* Style for the dropdown container */
-        .ui-autocomplete {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            z-index: 1000;
-            float: left;
-            display: none;
-            min-width: 160px;
-            padding: 4px 0;
-            margin: 2px 0 0 0;
-            list-style: none;
-            background-color: #ffffff;
-            border: 1px solid #ccc;
-            border: 1px solid rgba(0, 0, 0, .15);
-            border-radius: 4px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
-        }
-
-        /* Style for each dropdown item */
-        .ui-menu-item {
-            padding: 3px 20px;
-            line-height: 1.5;
-            cursor: pointer;
-        }
-
-        /* Hover effect for dropdown items */
-        .ui-menu-item:hover {
-            background-color: #f1f1f1;
-        }
-
-        /* Style for the dropdown input */
-        .ui-autocomplete-input {
-            margin-bottom: 0;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-        }
-
-        .card-body::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .card-body::-webkit-scrollbar-thumb {
-            background-color: #6c757d;
-            border-radius: 4px;
-        }
-
-        .card-body::-webkit-scrollbar-track {
-            background-color: #f1f1f1;
-        }
-
-        .quantity-container {
-            display: flex;
-            align-items: center;
-        }
-
-        .quantity-input {
-            width: 60px;
-            text-align: center;
-        }
-
-        .batch-dropdown {
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .price-input,
-        .subtotal {
-            text-align: right;
-        }
-
-        .product-name {
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        /* .remove-btn {
+        
+            .offcanvas-body button {
+                background-color: transparent;
+                /* Remove the background color */
+                color: #007bff;
+                /* Set the text color to blue */
+                border: 2px solid #007bff;
+                /* Add a blue outline border */
+                padding: 8px 16px;
+                margin-bottom: 10px;
+                width: 100%;
+                text-align: left;
+                border-radius: 4px;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+        
+            .offcanvas-body button:hover {
+                background-color: #007bff;
+                /* Add blue background on hover */
+                color: #fff;
+                /* Change text color to white on hover */
+            }
+        
+            /* Category Styles */
+            .category-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                justify-content: center;
+            }
+        
+            .category-card,
+            .brand-card {
+                width: calc(33.33% - 10px);
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                text-align: center;
+                padding: 10px;
+                background-color: #fff;
+                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+                transition: transform 0.3s ease-in-out;
+            }
+        
+            .category-card:hover,
+            .brand-card:hover {
+                transform: translateY(-10px);
+            }
+        
+            .category-card h6,
+            .brand-card h6 {
+                font-size: 14px;
+                margin: 10px 0;
+                color: #333;
+            }
+        
+            .category-footer,
+            .brand-footer {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 15px;
+            }
+        
+            /* Category Button Styles */
+            .category-footer button {
+                background-color: transparent;
+                color: #28a745;
+                border: 2px solid #28a745;
+                padding: 5px 10px;
+                border-radius: 5px;
+                font-size: 12px;
+                cursor: pointer;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+        
+            .category-footer button:hover {
+                background-color: #28a745;
+                color: #fff;
+            }
+        
+            /* Green Outline Button */
+            .btn-outline-green {
+                background-color: transparent;
+                color: #28a745;
+                border: 2px solid #28a745;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+        
+            .btn-outline-green:hover {
+                background-color: #28a745;
+                color: white;
+            }
+        
+            /* Blue Outline Button */
+            .btn-outline-blue {
+                background-color: transparent;
+                color: #007bff;
+                border: 2px solid #007bff;
+                transition: background-color 0.3s ease, color 0.3s ease;
+            }
+        
+            .btn-outline-blue:hover {
+                background-color: #007bff;
+                color: white;
+            }
+        
+            /* Responsive Styles */
+            @media (min-width: 1024px) {
+                .category-card,
+                .brand-card {
+                    width: calc(33.33% - 10px);
+                }
+            }
+        
+            @media (min-width: 768px) and (max-width: 1023px) {
+                .category-card,
+                .brand-card {
+                    width: calc(50% - 10px);
+                }
+        
+                .bottom-fixed {
+                    padding: 5px 10px;
+                }
+        
+                .bottom-fixed .btn {
+                    font-size: 12px;
+                    padding: 8px 10px;
+                }
+            }
+        
+            @media (min-width: 576px) and (max-width: 767px) {
+                .category-card,
+                .brand-card {
+                    width: calc(100% - 10px);
+                }
+        
+                .bottom-fixed {
+                    padding: 5px 5px;
+                }
+        
+                .bottom-fixed .btn {
+                    font-size: 10px;
+                    padding: 5px 8px;
+                }
+            }
+        
+            @media (max-width: 575px) {
+                .category-card,
+                .brand-card {
+                    width: calc(100% - 10px);
+                }
+        
+                .bottom-fixed {
+                    padding: 5px 5px;
+                }
+        
+                .bottom-fixed .btn {
+                    font-size: 8px;
+                    padding: 5px 6px;
+                }
+            }
+        
+            /* Updated Loader Styles */
+            .loader-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                /* Use viewport height to ensure full coverage */
+                width: 100vw;
+                /* Use viewport width to ensure full coverage */
+                position: fixed;
+                /* Ensure loader is on top of everything */
+                top: 0;
+                left: 0;
+                z-index: 1;
+                background: rgba(255, 255, 255, 0.8);
+                /* Optional background overlay */
+            }
+        
+            .loader {
+                --dim: 3rem;
+                width: var(--dim);
+                height: var(--dim);
+                position: relative;
+                animation: spin988 2s linear infinite;
+            }
+        
+            .loader .circle {
+                --color: #333;
+                --dim: 1.2rem;
+                width: var(--dim);
+                height: var(--dim);
+                background-color: var(--color);
+                border-radius: 50%;
+                position: absolute;
+            }
+        
+            .loader .circle:nth-child(1) {
+                top: 0;
+                left: 0;
+            }
+        
+            .loader .circle:nth-child(2) {
+                top: 0;
+                right: 0;
+            }
+        
+            .loader .circle:nth-child(3) {
+                bottom: 0;
+                left: 0;
+            }
+        
+            .loader .circle:nth-child(4) {
+                bottom: 0;
+                right: 0;
+            }
+        
+            @keyframes spin988 {
+                0% {
+                    transform: scale(1) rotate(0);
+                }
+        
+                20%,
+                25% {
+                    transform: scale(1.3) rotate(90deg);
+                }
+        
+                45%,
+                50% {
+                    transform: scale(1) rotate(180deg);
+                }
+        
+                70%,
+                75% {
+                    transform: scale(1.3) rotate(270deg);
+                }
+        
+                95%,
+                100% {
+                    transform: scale(1) rotate(360deg);
+                }
+            }
+        
+            /* Style for the dropdown container */
+            .ui-autocomplete {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                z-index: 1000;
+                float: left;
+                display: none;
+                min-width: 160px;
+                padding: 4px 0;
+                margin: 2px 0 0 0;
+                list-style: none;
+                background-color: #ffffff;
+                border: 1px solid #ccc;
+                border: 1px solid rgba(0, 0, 0, .15);
+                border-radius: 4px;
+                box-shadow: 0 6px 12px rgba(0, 0, 0, .175);
+            }
+        
+            /* Style for each dropdown item */
+            .ui-menu-item {
+                padding: 3px 20px;
+                line-height: 1.5;
+                cursor: pointer;
+            }
+        
+            /* Hover effect for dropdown items */
+            .ui-menu-item:hover {
+                background-color: #f1f1f1;
+            }
+        
+            /* Style for the dropdown input */
+            .ui-autocomplete-input {
+                margin-bottom: 0;
+                padding: 10px;
+                width: 100%;
+                box-sizing: border-box;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+            }
+        
+            .card-body::-webkit-scrollbar {
+                width: 8px;
+            }
+        
+            .card-body::-webkit-scrollbar-thumb {
+                background-color: #6c757d;
+                border-radius: 4px;
+            }
+        
+            .card-body::-webkit-scrollbar-track {
+                background-color: #f1f1f1;
+            }
+        
+            .quantity-container {
+                display: flex;
+                align-items: center;
+            }
+        
+            .quantity-input {
+                width: 60px;
+                text-align: center;
+            }
+        
+            .batch-dropdown {
+                width: 100%;
+                margin-top: 5px;
+            }
+        
+            .price-input,
+            .subtotal {
+                text-align: right;
+            }
+        
+            .product-name {
+                font-size: 16px;
+                font-weight: bold;
+            }
+        
+            /* .remove-btn {
                 display: flex;
                 align-items: center;
                 justify-content: center;
             } */
-
-        .star {
-            color: gold;
-            font-size: 20px;
-            margin-left: 5px;
-        }
-
-        .ui-autocomplete {
-            max-height: 200px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            background: #fff;
-            border: 1px solid #ccc;
-            padding: 5px 0;
-            font-size: 14px;
-        }
-
-        /* Ensure autocomplete items are properly styled */
-        .ui-menu .ui-menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
-
-        /* Ensure hover and keyboard focus both show highlight */
-        .ui-menu .ui-menu-item:hover,
-        .ui-menu .ui-menu-item.ui-state-focus,
-        .ui-menu .ui-menu-item.ui-state-active {
-            /* Fix for keyboard navigation */
-            background-color: #007bff !important;
-            /* Highlight color */
-            color: #fff !important;
-            /* Text color */
-            border-radius: 4px;
-        }
-    </style>
+        
+            .star {
+                color: gold;
+                font-size: 20px;
+                margin-left: 5px;
+            }
+        
+            .ui-autocomplete {
+                max-height: 200px;
+                overflow-y: auto;
+                overflow-x: hidden;
+                background: #fff;
+                border: 1px solid #ccc;
+                padding: 5px 0;
+                font-size: 14px;
+            }
+        
+            /* Ensure autocomplete items are properly styled */
+            .ui-menu .ui-menu-item {
+                padding: 8px 12px;
+                cursor: pointer;
+            }
+        
+            /* Ensure hover and keyboard focus both show highlight */
+            .ui-menu .ui-menu-item:hover,
+            .ui-menu .ui-menu-item.ui-state-focus,
+            .ui-menu .ui-menu-item.ui-state-active {
+                /* Fix for keyboard navigation */
+                background-color: #007bff !important;
+                /* Highlight color */
+                color: #fff !important;
+                /* Text color */
+                border-radius: 4px;
+            }
+        </style>
 </head>
 
 <body>
-    <div class="container-fluid p-1">
+    <div class="container-fluid p-2">
         <div class="row">
             <div class="col-md-12">
-            <div class="card bg-white p-2">
-                <div class="row align-items-center">
-                <!-- Location and Date Section -->
-                <div class="col-md-6 d-flex align-items-center">
-                    <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                    <button class="btn btn-primary text-white border-1 px-2 py-1" style="width: auto; height: 30px;" id="currentTimeButton" disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const currentTimeButton = document.getElementById('currentTimeButton');
-                        setInterval(() => {
-                        const now = new Date();
-                        const formattedTime = now.getFullYear() + '-' +
-                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                            ('0' + now.getDate()).slice(-2) + ' ' +
-                            ('0' + now.getHours()).slice(-2) + ':' +
-                            ('0' + now.getMinutes()).slice(-2) + ':' +
-                            ('0' + now.getSeconds()).slice(-2);
-                        currentTimeButton.textContent = formattedTime;
-                        }, 1000);
-                    });
-                    </script>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="col-md-6">
-                    <div class="d-flex justify-content-end gap-3">
-                    <button class="btn btn-light btn-sm" onclick="history.back()"><i class="fas fa-backward"></i></button>
-
-                    <!-- Calculator Button with Dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-calculator"></i>
-                        </button>
-                        <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
-                        <div class="text-center">
-                            <input type="text" id="calcDisplay" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
+                <div class="card bg-white p-2">
+                    <div class="row align-items-center">
+                        <!-- Location and Date Section -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
+                            <button class="btn btn-primary text-white border-1 px-2 py-1"
+                                style="width: auto; height: 30px;" id="currentTimeButton"
+                                disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const currentTimeButton = document.getElementById('currentTimeButton');
+                                    setInterval(() => {
+                                        const now = new Date();
+                                        const formattedTime = now.getFullYear() + '-' +
+                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                                            ('0' + now.getDate()).slice(-2) + ' ' +
+                                            ('0' + now.getHours()).slice(-2) + ':' +
+                                            ('0' + now.getMinutes()).slice(-2) + ':' +
+                                            ('0' + now.getSeconds()).slice(-2);
+                                        currentTimeButton.textContent = formattedTime;
+                                    }, 1000);
+                                });
+                            </script>
                         </div>
-                        <div class="d-grid gap-1">
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+
+                        <!-- Action Buttons -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end gap-3">
+                                <button class="btn btn-light btn-sm" onclick="history.back()" data-bs-toggle="tooltip" title="Go Back"><i class="fas fa-backward"></i></button>
+
+                                <!-- Calculator Button with Dropdown -->
+                                <div class="dropdown">
+                                    <button class="btn btn-warning btn-sm dropdown-toggle" id="calculatorButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Calculator">
+                                        <i class="fas fa-calculator"></i>
+                                    </button>
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                        <div class="text-center">
+                                            <input type="text" id="calcDisplay" class="form-control text-end mb-2" onkeydown="handleKeyboardInput(event)" autofocus>
+                                        </div>
+                                        <div class="d-grid gap-1">
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('7')">7</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('8')">8</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('9')">9</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('/')">/</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
+                                                <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
+                                                <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
+                                                <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
+                                            </div>
+                                            <div class="row g-1">
+                                                <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="dropdown">
+                                    <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false" data-bs-toggle="tooltip" title="Enter Invoice No">
+                                        <i class="fas fa-redo-alt"></i>
+                                    </button>
+
+                                    <!-- Dropdown menu -->
+                                    <div class="dropdown-menu p-3" style="min-width: 250px;">
+                                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
+                                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
+                                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
+                                    </div>
+                                </div>
+                                <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip" title="Suspend Sales">
+                                    <i class="fas fa-pause-circle"></i>
+                                </button>
+
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip" title="Recent Transactions"><i class="fas fa-clock"></i></button>
                             </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('4')">4</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('5')">5</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('6')">6</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('*')">×</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('1')">1</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('2')">2</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('3')">3</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('-')">-</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('0')">0</button>
-                            <button class="btn btn-light btn-sm col" onclick="calcInput('.')">.</button>
-                            <button class="btn btn-danger btn-sm col" onclick="clearCalc()">C</button>
-                            <button class="btn btn-warning btn-sm col" onclick="calcInput('+')">+</button>
-                            </div>
-                            <div class="row g-1">
-                            <button class="btn btn-success btn-sm col" onclick="calculateResult()">=</button>
-                            </div>
+
                         </div>
-                        </div>
-                    </div>
-
-                    <div class="dropdown">
-                        <button class="btn btn-danger btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-redo-alt"></i>
-                        </button>
-
-                        <!-- Dropdown menu -->
-                        <div class="dropdown-menu p-3" style="min-width: 250px;">
-                        <label for="invoiceNo" class="form-label">Enter Invoice No</label>
-                        <input type="text" id="invoiceNo" class="form-control form-control-sm" placeholder="Invoice No">
-                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
-                        </div>
-                    </div>
-                    <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal" data-bs-target="#suspendSalesModal">
-                        <i class="fas fa-pause-circle"></i> Suspended Sales
-                    </button>
-
-                    <button class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal"><i class="fas fa-clock"></i> Recent Transactions</button>
-                    </div>
-
-                    <!-- Hamburger Button for Mobile and Tablet -->
-                    <div class="d-flex d-lg-none justify-content-center mt-3">
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasResponsive" aria-controls="offcanvasResponsive">
-                        <i class="fas fa-bars"></i>
-                    </button>
                     </div>
                 </div>
-                </div>
-            </div>
             </div>
         </div>
 
@@ -643,7 +653,7 @@
 
 
                         <div class="col-md-12 mt-3">
-                            <div class="table-responsive" style="height: calc(100vh - 560px); overflow-y: auto;">
+                            <div class="table-responsive" style="height: calc(100vh - 445px); overflow-y: auto;">
                                 <table class="table table-bordered">
                                     <thead class="thead-light">
                                         <tr>
@@ -746,14 +756,19 @@
                     <!-- Buttons for Category and Brand -->
                     <div class="row mb-3">
                         <div class="d-flex justify-content-between w-100 mb-2">
-                            <button type="button" class="btn btn-primary w-50 me-3" id="allProductsBtn">All
-                                Products</button>
-                            <button type="button" class="btn btn-primary w-50 me-3" id="category-btn"
+                            <button type="button" class="btn btn-gradient w-50 me-3" id="allProductsBtn">
+                                <i class="fas fa-box"></i> All Products
+                            </button>
+                            <button type="button" class="btn btn-gradient w-50 me-3" id="category-btn"
                                 data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory"
-                                aria-controls="offcanvasCategory">Category</button>
-                            <button type="button" class="btn btn-primary w-50" id="brand-btn"
+                                aria-controls="offcanvasCategory">
+                                <i class="fas fa-th-large"></i> Category
+                            </button>
+                            <button type="button" class="btn btn-gradient w-50" id="brand-btn"
                                 data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand"
-                                aria-controls="offcanvasBrand">Brand</button>
+                                aria-controls="offcanvasBrand">
+                                <i class="fas fa-tags"></i> Brand
+                            </button>
                         </div>
                     </div>
 
@@ -762,6 +777,20 @@
                     </div>
                 </div>
             </div>
+
+            <style>
+                .btn-gradient {
+                    background: linear-gradient(85deg, #1e90ff, #1e90ff, #87cefa);
+                    border: none;
+                    color: white;
+                    transition: background 0.3s ease;
+                }
+
+                .btn-gradient:hover {
+                    background: linear-gradient(85deg, #1e90ff, #1e90ff);
+                    color: white;
+                }
+            </style>
 
         </div>
 
@@ -1605,7 +1634,7 @@
 
             // Capture the Submit button click
             document.querySelector('.dropdown-menu .btn-primary').addEventListener('click',
-            handleInvoiceSubmission);
+                handleInvoiceSubmission);
 
             // Capture the Enter key press in the input field
             document.getElementById('invoiceNo').addEventListener('keydown', function(event) {
