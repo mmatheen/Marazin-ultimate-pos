@@ -5,7 +5,7 @@
 <title>RECEIPT</title>
 <style>
     @page {
-        margin: 8px;
+        margin: 10px;
     }
     @media print {
         #printArea {
