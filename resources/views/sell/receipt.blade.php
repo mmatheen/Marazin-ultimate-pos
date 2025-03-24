@@ -31,7 +31,7 @@
         .table th, .table td {
             padding: 6px !important;
             font-size: 10px !important;
-            vertical-align: top; /* Ensure consistent vertical alignment */
+            vertical-align: top; 
         }
         .text-end {
             text-align: right !important;
@@ -51,7 +51,7 @@
         }
         .logo-container {
             text-align: center;
-            font-weight: bold; /* Make text content bold */
+            font-weight: bold; 
         }
         .logo-container img {
             max-width: 100%;
@@ -60,7 +60,7 @@
         }
         .billAddress div {
             margin-bottom: 4px; 
-            text-align: center; /* Center align the content */
+            text-align: center; 
         }
         .table td {
             padding: 4px 6px !important; 
