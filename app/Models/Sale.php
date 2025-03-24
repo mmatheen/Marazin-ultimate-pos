@@ -14,6 +14,7 @@ class Sale extends Model
         'customer_id',
         'sales_date',
         'location_id',
+        'user_id',
         'status',
         'sale_type',
         'invoice_no',
@@ -26,6 +27,12 @@ class Sale extends Model
         'amount_given',
         'balance_amount',
     ];
+
+    // Add this method to your Sale model
+        public function user()
+        {
+            return $this->belongsTo(User::class);
+        }
 
     public function products()
     {

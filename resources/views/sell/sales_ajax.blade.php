@@ -143,8 +143,7 @@
                                 row.append('<td>' + item.total_due + '</td>');
                                 row.append('<td>' + item.status + '</td>');
                                 row.append('<td>' + item.products.length + '</td>');
-                                row.append('<td>' + 'Added By User' +
-                                '</td>'); // Replace with actual user data if available
+                                row.append('<td>' + item.user.user_name + '</td>');
 
                                 table.row.add(row).draw(false);
                                 counter++;

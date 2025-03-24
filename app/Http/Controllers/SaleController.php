@@ -49,7 +49,7 @@ class SaleController extends Controller
 
     public function index()
     {
-        $sales = Sale::with('products.product', 'customer', 'location', 'payments')->get();
+        $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')->get();
         return response()->json(['sales' => $sales], 200);
     }
 
@@ -237,6 +237,7 @@ class SaleController extends Controller
                     'discount_amount' => $discount,
                     'amount_given' => $amountGiven, // Add amount given
                     'balance_amount' => $balanceAmount, // Add balance amount
+                    'user_id' => auth()->id(),
                 ])->save();
     
                 if ($isUpdate) {
