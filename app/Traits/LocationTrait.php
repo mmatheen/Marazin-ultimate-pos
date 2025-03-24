@@ -2,22 +2,20 @@
 
 namespace App\Traits;
 
+use App\Models\Scopes\LocationScope;
 use Illuminate\Support\Facades\Auth;
 
-trait LocationTrait
-{
-    public static function bootLocationTrait()
-    {
-        static::creating(function ($model) {
-            if (!$model->location_id) {
-                $model->location_id = Auth::user()->location_id ?? 1; // Default Location ID
-            }
-        });
+trait LocationTrait{
 
-        static::updating(function ($model) {
-            if (!$model->location_id) {
-                $model->location_id = Auth::user()->location_id;
-            }
+    // it will insert the location_id using auth user location id to every insert
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new LocationScope);
+
+        static::creating(function ($item) {
+             $item->location_id = Auth::user()->location_id;
         });
     }
+
+
 }

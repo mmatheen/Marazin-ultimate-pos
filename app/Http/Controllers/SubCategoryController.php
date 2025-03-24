@@ -13,6 +13,7 @@ class SubCategoryController extends Controller
 
         $MainCategories = MainCategory::all();
         return view('category.sub_category.sub_category', compact('MainCategories'));
+
     }
 
     public function index()

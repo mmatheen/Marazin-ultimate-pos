@@ -15,13 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('reference_no')->unique();
             $table->dateTime('date');
-            $table->unsignedBigInteger('location_id');
+            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
             $table->enum('adjustment_type', ['increase', 'decrease']);
             $table->decimal('total_amount_recovered', 10, 2)->default(0);
             $table->text('reason')->nullable();
             $table->timestamps();
-
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

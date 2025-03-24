@@ -14,10 +14,6 @@ return new class extends Migration
         Schema::table('sales', function (Blueprint $table) {
             $table->decimal('amount_given', 10, 2)->nullable();
             $table->decimal('balance_amount', 10, 2)->nullable();
-            $table->unsignedBigInteger('location_id');
-
-
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

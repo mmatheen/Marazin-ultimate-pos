@@ -197,7 +197,7 @@
                                         <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="supplier-id">Supplier <span class="text-danger">*</span></label>
                                             <div class="input-group">
-                                                <select class="form-select selectBox" id="supplier-id" name="supplier_id">
+                                                <select class="form-select" id="supplier-id" name="supplier_id">
                                                 </select>
                                                 <button type="button" class="btn btn-outline-info" id="addSupplierButton">
                                                     <i class="fas fa-plus-circle"></i>

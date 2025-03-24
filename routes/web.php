@@ -35,11 +35,10 @@ use App\Http\Controllers\{
     ExpenseParentCategoryController,
     SaleReturnController,
     SalesCommissionAgentsController,
-    RoleController,
+    SellController,
     StockAdjustmentController,
     CartController,
-    PaymentController,
-    RoleAndPermissionController
+    PaymentController
 };
 
 
@@ -56,17 +55,24 @@ Route::get('/testing', function () {
     dd($role);
 });
 
+Route::get('/dashboard', function () {
+    return view('includes.dashboards.dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__ . '/auth.php';
 
 Route::middleware(['auth', 'check.session'])->group(function () {
 
-    Route::get('/dashboard', function () {
-        return view('includes.dashboards.dashboard');
-    })->middleware(['auth', 'verified'])->name('dashboard');
+    Route::group(['middleware' => function ($request, $next) {
+        $role = Auth::user()->role_name ?? null;
+        if ($role) {
+            $request->route()->middleware("role:$role");
+        }
+        return $next($request);
+    }], function () {
 
+        require __DIR__ . '/role_permission.php';
 
-    // Route::group(['middleware' => ['roleAndPermissionCheck']], function () {
         // User Routes
         Route::get('/user', [UserController::class, 'user'])->name('user');
         Route::get('/user-edit/{id}', [UserController::class, 'edit']);
@@ -77,30 +83,14 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         // Dashboard Routes
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
+
+        // Warranty Routes
         Route::get('/warranty', [WarrantyController::class, 'warranty'])->name('warranty');
         Route::get('/warranty-edit/{id}', [WarrantyController::class, 'edit']);
         Route::get('/warranty-get-all', [WarrantyController::class, 'index']);
         Route::post('/warranty-store', [WarrantyController::class, 'store'])->name('warranty-store');
-        Route::post('/warranty-update/{id}', [WarrantyController::class, 'update'])->name('warranty-update');
-        Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy'])->name('warranty-delete');
-
-        // Role Routes
-        Route::get('/role', [RoleController::class, 'role'])->name('role');
-        Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
-        Route::get('/role-get-all', [RoleController::class, 'index']);
-        Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
-        Route::post('/role-update/{id}', [RoleController::class, 'update']);
-        Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
-        Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
-
-        Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
-        Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
-        Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
-        Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
-        Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
-        Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
-        Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
-        //stop role route
+        Route::post('/warranty-update/{id}', [WarrantyController::class, 'update']);
+        Route::delete('/warranty-delete/{id}', [WarrantyController::class, 'destroy']);
 
         // Guard Routes
         Route::get('/get-all-details-using-guard', [AuthenticationController::class, 'getDetailsFromGuardDetailsUsingLoginUer']);
@@ -260,13 +250,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
         // Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
 
-        Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
-        Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
-        Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
-        Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
-        Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
-        Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
-        Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
+            Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
+            Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
+            Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
+            Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
+            Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
+            Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
+            Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
         // Stock Transfer Routes
         Route::get('/stock-transfers', [StockTransferController::class, 'index']);
@@ -372,11 +362,12 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 
-        // web.php (Routes)
+                // web.php (Routes)
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
 
         //bulk payments pages
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
+
     });
-// });
+});

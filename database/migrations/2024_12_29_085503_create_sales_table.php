@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->unsignedBigInteger('location_id');
             $table->date('sales_date');
             $table->enum('sale_type', ['POS', 'Normal'])->default('Normal'); // Added sale_type field
             $table->string('status');
@@ -31,6 +32,7 @@ return new class extends Migration
             $table->enum('payment_status', ['Paid', 'Partial', 'Due'])->default('Due');
             $table->timestamps();
 
+            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

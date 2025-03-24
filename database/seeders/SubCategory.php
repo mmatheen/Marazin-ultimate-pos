@@ -19,7 +19,7 @@ class SubCategory extends Seeder
          $mainCategoryBiscuit = DB::table('main_categories')->where('mainCategoryName', 'Buscuit')->first()->id;
          $mainCategoryApple = DB::table('main_categories')->where('mainCategoryName', 'Apple')->first()->id;
          $mainCategorySamsung = DB::table('main_categories')->where('mainCategoryName', 'Samsung')->first()->id;
-         $location_ids = DB::table('locations')->whereIn('name', ['Kalmunai', 'Colombo','Galle',])->pluck('id');
+         $location_id = DB::table('locations')->where('name', 'marazin')->first()->id;
 
         DB::table('sub_categories')->insert([
             [
@@ -27,7 +27,7 @@ class SubCategory extends Seeder
                 'subCategoryCode' => 'Buscuit',
                 'main_category_id' => $mainCategoryBiscuit, // Foreign key reference
                 'description' => 'Srilankan Product',
-                'location_id' => $location_ids[0], // Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
@@ -36,7 +36,7 @@ class SubCategory extends Seeder
                 'subCategoryCode' =>'Apple',
                 'main_category_id' => $mainCategoryApple, // Foreign key reference
                 'description' => 'IOS Version',
-                'location_id' => $location_ids[0], // Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
@@ -45,7 +45,7 @@ class SubCategory extends Seeder
                 'subCategoryCode' => 'Samsung',
                 'main_category_id' => $mainCategorySamsung, // Foreign key reference
                 'description' => 'Android Version',
-                'location_id' => $location_ids[0], // Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],

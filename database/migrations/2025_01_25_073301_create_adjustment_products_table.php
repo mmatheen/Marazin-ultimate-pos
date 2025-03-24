@@ -19,10 +19,7 @@ return new class extends Migration
             $table->decimal('quantity', 10, 2);
             $table->decimal('unit_price', 10, 2);
             $table->decimal('subtotal', 10, 2);
-            $table->unsignedBigInteger('location_id');
             $table->timestamps();
-
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

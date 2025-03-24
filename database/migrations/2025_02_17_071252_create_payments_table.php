@@ -32,13 +32,10 @@ return new class extends Migration
             $table->date('cheque_received_date')->nullable();
             $table->date('cheque_valid_date')->nullable();
             $table->string('cheque_given_by')->nullable();
-            $table->unsignedBigInteger('location_id');
-            
             $table->timestamps();
 
             $table->foreign('supplier_id')->references('id')->on('suppliers')->onDelete('cascade');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 

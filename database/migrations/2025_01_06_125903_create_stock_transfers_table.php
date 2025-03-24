@@ -18,13 +18,11 @@ return new class extends Migration
             $table->datetime('transfer_date');
             $table->string('reference_no')->nullable();
             $table->decimal('final_total', 10, 2);
-            $table->unsignedBigInteger('location_id');
             $table->timestamps();
 
             // Foreign key constraints
             $table->foreign('from_location_id')->references('id')->on('locations');
             $table->foreign('to_location_id')->references('id')->on('locations');
-            $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
 
