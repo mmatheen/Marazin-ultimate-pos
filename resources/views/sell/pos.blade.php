@@ -1016,12 +1016,12 @@
                 });
         }
 
-        // // Event listener to load sales data when the page is loaded
-        // document.addEventListener('DOMContentLoaded', function() {
-        //     fetchSalesData();
+        // Event listener to load sales data when the page is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchSalesData();
 
-        //     setInterval(fetchSalesData, 1000);
-        // });
+            setInterval(fetchSalesData, 1000);
+        });
     </script>
 
     <style>

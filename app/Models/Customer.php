@@ -65,21 +65,21 @@ class Customer extends Model
     }
 
     public function getCurrentDueAttribute()
-        {
-            // Get total sales due
-            $totalSalesDue = $this->sales()->sum('total_due');
-
-            // Get total return due
-            $totalReturnDue = $this->salesReturns()->sum('total_due');
-            
-            // Calculate the total payments made by the customer
-            $totalPaymentsMade = $this->payments()->sum('amount');
-            
-            // Current due calculation considering sales, payments, and returns
-            $currentDue = ($this->opening_balance + $totalSalesDue - $totalReturnDue - $totalPaymentsMade);
-
-            return $currentDue;
-        }
+    {
+        // Get total sales due
+        $totalSalesDue = $this->sales()->sum('total_due');
+    
+        // Get total return due
+        $totalReturnDue = $this->salesReturns()->sum('total_due');
+        
+        // Calculate the total payments made by the customer
+        $totalPaymentsMade = $this->payments()->sum('amount');
+        
+        // Current due calculation considering sales, payments, and returns
+        $currentDue = ($this->opening_balance + $totalSalesDue  - $totalReturnDue);
+    
+        return $currentDue;
+    }
     
     
 }
