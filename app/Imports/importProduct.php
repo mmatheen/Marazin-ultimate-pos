@@ -80,6 +80,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
             
         
             $authId = auth()->id();
+
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authId]);
             $brand = !empty($row['brand_name']) ? Brand::firstOrCreate(['name' => $row['brand_name']], ['location_id' => $authId]) : null;
             $mainCategory = !empty($row['main_category_name']) ? MainCategory::firstOrCreate(['mainCategoryName' => $row['main_category_name']], ['location_id' => $authId]) : null;
@@ -122,7 +123,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
     
             // Insert into location_product table
             DB::table('location_product')->insert([
-                'location_id' => auth()->id(),
+                'location_id' => auth()->user()->location_id,
                 'product_id' => $productId,
             ]);
     
@@ -152,7 +153,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 $locationBatch = LocationBatch::updateOrCreate(
                     [
                         'batch_id' => $batch->id,
-                        'location_id' => auth()->id(),
+                        'location_id' => auth()->user()->location_id,
                     ],
                     [
                         'qty' => $row['qty'],
