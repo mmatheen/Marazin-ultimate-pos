@@ -16,35 +16,35 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // //  Define Permissions with Groups
-        // $permissions = [
-        //     'warranty-management' => [
-        //         'create warranty', 'edit warranty', 'view warranty', 'delete warranty'
-        //     ],
+        //  Define Permissions with Groups
+        $permissions = [
+            'warranty-management' => [
+                'create warranty', 'edit warranty', 'view warranty', 'delete warranty'
+            ],
 
-        //     'role-management' => [
-        //         'create role', 'edit role', 'view role', 'delete role'
-        //     ],
+            'role-management' => [
+                'create role', 'edit role', 'view role', 'delete role'
+            ],
 
-        //     'user-management' => [
-        //         'create user', 'edit user', 'view user', 'delete user'
-        //     ],
+            'user-management' => [
+                'create user', 'edit user', 'view user', 'delete user'
+            ],
 
-        //     'location-management' => [
-        //         'create location', 'edit location', 'view location', 'delete location'
-        //     ],
+            'location-management' => [
+                'create location', 'edit location', 'view location', 'delete location'
+            ],
 
-        //     'role & permission-management' => [
-        //         'create role & permission', 'edit role & permission', 'view role & permission', 'delete role & permission'
-        //     ],
-        // ];
+            'role & permission-management' => [
+                'create role & permission', 'edit role & permission', 'view role & permission', 'delete role & permission'
+            ],
+        ];
 
-        // //  Create Each Permission & Assign Group
-        // foreach ($permissions as $group => $perms) {
-        //     foreach ($perms as $permission) {
-        //         Permission::create(['name' => $permission, 'group_name' => $group]);
-        //     }
-        // }
+        //  Create Each Permission & Assign Group
+        foreach ($permissions as $group => $perms) {
+            foreach ($perms as $permission) {
+                Permission::create(['name' => $permission, 'group_name' => $group]);
+            }
+        }
 
         //  Define Roles & Assign Permissions
 
@@ -52,16 +52,16 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::create(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
 
-        // // Admin - Role & Warranty Management
-        // $admin = Role::create(['name' => 'Admin']);
-        // $admin->givePermissionTo(['create role', 'edit role', 'view role','edit warranty', 'view warranty']);
+        // Admin - Role & Warranty Management
+        $admin = Role::create(['name' => 'Admin']);
+        $admin->givePermissionTo(['create role', 'edit role', 'view role','edit warranty', 'view warranty']);
 
-        // // Manager - Read-Only Access
-        // $manager = Role::create(['name' => 'Manager']);
-        // $manager->givePermissionTo(['view role', 'view warranty']);
+        // Manager - Read-Only Access
+        $manager = Role::create(['name' => 'Manager']);
+        $manager->givePermissionTo(['view role', 'view warranty']);
 
-        // // Casheir - Read-Only Access
-        // $cashier = Role::create(['name' => 'Cashier']);
-        // $cashier->givePermissionTo(['view role', 'view warranty']);
+        // Casheir - Read-Only Access
+        $cashier = Role::create(['name' => 'Cashier']);
+        $cashier->givePermissionTo(['view role', 'view warranty']);
     }
 }

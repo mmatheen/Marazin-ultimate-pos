@@ -21,7 +21,7 @@ class User extends Seeder
         DB::table('users')->insert([
             [
                 'name_title' => 'Mr',
-                'name' => 'Mateen Mara',
+                'name' => 'Matheen Mara',
                 'user_name' => 'Matheen Maara',
                 'role_name'=>'Super Admin',
                 'location_id' => $location_id, // Foreign key reference
@@ -29,6 +29,8 @@ class User extends Seeder
                 'password' => Hash::make('1234'),//1234
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
+
+                
             ],
         ]);
     }
