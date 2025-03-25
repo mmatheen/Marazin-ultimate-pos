@@ -1,76 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chosen Select Example</title>
-
-  <!-- Bootstrap CSS -->
-  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- Chosen CSS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.min.css">
-
-  <style>
-    .chosen-container {
-      width: 100% !important; /* Ensures the select width matches the container */
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Keyboard Shortcuts</title>
+    <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        .add { background: #28a745; color: white; }
+        .pay { background: #007bff; color: white; }
+        .refresh { background: #ffc107; color: black; }
+        .print { background: #dc3545; color: white; }
+    </style>
 </head>
 <body>
 
-  <!-- Main Container -->
-  <div class="container mt-4">
-    <h2 class="text-center mb-4">Chosen Select Example</h2>
+    <div class="container">
+        <h2>POS Keyboard Shortcuts</h2>
+        <button class="add" onclick="addItem()">Add Item (Ctrl + A)</button>
+        <button class="pay" onclick="processPayment()">Process Payment (Ctrl + B)</button>
+        <button class="refresh" onclick="refreshPage()">Refresh Page (R)</button>
+        <button class="print" onclick="printReceipt()">Print Receipt (F)</button>
+    </div>
 
-    <!-- Form Section -->
-    <form>
-      <div class="row">
-        
-        <!-- First Column -->
-        <div class="col-md-6">
-          <label for="mySelect">Choose Options</label>
-          <select id="mySelect" class="chosen-select form-control">
-            <option value="1">Option 1</option>
-            <option value="2">Option 2</option>
-            <option value="3">Option 3</option>
-            <option value="4">Option 4</option>
-            <option value="5">Option 5</option>
-          </select>
-        </div>
+    <script>
+        function addItem() {
+            alert("You added an item!");
+        }
 
-        <!-- Second Column -->
-        <div class="col-md-6">
-          <label for="anotherSelect">Another Selection</label>
-          <select id="anotherSelect" class="chosen-select form-control" >
-            <option value="A">Option A</option>
-            <option value="B">Option B</option>
-            <option value="C">Option C</option>
-            <option value="D">Option D</option>
-            <option value="E">Option E</option>
-          </select>
-        </div>
+        function processPayment() {
+            alert("Payment processed!");
+        }
 
-      </div>
-    </form>
+        function refreshPage() {
+            location.reload();
+        }
 
-  </div>
+        function printReceipt() {
+            alert("Printing receipt...");
+        }
 
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+        // Hotkeys Configuration
+        hotkeys('ctrl+a, ctrl+b, r, f', function (event, handler) {
+            event.preventDefault(); // Prevent default browser actions
 
-  <!-- Chosen JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
-
-  <!-- Initialize Chosen plugin -->
-  <script>
-    $(document).ready(function() {
-      $(".chosen-select").chosen({
-        width: '100%',  // Makes it take up full width of the parent element
-        no_results_text: "Oops, nothing found!"  // Custom message for no results
-      });
-    });
-  </script>
+            switch (handler.key) {
+                case 'ctrl+a':
+                    addItem();
+                    break;
+                case 'ctrl+b':
+                    processPayment();
+                    break;
+                case 'r':
+                    refreshPage();
+                    break;
+                case 'f':
+                    printReceipt();
+                    break;
+            }
+        });
+    </script>
 
 </body>
 </html>

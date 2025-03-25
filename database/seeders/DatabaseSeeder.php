@@ -23,9 +23,9 @@ class DatabaseSeeder extends Seeder
         $this->call(Location::class);
         $this->call(MainCategory::class);
         $this->call(SubCategory::class);
-        $this->call(Role::class);
-        $this->call(Permission::class);
-        $this->call(RoleHasPermission::class);
+        // $this->call(Role::class);
+        // $this->call(Permission::class);
+        // $this->call(RoleHasPermission::class);
         // $this->call(User::class);
         $this->call([
             WalkInCustomerSeeder::class,

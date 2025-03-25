@@ -1433,7 +1433,8 @@ function displayProducts(products) {
 {{-- For jQuery --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 <!-- Include Mousetrap library -->
-<script src="{{ asset('assets/js/mousetrap.js') }}"></script>
+{{-- <script src="{{ asset('assets/js/mousetrap.js') }}"></script> --}}
+<script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
 
 <!-- Include cleave.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
