@@ -339,7 +339,7 @@
                     data: formData,
                     success: function(response) {
                         toastr.success(response.message);
-                        location.reload();
+                        window.location.href = '/list-stock-transfer';
                     },
                     error: function(response) {
                         if (response.responseJSON && response.responseJSON.errors) {
@@ -416,7 +416,6 @@
                         <td>${transfer.reference_no}</td>
                         <td>${transfer.from_location.name}</td>
                         <td>${transfer.to_location.name}</td>
-                        <td>${transfer.status}</td>
                         <td>${transfer.shipping_charges || '0.00'}</td>
                         <td>${totalAmount.toFixed(2)}</td>
                         <td>${transfer.additional_notes || ''}</td>

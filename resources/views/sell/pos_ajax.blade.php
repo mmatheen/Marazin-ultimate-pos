@@ -588,7 +588,7 @@
                     <button class="btn btn-success quantity-plus btn-sm">+</button>
                 </div>
             </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}"></td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}" min="0"></td>
             <td class="subtotal text-center mt-2">${formatAmountWithSeparators(price.toFixed(2))}</td>
             <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
             <td class="product-id d-none">${product.id}</td>

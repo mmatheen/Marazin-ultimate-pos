@@ -42,7 +42,7 @@
                                         <th>Reference No</th>
                                         <th>Location (From)</th>
                                         <th>Location (To)</th>
-                                        <th>Status</th>
+                                        {{-- <th>Status</th> --}}
                                         <th>Shipping Charges</th>
                                         <th>Total Amount</th>
                                         <th>Additional Notes</th>
