@@ -248,7 +248,14 @@
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-            <p><strong>PAYMENT METHOD:</strong> {{ $payments->first()->payment_method ?? 'N/A' }}</p>
+            <p><strong>PAYMENT METHOD:</strong> 
+            @if ($payments->count() > 1)
+            Multiple <br>
+            <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+            @else
+            {{ $payments->first()->payment_method ?? 'N/A' }}
+            @endif
+            </p>
         </div>
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">

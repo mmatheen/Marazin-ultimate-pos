@@ -72,8 +72,8 @@ class Customer extends Model
         // Get total return due
         $totalReturnDue = $this->salesReturns()->sum('total_due');
         
-        // Calculate the total payments made by the customer
-        $totalPaymentsMade = $this->payments()->sum('amount');
+        // // Calculate the total payments made by the customer
+        // $totalPaymentsMade = $this->payments()->sum('amount');
         
         // Current due calculation considering sales, payments, and returns
         $currentDue = ($this->opening_balance + $totalSalesDue  - $totalReturnDue);

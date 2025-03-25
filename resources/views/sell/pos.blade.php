@@ -969,7 +969,6 @@
                 <td>${sale.final_total}</td>
                 <td>
                     <button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                    <button class='btn btn-outline-danger btn-sm'>Delete</button>
                 </td>
             </tr>`;
                     tableBody.innerHTML += row;
@@ -1327,9 +1326,19 @@
     </div>
 
     <script>
+        // Function to format amounts with separators for display
+        function formatAmountWithSeparators(amount) {
+            return new Intl.NumberFormat().format(amount);
+        }
+    
+        // Function to parse formatted amounts back to numbers
+        function parseFormattedAmount(formattedAmount) {
+            return parseFloat(formattedAmount.replace(/,/g, ''));
+        }
+    
         let locationId;
         let totalAmount = 0;
-
+    
         document.getElementById('addPaymentRow').addEventListener('click', function() {
             const paymentRows = document.getElementById('paymentRows');
             const newPaymentRow = document.createElement('div');
@@ -1361,22 +1370,22 @@
                 <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
             `;
             paymentRows.appendChild(newPaymentRow);
-
+    
             newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
                 this.closest('.payment-row').remove();
                 updatePaymentSummary();
             });
-
+    
             updatePaymentSummary();
             initializeDateTimePickers();
         });
-
+    
         function togglePaymentFields(selectElement) {
             const paymentMethod = selectElement.value;
             const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
-
+    
             conditionalFields.innerHTML = '';
-
+    
             if (paymentMethod === 'card') {
                 conditionalFields.innerHTML = `
                     <div class="col-md-4">
@@ -1441,7 +1450,7 @@
                 `;
             }
         }
-
+    
         function validateAmount() {
             const amountInputs = document.querySelectorAll('.payment-amount');
             amountInputs.forEach(input => {
@@ -1455,14 +1464,14 @@
             });
             updatePaymentSummary();
         }
-
+    
         document.querySelectorAll('.remove-payment-row').forEach(button => {
             button.addEventListener('click', function() {
                 this.closest('.payment-row').remove();
                 updatePaymentSummary();
             });
         });
-
+    
         document.getElementById('paymentModal').addEventListener('hidden.bs.modal', function() {
             document.getElementById('paymentForm').reset();
             document.getElementById('paymentRows').innerHTML = `
@@ -1496,60 +1505,72 @@
             updatePaymentSummary();
             initializeDateTimePickers();
         });
-
+    
         function initializeDateTimePickers() {
             $('.datetimepicker').datetimepicker({
                 format: 'DD-MM-YYYY',
                 useCurrent: false,
                 minDate: moment().startOf('day')
             });
-
+    
             $('.cheque-received-date').datetimepicker({
                 format: 'DD-MM-YYYY',
                 useCurrent: false,
                 minDate: moment().startOf('day')
             });
-
+    
             $('.cheque-valid-date').datetimepicker({
                 format: 'DD-MM-YYYY',
                 useCurrent: false,
                 minDate: moment().add(1, 'days').startOf('day')
             });
         }
-
+    
         function updatePaymentSummary() {
             let totalItems = fetchTotalItems();
-            let totalPayable = totalAmount;
+            let totalPayable = fetchTotalAmount();
             let totalPaying = 0;
             let changeReturn = 0;
             let balance = 0;
-
+    
+            // Apply discount
+            const discountElement = document.getElementById('discount');
+            const discountTypeElement = document.getElementById('discount-type');
+            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
+    
+            if (discountType === 'percentage') {
+                totalPayable = totalPayable - (totalPayable * discount / 100);
+            } else {
+                totalPayable = totalPayable - discount;
+            }
+    
             document.querySelectorAll('.payment-amount').forEach(input => {
                 totalPaying += parseFloat(input.value) || 0;
             });
-
+    
             if (totalPaying > totalPayable) {
                 changeReturn = totalPaying - totalPayable;
             } else {
                 balance = totalPayable - totalPaying;
             }
-
+    
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-            document.getElementById('modal-total-payable').textContent = totalPayable.toFixed(2);
-            document.getElementById('modal-total-paying').textContent = totalPaying.toFixed(2);
-            document.getElementById('modal-change-return').textContent = changeReturn.toFixed(2);
-            document.getElementById('modal-balance').textContent = balance.toFixed(2);
+            document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable.toFixed(2));
+            document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(2));
+            document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn.toFixed(2));
+            document.getElementById('modal-balance').textContent = formatAmountWithSeparators(balance.toFixed(2));
         }
-
+    
         function fetchTotalAmount() {
             let totalAmount = 0;
             document.querySelectorAll('#billing-body tr').forEach(row => {
-                const subtotal = parseFloat(row.querySelector('.subtotal').textContent);
+                const subtotal = parseFloat(row.querySelector('.subtotal').textContent.replace(/,/g, ''));
                 totalAmount += subtotal;
             });
             return totalAmount;
         }
-
+    
         function fetchTotalItems() {
             let totalItems = 0;
             document.querySelectorAll('#billing-body tr').forEach(row => {
@@ -1558,12 +1579,14 @@
             });
             return totalItems;
         }
-
+    
         document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
             totalAmount = fetchTotalAmount();
             updatePaymentSummary();
             initializeDateTimePickers();
         });
+    
+       
     </script>
 
     <!-- JavaScript for Calculator Functionality -->

@@ -200,122 +200,125 @@
         }
 
         function fetchAllProducts() {
-    showLoader();
+            showLoader();
 
-    fetch('/products/stocks')
-        .then(response => response.json())
-        .then(data => {
-            hideLoader(); // Hide loader after fetching
-            if (data.status === 200 && Array.isArray(data.data)) {
-                stockData = data.data;
-                // Populate the global allProducts array
-                allProducts = stockData.map(stock => stock.product);
-                displayProducts(stockData);
-                initAutocomplete();
-            } else {
-                console.error('Invalid data:', data);
+            fetch('/products/stocks')
+                .then(response => response.json())
+                .then(data => {
+                    hideLoader(); // Hide loader after fetching
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        stockData = data.data;
+                        // Populate the global allProducts array
+                        allProducts = stockData.map(stock => stock.product);
+                        displayProducts(stockData);
+                        initAutocomplete();
+                    } else {
+                        console.error('Invalid data:', data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        function initAutocomplete() {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = allProducts.filter(product =>
+                        (product.product_name && product.product_name.toLowerCase().includes(
+                            searchTerm)) ||
+                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                    );
+
+                    response(filteredProducts.length ?
+                        filteredProducts.map(p => ({
+                            label: `${p.product_name} (${p.sku || 'No SKU'})`,
+                            value: p.product_name,
+                            product: p
+                        })) : [{
+                            label: "No products found",
+                            value: ""
+                        }]
+                    );
+
+                    if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(
+                        filteredProducts[0]);
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product) return false;
+                    $("#productSearchInput").val(ui.item.value);
+                    addProductToTable(ui.item.product);
+                    return false;
+                },
+                focus: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    return false;
+                },
+                minLength: 1,
+                open: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                },
+                close: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                const $li = $("<li>").append(
+                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`).appendTo(
+                    ul);
+
+                $li.data("ui-autocomplete-item", item);
+                $li.on("mouseenter", function() {
+                    $(this).addClass("ui-state-focus");
+                }).on("mouseleave", function() {
+                    $(this).removeClass("ui-state-focus");
+                });
+
+                return $li;
+            };
+
+            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+                if (!this.menu.element.is(":visible")) {
+                    this.search(null, event);
+                    return;
+                }
+                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+                    this.menu.isLastItem() && /^next/.test(direction)) {
+                    this._value(this.term);
+                    this.menu.blur();
+                    return;
+                }
+                this.menu[direction](event);
+                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                this.menu.active.addClass("ui-state-focus");
+            };
+        }
+
+        function displayProducts(products) {
+            posProduct.innerHTML = ''; // Clear previous products
+
+            // Filter products to show only those with total stock greater than 0
+            const filteredProducts = products.filter(stock => stock.total_stock > 0);
+
+            if (filteredProducts.length === 0) {
+                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                return;
             }
-        })
-        .catch(error => {
-            console.error('Error fetching data:', error);
-        });
-}
 
-function initAutocomplete() {
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
-            const filteredProducts = allProducts.filter(product =>
-                (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
-                (product.sku && product.sku.toLowerCase().includes(searchTerm))
-            );
+            filteredProducts.forEach(stock => {
+                const product = stock.product;
+                const totalQuantity = stock.total_stock;
+                const price = product.retail_price;
+                const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
 
-            response(filteredProducts.length ?
-                filteredProducts.map(p => ({
-                    label: `${p.product_name} (${p.sku || 'No SKU'})`,
-                    value: p.product_name,
-                    product: p
-                })) : [{
-                    label: "No products found",
-                    value: ""
-                }]
-            );
+                // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
+                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
+                    `${totalQuantity} Pc(s) in stock`;
 
-            if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(filteredProducts[0]);
-        },
-        select: function(event, ui) {
-            if (!ui.item.product) return false;
-            $("#productSearchInput").val(ui.item.value);
-            addProductToTable(ui.item.product);
-            return false;
-        },
-        focus: function(event, ui) {
-            $("#productSearchInput").val(ui.item.value);
-            return false;
-        },
-        minLength: 1,
-        open: function() {
-            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-        },
-        close: function() {
-            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-        }
-    }).autocomplete("instance")._renderItem = function(ul, item) {
-        const $li = $("<li>").append(
-            `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`).appendTo(ul);
-
-        $li.data("ui-autocomplete-item", item);
-        $li.on("mouseenter", function() {
-            $(this).addClass("ui-state-focus");
-        }).on("mouseleave", function() {
-            $(this).removeClass("ui-state-focus");
-        });
-
-        return $li;
-    };
-
-    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-        if (!this.menu.element.is(":visible")) {
-            this.search(null, event);
-            return;
-        }
-        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-            this.menu.isLastItem() && /^next/.test(direction)) {
-            this._value(this.term);
-            this.menu.blur();
-            return;
-        }
-        this.menu[direction](event);
-        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-        this.menu.active.addClass("ui-state-focus");
-    };
-}
-
-function displayProducts(products) {
-    posProduct.innerHTML = ''; // Clear previous products
-
-    // Filter products to show only those with total stock greater than 0
-    const filteredProducts = products.filter(stock => stock.total_stock > 0);
-
-    if (filteredProducts.length === 0) {
-        posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-        return;
-    }
-
-    filteredProducts.forEach(stock => {
-        const product = stock.product;
-        const totalQuantity = stock.total_stock;
-        const price = product.retail_price;
-        const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
-
-        // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
-        const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
-            `${totalQuantity} Pc(s) in stock`;
-
-        const cardHTML = `
+                const cardHTML = `
             <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
                 <div class="product-card"> <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
 
@@ -330,20 +333,22 @@ function displayProducts(products) {
                 </div>
             </div>
         `;
-        posProduct.insertAdjacentHTML('beforeend', cardHTML);
-    });
+                posProduct.insertAdjacentHTML('beforeend', cardHTML);
+            });
 
-    // Add click event to product cards
-    const productCards = document.querySelectorAll('.product-card');
+            // Add click event to product cards
+            const productCards = document.querySelectorAll('.product-card');
 
-    productCards.forEach(card => {
-        card.addEventListener('click', () => {
-            const productId = card.querySelector('img').getAttribute('alt'); // Get the product ID from the alt attribute
-            const selectedProduct = stockData.find(stock => stock.product.product_name === productId).product;
-            addProductToTable(selectedProduct);
-        });
-    });
-}
+            productCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const productId = card.querySelector('img').getAttribute(
+                    'alt'); // Get the product ID from the alt attribute
+                    const selectedProduct = stockData.find(stock => stock.product
+                        .product_name === productId).product;
+                    addProductToTable(selectedProduct);
+                });
+            });
+        }
 
         // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {
@@ -804,7 +809,7 @@ function displayProducts(products) {
                         // Populate billing body with existing sale products
                         saleDetails.sale_products.forEach(saleProduct => {
                             const price = saleProduct.price || saleProduct.product
-                            .retail_price; // Use sale price or fallback to retail price
+                                .retail_price; // Use sale price or fallback to retail price
 
                             // Normalize the stockEntry.batches structure
                             const normalizedStockEntry = {
@@ -850,7 +855,7 @@ function displayProducts(products) {
                         if (customerSelect) {
                             customerSelect.value = saleDetails.sale.customer_id;
                             $(customerSelect).trigger(
-                            'change'); // Trigger change event to update the select2 UI
+                                'change'); // Trigger change event to update the select2 UI
 
                         }
 
