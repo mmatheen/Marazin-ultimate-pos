@@ -968,7 +968,6 @@
                 <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
                 <td>${sale.final_total}</td>
                 <td>
-                    <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
                     <button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
                     <button class='btn btn-outline-danger btn-sm'>Delete</button>
                 </td>

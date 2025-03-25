@@ -633,22 +633,32 @@ class ProductController extends Controller
         $user = auth()->user();
         $userRole = $user->role_name;
         $userLocationId = $user->location_id;
-
+    
         // Initialize an array to store product stock data
         $productStocks = [];
-
+    
         // Retrieve products based on the user's role in chunks
         Product::with(['batches.locationBatches.location', 'locations'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
             // Process each product in the chunk
             foreach ($products as $product) {
-                // Calculate total stock
-                $totalStock = $product->batches->sum(function ($batch) {
-                    return $batch->locationBatches->sum('qty');
+                // Filter the batches based on the user's location ID
+                $filteredBatches = $product->batches->filter(function ($batch) use ($userLocationId) {
+                    return $batch->locationBatches->contains('location_id', $userLocationId);
                 });
-
-                // Map through batches
-                $batches = $product->batches->map(function ($batch) {
-                    // Map through location batches
+    
+                // Skip the product if no batches are available at the user's location
+                if ($filteredBatches->isEmpty()) {
+                    continue;
+                }
+    
+                // Calculate total stock for the user's location
+                $totalStock = $filteredBatches->sum(function ($batch) use ($userLocationId) {
+                    return $batch->locationBatches->where('location_id', $userLocationId)->sum('qty');
+                });
+    
+                // Map through filtered batches
+                $batches = $filteredBatches->map(function ($batch) {
+                    // Map through location batches for the user's location
                     $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
                         return [
                             'batch_id' => $locationBatch->batch_id ?? 'N/A',
@@ -657,7 +667,7 @@ class ProductController extends Controller
                             'quantity' => $locationBatch->qty,
                         ];
                     });
-
+    
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -671,7 +681,7 @@ class ProductController extends Controller
                         'location_batches' => $locationBatches,
                     ];
                 });
-
+    
                 // Add the processed product stock to the response array
                 $productStocks[] = [
                     'product' => [
@@ -707,7 +717,7 @@ class ProductController extends Controller
                 ];
             }
         });
-
+    
         // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }
