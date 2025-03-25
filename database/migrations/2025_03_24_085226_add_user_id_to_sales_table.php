@@ -14,7 +14,8 @@ return new class extends Migration
     public function up(): void
     {
         // Set a default user_id for existing sales
-        $defaultUserId = User::first()->id;
+        $defaultUser = User::first();
+        $defaultUserId = $defaultUser ? $defaultUser->id : null;
 
         Schema::table('sales', function (Blueprint $table) use ($defaultUserId) {
             $table->foreignId('user_id')->nullable()->after('location_id')->constrained('users')->onDelete('cascade');
