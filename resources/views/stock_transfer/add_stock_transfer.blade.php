@@ -141,25 +141,25 @@
                 </div>
             </div>
 
-            <!-- Section 4: Amount Recovery -->
+            <!-- Section 4: Additional Information -->
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="card card-table">
                         <div class="card-header">
-                            <h5 class="card-title">Amount Recovery</h5>
+                            <h5 class="card-title">Additional Information</h5>
                         </div>
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-6">
+                                {{-- <div class="col-md-6">
+                                        <label>Recovered Amount</label>
                                     <div class="form-group local-forms">
-                                        <label>Recovered Amount<span class="login-danger">*</span></label>
                                         <input class="form-control" type="number" placeholder="Enter Amount" id="recovered_amount" name="recovered_amount">
                                     </div>
-                                </div>
+                                </div> --}}
                                 <div class="col-md-6">
                                     <div class="form-group local-forms">
-                                        <label>Reason for Recovery<span class="login-danger">*</span></label>
-                                        <textarea class="form-control" placeholder="Enter Reason" id="recovery_reason" name="recovery_reason"></textarea>
+                                        <label>Stock Transfer Reason</label>
+                                        <textarea class="form-control" placeholder="Enter Reason" id="recovery_reason" name="note"></textarea>
                                     </div>
                                 </div>
                             </div>

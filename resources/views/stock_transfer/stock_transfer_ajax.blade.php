@@ -416,9 +416,10 @@
                         <td>${transfer.reference_no}</td>
                         <td>${transfer.from_location.name}</td>
                         <td>${transfer.to_location.name}</td>
+                        <td>${transfer.status}</td>
                         <td>${transfer.shipping_charges || '0.00'}</td>
                         <td>${totalAmount.toFixed(2)}</td>
-                        <td>${transfer.additional_notes || ''}</td>
+                        <td>${transfer.note || ''}</td>
                         <td>
                             <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-edit"></i>
