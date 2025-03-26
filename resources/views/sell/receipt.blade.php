@@ -59,7 +59,7 @@
             }
 
             .attribute {
-                font-size: 12px !important;
+                font-size: 10px !important;
                 color: #000 !important;
                 font-weight: normal !important;
             }
@@ -96,7 +96,7 @@
     <div id="printArea">
 
         <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
-            <img src="{{ asset('assets/img/ARB_Fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
+            <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
         </div>
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
             <div> {{ Auth::user()->location->address }}</div>
@@ -260,7 +260,7 @@
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div class="attribute"
-            style="font-size: 12px; color: #000; font-weight: normal !important; text-align: center;">
+            style="font-size: 8px; color: #000; font-weight: normal !important; text-align: center;">
             SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959
         </div>
     </div>

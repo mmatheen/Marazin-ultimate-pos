@@ -1025,6 +1025,7 @@
                             // Reset the form and refresh products
                             resetForm();
                             fetchAllProducts();
+                            fetchSalesData();
                         } else {
                             toastr.error('Failed to record sale: ' + response.message);
                         }
@@ -1034,6 +1035,7 @@
                     }
                 });
             }
+            
 
             function gatherCashPaymentData() {
                 const totalAmount = parseFormattedAmount($('#final-total-amount').text()
@@ -1367,15 +1369,19 @@
                         toastr.error('The given amount is less than the total amount.');
                         return;
                     }
+                    
 
                     swal({
-                        title: "Balance Amount",
-                        text: "The balance amount to be returned is Rs. " +
-                            formatAmountWithSeparators(balance.toFixed()),
-
+                        title: "Balance Amount  Rs. " +  formatAmountWithSeparators(balance.toFixed()),
+                        // text: "The balance amount to be returned is Rs. " +
+                           
                         type: "info",
                         showCancelButton: false,
                         confirmButtonText: "OK",
+                        customClass: {
+                            title: 'swal-title-large',
+                            text: 'swal-title-large' // Use the same class as title for larger text
+                        }
                     }, function() {
                         $('#cashButton').trigger('click');
                     });
@@ -1385,8 +1391,13 @@
             // Fetch suspended sales when the POS page loads
             // fetchSuspendedSales();
 
+
+
+            
+
         });
 
+        
 
         document.getElementById('cancelButton').addEventListener('click', resetForm);
 
@@ -1417,6 +1428,109 @@
 
 
     });
+    $(document).ready(function () {
+    // Initialize DataTable
+        $('#transactionTable').DataTable();
+
+        // Fetch sales data on page load
+        fetchSalesData();
+    });
+
+let sales = [];
+
+// Function to fetch sales data from the server using AJAX
+function fetchSalesData() {
+    $.ajax({
+        url: '/sales',
+        type: 'GET',
+        dataType: 'json',
+        success: function (data) {
+            if (Array.isArray(data)) {
+                sales = data;
+            } else if (data.sales && Array.isArray(data.sales)) {
+                sales = data.sales;
+            } else {
+                console.error('Unexpected data format:', data);
+            }
+            // Load the default tab data (e.g., 'final')
+            loadTableData('final');
+        },
+        error: function (xhr, status, error) {
+            console.error('Error fetching sales data:', error);
+        }
+    });
+}
+
+// Function to load the sales data into the DataTable
+function loadTableData(status) {
+    const table = $('#transactionTable').DataTable();
+    table.clear().draw(); // Clear existing data
+
+    const filteredSales = sales
+        .filter(sale => sale.status === status)
+        .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
+
+    if (filteredSales.length === 0) {
+        table.row.add([
+            '', 'No records found', '', '', ''
+        ]).draw();
+    } else {
+        filteredSales.forEach((sale, index) => {
+            table.row.add([
+                index + 1,
+                sale.invoice_no,
+                `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                sale.final_total,
+                `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>`
+            ]).draw();
+        });
+    }
+}
+
+    // Function to navigate to the edit page
+    function navigateToEdit(saleId) {
+        window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
+    }
+
+    // Function to print the receipt for the sale
+    function printReceipt(saleId) {
+        fetch(`/sales/print-recent-transaction/${saleId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.invoice_html) {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.position = 'fixed';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    iframe.style.border = 'none';
+                    document.body.appendChild(iframe);
+
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(data.invoice_html);
+                    iframe.contentDocument.close();
+
+                    iframe.onload = function() {
+                        iframe.contentWindow.print();
+                        iframe.contentWindow.onafterprint = function() {
+                            document.body.removeChild(iframe);
+                        };
+                    };
+                } else {
+                    alert('Failed to fetch the receipt. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching the receipt:', error);
+                alert('An error occurred while fetching the receipt. Please try again.');
+            });
+    }
+
+    // // Event listener to load sales data when the page is loaded
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     fetchSalesData();
+
+
+    // });
 </script>
 
 

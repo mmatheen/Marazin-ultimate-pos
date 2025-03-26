@@ -924,8 +924,8 @@
                 <div class="modal-body">
                     <ul class="nav nav-tabs" id="transactionTabs">
                         <li class="nav-item">
-                            <a class="nav-link active" data-bs-toggle="tab" href="#completed"
-                                onclick="loadTableData('final')">Completed</a>
+                            <a class="nav-link active" data-bs-toggle="tab" href="#final"
+                                onclick="loadTableData('final')">Final</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#quotation"
@@ -938,7 +938,7 @@
                     </ul>
                     <div class="tab-content mt-3">
                         <div class="table-responsive">
-                            <table class="table table-bordered">
+                            <table class="table table-bordered" id="transactionTable">
                                 <thead>
                                     <tr>
                                         <th>#</th>
@@ -962,100 +962,7 @@
         </div>
     </div>
 
-    <script>
-        let sales = [];
-
-        // Function to fetch sales data from the server
-        async function fetchSalesData() {
-            try {
-                const response = await fetch('/sales');
-                const data = await response.json();
-                if (Array.isArray(data)) {
-                    sales = data;
-                } else if (data.sales && Array.isArray(data.sales)) {
-                    sales = data.sales;
-                } else {
-                    console.error('Unexpected data format:', data);
-                }
-                // Load the default tab data (e.g., 'final')
-                loadTableData('final');
-            } catch (error) {
-                console.error('Error fetching sales data:', error);
-            }
-        }
-
-        // Function to load the sales data into the table
-        function loadTableData(status) {
-            const tableBody = document.getElementById('transactionTableBody');
-            tableBody.innerHTML = ''; // Clear existing table rows
-
-            const filteredSales = sales
-                .filter(sale => sale.status === status)
-                .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
-
-            if (filteredSales.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No records found</td></tr>';
-            } else {
-                filteredSales.forEach((sale, index) => {
-                    const row = `<tr>
-                <td>${index + 1}</td>
-                <td>${sale.invoice_no}</td>
-                <td>${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}</td>
-                <td>${sale.final_total}</td>
-                <td>
-                    <button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                </td>
-            </tr>`;
-                    tableBody.innerHTML += row;
-                });
-            }
-        }
-
-        // Function to navigate to the edit page
-        function navigateToEdit(saleId) {
-            window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
-        }
-
-        // Function to print the receipt for the sale
-        function printReceipt(saleId) {
-            fetch(`/sales/print-recent-transaction/${saleId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.invoice_html) {
-                        const iframe = document.createElement('iframe');
-                        iframe.style.position = 'fixed';
-                        iframe.style.width = '0';
-                        iframe.style.height = '0';
-                        iframe.style.border = 'none';
-                        document.body.appendChild(iframe);
-
-                        iframe.contentDocument.open();
-                        iframe.contentDocument.write(data.invoice_html);
-                        iframe.contentDocument.close();
-
-                        iframe.onload = function() {
-                            iframe.contentWindow.print();
-                            iframe.contentWindow.onafterprint = function() {
-                                document.body.removeChild(iframe);
-                            };
-                        };
-                    } else {
-                        alert('Failed to fetch the receipt. Please try again.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching the receipt:', error);
-                    alert('An error occurred while fetching the receipt. Please try again.');
-                });
-        }
-
-        // Event listener to load sales data when the page is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchSalesData();
-
-            setInterval(fetchSalesData, 1000);
-        });
-    </script>
+  
 
     <style>
         .modal-body {
