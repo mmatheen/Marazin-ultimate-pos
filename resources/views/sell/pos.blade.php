@@ -542,6 +542,40 @@
                             <button class="btn btn-primary text-white border-1 px-2 py-1"
                                 style="width: auto; height: 30px;" id="currentTimeButton"
                                 disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                            <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
+                                data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
+                                data-bs-content="<div class='row'>
+                                                    <div class='col-6'><strong>Operation</strong></div>
+                                                    <div class='col-6'><strong>Keyboard Shortcut</strong></div>
+                                                    <div class='col-6'>Go to product quantity</div>
+                                                    <div class='col-6'>F2</div>
+                                                    <div class='col-6'>Add new product or search</div>
+                                                    <div class='col-6'>F4</div>
+                                                    <div class='col-6'>Choose customer</div>
+                                                    <div class='col-6'>Ctrl + Shift + C</div>
+                                                </div>">
+                                <i class="fas fa-keyboard"></i>
+                            </button>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const currentTimeButton = document.getElementById('currentTimeButton');
+                                    setInterval(() => {
+                                        const now = new Date();
+                                        const formattedTime = now.getFullYear() + '-' +
+                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                                            ('0' + now.getDate()).slice(-2) + ' ' +
+                                            ('0' + now.getHours()).slice(-2) + ':' +
+                                            ('0' + now.getMinutes()).slice(-2) + ':' +
+                                            ('0' + now.getSeconds()).slice(-2);
+                                        currentTimeButton.textContent = formattedTime;
+                                    }, 1000);
+
+                                    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+                                    const popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                                        return new bootstrap.Popover(popoverTriggerEl)
+                                    })
+                                });
+                            </script>
                             <script>
                                 document.addEventListener('DOMContentLoaded', function() {
                                     const currentTimeButton = document.getElementById('currentTimeButton');
@@ -632,6 +666,7 @@
 
 
         <div class="row mt-2">
+           
             <div class="col-md-7">
                 <div class="card bg-white p-3">
                     <div class="row">
@@ -746,7 +781,8 @@
                         });
                     });
                 </script>
-            </div>
+           
+        </div>
 
 
 
@@ -839,14 +875,13 @@
 
         <!-- Bottom Fixed Section -->
         <div class="bottom-fixed mt-3">
-            <div class="row align-items-center">
+            <div class="row">
                 <!-- Right Side: Total Payable -->
-                <div class="col-md-5 d-flex align-items-center gap-2">
+                <div class="col-md-5 d-flex align-items-center justify-content-end gap-4">
                     <h4 class="mb-0">Total Payable:</h4>
                     <span id="total" class="text-success fs-4 fw-bold ms-2">Rs 0.00</span>
                     <span id="items-count" class="text-secondary fs-5 ms-2">(0)</span>
-                    <button class="btn btn-danger ms-auto" id="cancelButton"><i class="fas fa-times"></i>
-                        Cancel</button>
+                    <button class="btn btn-danger ms-2" id="cancelButton"><i class="fas fa-times"></i> Cancel</button>
                 </div>
 
 

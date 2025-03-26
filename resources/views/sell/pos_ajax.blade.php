@@ -529,6 +529,8 @@
             });
         }
 
+ 
+    
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
             // Ensure price is a valid number
             price = parseFloat(price);
@@ -1388,23 +1390,6 @@
 
         document.getElementById('cancelButton').addEventListener('click', resetForm);
 
-        // function resetForm() {
-        //     document.getElementById('customer-id').value = 1;
-        //     const quantityInputs = document.querySelectorAll('.quantity-input');
-        //     quantityInputs.forEach(input => {
-        //         input.value = 1;
-        //     });
-
-        //     const billingBodyRows = document.querySelectorAll('#billing-body tr');
-        //     billingBodyRows.forEach(row => {
-        //         row.remove();
-        //     });
-
-        //     document.getElementById('amount-given').value = ''; // Reset the amount given field
-
-        //     updateTotals();
-        // }
-
         function resetForm() {
             document.getElementById('customer-id').value = 1;
             const quantityInputs = document.querySelectorAll('.quantity-input');
@@ -1430,9 +1415,9 @@
 
 
 
+
     });
 </script>
-
 
 
 {{-- For jQuery --}}
@@ -1440,6 +1425,65 @@
 <!-- Include Mousetrap library -->
 {{-- <script src="{{ asset('assets/js/mousetrap.js') }}"></script> --}}
 <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    let currentRowIndex = 0;
+
+    function focusQuantityInput() {
+        const quantityInputs = document.querySelectorAll('.quantity-input');
+        if (quantityInputs.length > 0) {
+            quantityInputs[currentRowIndex].focus();
+            quantityInputs[currentRowIndex].select();
+            currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
+        }
+    }
+
+    hotkeys('f2', function(event) {
+        event.preventDefault();
+        focusQuantityInput();
+    });
+
+    hotkeys('f4', function(event) {
+        event.preventDefault();
+        const productSearchInput = document.getElementById('productSearchInput');
+        if (productSearchInput) {
+            productSearchInput.focus();
+            productSearchInput.select();
+        } else {
+            console.warn('No product search input found.');
+        }
+    });
+
+    hotkeys('f5', function(event) {
+        event.preventDefault();
+        if (confirm('Are you sure you want to refresh the page?')) {
+            location.reload();
+        }
+    });
+
+    if (typeof hotkeys !== 'undefined') {
+        hotkeys('ctrl+shift+c', function (event) {
+            event.preventDefault();
+            const customerSelect = $('#customer-id');
+            if (customerSelect.length) {
+                customerSelect.select2('open'); 
+
+                // Wait a bit, then focus on the search input inside Select2
+                setTimeout(() => {
+                    $('.select2-search__field').focus();
+                }, 100);
+            } else {
+                console.warn('No customer select input found.');
+            }
+        });
+    } else {
+        console.error('Hotkeys library is not loaded.');
+    }
+    // Initial focus on the first quantity input if available
+    focusQuantityInput();
+});
+</script>
+</script>
 
 <!-- Include cleave.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
