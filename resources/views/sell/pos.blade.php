@@ -158,7 +158,7 @@
         
             /* Offcanvas Styles */
             .offcanvas {
-                background-color: #f8f9fa;
+                background-color: white;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
                 width: 40%
             }
@@ -199,14 +199,14 @@
         
             .category-card,
             .brand-card {
-                width: calc(33.33% - 10px);
+                width: calc(33.33% - 15px);
                 border: 1px solid #ddd;
                 border-radius: 8px;
                 text-align: center;
-                padding: 10px;
+                padding: 15px;
                 background-color: #fff;
-                box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s ease-in-out;
+                box-shadow: rgba(50, 50, 105, 0.15) 0px 2px 5px 0px, rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;            
             }
         
             .category-card:hover,
@@ -216,61 +216,70 @@
         
             .category-card h6,
             .brand-card h6 {
-                font-size: 14px;
+                font-size: 16px;
                 margin: 10px 0;
                 color: #333;
+                align-items: center;
+                justify-content: center;
             }
         
             .category-footer,
             .brand-footer {
                 display: flex;
                 justify-content: space-between;
-                margin-top: 15px;
+                margin-top: 20px;
+                text-align: center;
+                
             }
         
             /* Category Button Styles */
             .category-footer button {
                 background-color: transparent;
-                color: #28a745;
-                border: 2px solid #28a745;
+                /* color: #28a745;
+                border: 2px solid #28a745; */
                 padding: 5px 10px;
                 border-radius: 5px;
-                font-size: 12px;
+                font-size: 14px;
                 cursor: pointer;
                 transition: background-color 0.3s ease, color 0.3s ease;
             }
         
             .category-footer button:hover {
-                background-color: #28a745;
+                /* background-color: #28a745; */
                 color: #fff;
             }
         
-            /* Green Outline Button */
-            .btn-outline-green {
-                background-color: transparent;
-                color: #28a745;
-                border: 2px solid #28a745;
-                transition: background-color 0.3s ease, color 0.3s ease;
-            }
-        
-            .btn-outline-green:hover {
-                background-color: #28a745;
-                color: white;
-            }
-        
-            /* Blue Outline Button */
-            .btn-outline-blue {
-                background-color: transparent;
-                color: #007bff;
-                border: 2px solid #007bff;
-                transition: background-color 0.3s ease, color 0.3s ease;
-            }
-        
-            .btn-outline-blue:hover {
-                background-color: #007bff;
-                color: white;
-            }
-        
+          /* Green Outline Button */
+.btn-outline-green {
+    background-color: transparent !important;
+    color: #28a745 !important;
+    border: 2px solid #28a745 !important;
+    transition: background-color 0.3s ease, color 0.3s ease !important;
+    padding: 5px 10px !important;
+    text-align: center !important;
+
+}
+
+.btn-outline-green:hover {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+/* Blue Outline Button */
+.btn-outline-purple {
+    background-color: transparent !important;
+    color: #6f42c1 !important;
+    border: 2px solid #6f42c1 !important;
+    transition: background-color 0.3s ease, color 0.3s ease !important;
+    text-align: center !important;
+}
+
+.btn-outline-purple:hover {
+    background-color: #6f42c1 !important;
+    color: white !important;
+}
+
+         
             /* Responsive Styles */
             @media (min-width: 1024px) {
                 .category-card,

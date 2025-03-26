@@ -54,55 +54,54 @@
         fetchBrands();
 
         function fetchCategories() {
-            fetch('/main-category-get-all')
-                .then(response => response.json())
-                .then(data => {
-                    const categories = data.message;
-                    const categoryContainer = document.getElementById('categoryContainer');
+    fetch('/main-category-get-all')
+        .then(response => response.json())
+        .then(data => {
+            const categories = data.message;
+            const categoryContainer = document.getElementById('categoryContainer');
 
-                    if (Array.isArray(categories)) {
-                        categories.forEach(category => {
-                            const card = document.createElement('div');
-                            card.classList.add('category-card');
-                            card.setAttribute('data-id', category.id);
+            if (Array.isArray(categories)) {
+                categories.forEach(category => {
+                    const card = document.createElement('div');
+                    card.classList.add('category-card');
+                    card.setAttribute('data-id', category.id);
 
-                            const cardTitle = document.createElement('h6');
-                            cardTitle.textContent = category.mainCategoryName;
-                            card.appendChild(cardTitle);
+                    const cardTitle = document.createElement('h6');
+                    cardTitle.textContent = category.mainCategoryName;
+                    card.appendChild(cardTitle);
 
-                            const buttonContainer = document.createElement('div');
-                            buttonContainer.classList.add('category-footer');
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.classList.add('category-footer');
 
-                            const allButton = document.createElement('button');
-                            allButton.textContent = 'All';
-                            allButton.classList.add('btn', 'btn-outline-green', 'me-2');
-                            allButton.addEventListener('click', () => {
-                                filterProductsByCategory(category.id);
-                                closeOffcanvas('offcanvasCategory');
-                            });
+                    const allButton = document.createElement('button');
+                    allButton.textContent = 'All';
+                    allButton.classList.add('btn', 'btn-outline-green', 'me-2');
+                    allButton.addEventListener('click', () => {
+                        filterProductsByCategory(category.id);
+                        closeOffcanvas('offcanvasCategory');
+                    });
 
-                            const nextButton = document.createElement('button');
-                            nextButton.textContent = 'Next';
-                            nextButton.classList.add('btn', 'btn-outline-blue');
-                            nextButton.addEventListener('click', () => {
-                                fetchSubcategories(category.id);
-                            });
+                    const nextButton = document.createElement('button');
+                    nextButton.textContent = 'Next >>';
+                    nextButton.classList.add('btn', 'btn-outline-purple');
+                    nextButton.addEventListener('click', () => {
+                        fetchSubcategories(category.id);
+                    });
 
-                            buttonContainer.appendChild(allButton);
-                            buttonContainer.appendChild(nextButton);
-                            card.appendChild(buttonContainer);
+                    buttonContainer.appendChild(allButton);
+                    buttonContainer.appendChild(nextButton);
+                    card.appendChild(buttonContainer);
 
-                            categoryContainer.appendChild(card);
-                        });
-                    } else {
-                        console.error('Categories not found:', categories);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching categories:', error);
+                    categoryContainer.appendChild(card);
                 });
-        }
-
+            } else {
+                console.error('Categories not found:', categories);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching categories:', error);
+        });
+}
         function fetchSubcategories(categoryId) {
             fetch(`/sub_category-details-get-by-main-category-id/${categoryId}`)
                 .then(response => response.json())
