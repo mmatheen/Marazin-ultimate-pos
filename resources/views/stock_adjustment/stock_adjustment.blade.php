@@ -26,11 +26,14 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button to Add Stock Adjustment -->
-                                    <a href="{{ route('add-stock-adjustment') }}">
-                                        <button type="button" class="btn btn-outline-info">
-                                            <i class="fas fa-plus px-2"></i>Add
-                                        </button>
-                                    </a>
+
+                                    @can('add stock-adjustment')
+                                        <a href="{{ route('add-stock-adjustment') }}">
+                                            <button type="button" class="btn btn-outline-info">
+                                                <i class="fas fa-plus px-2"></i>Add
+                                            </button>
+                                        </a>
+                                   @endcan
                                 </div>
                             </div>
                         </div>

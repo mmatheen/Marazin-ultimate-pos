@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Validator;
 
 class CustomerController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view customer', ['only' => ['index', 'show','Customer']]);
+        $this->middleware('permission:create customer', ['only' => ['store']]);
+        $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete customer', ['only' => ['destroy']]);
+    }
+
     public function Customer()
     {
         return view('contact.customer.customer');

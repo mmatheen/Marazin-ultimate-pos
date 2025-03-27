@@ -11,6 +11,15 @@ use Illuminate\Support\Facades\Validator;
 
 class BrandController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view brand', ['only' => ['index', 'show','Brand']]);
+        $this->middleware('permission:create brand', ['only' => ['store']]);
+        $this->middleware('permission:edit brand', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete brand', ['only' => ['destroy']]);
+    }
+
     public function Brand()
     {
         return view('brand.brand');

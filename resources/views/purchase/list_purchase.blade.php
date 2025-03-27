@@ -148,10 +148,13 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                    <a href="{{ route('add-purchase') }}"><button type="button"
-                                            class="btn btn-outline-info">
-                                            <i class="fas fa-plus px-2"> </i>Add
-                                        </button></a>
+
+                                @can('add purchase')
+                                <a href="{{ route('add-purchase') }}"><button type="button"
+                                    class="btn btn-outline-info">
+                                    <i class="fas fa-plus px-2"> </i>Add
+                                </button></a>
+                                @endcan
 
                                 </div>
 

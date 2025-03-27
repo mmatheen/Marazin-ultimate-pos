@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Validator;
 
 class MainCategoryController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view main-category', ['only' => ['index', 'show','mainCategory']]);
+        $this->middleware('permission:create main-category', ['only' => ['store']]);
+        $this->middleware('permission:edit main-category', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete main-category', ['only' => ['destroy']]);
+    }
+
     public function mainCategory(){
         return view('category.main_category.main_category');
     }

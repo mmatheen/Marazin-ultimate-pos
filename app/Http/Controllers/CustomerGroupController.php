@@ -9,6 +9,14 @@ use App\Models\CustomerGroup;
 use Illuminate\Support\Facades\Validator;
 class CustomerGroupController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view customer-group', ['only' => ['index', 'show','customerGroup']]);
+        $this->middleware('permission:create customer-group', ['only' => ['store']]);
+        $this->middleware('permission:edit customer-group', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete customer-group', ['only' => ['destroy']]);
+    }
+
     public function customerGroup(){
         $SellingPriceGroups = SellingPriceGroup::all(); // this course come from modal
         return view('contact.customer_group.customer_group',compact('SellingPriceGroups'));

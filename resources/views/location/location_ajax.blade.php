@@ -2,31 +2,25 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
+        populateLocationDropdown();
 
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
         rules: {
-
               name: {
                 required: true,
-
             },
-
             address: {
                 required: true,
-
             },
             province: {
                 required: true,
-
             },
             district: {
                 required: true,
-
             },
             city: {
                 required: true,
-
             },
             email: {
                 required: true,
@@ -34,21 +28,16 @@
             },
             mobile: {
                 required: true,
-
             },
             telephone_no: {
                 required: true,
-
             },
-
-
         },
         messages: {
 
             name: {
                 required: "Name is required",
             },
-
             address: {
                 required: "Address  is required",
             },
@@ -87,18 +76,18 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#addAndLocationUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndLocationUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#addAndLocationUpdateForm').validate().resetForm();
+            $('#addAndLocationUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndLocationUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
              // Clear the district dropdown
            $('#edit_district').html('<option selected disabled>Select District</option>');
         }
@@ -112,7 +101,7 @@
         $('#addLocationButton').click(function() {
             $('#modalTitle').text('New Location');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndLocationUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditLocationModal').modal('show');
@@ -154,7 +143,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Location');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndLocationUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -184,11 +173,11 @@
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#addAndLocationUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#addAndLocationUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error('Invalid inputs, Check & try again!!','Warning');
@@ -231,7 +220,7 @@
 
            // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
-        $('#addAndUpdateForm').on('input change', 'input', function() {
+        $('#addAndLocationUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
             $('#' + fieldName + '_error').html(''); // Clear specific field error message
         });
@@ -257,6 +246,7 @@
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
+                        populateLocationDropdown();
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, 'Deleted');
@@ -297,6 +287,30 @@
     });
 
     // Province to district mapping code finished
+
+    function populateLocationDropdown() {
+    $.ajax({
+        url: "/location-get-all", // Route URL
+        type: "GET",
+        dataType: "json",
+        success: function(response) {
+            if (response.status === 200) {
+                let dropdown = $(".locationDropdown");
+                dropdown.empty().append('<option value="">Select Location</option>');
+
+                $.each(response.message, function(index, location) {
+                    dropdown.append('<option value="' + location.id + '">' + location.name + '</option>');
+                });
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function(xhr) {
+            console.log("Error:", xhr);
+        }
+    });
+}
+
 
     });
 </script>

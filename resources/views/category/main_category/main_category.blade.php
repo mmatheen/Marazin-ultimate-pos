@@ -27,9 +27,12 @@
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
                                      <!-- Button trigger modal -->
+
+                                    @can('create main-category')
                                     <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
                                         New  <i class="fas fa-plus px-2"> </i>
                                     </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -85,6 +88,6 @@
     </div>
 
     @include('category.main_category.main_category_ajax')
- 
+
 
 @endsection

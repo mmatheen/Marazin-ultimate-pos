@@ -1216,7 +1216,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
 </script>
 
 
-{{-- impoprt lead file code start --}}
+{{-- impoprt product file code start --}}
 <script>
     $(document).on('submit', '#importProductForm', function(e) {
         e.preventDefault();
@@ -1278,6 +1278,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         toastr.error(response.validation_errors, 'Error');
                     $('.progress').hide();
                 }
+               
             },
             error: function(xhr, status, error) {
                 console.error(xhr.responseText);

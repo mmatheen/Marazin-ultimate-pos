@@ -27,9 +27,12 @@
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
                                     <!-- Button trigger modal -->
-                                    <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
-                                        New <i class="fas fa-plus px-2"> </i>
-                                    </button>
+                                    
+                                    @can('create parent-expense')
+                                        <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
+                                            New <i class="fas fa-plus px-2"> </i>
+                                        </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>

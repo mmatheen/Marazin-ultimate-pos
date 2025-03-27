@@ -2,21 +2,22 @@
     $(document).ready(function () {
     var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
         showFetchData();
-        selectRole();
-
     // add form and update validation rules code start
               var addAndUpdateValidationOptions = {
         rules: {
             name_title: {
                 required: true,
             },
-            name: {
+            full_name: {
                 required: true,
             },
             user_name: {
                 required: true,
             },
             roles: {
+                required: true,
+            },
+            location_id: {
                 required: true,
             },
             email: {
@@ -42,7 +43,7 @@
                 required: "Name Title is required",
             },
 
-            name: {
+            full_name: {
                 required: "Full Name is required",
             },
 
@@ -51,6 +52,9 @@
             },
             roles: {
                 required: "Role Name is required",
+            },
+            location_id: {
+                required: "Location Name is required",
             },
 
             email: {
@@ -95,7 +99,7 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#addAndUserUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
@@ -104,11 +108,11 @@
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUserUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#addAndUserUpdateForm').validate().resetForm();
+            $('#addAndUserUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndUserUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -118,7 +122,7 @@
 
              // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
-        $('#addAndUpdateForm').on('input change', 'input', function() {
+        $('#addAndUserUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
             $('#' + fieldName + '_error').html(''); // Clear specific field error message
         });
@@ -127,7 +131,7 @@
         $('#addButton').click(function() {
             $('#modalTitle').text('New User');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUserUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditModal').modal('show');
@@ -147,11 +151,13 @@
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name_title + '</td>');
-                        row.append('<td>' + item.name + '</td>');
+                        row.append('<td>' + item.full_name + '</td>');
                         row.append('<td>' + item.user_name + '</td>');
                         row.append('<td><span class="badge rounded-pill bg-dark me-1">' + item.role + '</span></td>');
+                        row.append('<td><span class="badge rounded-pill bg-dark me-1">' + item.location + '</span></td>');
                         row.append('<td>' + item.email + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        row.append('<td>' + '@can("edit user")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can("delete user")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
                         counter++;
@@ -165,7 +171,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit User');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUserUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -178,45 +184,24 @@
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
                         $('#edit_name_title').val(response.message.name_title);
-                        $('#edit_name').val(response.message.name);
+                        $('#edit_full_name').val(response.message.full_name);
                         $('#edit_user_name').val(response.message.user_name);
                         $('#edit_email').val(response.message.email);
                         $('#edit_role_name').val(response.message.role);
+                        $('#edit_location_name').val(response.message.location);
+                        $('#edit_location_id').val(response.message.location_id);
                         $('#addAndEditModal').modal('show');
                     }
                 }
             });
         });
 
-function selectRole() {
-    $.ajax({
-        url: "{{ route('role.dropdown') }}", // Route URL
-        type: "GET",
-        dataType: "json",
-        success: function(response) {
-            if (response.status === 200) {
-                let dropdown = $(".roleDropdown");
-                dropdown.empty().append('<option value="">Select Role</option>');
-
-                $.each(response.roles, function(index, role) {
-                    dropdown.append('<option value="' + role.name + '">' + role.name + '</option>');
-                });
-            } else {
-                alert(response.message);
-            }
-        },
-        error: function(xhr) {
-            console.log("Error:", xhr);
-        }
-    });
-}
-
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#addAndUserUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#addAndUserUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.error('Invalid inputs, Check & try again!!','Warning');
@@ -294,5 +279,6 @@ function selectRole() {
                 }
             });
         });
+
     });
 </script>

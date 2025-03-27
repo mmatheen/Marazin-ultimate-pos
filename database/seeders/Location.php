@@ -18,7 +18,7 @@ class Location extends Seeder
         DB::table('locations')->insert([
             [
                 'id' => 1,
-                'name' => 'Kalmunai',
+                'name' => 'Sammanthurai',
                 'place_id' => '001',
                 'address' => 'Kalmunai',
                 'province' => 'Eastern',
@@ -32,7 +32,7 @@ class Location extends Seeder
             ],
             [
                 'id' => 2,
-                'name' => 'Colombo',
+                'name' => 'ARB FASHION',
                 'place_id' => '002',
                 'address' => 'Colombo',
                 'province' => 'Western',
@@ -46,7 +46,7 @@ class Location extends Seeder
             ],
             [
                 'id' => 3,
-                'name' => 'Galle',
+                'name' => 'ARB SUPER CENTER',
                 'place_id' => '003',
                 'address' => 'Galle',
                 'province' => 'Southern',

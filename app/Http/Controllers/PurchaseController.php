@@ -3,24 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Purchase;
-use App\Models\PurchasePayment;
 use App\Models\Supplier;
-use App\Models\Location;
-use App\Models\Product;
-use App\Models\PaymentInfo;  // Ensure this is included at the top of your controller
 use App\Models\Batch;
 use App\Models\Ledger;
-use App\Models\Stock;
-use App\Models\PurchaseProduct;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-
 use App\Models\LocationBatch;
 use App\Models\Payment;
-use App\Models\PurchaseReturn;
-use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Exception;
@@ -28,6 +17,14 @@ use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view purchase', ['only' => ['listPurchase']]);
+        $this->middleware('permission:add purchase', ['only' => ['AddPurchase']]);
+        $this->middleware('permission:create purchase', ['only' => ['storeOrUpdate']]);
+        $this->middleware('permission:edit purchase', ['only' => ['editPurchase','storeOrUpdate']]);
+    }
+
     public function listPurchase()
     {
         return view('purchase.list_purchase');

@@ -30,21 +30,21 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#addAndRoleAndPermissionUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndRoleAndPermissionUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#addAndRoleAndPermissionUpdateForm').validate().resetForm();
+            $('#addAndRoleAndPermissionUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndRoleAndPermissionUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
 
              // Clear all checkboxes
-            $('#addAndUpdateForm').find('input[type="checkbox"]').prop('checked', false);
+            $('#addAndRoleAndPermissionUpdateForm').find('input[type="checkbox"]').prop('checked', false);
         }
 
        // Fetch and Display Data
@@ -64,7 +64,8 @@
                 // Combine all permissions' names into a single string
                 let permissions = item.permissions.map(permission =>'<span class="badge rounded-pill bg-dark me-1">' + permission.name + '</span>').join(', ');
                 row.append('<td>' + permissions + '</td>');
-                row.append('<td><button type="button" value="' + item.role_id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.role_id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                row.append('<td>' + '@can("edit role & permission")<button type="button" value="' + item.role_id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                    '@can("delete role & permission")<button type="button" value="' + item.role_id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                 table.row.add(row).draw(false);
                 counter++;
             });
@@ -77,15 +78,17 @@
             var role_id = $(this).val(); // Get the ID from the button value
             // Redirect to the edit page for the specific role ID
             window.location.href = `/role-and-permission-edit/${role_id}`;
+
+
             });
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#addAndRoleAndPermissionUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#addAndRoleAndPermissionUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                         toastr.error('Invalid inputs, Check & try again!!','Warning');
                 return; // Return if form is not valid
@@ -93,8 +96,8 @@
 
             let formData = new FormData(this);
             const id = window.location.pathname.split('/').pop();
-            console.log(id);
-             let url = id ? '/role-and-permission-update/' + id : 'role-and-permission-store';
+            console.log("id = " + id);
+            let url = id && id !== 'group-role-and-permission' ? '/role-and-permission-update/' + id : '/role-and-permission-store';
             let type = 'post';
 
             $.ajax({
@@ -114,6 +117,10 @@
                             document.getElementsByClassName('errorSound')[0].play(); //for sound
                             resetFormAndValidation();
                         });
+                    }
+                    else if (response.status == 404) {
+                        toastr.error(response.message, 'Error');
+                            document.getElementsByClassName('errorSound')[0].play(); //for sound
 
                     } else {
                         document.getElementsByClassName('successSound')[0].play(); //for sound

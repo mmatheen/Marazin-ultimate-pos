@@ -9,7 +9,6 @@ use Spatie\Permission\Models\Permission;
 
 class RoleAndPermissionController extends Controller
 {
-
     function __construct()
     {
         $this->middleware('permission:view role & permission', ['only' => ['groupRoleAndPermissionView','groupRoleAndPermissionList', 'groupRoleAndPermission']]);
@@ -17,8 +16,6 @@ class RoleAndPermissionController extends Controller
         $this->middleware('permission:edit role & permission', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role & permission', ['only' => ['destroy']]);
     }
-
-
 
     public function groupRoleAndPermissionView()
     {
@@ -84,6 +81,7 @@ class RoleAndPermissionController extends Controller
         // Find the role
         $role = Role::find($request->role_id);
 
+
         if (!$role) {
             return response()->json([
                 'status' => 404,
@@ -93,6 +91,17 @@ class RoleAndPermissionController extends Controller
 
         // Get selected permissions
         $permissions = Permission::whereIn('id', $request->permission_id)->pluck('name')->toArray();
+
+              // Get the current permissions of the role
+            $currentPermissions = $role->permissions->pluck('name')->toArray();
+
+            // If the role already has all the permissions, do nothing
+            if (empty(array_diff($permissions, $currentPermissions))) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'This role already has the selected permissions.'
+                ]);
+            }
 
         // Assign permissions to role using Spatie
         $role->syncPermissions($permissions);
@@ -163,6 +172,7 @@ class RoleAndPermissionController extends Controller
 
         // Get selected permissions
         $permissions = Permission::whereIn('id', $request->permission_id)->pluck('name')->toArray();
+
 
         // Sync the permissions with the role
         $role->syncPermissions($permissions);

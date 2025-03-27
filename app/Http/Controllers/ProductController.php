@@ -25,6 +25,13 @@ use App\Events\StockUpdated;
 
 class ProductController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view import-product', ['only' => ['importProduct']]);
+        $this->middleware('permission:create import-product', ['only' => ['importProductStore']]);
+    }
+
     public function product()
     {
         return view('product.product');

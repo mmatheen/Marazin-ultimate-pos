@@ -17,80 +17,57 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Get the locations' IDs for reference
-        $location_ids = DB::table('locations')->whereIn('name', ['Kalmunai', 'Colombo','Galle',])->pluck('id');
+        $location_ids = DB::table('locations')->whereIn('name', ['Sammanthurai', 'ARB FASHION','ARB SUPER CENTER',])->pluck('id');
 
         $users = [
 
-            // kalmunai
             [
                 'name_title' => 'Mr',
-                'name' => 'Super Admin',
-                'user_name' => 'Matheen Maara',
+                'full_name' => 'ARB',
+                'user_name' => 'ARB',
                 'is_admin' => true,
-                'email' => 'kalmunaisuperadmin@gmail.com',
+                'email' => 'arb@gmail.com',
                 'password' => '1234',
-                'role' => 'super-admin',
+                'role' => 'Super Admin',
                 'location_id' => $location_ids[0] // Assign the first location ID (Kalmunai)
+            ],
+
+            [
+                'name_title' => 'Mr',
+                'full_name' => 'Ahamed',
+                'user_name' => 'Suraif',
+                'is_admin' => false,
+                'email' => 'suraif@arbtrading.lk',
+                'password' => '1234',
+                'role' => 'Admin',
+                'location_id' => $location_ids[0] // Assign the first location ID (Colombo)
             ],
             [
                 'name_title' => 'Mr',
-                'name' => 'Admin',
-                'user_name' => 'Ahshan',
+                'full_name' => 'Mohamed',
+                'user_name' => 'Riskan',
                 'is_admin' => false,
-                'email' => 'kalmunaidmin@gmail.com',
+                'email' => 'riskan@arbtrading.lk',
                 'password' => '1234',
-                'role' => 'admin',
+                'role' => 'Admin',
                 'location_id' => $location_ids[0] // Assign the second location ID (Colombo)
             ],
             [
                 'name_title' => 'Mr',
-                'name' => 'Manager',
-                'user_name' => 'Aasath',
-                'is_admin' => false,
-                'email' => 'kalmunaimanager@gmail.com',
-                'password' => '1234',
-                'role' => 'manager',
-                'location_id' => $location_ids[0] // Assign the third location ID (Galle)
-            ],
-
-            // colombo
-
-            [
-                'name_title' => 'Mr',
-                'name' => 'Super Admin',
-                'user_name' => 'Matheen Maara',
+                'full_name' => 'Mohamed',
+                'user_name' => 'Ajwath',
                 'is_admin' => true,
-                'email' => 'colombosuperadmin@gmail.com',
+                'email' => 'ajwath94@gmail.com',
                 'password' => '1234',
-                'role' => 'super-admin',
-                'location_id' => $location_ids[1] // Assign the first location ID (Colombo)
-            ],
-            [
-                'name_title' => 'Mr',
-                'name' => 'Admin',
-                'user_name' => 'Ahshan',
-                'is_admin' => false,
-                'email' => 'colomboadmin@gmail.com',
-                'password' => '1234',
-                'role' => 'admin',
-                'location_id' => $location_ids[1] // Assign the second location ID (Colombo)
-            ],
-            [
-                'name_title' => 'Mr',
-                'name' => 'Manager',
-                'user_name' => 'Aasath',
-                'is_admin' => false,
-                'email' => 'colombomanager@gmail.com',
-                'password' => '1234',
-                'role' => 'manager',
-                'location_id' => $location_ids[1] // Assign the third location ID (Colombo)
+                'role' => 'Super Admin',
+                'location_id' => $location_ids[0] // Assign the third location ID (Colombo)
             ],
         ];
 
         foreach ($users as $userData) {
             $user = User::create([
                 'name_title' => $userData['name_title'],
-                'name' => $userData['name'],
+                'full_name' => $userData['full_name'],
                 'user_name' => $userData['user_name'],
                 'is_admin' => $userData['is_admin'],
                 'email' => $userData['email'],

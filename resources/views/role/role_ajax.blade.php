@@ -34,18 +34,18 @@
     };
 
     // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+    $('#addAndRoleUpdateForm').validate(addAndUpdateValidationOptions);
 
   // add form and update validation rules code end
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndRoleUpdateForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#addAndRoleUpdateForm').validate().resetForm();
+            $('#addAndRoleUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndRoleUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -55,7 +55,7 @@
 
         // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
-        $('#addAndUpdateForm').on('input change', 'input', function() {
+        $('#addAndRoleUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
             $('#' + fieldName + '_error').html(''); // Clear specific field error message
         });
@@ -64,7 +64,7 @@
         $('#addRoleButton').click(function() {
             $('#modalTitle').text('New Role');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndRoleUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditRoleModal').modal('show');
@@ -84,7 +84,8 @@
                         let row = $('<tr>');
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.name + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        row.append('<td>' + '@can("edit role")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can("delete role")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
                         counter++;
@@ -98,7 +99,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Role');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndRoleUpdateForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -119,11 +120,11 @@
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#addAndRoleUpdateForm').submit(function(e) {
             e.preventDefault();
 
              // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#addAndRoleUpdateForm').valid()) {
                    document.getElementsByClassName('warningSound')[0].play(); //for sound
                    toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                     toastr.error('Invalid inputs, Check & try again!!','Error');

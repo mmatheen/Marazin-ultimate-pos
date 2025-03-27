@@ -7,7 +7,7 @@
             <div class="row align-items-center">
                 <div class="col-sm-12">
                     <div class="page-sub-header">
-                        <h3 class="page-title">Edit Role</h3>
+                        <h3 class="page-title">Edit Role & Permissions</h3>
                         <ul class="breadcrumb">
                             <li class="breadcrumb-item">User Management</li>
                             <li class="breadcrumb-item active">Edit Role</li>
@@ -24,9 +24,9 @@
                 <div class="card-body">
                     <div class="page-header">
                         <div class="row align-items-center">
-                            <form class="px-3" id="addAndUpdateForm">
+                            <form class="px-3" id="addAndRoleAndPermissionUpdateForm">
                                 @csrf
-                              
+
                                 <div class="row">
                                     <div class="col-md-5">
                                         <div class="form-group local-forms d-flex justify-content-center">

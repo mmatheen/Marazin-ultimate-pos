@@ -6,7 +6,7 @@
                     <div class="text-center mt-2 mb-4">
                         <h5 id="modalTitle"></h5>
                     </div>
-                    <form id="addAndUpdateForm">
+                    <form id="addAndRoleUpdateForm">
 
                         <input type="hidden" name="edit_id" id="edit_id">
 

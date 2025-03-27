@@ -14,6 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class StockAdjustmentController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view stock-adjustment', ['only' => ['index','stockAdjustmentList']]);
+        $this->middleware('permission:add stock-adjustment', ['only' => ['addStockAdjustment']]);
+        $this->middleware('permission:create stock-adjustment', ['only' => ['storeOrUpdate']]);
+        $this->middleware('permission:edit stock-adjustment', ['only' => ['edit','storeOrUpdate']]);
+    }
+
     public function index()
     {
         // Fetch all stock adjustments with related products and location
