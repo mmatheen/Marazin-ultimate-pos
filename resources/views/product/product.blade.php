@@ -85,7 +85,9 @@
                         <ul class="nav nav-tabs nav-tabs-solid">
                             <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1" data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
                             <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li>
+                            @can('view import-product')
                             <li class="nav-item"><a class="nav-link" href="#solid-justified-tab3" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Import Bulk Product</a></li>
+                            @endcan
                         </ul>
                     </div>
                 </div>
@@ -159,7 +161,7 @@
                                                         <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data">
                                                             @csrf
                                                             <div class="row">
-                                                                
+
                                                                 <div class="col-md-6 mt-4">
                                                                     <a class="btn btn-outline-success mt-2" id="export_btn" href="{{ route('excel-product-blank-template-export') }}"><i class="fas fa-download"></i> &nbsp; Download template file</a>
                                                                 </div>
@@ -186,10 +188,10 @@
                                                                     <span class="text-danger" id="file_error"></span>
                                                                 </div>
 
-                    
+
                                                             </div>
 
-         
+
                                                         </form>
                                                     </div>
                                                 </div>

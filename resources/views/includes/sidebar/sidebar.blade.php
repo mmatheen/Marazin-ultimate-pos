@@ -139,6 +139,7 @@
                     <li><a href={{ route('add-purchase-bulk-payments') }} class="{{ set_active(['add-purchase-bulk-payments'])}}">Add Purchase Bulk Payments</a></li>
                 </ul>
             </li>
+            
             <li class="menu-title">
                 <span>Management</span>
             </li>
@@ -151,6 +152,7 @@
                     @can('view stock-transfer')
                       <li><a href="{{ route('list-stock-transfer') }}" class="{{ set_active(['list-stock-transfer'])}}">List Stock Transfers</a></li>
                     @endcan
+
                     @can('add stock-transfer')
                       <li><a href={{ route('add-stock-transfer') }} class="{{ set_active(['add-stock-transfer'])}}">Add Stock Transfers</a></li>
                     @endcan
@@ -159,13 +161,20 @@
             @endcanany
 
 
+            @canany(['view stock-adjustment','add stock-adjustment'])
             <li class="submenu">
                 <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Adjustment</span> <span class="menu-arrow"></span></a>
                 <ul>
+                    @can('view stock-adjustment')
                     <li><a href="{{ route('list-stock-adjustment') }}" class="{{ set_active(['list-stock-adjustment'])}}">List Stock Adjustments</a></li>
+                    @endcan
+
+                    @can('add stock-adjustment')
                     <li><a href="{{ route('add-stock-adjustment') }}" class="{{ set_active(['add-stock-adjustment'])}}">Add Stock Adjustment</a></li>
+                    @endcan
                 </ul>
             </li>
+            @endcanany
 
             @canany(['view parent-expense', 'view child-expense'])
             <li class="submenu">

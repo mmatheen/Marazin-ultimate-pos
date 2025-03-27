@@ -35,7 +35,8 @@ use App\Http\Controllers\{
     ExpenseParentCategoryController,
     SaleReturnController,
     SalesCommissionAgentsController,
-    SellController,
+    RoleController,
+    RoleAndPermissionController,
     StockAdjustmentController,
     CartController,
     PaymentController
@@ -81,6 +82,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/user-update/{id}', [UserController::class, 'update']);
         Route::delete('/user-delete/{id}', [UserController::class, 'destroy']);
 
+
+
+
         // Dashboard Routes
         Route::get('/dashboard-data', [DashboardController::class, 'getDashboardData']);
 
@@ -125,7 +129,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
         Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
         Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
-        Route::get('/product-get-all', [ProductController::class, 'index']);
         Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
         Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
         Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
@@ -151,6 +154,25 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
 
+
+          // Role Routes
+          Route::get('/role', [RoleController::class, 'role'])->name('role');
+          Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
+          Route::get('/role-get-all', [RoleController::class, 'index']);
+          Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
+          Route::post('/role-update/{id}', [RoleController::class, 'update']);
+          Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
+          Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
+
+
+          Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
+          Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
+          Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
+          Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
+          Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
+          Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
+          Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
+          //stop role route
 
         // Dropdown Routes
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);

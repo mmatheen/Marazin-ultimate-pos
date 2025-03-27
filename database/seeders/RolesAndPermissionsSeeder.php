@@ -67,7 +67,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'import-product-management' => [
                 'view import-product', 'create import-product'
             ],
-
             // purchase management
             'product-purchase-management' => [
                 'view purchase', 'add purchase', 'create purchase', 'edit purchase'
@@ -76,7 +75,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'product-purchase-return-management' => [
                 'view purchase-return', 'add purchase-return', 'create purchase-return', 'edit purchase-return'
             ],
-
             // expenses management
             'parent-expenses-management' => [
                 'create parent-expense', 'edit parent-expense', 'view parent-expense', 'delete parent-expense'
@@ -92,12 +90,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'stock-adjustment-management' => [
                 'view stock-adjustment', 'add stock-adjustment', 'create stock-adjustment', 'edit stock-adjustment', 'delete stock-adjustment'
             ],
-
               // setting management
               'location-management' => [
                 'create location', 'edit location', 'view location', 'delete location'
             ],
-
               // daily-report management
               'daily-report-management' => [
                 'view daily-report'

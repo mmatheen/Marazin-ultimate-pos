@@ -19,7 +19,7 @@ class Location extends Seeder
             [
                 'id' => 1,
                 'name' => 'Sammanthurai',
-                'place_id' => '001',
+                'location_id' => '001',
                 'address' => 'Kalmunai',
                 'province' => 'Eastern',
                 'district' => 'Ampara',
@@ -33,7 +33,7 @@ class Location extends Seeder
             [
                 'id' => 2,
                 'name' => 'ARB FASHION',
-                'place_id' => '002',
+                'location_id' => '002',
                 'address' => 'Colombo',
                 'province' => 'Western',
                 'district' => 'Colombo',
@@ -47,7 +47,7 @@ class Location extends Seeder
             [
                 'id' => 3,
                 'name' => 'ARB SUPER CENTER',
-                'place_id' => '003',
+                'location_id' => '003',
                 'address' => 'Galle',
                 'province' => 'Southern',
                 'district' => 'Galle',
