@@ -37,18 +37,18 @@
         };
 
         // Apply validation to both forms
-        $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
+        $('#addAndUpdateSupplierForm').validate(addAndUpdateValidationOptions);
 
         // add form and update validation rules code end
 
         // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUpdateSupplierForm')[0].reset();
             // Reset the validation messages and states
-            $('#addAndUpdateForm').validate().resetForm();
-            $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            $('#addAndUpdateSupplierForm').validate().resetForm();
+            $('#addAndUpdateSupplierForm').find('.is-invalidRed').removeClass('is-invalidRed');
+            $('#addAndUpdateSupplierForm').find('.is-validGreen').removeClass('is-validGreen');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -60,7 +60,7 @@
         $('#addSupplierButton').click(function() {
             $('#modalTitle').text('New Supplier');
             $('#modalButton').text('Save');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUpdateSupplierForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
             $('#addAndEditSupplierModal').modal('show');
@@ -111,7 +111,7 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Supplier');
             $('#modalButton').text('Update');
-            $('#addAndUpdateForm')[0].reset();
+            $('#addAndUpdateSupplierForm')[0].reset();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -140,11 +140,11 @@
 
 
         // Submit Add/Update Form
-        $('#addAndUpdateForm').submit(function(e) {
+        $('#addAndUpdateSupplierForm').submit(function(e) {
             e.preventDefault();
 
             // Validate the form before submitting
-            if (!$('#addAndUpdateForm').valid()) {
+            if (!$('#addAndUpdateSupplierForm').valid()) {
                 document.getElementsByClassName('warningSound')[0].play(); //for sound
                 toastr.options = {
                     "closeButton": true,

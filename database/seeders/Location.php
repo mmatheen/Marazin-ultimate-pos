@@ -24,7 +24,7 @@ class Location extends Seeder
                 'province' => 'Eastern',
                 'district' => 'Ampara',
                 'city' => 'Kalmunai',
-                'email' => 'kalmunai.com',
+                'email' => 'matheen@gmail.com',
                 'mobile' => '0757571411',
                 'telephone_no' => '0757571411',
                 'created_at' => Carbon::now(),

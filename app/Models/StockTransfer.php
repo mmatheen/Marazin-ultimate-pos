@@ -13,7 +13,9 @@ class StockTransfer extends Model
         'to_location_id',
         'transfer_date',
         'reference_no',
-        'final_total'
+        'final_total',
+        'note',
+        'status'
     ];
 
     public function fromLocation()

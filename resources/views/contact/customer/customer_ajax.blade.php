@@ -235,7 +235,7 @@
                         sortedCustomers.forEach(customer => {
                             const option = $('<option></option>');
                             option.val(customer.id);
-                            option.text(`${customer.first_name} ${customer.last_name}`);
+                            option.text(`${customer.first_name} ${customer.last_name} ( ${customer.mobile_no} )`);
                             option.data('due', customer.current_due); // Store the due amount in the option
                             customerSelect.append(option);
                         });

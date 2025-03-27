@@ -59,7 +59,7 @@ class SaleController extends Controller
 
     public function index()
     {
-        $sales = Sale::with('products.product', 'customer', 'location', 'payments')->get();
+        $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')->get();
         return response()->json(['sales' => $sales], 200);
     }
 
@@ -169,6 +169,7 @@ class SaleController extends Controller
             return redirect()->route('list-sale')->with('error', 'Sale not found.');
         }
     }
+
     public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
@@ -246,6 +247,7 @@ class SaleController extends Controller
                     'discount_amount' => $discount,
                     'amount_given' => $amountGiven, // Add amount given
                     'balance_amount' => $balanceAmount, // Add balance amount
+                    'user_id' => auth()->id(),
                 ])->save();
 
                 if ($isUpdate) {
@@ -268,9 +270,9 @@ class SaleController extends Controller
                             $productData['product_id']
                         );
 
-                        if ($productData['quantity'] > $availableStock) {
-                            throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
-                        }
+                        // if ($productData['quantity'] > $availableStock) {
+                        //     throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
+                        // }
 
                         $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     }
@@ -355,8 +357,7 @@ class SaleController extends Controller
         }
     }
 
-
-        private function calculateNewBalance($userId, $amount, $type)
+     private function calculateNewBalance($userId, $amount, $type)
     {
         $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
         $previousBalance = $lastLedger ? $lastLedger->balance : 0;
@@ -382,80 +383,89 @@ class SaleController extends Controller
     }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType)
-    {
-        $quantityToDeduct = $productData['quantity'];
-        $remainingQuantity = $quantityToDeduct;
-        $batchIds = [];
-        $totalDeductedQuantity = 0; // Variable to keep track of the total deducted quantity
+{
+    $quantityToDeduct = $productData['quantity'];
+    $remainingQuantity = $quantityToDeduct;
+    $batchIds = [];
+    $totalDeductedQuantity = 0; // Variable to keep track of the total deducted quantity
 
-        if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
-            // Specific batch selected
-            $batch = Batch::findOrFail($productData['batch_id']);
-            $locationBatch = LocationBatch::where('batch_id', $batch->id)
-                ->where('location_id', $locationId)
-                ->firstOrFail();
+    // dump('Processing product sale: ' . json_encode($productData));
+    // dump('Quantity to deduct: ' . $quantityToDeduct);
+    // dump('Remaining quantity: ' . $remainingQuantity);
+    // dump('Stock type: ' . $stockType);
+    // dump('Location ID: ' . $locationId);
+    // dump('Sale ID: ' . $saleId);
+    // dump('Batch ID: ' . $productData['batch_id']);
 
-            if ($locationBatch->qty < $quantityToDeduct) {
-                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
+    if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
+        // Specific batch selected
+        $batch = Batch::findOrFail($productData['batch_id']);
+        $locationBatch = LocationBatch::where('batch_id', $batch->id)
+            ->where('location_id', $locationId)
+            ->firstOrFail();
+
+        if ($locationBatch->qty < $quantityToDeduct) {
+            throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
+        }
+
+        $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct, $stockType);
+        $batchIds[] = $batch->id;
+    } else {
+        // All batches selected
+        // Calculate total available quantity across all locations and batches
+        $totalAvailableQty = DB::table('location_batches')
+            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+            ->where('batches.product_id', $productData['product_id'])
+            ->where('location_batches.qty', '>', 0)
+            ->sum('location_batches.qty');
+
+        // dump('Total available quantity: ' . $totalAvailableQty);
+
+        if ($totalAvailableQty < $quantityToDeduct) {
+            throw new \Exception('Insufficient stock to complete the sale.');
+        }
+
+        // Deduct from batches using FIFO method across the specified location
+        $batches = DB::table('location_batches')
+            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+            ->where('batches.product_id', $productData['product_id'])
+            ->where('location_batches.qty', '>', 0)
+            ->orderBy('batches.created_at')
+            ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.location_id')
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remainingQuantity <= 0) {
+                break;
             }
 
-            $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct, $stockType);
-            $batchIds[] = $batch->id;
-        } else {
-            // All batches selected
-            // Calculate total available quantity across all batches
-            $totalAvailableQty = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $productData['product_id'])
-                ->where('location_batches.location_id', $locationId)
-                ->where('location_batches.qty', '>', 0)
-                ->sum('location_batches.qty');
-
-            if ($totalAvailableQty < $quantityToDeduct) {
-                throw new \Exception('Insufficient stock to complete the sale.');
-            }
-
-            // Deduct from batches using FIFO method
-            $batches = DB::table('location_batches')
-                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                ->where('batches.product_id', $productData['product_id'])
-                ->where('location_batches.location_id', $locationId)
-                ->where('location_batches.qty', '>', 0)
-                ->orderBy('batches.created_at')
-                ->select('location_batches.batch_id', 'location_batches.qty')
-                ->get();
-
-            foreach ($batches as $batch) {
-                if ($remainingQuantity <= 0) {
-                    break;
-                }
-
+            if ($batch->location_id == $locationId || $locationId == $productData['location_id']) {
                 $deductQuantity = min($remainingQuantity, $batch->qty);
-                $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
+                $this->deductBatchStock($batch->batch_id, $batch->location_id, $deductQuantity, $stockType);
                 $batchIds[] = $batch->batch_id;
                 $remainingQuantity -= $deductQuantity;
                 $totalDeductedQuantity += $deductQuantity; // Accumulate the total deducted quantity
             }
         }
-
-        // Record the sales product using the total deducted quantity
-        foreach ($batchIds as $batchId) {
-            SalesProduct::create([
-                'sale_id' => $saleId,
-                'product_id' => $productData['product_id'],
-                'quantity' => $quantityToDeduct, // Use the original quantity to be deducted
-                'price' => $productData['unit_price'],
-                'unit_price' => $productData['unit_price'],
-                'subtotal' => $productData['subtotal'],
-                'batch_id' => $batchId,
-                'location_id' => $locationId,
-                'price_type' => $productData['price_type'],
-                'discount' => $productData['discount'],
-                'tax' => $productData['tax'],
-            ]);
-        }
     }
 
+    // Record the sales product using the total deducted quantity
+    foreach ($batchIds as $batchId) {
+        SalesProduct::create([
+            'sale_id' => $saleId,
+            'product_id' => $productData['product_id'],
+            'quantity' => $quantityToDeduct, // Use the original quantity to be deducted
+            'price' => $productData['unit_price'],
+            'unit_price' => $productData['unit_price'],
+            'subtotal' => $productData['subtotal'],
+            'batch_id' => $batchId,
+            'location_id' => $locationId,
+            'price_type' => $productData['price_type'],
+            'discount' => $productData['discount'],
+            'tax' => $productData['tax'],
+        ]);
+    }
+}
     private function deductBatchStock($batchId, $locationId, $quantity, $stockType)
     {
         Log::info("Deducting $quantity from batch ID $batchId at location $locationId");

@@ -339,7 +339,7 @@
                     data: formData,
                     success: function(response) {
                         toastr.success(response.message);
-                        location.reload();
+                        window.location.href = '/list-stock-transfer';
                     },
                     error: function(response) {
                         if (response.responseJSON && response.responseJSON.errors) {
@@ -419,7 +419,7 @@
                         <td>${transfer.status}</td>
                         <td>${transfer.shipping_charges || '0.00'}</td>
                         <td>${totalAmount.toFixed(2)}</td>
-                        <td>${transfer.additional_notes || ''}</td>
+                        <td>${transfer.note || ''}</td>
                         <td>
                             @can('edit stock-transfer')
                                 <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">

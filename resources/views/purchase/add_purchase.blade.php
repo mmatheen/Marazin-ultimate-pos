@@ -249,7 +249,7 @@
                                             <label for="services">Business Location <span
                                                     class="login-danger">*</span></label>
                                             <div class="input-group">
-                                                <select class="form-control form-select" data-role="tagsinput"
+                                                <select class="form-control form-select selectBox" data-role="tagsinput"
                                                     id="services" name="location_id">
                                                     <option selected disabled></option>
                                                 </select>

@@ -56,11 +56,7 @@
             location_id: {
                 required: "Location Name is required",
             },
-
-            email: {
                 required: "Email is required",
-                email: "Please enter a valid email address", // Message for invalid email
-            },
             password: {
                 required: "Password is required",
                 minlength: "Password must be at least 5 characters long",
@@ -229,15 +225,7 @@
                             document.getElementsByClassName('errorSound')[0].play(); //for sound
                         });
 
-                    }
-                    else if (response.status == 404) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                            toastr.error(err_value, 'Validation Error');
-                            document.getElementsByClassName('errorSound')[0].play(); //for sound
-                        });
-
-                    }else {
+                    } else {
                         $('#addAndEditModal').modal('hide');
                            // Clear validation error messages
                         showFetchData();

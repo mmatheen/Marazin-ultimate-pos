@@ -3,58 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Select2 Autofocus with Blinking Cursor</title>
-
-    <!-- jQuery & Select2 CSS -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-
+    <title>POS Keyboard Shortcuts</title>
+    <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
     <style>
-        /* Ensures the search box is focused properly */
-        .select2-container--open .select2-search__field {
-            outline: none !important;
-            border: 1px solid #ccc;
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
         }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        .add { background: #28a745; color: white; }
+        .pay { background: #007bff; color: white; }
+        .refresh { background: #ffc107; color: black; }
+        .print { background: #dc3545; color: white; }
     </style>
 </head>
 <body>
 
-    <div class="container mt-5">
-        <h2>Select2 Autofocus with Blinking Cursor</h2>
-
-        <!-- Select2 Dropdown -->
-        <select id="yourSelect2" class="form-control">
-            <option value="">Select an option</option>
-            <option value="1">Option 1</option>
-            <option value="2">Option 2</option>
-            <option value="3">Option 3</option>
-        </select>
+    <div class="container">
+        <h2>POS Keyboard Shortcuts</h2>
+        <button class="add" onclick="addItem()">Add Item (Ctrl + A)</button>
+        <button class="pay" onclick="processPayment()">Process Payment (Ctrl + B)</button>
+        <button class="refresh" onclick="refreshPage()">Refresh Page (R)</button>
+        <button class="print" onclick="printReceipt()">Print Receipt (F)</button>
     </div>
 
     <script>
-        $(document).ready(function() {
-            // Initialize Select2
-            $('#yourSelect2').select2();
+        function addItem() {
+            alert("You added an item!");
+        }
 
-            // Function to open Select2 and focus the search box
-            function openAndFocusSelect2() {
-                $('#yourSelect2').select2('open'); // Open the dropdown
-                
-                setTimeout(function() {
-                    $('.select2-container--open .select2-search__field').focus(); // Focus search field
-                }, 100);
+        function processPayment() {
+            alert("Payment processed!");
+        }
+
+        function refreshPage() {
+            location.reload();
+        }
+
+        function printReceipt() {
+            alert("Printing receipt...");
+        }
+
+        // Hotkeys Configuration
+        hotkeys('ctrl+a, ctrl+b, r, f', function (event, handler) {
+            event.preventDefault(); // Prevent default browser actions
+
+            switch (handler.key) {
+                case 'ctrl+a':
+                    addItem();
+                    break;
+                case 'ctrl+b':
+                    processPayment();
+                    break;
+                case 'r':
+                    refreshPage();
+                    break;
+                case 'f':
+                    printReceipt();
+                    break;
             }
-
-            // Open Select2 automatically when page loads
-            setTimeout(openAndFocusSelect2, 500);
-
-            // Also focus search field when manually opened
-            $('#yourSelect2').on('select2:open', function() {
-                setTimeout(function() {
-                    $('.select2-container--open .select2-search__field').focus();
-                }, 100);
-            });
         });
     </script>
 

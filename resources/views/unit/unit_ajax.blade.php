@@ -1,21 +1,6 @@
-<script src="https://js.pusher.com/7.2/pusher.min.js"></script>
 <script type="text/javascript">
     $(document).ready(function () {
         var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
-
-          // Initialize Pusher
-  var pusher = new Pusher('53eba13ee577170f99fd', {
-        cluster: 'ap2'
-    });
-
-    var channel = pusher.subscribe('brands');
-
-    channel.bind('brand.updated', function(data) {
-        console.log('Real-time API update received:', data);
-        showFetchData(); // Refresh brand list dynamically
-        populateBrandDropdown();
-    });
-
         showFetchData();
         populateUnitDropdown();
 

@@ -91,6 +91,8 @@ class StockTransferController extends Controller
                     'transfer_date' => $request->transfer_date,
                     'reference_no' => $referenceNo,
                     'final_total' => $finalTotal,
+                    'note' => $request->note,
+                    'status' => $request->status,
                 ])->save();
 
                 // Delete existing transfer products if updating

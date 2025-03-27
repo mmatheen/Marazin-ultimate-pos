@@ -14,28 +14,27 @@ class MainCategory extends Seeder
      */
     public function run(): void
     {
-
-        $location_ids = DB::table('locations')->whereIn('name', ['Kalmunai', 'Colombo','Galle',])->pluck('id');
+        $location_id = DB::table('locations')->where('name', 'marazin')->first()->id;
 
         DB::table('main_categories')->insert([
             [
                 'mainCategoryName' => 'Buscuit',
                 'description' => 'Srilankan Product',
-                'location_id' => $location_ids[0],// Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'mainCategoryName' => 'Apple',
                 'description' => 'IOS Version',
-                'location_id' => $location_ids[0], // Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
                 'mainCategoryName' => 'Samsung',
                 'description' => 'Android Version',
-                'location_id' => $location_ids[0], // Foreign key reference
+                'location_id' => $location_id, // Foreign key reference
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],

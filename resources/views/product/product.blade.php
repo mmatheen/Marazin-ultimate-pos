@@ -170,7 +170,7 @@
                                                                             <label>File To Import</label>
                                                                             <div class="invoices-upload-btn">
                                                                                 <input type="file" name="file" id="file" class="hide-input">
-                                                                                <label for="file" class="upload"><i class="far fa-folder-open">
+                                                                                <label for="file" class="upload btn btn-outline-secondary"><i class="far fa-folder-open">
                                                                                         &nbsp;</i> Browse..</label>
                                                                             </div>
                                                                         </div>

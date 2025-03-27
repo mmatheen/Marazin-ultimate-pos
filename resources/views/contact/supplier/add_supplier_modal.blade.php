@@ -8,7 +8,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="addAndUpdateForm">
+                    <form id="addAndUpdateSupplierForm">
                         <div class="row">
                             <input type="hidden" name="edit_id" id="edit_id">
 

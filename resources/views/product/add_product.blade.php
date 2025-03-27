@@ -47,37 +47,41 @@
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product SKU</label>
-                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU" autocomplete="off">
+                                                    <input class="form-control" id="edit_sku " name="sku" type="text" placeholder="Product SKU" autocomplete="off">
                                                     <span class="text-danger" id="sku_error"></span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 ">
-                                                <div class="input-group local-forms d-flex ">
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
                                                     <label>Product Unit <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_unit_id" name="unit_id">
-                                                        <option>Select Unit</option>
-                                                    </select>
-                                                    <button type="button" class="btn btn-outline-info" id="addUnitButton">
-                                                        <i class="fas fa-plus-circle"></i>
-                                                    </button>
+                                                    <div class="input-group">
+                                                        <select class="form-control form-select selectBox" id="edit_unit_id" name="unit_id">
+                                                            <option>Select Unit</option>
+                                                        </select>
+                                                        <button type="button" class="btn btn-outline-info" id="addUnitButton">
+                                                            <i class="fas fa-plus-circle"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <span class="text-danger" id="unit_id_error"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 ">
-                                                <div class="input-group local-forms d-flex" >
-                                                    <label>Product Brand <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_brand_id" name="brand_id">
-                                                        <option>Select Brand</option>
-                                                    </select>
-                                                    <button type="button" class="btn btn-outline-info " id="addBrandButton">
-                                                        <i class="fas fa-plus-circle"></i>
-                                                    </button>
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                     <label>Product Brand <span class="login-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <select class="form-control form-select selectBox" id="edit_brand_id" name="brand_id">
+                                                            <option>Select Brand</option>
+                                                        </select>
+                                                        <button type="button" class="btn btn-outline-info" id="addBrandButton">
+                                                            <i class="fas fa-plus-circle"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <span class="text-danger" id="brand_id_error"></span>
                                             </div>
@@ -85,42 +89,56 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <div class="input-group local-forms d-flex">
+                                                <div class="form-group local-forms">
                                                     <label>Main Category <span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select" id="edit_main_category_id" name="main_category_id">
-                                                    </select>
-                                                    <button type="button" class="btn btn-outline-info" id="addMainCategoryButton">
-                                                        <i class="fas fa-plus-circle"></i>
-                                                    </button>
+                                                    <div class="input-group">
+                                                        <select class="form-control form-select selectBox" id="edit_main_category_id" name="main_category_id">
+                                                            <option>Select Main Category</option>
+                                                        </select>
+                                                        <button type="button" class="btn btn-outline-info" id="addMainCategoryButton">
+                                                            <i class="fas fa-plus-circle"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
+                                                <span class="text-danger" id="main_category_id_error"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mb-3 ">
-                                                <div class="input-group local-forms d-flex">
-                                                    <label>Sub Category</label>
-                                                    <select class="form-control form-select" id="edit_sub_category_id" name="sub_category_id">
-                                                    </select>
-                                                    <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
-                                                        <i class="fas fa-plus-circle"></i>
-                                                    </button>
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <label>Sub Category <span class="login-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <select class="form-control form-select selectBox" id="edit_sub_category_id" name="sub_category_id">
+                                                            <option>Select Sub Category</option>
+                                                        </select>
+                                                        <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
+                                                            <i class="fas fa-plus-circle"></i>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 <span class="text-danger" id="sub_category_id_error"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
-                                            <div class="mt-4 mb-3">
-                                                <div class="input-group local-forms">
-                                                    <label>Business Locations<span class="login-danger">*</span></label>
-                                                    <select class="form-control form-select multiple-location" id="edit_location_id" name="locations[]" multiple="multiple">
-                                                    </select>
-                                                    <span class="text-danger" id="locations_error"></span>
+                                            <div class="mb-3">
+                                                <div class="form-group local-forms">
+                                                    <label>Business Locations <span class="login-danger">*</span></label>
+                                                    <div class="input-group">
+                                                        <select class="form-control form-select selectBox multiple-location" id="edit_location_id" name="locations[]" multiple="multiple">
+                                                            <option>Select Business Locations</option>
+                                                        </select>
+                                                        {{-- <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
+                                                            <i class="fas fa-plus-circle"></i>
+                                                        </button> --}}
+                                                    </div>
                                                 </div>
+                                                <span class="text-danger" id="locations_error"></span>
                                             </div>
                                         </div>
 
+                                
                                         <script>
                                             $(document).ready(function () {
                                                 $('.multiple-location').select2({

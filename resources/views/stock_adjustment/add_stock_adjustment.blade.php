@@ -102,12 +102,12 @@
                     </div>
                 </div>
 
-                <!-- Save Button -->
-                <div class="row">
-                    <div class="col-md-12">
-                        <button type="submit" class="btn btn-primary btn-lg w-100">Save</button>
-                    </div>
+               <!-- Submit Button -->
+            <div class="row mb-4">
+                <div class="col-md-12 d-flex justify-content-center">
+                    <button type="submit" class="btn btn-primary btn-lg">Save</button>
                 </div>
+            </div>
             </form>
         </div>
     </div>

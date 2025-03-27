@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Events\BrandUpdated;
 
 use App\Http\Helpers\Common;
 use App\Models\Brand;
@@ -86,8 +85,6 @@ class BrandController extends Controller
         ]);
 
         if ($getValue) {
-             // Broadcast the updated brand data
-             broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => "New Brand Details Created Successfully!",
@@ -112,8 +109,6 @@ class BrandController extends Controller
     {
         $getValue = Brand::find($id);
         if ($getValue) {
-             // Broadcast the updated brand data
-             broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -181,8 +176,6 @@ class BrandController extends Controller
                     'description' => $request->description,
 
                 ]);
-                 // Broadcast the updated brand data
-                  broadcast(new BrandUpdated($getValue));
                 return response()->json([
                     'status' => 200,
                     'message' => "Old Brand  Details Updated Successfully!"
@@ -208,9 +201,6 @@ class BrandController extends Controller
         if ($getValue) {
 
             $getValue->delete();
-
-             // Broadcast the updated brand data
-             broadcast(new BrandUpdated($getValue));
             return response()->json([
                 'status' => 200,
                 'message' => "Brand Details Deleted Successfully!"
