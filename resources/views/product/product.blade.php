@@ -99,8 +99,12 @@
                                     <div class="page-header">
                                         <div class="row align-items-center">
                                             <div class="col-auto text-end float-end ms-auto download-grp">
+                                                @can('add product')
                                                 <a href="{{ route('add-product') }}"><button type="button" class="btn btn-outline-info"><i class="fas fa-plus px-2"> </i>Add</button></a>
+                                                @endcan
                                                 <button type="button" class="btn btn-outline-info " data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-download"></i>&nbsp;&nbsp;Download</button>
+
+
                                             </div>
                                         </div>
                                     </div>

@@ -27,11 +27,9 @@ class SaleController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view daily-report', ['only' => ['saleDailyReport', 'dailyReport']]);
-        // $this->middleware('permission:view daily-report', ['only' => ['index', 'show','mainCategory']]);
-        // $this->middleware('permission:create main-category', ['only' => ['store']]);
-        // $this->middleware('permission:edit main-category', ['only' => ['edit', 'update']]);
-        // $this->middleware('permission:delete main-category', ['only' => ['destroy']]);
+        $this->middleware('permission:view sale', ['only' => ['listSale']]);
+        $this->middleware('permission:add sale', ['only' => ['addSale']]);
+        $this->middleware('permission:pos page', ['only' => ['pos']]);
     }
 
 

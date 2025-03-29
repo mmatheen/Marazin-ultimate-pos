@@ -61,9 +61,13 @@
                                                         <select class="form-control form-select selectBox" id="edit_unit_id" name="unit_id">
                                                             <option>Select Unit</option>
                                                         </select>
+                                                        @can('view unit')
                                                         <button type="button" class="btn btn-outline-info" id="addUnitButton">
                                                             <i class="fas fa-plus-circle"></i>
                                                         </button>
+                                                        @endcan
+
+
                                                     </div>
                                                 </div>
                                                 <span class="text-danger" id="unit_id_error"></span>
@@ -78,9 +82,13 @@
                                                         <select class="form-control form-select selectBox" id="edit_brand_id" name="brand_id">
                                                             <option>Select Brand</option>
                                                         </select>
+                                                        @can('view brand')
                                                         <button type="button" class="btn btn-outline-info" id="addBrandButton">
                                                             <i class="fas fa-plus-circle"></i>
                                                         </button>
+                                                        @endcan
+
+
                                                     </div>
                                                 </div>
                                                 <span class="text-danger" id="brand_id_error"></span>
@@ -95,9 +103,13 @@
                                                         <select class="form-control form-select selectBox" id="edit_main_category_id" name="main_category_id">
                                                             <option>Select Main Category</option>
                                                         </select>
+                                                        @can('view main-category')
                                                         <button type="button" class="btn btn-outline-info" id="addMainCategoryButton">
                                                             <i class="fas fa-plus-circle"></i>
                                                         </button>
+                                                        @endcan
+
+
                                                     </div>
                                                 </div>
                                                 <span class="text-danger" id="main_category_id_error"></span>
@@ -112,9 +124,13 @@
                                                         <select class="form-control form-select selectBox" id="edit_sub_category_id" name="sub_category_id">
                                                             <option>Select Sub Category</option>
                                                         </select>
+                                                        @can('view sub-category')
                                                         <button type="button" class="btn btn-outline-info" id="addSubCategoryButton">
                                                             <i class="fas fa-plus-circle"></i>
                                                         </button>
+                                                        @endcan
+
+
                                                     </div>
                                                 </div>
                                                 <span class="text-danger" id="sub_category_id_error"></span>
@@ -138,7 +154,7 @@
                                             </div>
                                         </div>
 
-                                
+
                                         <script>
                                             $(document).ready(function () {
                                                 $('.multiple-location').select2({
@@ -362,7 +378,10 @@
                 <div class="mb-4 row">
                     <div class="gap-4 d-flex justify-content-center">
                         <div>
+
+                            @can('Add & Edit Opening Stock product')
                             <button type="submit" class="btn btn-outline-primary" id="openingStockAndProduct">Save & Add Opening Stock</button>
+                            @endcan
                         </div>
                         <div>
                             <button type="submit" class="btn btn-outline-danger" id="SaveProductButtonAndAnother">Save And Add Another</button>

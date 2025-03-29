@@ -57,13 +57,20 @@
                 </li>
                 @endcanany
 
-                @canany(['view unit', 'view main-category', 'view sub-category','view brand','view warranty','view import-product'])
+
+                @canany(['add product','view product','view unit', 'view main-category', 'view sub-category','view brand','view warranty','view import-product'])
                 <li class="submenu {{ set_active(['warranty'])}}">
                     <a href="#"><i class="fas fa-building"></i> <span>Products</span> <span class="menu-arrow"></span></a>
                     <ul>
+                        @can('view product')
                         <li><a href={{ route('list-product') }} class="{{ set_active(['list-product'])}}">List Products</a></li>
-                        {{-- {{ activeSegment('product_list') }} --}}
+                        @endcan
+                        
+                        @can('add product')
                         <li><a href={{ route('add-product')}} class="{{ set_active(['add-product'])}}">Add Product</a></li>
+                        @endcan
+                        {{-- {{ activeSegment('product_list') }} --}}
+        
                         <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
                         <li><a href={{ route('print-label')}} class="{{ set_active(['print-label'])}}">Print Label</a></li>
                         <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>
@@ -119,27 +126,52 @@
             </li>
             @endcanany
 
-            <li class="submenu">
+
+            @canany(['view sale', 'add sale','pos page','view return-sale','add return-sale'])
+              <li class="submenu">
                 <a href="#"><i class="fas fa-clipboard"></i> <span>Sell</span> <span class="menu-arrow"></span></a>
-                <ul>
+                 <ul>
+                    @can('view sale')
                     <li><a href={{ route('list-sale') }} class="{{ set_active(['list-sale'])}}">All Sales</a></li>
+                    @endcan
+
+                    @can('add sale')
                     <li><a href={{ route('add-sale') }} class="{{ set_active(['add-sale'])}}">Add Sale</a></li>
+                    @endcan
+
+                    @can('view return-sale')
                     <li><a href="{{ route('sale-return/list') }}" class="{{ set_active(['sale-return/list']) }}">List Sale Return</a></li>
+                    @endcan
+
+                    @can('add return-sale')
                     <li><a href="{{ route('sale-return/add') }}" class="{{ set_active(['sale-return/add']) }}">Add Sale Return</a></li>
+                    @endcan
 
                     {{-- <li><a href={{ route('pos-list') }} class="{{ set_active(['pos-list'])}}">List POS</a>
-            </li> --}}
-            <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>
-            </ul>
-            </li>
+                    </li> --}}
+                    @can('pos page')
+                    <li><a href={{ route('pos-create') }} class="{{ set_active(['pos-create'])}}">POS</a></li>
+                    @endcan
+                </ul>
+              </li>
+            @endcanany
+
+    
+            @canany(['add bulk sale payment', 'add bulk purchase payment'])
             <li class="submenu">
                 <a href="#"><i class="fas fa-clipboard"></i> <span>Add Bulk Payments</span> <span class="menu-arrow"></span></a>
                 <ul>
+                    @can('add bulk sale payment')
                     <li><a href={{ route('add-sale-bulk-payments') }} class="{{ set_active(['add-sale-bulk-payments'])}}">All Sales Bulk Payments</a></li>
+                    @endcan
+
+                    @can('add bulk purchase payment')
                     <li><a href={{ route('add-purchase-bulk-payments') }} class="{{ set_active(['add-purchase-bulk-payments'])}}">Add Purchase Bulk Payments</a></li>
+                    @endcan
                 </ul>
             </li>
-            
+            @endcanany
+
             <li class="menu-title">
                 <span>Management</span>
             </li>
@@ -150,11 +182,11 @@
                 <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Stock Transfers</span> <span class="menu-arrow"></span></a>
                 <ul>
                     @can('view stock-transfer')
-                      <li><a href="{{ route('list-stock-transfer') }}" class="{{ set_active(['list-stock-transfer'])}}">List Stock Transfers</a></li>
+                    <li><a href="{{ route('list-stock-transfer') }}" class="{{ set_active(['list-stock-transfer'])}}">List Stock Transfers</a></li>
                     @endcan
 
                     @can('add stock-transfer')
-                      <li><a href={{ route('add-stock-transfer') }} class="{{ set_active(['add-stock-transfer'])}}">Add Stock Transfers</a></li>
+                    <li><a href={{ route('add-stock-transfer') }} class="{{ set_active(['add-stock-transfer'])}}">Add Stock Transfers</a></li>
                     @endcan
                 </ul>
             </li>
@@ -181,10 +213,10 @@
                 <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span> <span class="menu-arrow"></span></a>
                 <ul>
                     @can('view parent-expense')
-                       <li><a href={{ route('expense-parent-catergory') }} class="{{ set_active(['expense-parent-catergory'])}}">Parent Expense Catergories</a></li>
+                    <li><a href={{ route('expense-parent-catergory') }} class="{{ set_active(['expense-parent-catergory'])}}">Parent Expense Catergories</a></li>
                     @endcan
                     @can('view child-expense')
-                       <li><a href={{ route('sub-expense-category') }} class="{{ set_active(['sub-expense-category'])}}">Child Expense Catergories</a></li>
+                    <li><a href={{ route('sub-expense-category') }} class="{{ set_active(['sub-expense-category'])}}">Child Expense Catergories</a></li>
                     @endcan
                 </ul>
             </li>

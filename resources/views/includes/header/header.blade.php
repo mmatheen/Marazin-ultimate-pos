@@ -39,11 +39,13 @@
             <li class="nav-item dropdown noti-dropdown me-3 mt-4">
                 {{-- dynamically change the location --}}
                 <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
-            </li>
+            </li> 
 
-            <a href="{{ route('pos-create') }}" class="btn btn-primary me-3" role="button">
-                <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS
-            </a>
+            @can('pos page')
+                <a href="{{ route('pos-create') }}" class="btn btn-primary me-3" role="button">
+                    <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS
+                </a>
+            @endcan
                 
             {{-- Notification dropdown --}}
             

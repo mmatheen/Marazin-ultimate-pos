@@ -30,6 +30,13 @@ class ProductController extends Controller
     {
         $this->middleware('permission:view import-product', ['only' => ['importProduct']]);
         $this->middleware('permission:create import-product', ['only' => ['importProductStore']]);
+        $this->middleware('permission:view product', ['only' => ['product','getAllProductStocks']]);
+        $this->middleware('permission:Add & Edit Opening Stock product', ['only' => ['editOpeningStock','storeOrUpdateOpeningStock']]);
+        $this->middleware('permission:product Full History', ['only' => ['getStockHistory']]);
+        $this->middleware('permission:show one product details', ['only' => ['getProductDetails']]);
+        $this->middleware('permission:create product|edit product', ['only' => ['storeOrUpdate']]);
+        $this->middleware('permission:add product', ['only' => ['addProduct']]);
+        $this->middleware('permission:delete product', ['only' => ['destroy']]);
     }
 
     public function product()

@@ -19,83 +19,101 @@ class RolesAndPermissionsSeeder extends Seeder
         // Define Permissions with Groups
         $permissions = [
             // user management
-            'user-management' => [
+            '1. user-management' => [
                 'create user', 'edit user', 'view user', 'delete user'
             ],
 
-            'role-management' => [
+            '2. role-management' => [
                 'create role', 'edit role', 'view role', 'delete role'
             ],
 
-            'role & permission-management' => [
+            '3. role & permission-management' => [
                 'create role & permission', 'edit role & permission', 'view role & permission', 'delete role & permission'
             ],
-            'sales-commission-agent-management' => [
+            '4. sales-commission-agent-management' => [
                 'create sales-commission-agent', 'edit sales-commission-agent', 'view sales-commission-agent', 'delete sales-commission-agent'
             ],
 
             // contact management
-            'supplier-management' => [
+            '5. supplier-management' => [
                 'create supplier', 'edit supplier', 'view supplier', 'delete supplier'
             ],
-            'customer-management' => [
+            '6. customer-management' => [
                 'create customer', 'edit customer', 'view customer', 'delete customer'
             ],
-            'customer-group-management' => [
-                'create customer-group', 'edit customer-group', 'view customer-group', 'delete customer-group'
+            '7. customer-group-management' => [
+                'create customer-group','edit customer-group','view customer-group','delete customer-group'
             ],
 
             // product management
-            'unit-management' => [
+            '8. product-management' => [
+                'create product','add product','edit product','view product','delete product','Add & Edit Opening Stock product','product Full History','show one product details'
+            ],
+
+
+            '9. unit-management' => [
                 'create unit', 'edit unit', 'view unit', 'delete unit'
             ],
-            'brand-management' => [
+            '10. brand-management' => [
                 'create brand', 'edit brand', 'view brand', 'delete brand'
             ],
 
-            'main-category-management' => [
+            '11. main-category-management' => [
                 'create main-category', 'edit main-category', 'view main-category', 'delete main-category'
             ],
 
-            'sub-catagory-management' => [
-                'create sub-category', 'edit sub-catagory', 'view sub-catagory', 'delete sub-catagory'
+            '12. sub-catagory-management' => [
+                'create sub-category', 'edit sub-catagory', 'view sub-category', 'delete sub-catagory'
             ],
 
-            'warranty-management' => [
+            '13. warranty-management' => [
                 'create warranty', 'edit warranty', 'view warranty', 'delete warranty'
             ],
-            'import-product-management' => [
+            '14. import-product-management' => [
                 'view import-product', 'create import-product'
             ],
+
+            // sale management
+            '15. sale-management' => [
+                'view sale', 'add sale', 'pos page'
+            ],
+            // sale-return management
+            '16. sale-return-management' => [
+                'view return-sale', 'add return-sale'
+            ],
+            // bulk-payment-management
+            '17. bulk-payment-management' => [
+                'add bulk sale payment', 'add bulk purchase payment'
+            ],
             // purchase management
-            'product-purchase-management' => [
+            '18. product-purchase-management' => [
                 'view purchase', 'add purchase', 'create purchase', 'edit purchase'
             ],
             // purchase-return management
-            'product-purchase-return-management' => [
+            '19. product-purchase-return-management' => [
                 'view purchase-return', 'add purchase-return', 'create purchase-return', 'edit purchase-return'
             ],
             // expenses management
-            'parent-expenses-management' => [
+            '20. parent-expenses-management' => [
                 'create parent-expense', 'edit parent-expense', 'view parent-expense', 'delete parent-expense'
             ],
-            'child-expenses-management' => [
+            '21. child-expenses-management' => [
                 'create child-expense', 'edit child-expense', 'view child-expense', 'delete child-expense'
             ],
             // stock-transfer management
-            'stock-transfer-management' => [
+            '22. stock-transfer-management' => [
                 'view stock-transfer', 'add stock-transfer', 'create stock-transfer', 'edit stock-transfer', 'delete stock-transfer'
             ],
             // stock-transfer management
-            'stock-adjustment-management' => [
+            '23. stock-adjustment-management' => [
                 'view stock-adjustment', 'add stock-adjustment', 'create stock-adjustment', 'edit stock-adjustment', 'delete stock-adjustment'
             ],
               // setting management
-              'location-management' => [
+              '24. location-management' => [
                 'create location', 'edit location', 'view location', 'delete location'
             ],
               // daily-report management
-              'daily-report-management' => [
+              '25. daily-report-management' => [
                 'view daily-report'
             ],
 
