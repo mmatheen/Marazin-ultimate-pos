@@ -54,7 +54,7 @@
                             </div>
                             <div class="col-lg-4 col-md-6">
                                 <div class="form-group local-forms">
-                                    <label>Location:</label>
+                                    <label>Date Range:</label>
                                     <div id="reportrange"
                                         style="background: #fff; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%">
                                         <i class="fa fa-calendar"></i>&nbsp;

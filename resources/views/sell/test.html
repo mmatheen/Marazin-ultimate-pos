@@ -3,85 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POS Keyboard Shortcuts</title>
-    <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 20px;
-        }
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        button {
-            display: block;
-            width: 100%;
-            margin: 10px 0;
-            padding: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-        }
-        .add { background: #28a745; color: white; }
-        .pay { background: #007bff; color: white; }
-        .refresh { background: #ffc107; color: black; }
-        .print { background: #dc3545; color: white; }
-    </style>
+    <title>Bootstrap DataTable with Select Checkboxes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.6.2/css/select.bootstrap5.min.css">
 </head>
 <body>
-
-    <div class="container">
-        <h2>POS Keyboard Shortcuts</h2>
-        <button class="add" onclick="addItem()">Add Item (Ctrl + A)</button>
-        <button class="pay" onclick="processPayment()">Process Payment (Ctrl + B)</button>
-        <button class="refresh" onclick="refreshPage()">Refresh Page (R)</button>
-        <button class="print" onclick="printReceipt()">Print Receipt (F)</button>
+    <div class="container mt-4">
+        <h2 class="text-center mb-4">Bootstrap DataTable with Checkboxes</h2>
+        <table id="example" class="table table-striped table-bordered nowrap" style="width:100%">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="select-all"></th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Office</th>
+                    <th>Age</th>
+                    <th>Start date</th>
+                    <th>Salary</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox" class="row-select"></td>
+                    <td>Tiger Nixon</td>
+                    <td>System Architect</td>
+                    <td>Edinburgh</td>
+                    <td>61</td>
+                    <td>2011-04-25</td>
+                    <td>$320,800</td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="row-select"></td>
+                    <td>Garrett Winters</td>
+                    <td>Accountant</td>
+                    <td>Tokyo</td>
+                    <td>63</td>
+                    <td>2011-07-25</td>
+                    <td>$170,750</td>
+                </tr>
+                <tr>
+                    <td><input type="checkbox" class="row-select"></td>
+                    <td>Ashton Cox</td>
+                    <td>Junior Developer</td>
+                    <td>San Francisco</td>
+                    <td>32</td>
+                    <td>2009-01-12</td>
+                    <td>$86,000</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
     <script>
-        function addItem() {
-            alert("You added an item!");
-        }
+        $(document).ready(function() {
+            var table = $('#example').DataTable({
+                responsive: true,
+                columnDefs: [{
+                    orderable: false,
+                    targets: 0
+                }]
+            });
 
-        function processPayment() {
-            alert("Payment processed!");
-        }
-
-        function refreshPage() {
-            location.reload();
-        }
-
-        function printReceipt() {
-            alert("Printing receipt...");
-        }
-
-        // Hotkeys Configuration
-        hotkeys('ctrl+a, ctrl+b, r, f', function (event, handler) {
-            event.preventDefault(); // Prevent default browser actions
-
-            switch (handler.key) {
-                case 'ctrl+a':
-                    addItem();
-                    break;
-                case 'ctrl+b':
-                    processPayment();
-                    break;
-                case 'r':
-                    refreshPage();
-                    break;
-                case 'f':
-                    printReceipt();
-                    break;
-            }
+            // Select/Deselect All Checkboxes
+            $('#select-all').on('click', function() {
+                var rows = table.rows({ 'search': 'applied' }).nodes();
+                $('input[type="checkbox"]', rows).prop('checked', this.checked);
+            });
         });
     </script>
-
 </body>
 </html>

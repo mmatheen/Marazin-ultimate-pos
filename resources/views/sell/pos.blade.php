@@ -547,24 +547,40 @@
                     <div class="row align-items-center">
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center">
-                            <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
-                            <button class="btn btn-primary text-white border-1 px-2 py-1"
-                                style="width: auto; height: 30px;" id="currentTimeButton"
-                                disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
-                            <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
-                                data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
-                                data-bs-content="<div class='row'>
-                                                    <div class='col-6'><strong>Operation</strong></div>
-                                                    <div class='col-6'><strong>Keyboard Shortcut</strong></div>
-                                                    <div class='col-6'>Go to product quantity</div>
-                                                    <div class='col-6'>F2</div>
-                                                    <div class='col-6'>Add new product or search</div>
-                                                    <div class='col-6'>F4</div>
-                                                    <div class='col-6'>Choose customer</div>
-                                                    <div class='col-6'>Ctrl + Shift + C</div>
-                                                </div>">
-                                <i class="fas fa-keyboard"></i>
-                            </button>
+                            {{-- <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6> --}}
+                            
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select id="locationSelect" class="form-control selectBox rounded-start me-2">
+                                        <!-- Options to be dynamically populated -->
+                                        <option value="" selected disabled>Select Location</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-center">
+                                    <button class="btn btn-primary text-white border-1 px-2 py-1"
+                                    style="width: auto; height: 30px;" id="currentTimeButton"
+                                    disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                                <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
+                                    data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
+                                    data-bs-content="<div class='row'>
+                                                        <div class='col-6'><strong>Operation</strong></div>
+                                                        <div class='col-6'><strong>Keyboard Shortcut</strong></div>
+                                                        <div class='col-6'>Go to product quantity</div>
+                                                        <div class='col-6'>F2</div>
+                                                        <div class='col-6'>Add new product or search</div>
+                                                        <div class='col-6'>F4</div>
+                                                        <div class='col-6'>Choose customer</div>
+                                                        <div class='col-6'>Ctrl + Shift + C</div>
+                                                    </div>">
+                                    <i class="fas fa-keyboard"></i>
+                                </button>
+                            </div>
+                            </div>
+
+                         
+                          
+                        
                             <script>
                                 document.addEventListener('DOMContentLoaded', function() {
                                     const currentTimeButton = document.getElementById('currentTimeButton');
@@ -585,21 +601,7 @@
                                     })
                                 });
                             </script>
-                            <script>
-                                document.addEventListener('DOMContentLoaded', function() {
-                                    const currentTimeButton = document.getElementById('currentTimeButton');
-                                    setInterval(() => {
-                                        const now = new Date();
-                                        const formattedTime = now.getFullYear() + '-' +
-                                            ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                                            ('0' + now.getDate()).slice(-2) + ' ' +
-                                            ('0' + now.getHours()).slice(-2) + ':' +
-                                            ('0' + now.getMinutes()).slice(-2) + ':' +
-                                            ('0' + now.getSeconds()).slice(-2);
-                                        currentTimeButton.textContent = formattedTime;
-                                    }, 1000);
-                                });
-                            </script>
+
                         </div>
 
                         <!-- Action Buttons -->
@@ -665,6 +667,9 @@
                                 </button>
 
                                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recentTransactionsModal" data-bs-toggle="tooltip" title="Recent Transactions"><i class="fas fa-clock"></i></button>
+                                <!-- Hamburger button to toggle the product list area -->
+                                <button class="btn btn-gradient" id="toggleProductList" data-bs-toggle="tooltip" title="Hide or Show Product list"><i class="fas fa-bars"></i></i></button>
+                             
                             </div>
 
                         </div>
@@ -676,153 +681,167 @@
 
         <div class="row mt-2">
            
-            <div class="col-md-7">
-                <div class="card bg-white p-3">
-                    <div class="row">
-                        <div class="col-md-5">
-                            <div class="d-flex justify-content-center">
-                                <select class="form-control selectBox rounded-start" id="customer-id">
-                                    <option selected disabled>Please Select</option>
-                                </select>
-                                <button type="button" class="btn btn-outline-info rounded-0" id="addCustomerButton">
-                                    <i class="fas fa-plus-circle"></i>
-                                </button>
-                            </div>
-                            <p id="total-due-amount" class="text-danger mt-1">Total due amount: Rs. 0.00</p>
-                        </div>
-                        <div class="col-md-7">
-                            <input type="text" class="form-control" id="productSearchInput"
-                                placeholder="Enter Product name / SKU / Scan bar code">
-                        </div>
-
-
-                        <div class="col-md-12 mt-3">
-                            <div class="table-responsive" style="height: calc(100vh - 445px); overflow-y: auto;">
-                                <table class="table table-bordered">
-                                    <thead class="thead-light">
-                                        <tr>
-                                            <th>Product</th>
-                                            <th class="text-center">Quantity</th>
-                                            <th class="text-center">Unit Price</th>
-                                            <th class="text-center">Subtotal</th>
-                                            <th class="text-center" style="color: red;">X</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="billing-body" class="bg-white">
-                                        <!-- Dynamic rows go here -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card bg-white mt-3 p-2">
-                    <div class="row align-items-center">
-                        <div class="col-md-2">
-                            <div class="form-group">
-                                <label>Total</label>
-                                <p id="total-amount" class="form-control">0.00</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label for="discount-type">Discount Type</label>
-                                <div class="btn-group w-100" role="group" aria-label="Discount Type">
-                                    <button type="button" class="btn btn-outline-primary active"
-                                        id="fixed-discount-btn">Fixed</button>
-                                    <button type="button" class="btn btn-outline-primary"
-                                        id="percentage-discount-btn">Percentage</button>
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-12" id="mainContent">
+                        <div class="card bg-white p-3">
+                            <div class="row">
+                                <div class="col-md-5">
+                                    <div class="d-flex justify-content-center">
+                                        <select class="form-control selectBox rounded-start" id="customer-id">
+                                            <option selected disabled>Please Select</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-info rounded-0" id="addCustomerButton">
+                                            <i class="fas fa-plus-circle"></i>
+                                        </button>
+                                    </div>
+                                    <p id="total-due-amount" class="text-danger mt-1">Total due amount: Rs. 0.00</p>
                                 </div>
-                                <input type="hidden" id="discount-type" name="discount_type" value="fixed">
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group">
-                                <label>Discount</label>
-                                <div class="input-group">
-                                    <input type="text" id="discount" name="discount" class="form-control"
-                                        placeholder="0.00">
-                                    <span class="input-group-text" id="discount-icon">Rs</span>
+                                <div class="col-md-7">
+                                    <input type="text" class="form-control" id="productSearchInput"
+                                        placeholder="Enter Product name / SKU / Scan bar code">
+                                </div>
+            
+                                <div class="col-md-12 mt-3">
+                                    <div class="table-responsive" style="height: calc(100vh - 445px); overflow-y: auto;">
+                                        <table class="table table-bordered">
+                                            <thead class="thead-light">
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th class="text-center">Quantity</th>
+                                                    <th class="text-center">Unit Price</th>
+                                                    <th class="text-center">Subtotal</th>
+                                                    <th class="text-center" style="color: red;">X</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="billing-body" class="bg-white">
+                                                <!-- Dynamic rows go here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <div class="form-group">
-                                <label>Final Total</label>
-                                <p id="final-total-amount" class="form-control">0.00</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Amount Given</label>
-                                <input type="text" id="amount-given" class="form-control" placeholder="0.00"
-                                    oninput="formatAmount(this)">
+            
+                        <div class="card bg-white mt-3 p-2">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>Total</label>
+                                        <p id="total-amount" class="form-control">0.00</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="discount-type">Discount Type</label>
+                                        <div class="btn-group w-100" role="group" aria-label="Discount Type">
+                                            <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Fixed</button>
+                                            <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">Percentage</button>
+                                        </div>
+                                        <input type="hidden" id="discount-type" name="discount_type" value="fixed">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>Discount</label>
+                                        <div class="input-group">
+                                            <input type="text" id="discount" name="discount" class="form-control"
+                                                placeholder="0.00">
+                                            <span class="input-group-text" id="discount-icon">Rs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>Final Total</label>
+                                        <p id="final-total-amount" class="form-control">0.00</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label>Amount Given</label>
+                                        <input type="text" id="amount-given" class="form-control" placeholder="0.00"
+                                            oninput="formatAmount(this)">
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
-                        const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
-                        const discountInput = document.getElementById('discount');
-                        const discountIcon = document.getElementById('discount-icon');
-                        const discountTypeInput = document.getElementById('discount-type');
-
-                        // Set default to fixed discount
-                        fixedDiscountBtn.classList.add('active');
-                        discountIcon.textContent = 'Rs';
-
-                        fixedDiscountBtn.addEventListener('click', function() {
-                            fixedDiscountBtn.classList.add('active');
-                            percentageDiscountBtn.classList.remove('active');
-                            discountIcon.textContent = 'Rs';
-                            discountTypeInput.value = 'fixed';
-                        });
-
-                        percentageDiscountBtn.addEventListener('click', function() {
-                            percentageDiscountBtn.classList.add('active');
-                            fixedDiscountBtn.classList.remove('active');
-                            discountIcon.textContent = '%';
-                            discountTypeInput.value = 'percentage';
-                        });
-                    });
-                </script>
-           
-        </div>
-
-
-
-            <!-- Product List -->
-            <div class="col-md-5">
-                <div class="card bg-white p-3" style="height: calc(100vh - 180px);">
-                    <!-- Buttons for Category and Brand -->
-                    <div class="row mb-3">
-                        <div class="d-flex justify-content-between w-100 mb-2">
-                            <button type="button" class="btn btn-gradient w-50 me-3" id="allProductsBtn">
-                                <i class="fas fa-box"></i> All Products
-                            </button>
-                            <button type="button" class="btn btn-gradient w-50 me-3" id="category-btn"
-                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory"
-                                aria-controls="offcanvasCategory">
-                                <i class="fas fa-th-large"></i> Category
-                            </button>
-                            <button type="button" class="btn btn-gradient w-50" id="brand-btn"
-                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand"
-                                aria-controls="offcanvasBrand">
-                                <i class="fas fa-tags"></i> Brand
-                            </button>
+            
+                    <div class="col-md-5 collapse" id="productListArea">
+                        <div class="card bg-white p-3" style="height: calc(100vh - 180px);">
+                            <!-- Buttons for Category and Brand -->
+                            <div class="row mb-3">
+                                <div class="d-flex justify-content-between w-100 mb-2">
+                                    <button type="button" class="btn btn-gradient w-50 me-3" id="allProductsBtn">
+                                        <i class="fas fa-box"></i> All Products
+                                    </button>
+                                    <button type="button" class="btn btn-gradient w-50 me-3" id="category-btn"
+                                        data-bs-toggle="offcanvas" data-bs-target="#offcanvasCategory"
+                                        aria-controls="offcanvasCategory">
+                                        <i class="fas fa-th-large"></i> Category
+                                    </button>
+                                    <button type="button" class="btn btn-gradient w-50" id="brand-btn"
+                                        data-bs-toggle="offcanvas" data-bs-target="#offcanvasBrand"
+                                        aria-controls="offcanvasBrand">
+                                        <i class="fas fa-tags"></i> Brand
+                                    </button>
+                                </div>
+                            </div>
+            
+                            <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 300px);">
+            
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="row g-3 overflow-auto" id="posProduct" style="height: calc(100vh - 300px);">
-
                     </div>
                 </div>
             </div>
-
+            
+          
+            
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
+                    const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
+                    const discountInput = document.getElementById('discount');
+                    const discountIcon = document.getElementById('discount-icon');
+                    const discountTypeInput = document.getElementById('discount-type');
+                    const toggleProductListBtn = document.getElementById('toggleProductList');
+                    const productListArea = document.getElementById('productListArea');
+                    const mainContent = document.getElementById('mainContent');
+            
+                    // Set default to fixed discount
+                    fixedDiscountBtn.classList.add('active');
+                    discountIcon.textContent = 'Rs';
+            
+                    fixedDiscountBtn.addEventListener('click', function() {
+                        fixedDiscountBtn.classList.add('active');
+                        percentageDiscountBtn.classList.remove('active');
+                        discountIcon.textContent = 'Rs';
+                        discountTypeInput.value = 'fixed';
+                    });
+            
+                    percentageDiscountBtn.addEventListener('click', function() {
+                        percentageDiscountBtn.classList.add('active');
+                        fixedDiscountBtn.classList.remove('active');
+                        discountIcon.textContent = '%';
+                        discountTypeInput.value = 'percentage';
+                    });
+            
+                    // Toggle product list area visibility
+                    toggleProductListBtn.addEventListener('click', function() {
+                        if (productListArea.classList.contains('show')) {
+                            productListArea.classList.remove('show');
+                            mainContent.classList.remove('col-md-7');
+                            mainContent.classList.add('col-md-12');
+                        } else {
+                            productListArea.classList.add('show');
+                            mainContent.classList.remove('col-md-12');
+                            mainContent.classList.add('col-md-7');
+                        }
+                    });
+                });
+            </script>
             <style>
                 .btn-gradient {
                     background: linear-gradient(85deg, #1e90ff, #1e90ff, #87cefa);

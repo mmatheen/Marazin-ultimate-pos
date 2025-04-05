@@ -215,54 +215,56 @@
         });
 
 
-            function fetchCustomerData() {
-            $.ajax({
-                url: '/customer-get-all',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    const customerSelect = $('#customer-id');
-                    customerSelect.empty();
+        function fetchCustomerData() {
+    $.ajax({
+        url: '/customer-get-all',
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            const customerSelect = $('#customer-id');
+            customerSelect.empty();
 
-                    if (data.status === 200) {
-                        const sortedCustomers = data.message.sort((a, b) => {
-                            if (a.first_name === 'Walking') return -1;
-                            if (b.first_name === 'Walking') return 1;
-                            return 0;
-                        });
+            if (data.status === 200) {
+                const sortedCustomers = data.message.sort((a, b) => {
+                    if (a.first_name === 'Walking') return -1;
+                    if (b.first_name === 'Walking') return 1;
+                    return 0;
+                });
 
-                        sortedCustomers.forEach(customer => {
-                            const option = $('<option></option>');
-                            option.val(customer.id);
-                            option.text(`${customer.first_name} ${customer.last_name} ( ${customer.mobile_no} )`);
-                            option.data('due', customer.current_due); // Store the due amount in the option
-                            customerSelect.append(option);
-                        });
+                sortedCustomers.forEach(customer => {
+                    const option = $('<option></option>');
+                    option.val(customer.id);
+                    option.text(`${customer.first_name} ${customer.last_name} ( ${customer.mobile_no} )`);
+                    option.data('due', customer.current_due); // Store the due amount in the option
+                    customerSelect.append(option);
+                });
 
-                        const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
-                        if (walkingCustomer) {
-                            customerSelect.val(walkingCustomer.id);
-                            updateDueAmount(walkingCustomer.current_due);
-                        }
-                    } else {
-                        console.error('Failed to fetch customer data:', data.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching customer data:', error);
+                const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
+                if (walkingCustomer) {
+                    customerSelect.val(walkingCustomer.id);
+                    updateDueAmount(walkingCustomer.current_due);
                 }
-            });
+            } else {
+                console.error('Failed to fetch customer data:', data.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching customer data:', error);
         }
+    });
+}
 
-        function updateDueAmount(dueAmount) {
-            $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
-        }
+function updateDueAmount(dueAmount) {
+    // Ensure dueAmount is a valid number before calling toFixed
+    dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
+    $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+}
 
-        $('#customer-id').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const dueAmount = selectedOption.data('due');
-            updateDueAmount(dueAmount);
-        });
+$('#customer-id').on('change', function() {
+    const selectedOption = $(this).find('option:selected');
+    const dueAmount = selectedOption.data('due');
+    updateDueAmount(dueAmount);
+});
 
     });
 </script>

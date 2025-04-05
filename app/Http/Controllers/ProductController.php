@@ -646,11 +646,6 @@ class ProductController extends Controller
                     return $batch->locationBatches->contains('location_id', $userLocationId);
                 });
     
-                // Skip the product if no batches are available at the user's location
-                if ($filteredBatches->isEmpty()) {
-                    continue;
-                }
-    
                 // Calculate total stock for the user's location
                 $totalStock = $filteredBatches->sum(function ($batch) use ($userLocationId) {
                     return $batch->locationBatches->where('location_id', $userLocationId)->sum('qty');
@@ -714,6 +709,7 @@ class ProductController extends Controller
                             'location_name' => $location->name,
                         ];
                     }),
+                    'has_batches' => !$filteredBatches->isEmpty(),
                 ];
             }
         });
@@ -925,5 +921,84 @@ class ProductController extends Controller
     }
 
 
-
+    public function saveChanges(Request $request)
+    {
+        $productIds = $request->input('product_ids', []);
+        $locationIds = $request->input('location_ids', []);
+        $now = now();
+    
+        if (empty($productIds) || empty($locationIds)) {
+            return response()->json(['status' => 'error', 'message' => 'Please select at least one product and one location.'], 400);
+        }
+    
+        DB::beginTransaction();
+    
+        try {
+            foreach ($productIds as $productId) {
+                // 1. Existing locations for the product
+                $existingLocations = DB::table('location_product')
+                    ->where('product_id', $productId)
+                    ->pluck('location_id')
+                    ->toArray();
+    
+                // 2. Remove unselected locations from location_product
+                DB::table('location_product')
+                    ->where('product_id', $productId)
+                    ->whereNotIn('location_id', $locationIds)
+                    ->delete();
+    
+                // 3. Insert or update selected locations in location_product
+                foreach ($locationIds as $locationId) {
+                    DB::table('location_product')->updateOrInsert(
+                        [
+                            'product_id' => $productId,
+                            'location_id' => $locationId,
+                        ],
+                        [
+                            'qty' => 0,
+                            'updated_at' => $now,
+                            'created_at' => $now,
+                        ]
+                    );
+                }
+    
+                // 4. Get all batch IDs related to the product
+                $batchIds = DB::table('batches')
+                    ->where('product_id', $productId)
+                    ->pluck('id')
+                    ->toArray();
+    
+                foreach ($batchIds as $batchId) {
+                    // 5. Fetch existing location_batches records for the batch
+                    $existingBatchLocations = DB::table('location_batches')
+                        ->where('batch_id', $batchId)
+                        ->pluck('location_id', 'id')
+                        ->toArray();
+    
+                    // 6. Update only the location_id in location_batches (Qty should not change)
+                    foreach ($existingBatchLocations as $locationBatchId => $existingLocationId) {
+                        if (!in_array($existingLocationId, $locationIds)) {
+                            // Change location_id only if it's not in the newly selected locations
+                            DB::table('location_batches')
+                                ->where('id', $locationBatchId)
+                                ->update([
+                                    'location_id' => reset($locationIds), // Assign the first selected location
+                                    'updated_at' => $now,
+                                ]);
+                        }
+                    }
+                }
+            }
+    
+            DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'Changes saved successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+    
 }
+    
+
+
