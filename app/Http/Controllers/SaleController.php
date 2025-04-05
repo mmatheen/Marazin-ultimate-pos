@@ -200,119 +200,70 @@ class SaleController extends Controller
             'amount_given' => 'nullable|numeric|min:0',
             'balance_amount' => 'nullable|numeric|min:0',
         ]);
-
+    
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
-
+    
         try {
             $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
-                // Only generate new invoice number for new sales
                 $invoiceNo = $isUpdate ? $sale->invoice_no : Sale::generateInvoiceNo();
-
-                $subtotal = array_reduce($request->products, function ($carry, $product) {
-                    return $carry + $product['subtotal'];
-                }, 0);
-
+    
+                // Calculate amounts
+                $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
-                if ($request->discount_type === 'percentage') {
-                    $finalTotal = $subtotal - ($subtotal * $discount / 100);
-                } else {
-                    $finalTotal = $subtotal - $discount;
-                }
-
-                $totalPaid = $request->total_paid ?? 0;
-                $totalDue = $finalTotal - $totalPaid;
-
-                // Calculate balance amount
-                $amountGiven = $request->amount_given ?? 0;
-                $balanceAmount = $amountGiven - $finalTotal;
-
+                $finalTotal = $request->discount_type === 'percentage' 
+                    ? $subtotal - ($subtotal * $discount / 100) 
+                    : $subtotal - $discount;
+    
+                // Create the sale record first to get the ID
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
                     'sales_date' => $request->sales_date,
-                    'sale_type' => $request->sale_type,
+                    'sale_type' => $request->sale_type ?? 'retail',
                     'status' => $request->status,
                     'invoice_no' => $invoiceNo,
                     'reference_no' => $referenceNo,
                     'subtotal' => $subtotal,
                     'final_total' => $finalTotal,
-                    'total_paid' => $totalPaid,
-                    'total_due' => $totalDue,
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
-                    'amount_given' => $amountGiven, // Add amount given
-                    'balance_amount' => $balanceAmount, // Add balance amount
                     'user_id' => auth()->id(),
+                    // Initialize payment fields with 0
+                    'total_paid' => 0,
+                    'total_due' => $finalTotal,
+                    'amount_given' => 0,
+                    'balance_amount' => 0,
                 ])->save();
-
-                if ($isUpdate) {
-                    foreach ($sale->products as $product) {
-                        $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
-                        $product->delete();
-                    }
-                }
-
-                foreach ($request->products as $productData) {
-                    $product = Product::findOrFail($productData['product_id']);
-
-                    if ($product->stock_alert === 0) {
-                        // Handle unlimited stock product
-                        $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-                    } else {
-                        // $availableStock = $sale->getBatchQuantityPlusSold(
-                        //     $productData['batch_id'],
-                        //     $request->location_id,
-                        //     $productData['product_id']
-                        // );
-
-                        // if ($productData['quantity'] > $availableStock) {
-                        //     throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
-                        // }
-
-                        $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-                    }
-                }
-
-                // Insert ledger entry for the sale
-                Ledger::create([
-                    'transaction_date' => $request->sales_date,
-                    'reference_no' => $referenceNo,
-                    'transaction_type' => 'sale',
-                    'debit' => 0,
-                    'credit' => $finalTotal,
-                    'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
-                    'contact_type' => 'customer',
-                    'user_id' => $request->customer_id,
-                ]);
-
-                // Insert ledger entries and create payment records for each payment
+    
+                // Handle payments
+                $totalPaid = 0;
                 if (!empty($request->payments)) {
+                    $totalPaid = array_reduce($request->payments, fn($sum, $p) => $sum + $p['amount'], 0);
+                    
+                    if ($isUpdate) {
+                        // Delete existing payments and ledger entries for updates
+                        Payment::where('reference_id', $sale->id)->delete();
+                        Ledger::where('reference_no', $referenceNo)
+                            ->where('transaction_type', 'payments')
+                            ->delete();
+                    }
+                    
+                    // Create new payments
                     foreach ($request->payments as $paymentData) {
-                        Ledger::create([
-                            'transaction_date' => $paymentData['payment_date'] ? date('Y-m-d H:i:s', strtotime($paymentData['payment_date'])) : now(),
-                            'reference_no' => $referenceNo,
-                            'transaction_type' => 'payments',
-                            'debit' => $paymentData['amount'],
-                            'credit' => 0,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $paymentData['amount'], 'debit'),
-                            'contact_type' => 'customer',
-                            'user_id' => $request->customer_id,
-                        ]);
-
-                        Payment::create([
+                        $payment = Payment::create([
                             'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
                             'amount' => $paymentData['amount'],
                             'payment_method' => $paymentData['payment_method'],
-                            'reference_no' => $sale->reference_no,
+                            'reference_no' => $referenceNo,
                             'notes' => $paymentData['notes'] ?? '',
                             'payment_type' => 'sale',
                             'reference_id' => $sale->id,
-                            'customer_id' => $sale->customer_id,
+                            'customer_id' => $request->customer_id,
                             'card_number' => $paymentData['card_number'] ?? null,
                             'card_holder_name' => $paymentData['card_holder_name'] ?? null,
                             'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
@@ -324,34 +275,97 @@ class SaleController extends Controller
                             'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
                             'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                         ]);
+    
+                        Ledger::create([
+                            'transaction_date' => $payment->payment_date,
+                            'reference_no' => $referenceNo,
+                            'transaction_type' => 'payments',
+                            'debit' => $payment->amount,
+                            'credit' => 0,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                            'contact_type' => 'customer',
+                            'user_id' => $request->customer_id,
+                        ]);
                     }
-
-                    $this->updatePaymentStatus($sale);
-                } else {
-                    $sale->updateTotalDue();
+                } elseif ($isUpdate) {
+                    $totalPaid = $sale->total_paid; // Keep existing payments if none provided
                 }
-
+    
+                $totalDue = max($finalTotal - $totalPaid, 0);
+                $amountGiven = $request->amount_given ?? 0;
+                $balanceAmount = $amountGiven - $finalTotal;
+    
+                // Update sale with payment totals
+                $sale->update([
+                    'total_paid' => $totalPaid,
+                    'total_due' => $totalDue,
+                    'amount_given' => $amountGiven,
+                    'balance_amount' => $balanceAmount,
+                ]);
+    
+                // Handle products
+                if ($isUpdate) {
+                    foreach ($sale->products as $product) {
+                        $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                        $product->delete();
+                    }
+                }
+    
+                foreach ($request->products as $productData) {
+                    $product = Product::findOrFail($productData['product_id']);
+                    
+                    if ($product->stock_alert === 0) {
+                        $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
+                    } else {
+                        $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
+                    }
+                }
+    
+                // Update sale ledger entry
+                if ($isUpdate) {
+                    Ledger::where('reference_no', $referenceNo)
+                        ->where('transaction_type', 'sale')
+                        ->update([
+                            'credit' => $finalTotal,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
+                        ]);
+                } else {
+                    Ledger::create([
+                        'transaction_date' => $request->sales_date,
+                        'reference_no' => $referenceNo,
+                        'transaction_type' => 'sale',
+                        'debit' => 0,
+                        'credit' => $finalTotal,
+                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
+                        'contact_type' => 'customer',
+                        'user_id' => $request->customer_id,
+                    ]);
+                }
+    
+                $this->updatePaymentStatus($sale);
                 return $sale;
             });
-
+    
+            // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-            $totalDiscount = array_reduce($request->products, function ($carry, $product) {
-                return $carry + ($product['discount'] ?? 0);
-            }, 0);
-
+            
             $html = view('sell.receipt', [
                 'sale' => $sale,
                 'customer' => $customer,
                 'products' => $products,
                 'payments' => $payments,
-                'total_discount' => $totalDiscount,
-                'amount_given' => $sale->amount_given, // Pass amount given to the view
-                'balance_amount' => $sale->balance_amount, // Pass balance amount to the view
+                'total_discount' => $request->discount_amount ?? 0,
+                'amount_given' => $sale->amount_given,
+                'balance_amount' => $sale->balance_amount,
             ])->render();
-
-            return response()->json(['message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 'invoice_html' => $html], 200);
+    
+            return response()->json([
+                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 
+                'invoice_html' => $html
+            ], 200);
+    
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
@@ -364,21 +378,24 @@ class SaleController extends Controller
 
         return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
     }
-
+    
     private function updatePaymentStatus($sale)
     {
-        $totalPaid = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->sum('amount');
+        $totalPaid = Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'sale')
+            ->sum('amount');
+        
         $sale->total_paid = $totalPaid;
-        $sale->total_due = $sale->final_total - $totalPaid;
-
+        $sale->total_due = max($sale->final_total - $totalPaid, 0);
+        
         if ($sale->total_due <= 0) {
             $sale->payment_status = 'Paid';
-        } elseif ($totalPaid < $sale->final_total) {
+        } elseif ($totalPaid > 0) {
             $sale->payment_status = 'Partial';
         } else {
             $sale->payment_status = 'Due';
         }
-
+        
         $sale->save();
     }
 

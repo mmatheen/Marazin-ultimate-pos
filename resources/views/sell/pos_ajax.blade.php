@@ -1003,11 +1003,26 @@
                             discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
                         }
 
-                        const customerSelect = document.getElementById('customer-id');
-                        if (customerSelect) {
-                            customerSelect.value = saleDetails.sale.customer_id;
-                            $(customerSelect).trigger('change');
-                        }
+                          //SIMPLIFIED CUSTOMER SELECTION HANDLING
+                            const customerSelect = document.getElementById('customer-id');
+                            if (customerSelect && saleDetails.sale.customer_id) {
+                                // First check if the option already exists
+                                const existingOption = customerSelect.querySelector(`option[value="${saleDetails.sale.customer_id}"]`);
+                                
+                                if (existingOption) {
+                                    // If option exists, just select it
+                                    customerSelect.value = saleDetails.sale.customer_id;
+                                } else {
+                                    // If option doesn't exist, create it and select it
+                                    const option = document.createElement('option');
+                                    option.value = saleDetails.sale.customer_id;
+                                    option.textContent = `${saleDetails.customer?.first_name || ''} ${saleDetails.customer?.last_name || ''} (${saleDetails.customer?.mobile_no || ''})`;
+                                    customerSelect.appendChild(option);
+                                    customerSelect.value = saleDetails.sale.customer_id;
+                                }
+
+                                $(customerSelect).trigger('change');
+                            }
 
                         updateTotals();
                     } else {
@@ -1020,6 +1035,8 @@
                     toastr.error('An error occurred while fetching sale data.', 'Error');
                 });
         }
+
+        
         $(document).ready(function() {
 
             function gatherSaleData(status) {
