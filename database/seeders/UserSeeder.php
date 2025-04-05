@@ -21,54 +21,53 @@ class UserSeeder extends Seeder
 
         $users = [
 
-            // kalmunai
             [
                 'name_title' => 'Mr',
-                'name' => 'ARB',
+                'full_name' => 'ARB',
                 'user_name' => 'ARB',
                 'is_admin' => true,
                 'email' => 'arb@gmail.com',
                 'password' => '1234',
                 'role' => 'Super Admin',
-                'location_id' => $location_ids[1] // Assign the first location ID (Kalmunai)
+                'location_id' => $location_ids[0] // Assign the first location ID (Sammanthurai)
             ],
-            
+
             // [
             //     'name_title' => 'Mr',
-            //     'name' => 'Ahamed',
+            //     'full_name' => 'Ahamed',
             //     'user_name' => 'Suraif',
             //     'is_admin' => false,
             //     'email' => 'suraif@arbtrading.lk',
             //     'password' => '1234',
             //     'role' => 'Admin',
-            //     'location_id' => $location_ids[1] // Assign the first location ID (Colombo)
+            //     'location_id' => $location_ids[0] // Assign the first location ID (Sammanthurai)
             // ],
             // [
             //     'name_title' => 'Mr',
-            //     'name' => 'Mohamed',
+            //     'full_name' => 'Mohamed',
             //     'user_name' => 'Riskan',
             //     'is_admin' => false,
             //     'email' => 'riskan@arbtrading.lk',
             //     'password' => '1234',
             //     'role' => 'Admin',
-            //     'location_id' => $location_ids[1] // Assign the second location ID (Colombo)
+            //     'location_id' => $location_ids[0] // Assign the second location ID (Sammanthurai)
             // ],
             // [
             //     'name_title' => 'Mr',
-            //     'name' => 'Mohamed',
+            //     'full_name' => 'Mohamed',
             //     'user_name' => 'Ajwath',
             //     'is_admin' => true,
             //     'email' => 'ajwath94@gmail.com',
             //     'password' => '1234',
             //     'role' => 'Super Admin',
-            //     'location_id' => $location_ids[1] // Assign the third location ID (Colombo)
+            //     'location_id' => $location_ids[0] // Assign the third location ID (Sammanthurai)
             // ],
         ];
 
         foreach ($users as $userData) {
             $user = User::create([
                 'name_title' => $userData['name_title'],
-                'name' => $userData['name'],
+                'full_name' => $userData['full_name'],
                 'user_name' => $userData['user_name'],
                 'is_admin' => $userData['is_admin'],
                 'email' => $userData['email'],

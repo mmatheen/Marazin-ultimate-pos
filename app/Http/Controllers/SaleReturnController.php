@@ -15,6 +15,12 @@ use App\Models\StockHistory;
 
 class SaleReturnController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view return-sale', ['only' => ['listSaleReturn']]);
+        $this->middleware('permission:add return-sale', ['only' => ['addSaleReturn']]);
+    }
+
     /**
      * Show the form for adding a new sale return.
      */

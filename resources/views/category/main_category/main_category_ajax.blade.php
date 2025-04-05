@@ -77,7 +77,8 @@
                         row.append('<td>' + counter  + '</td>');
                         row.append('<td>' + item.mainCategoryName + '</td>');
                         row.append('<td>' + item.description + '</td>');
-                         row.append('<td><button type="button" value="' + item.id + '" class="main_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="main_delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        row.append('<td>' + '@can("edit main-category")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can("delete main-category")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
                         counter++;
@@ -142,7 +143,13 @@ $('#mainCategoryAddAndUpdateForm').submit(function (e) {
                 $.each(response.errors, function (key, err_value) {
                     $('#' + key + '_error').html(err_value);
                 });
-            } else {
+            }
+            else if (response.status == 403) {
+                    document.getElementsByClassName('errorSound')[0].play(); //for sound
+                        toastr.error(response.message, 'Error');
+                }
+
+            else {
                 let newCategoryId = response.newCategoryId; // Get the new category ID from response
 
                 $('#addAndEditMainCategoryModal').modal('hide');

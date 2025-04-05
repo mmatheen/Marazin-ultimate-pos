@@ -26,9 +26,12 @@
                         <div class="row align-items-center">
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
+
+                                @can('create location')
                                 <button type="button" class="btn btn-outline-info " id="addLocationButton">
                                     New <i class="fas fa-plus px-2"> </i>
                                 </button>
+                                @endcan
                             </div>
                         </div>
                     </div>
@@ -71,7 +74,7 @@
                         <div class="text-center mt-2 mb-4">
                             <h5 id="modalTitle"></h5>
                         </div>
-                        <form id="addAndUpdateForm">
+                        <form id="addAndLocationUpdateForm">
                             <div class="row">
                                 <input type="hidden" name="edit_id" id="edit_id">
 

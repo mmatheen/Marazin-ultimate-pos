@@ -25,6 +25,20 @@ use App\Events\StockUpdated;
 
 class ProductController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view import-product', ['only' => ['importProduct']]);
+        $this->middleware('permission:create import-product', ['only' => ['importProductStore']]);
+        $this->middleware('permission:view product', ['only' => ['product','getAllProductStocks']]);
+        $this->middleware('permission:Add & Edit Opening Stock product', ['only' => ['editOpeningStock','storeOrUpdateOpeningStock']]);
+        $this->middleware('permission:product Full History', ['only' => ['getStockHistory']]);
+        $this->middleware('permission:show one product details', ['only' => ['getProductDetails']]);
+        $this->middleware('permission:create product|edit product', ['only' => ['storeOrUpdate']]);
+        $this->middleware('permission:add product', ['only' => ['addProduct']]);
+        $this->middleware('permission:delete product', ['only' => ['destroy']]);
+    }
+
     public function product()
     {
         return view('product.product');
@@ -138,39 +152,6 @@ class ProductController extends Controller
             ]);
         }
     }
-
-    public function index()
-    {
-
-        $user = Auth::user();
-
-        // Check if user has a specific location associated
-        if ($user->location_id !== null) {
-            // Filter products by the user's location
-            $locationId = $user->location_id;
-
-            $getValue = Product::whereHas('locations', function($query) use ($locationId) {
-                $query->where('locations.id', $locationId);
-            })->with('locations')->get();
-        } else {
-            $getValue = Product::with('locations')->get();
-        }
-
-
-        // Check if any records were found
-        if ($getValue->count() > 0) {
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
-            ]);
-        }
-    }
-
 
     public function getProductDetails($id)
     {
@@ -633,10 +614,10 @@ class ProductController extends Controller
         $user = auth()->user();
         $userRole = $user->role_name;
         $userLocationId = $user->location_id;
-    
+
         // Initialize an array to store product stock data
         $productStocks = [];
-    
+
         // Retrieve products based on the user's role in chunks
         Product::with(['batches.locationBatches.location', 'locations'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
             // Process each product in the chunk
@@ -645,12 +626,17 @@ class ProductController extends Controller
                 $filteredBatches = $product->batches->filter(function ($batch) use ($userLocationId) {
                     return $batch->locationBatches->contains('location_id', $userLocationId);
                 });
-    
+
+                // Skip the product if no batches are available at the user's location
+                if ($filteredBatches->isEmpty()) {
+                    continue;
+                }
+
                 // Calculate total stock for the user's location
                 $totalStock = $filteredBatches->sum(function ($batch) use ($userLocationId) {
                     return $batch->locationBatches->where('location_id', $userLocationId)->sum('qty');
                 });
-    
+
                 // Map through filtered batches
                 $batches = $filteredBatches->map(function ($batch) {
                     // Map through location batches for the user's location
@@ -662,7 +648,7 @@ class ProductController extends Controller
                             'quantity' => $locationBatch->qty,
                         ];
                     });
-    
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -676,7 +662,7 @@ class ProductController extends Controller
                         'location_batches' => $locationBatches,
                     ];
                 });
-    
+
                 // Add the processed product stock to the response array
                 $productStocks[] = [
                     'product' => [
@@ -713,7 +699,7 @@ class ProductController extends Controller
                 ];
             }
         });
-    
+
         // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }

@@ -8,28 +8,28 @@ use Illuminate\Support\Facades\Validator;
 
 class LocationController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view location', ['only' => ['index', 'show','location']]);
+        $this->middleware('permission:create location', ['only' => ['store']]);
+        $this->middleware('permission:edit location', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete location', ['only' => ['destroy']]);
+    }
+
     public function location()
     {
         return view('location.location');
     }
 
-    public function index(Request $request)
+    public function index()
     {
-        $user = auth()->user();
-        $context = $request->query('context'); // Get the context from the query parameter
+        $getValue = Location::all();
 
-        // If the context is 'all_locations' (e.g., for stock transfer), show all locations
-        if ($context === 'all_locations' || $user->role_name=== 'Super Admin') {
-            $locations = Location::all();
-        } else {
-            $locations = Location::where('id', $user->location_id)->get();
-        }
-
-        if ($locations->count() > 0) {
+        if ($getValue->count() > 0) {
             return response()->json([
                 'status' => 200,
-                'message' => $locations,
-                'user_id' => $user->id,
+                'message' => $getValue,
             ]);
         } else {
             return response()->json([

@@ -17,6 +17,12 @@ use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:add bulk sale payment', ['only' => ['addSaleBulkPayments']]);
+        $this->middleware('permission:add bulk purchase payment', ['only' => ['addPurchaseBulkPayments']]);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -28,17 +34,13 @@ class PaymentController extends Controller
 
     public function addSaleBulkPayments()
     {
-       
         return view('bulk_payments.sales_bulk_payments');
     }
 
     public function addPurchaseBulkPayments()
     {
-       
         return view('bulk_payments.purchases_bulk_payments');
     }
-
-   
 
 
     public function storeOrUpdate(Request $request, $paymentId = null)

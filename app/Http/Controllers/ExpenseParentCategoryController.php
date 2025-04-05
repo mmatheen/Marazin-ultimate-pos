@@ -8,6 +8,16 @@ use Illuminate\Support\Facades\Validator;
 
 class ExpenseParentCategoryController extends Controller
 {
+    
+    function __construct()
+    {
+        $this->middleware('permission:view parent-expense', ['only' => ['index', 'show','mainCategory']]);
+        $this->middleware('permission:create parent-expense', ['only' => ['store']]);
+        $this->middleware('permission:edit parent-expense', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete parent-expense', ['only' => ['destroy']]);
+    }
+
+
     public function mainCategory(){
         return view('expense.main_expense');
     }

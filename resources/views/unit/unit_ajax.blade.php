@@ -75,7 +75,8 @@
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' + item.short_name + '</td>');
                         row.append('<td>' + item.allow_decimal + '</td>');
-                        row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        row.append('<td>' + '@can("edit unit")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can("delete unit")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         table.row.add(row).draw(false);
                         counter++;
                     });

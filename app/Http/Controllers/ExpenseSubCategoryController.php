@@ -10,11 +10,18 @@ use Illuminate\Support\Facades\Validator;
 
 class ExpenseSubCategoryController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view child-expense', ['only' => ['index', 'show','SubCategory']]);
+        $this->middleware('permission:create child-expense', ['only' => ['store']]);
+        $this->middleware('permission:edit child-expense', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete child-expense', ['only' => ['destroy']]);
+    }
+
     public function SubCategory(){
 
         $MainCategories = ExpenseParentCategory::all();
         return view('expense.sub_expense_category.sub_expense_catergory', compact('MainCategories'));
-
     }
 
     public function index()

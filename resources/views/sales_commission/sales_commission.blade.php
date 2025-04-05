@@ -28,9 +28,11 @@
                         <div class="row align-items-center">
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                  <!-- Button trigger modal -->
-                                 <button type="button" class="btn btn-outline-info " id="addSalesCommissionButton">
-                                    New  <i class="fas fa-plus px-2"> </i>
-                                  </button>
+                                  @can('create sales-commission-agent')
+                                    <button type="button" class="btn btn-outline-info " id="addSalesCommissionButton">
+                                        New  <i class="fas fa-plus px-2"> </i>
+                                    </button>
+                                  @endcan
                             </div>
                         </div>
                     </div>

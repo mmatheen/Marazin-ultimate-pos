@@ -37,7 +37,7 @@
         // Function to fetch stock transfer data
         function fetchStockTransferData(stockTransferId) {
             $.ajax({
-                url: `/api/edit-stock-transfer/${stockTransferId}`,
+                url: `/edit-stock-transfer/${stockTransferId}`,
                 method: 'GET',
                 success: function(response) {
                     if (response.stockTransfer) {
@@ -328,7 +328,7 @@
                 const formattedDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`).toISOString().split('T')[0];
                 $('#transfer_date').val(formattedDate);
 
-                const url = stockTransferId ? `/api/stock-transfer/update/${stockTransferId}` : '/api/stock-transfer/store';
+                const url = stockTransferId ? `/stock-transfer/update/${stockTransferId}` : '/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
 
                 const formData = $(form).serialize();
@@ -421,13 +421,18 @@
                         <td>${totalAmount.toFixed(2)}</td>
                         <td>${transfer.note || ''}</td>
                         <td>
-                            <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            @can('edit stock-transfer')
+                                <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            @endcan
+                            @can('delete stock-transfer')
+                                <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            @endcan
                         </td>
+
                     </tr>
                 `;
                 tableBody.append(row);

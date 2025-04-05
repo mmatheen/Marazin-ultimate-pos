@@ -210,11 +210,21 @@ function formatProductData(product) {
                     Actions
                 </button>
                 <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
-                    <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
-                    <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                    <li><a class="dropdown-item delete-product" href="" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                    <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
-                    <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+                    @can("show one product details")
+                        <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+                    @endcan
+                    @can("edit product")
+                        <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+                    @endcan
+                    @can("delete product")
+                        <li><a class="dropdown-item delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                    @endcan
+                    @can("Add & Edit Opening Stock product")
+                        <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                    @endcan
+                    @can("product Full History")
+                        <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+                    @endcan
                 </ul>
             </div>
         </td>
@@ -1452,7 +1462,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
 </script>
 
 
-{{-- impoprt lead file code start --}}
+{{-- impoprt product file code start --}}
 <script>
     $(document).on('submit', '#importProductForm', function(e) {
         e.preventDefault();
@@ -1514,6 +1524,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         toastr.error(response.validation_errors, 'Error');
                     $('.progress').hide();
                 }
+
             },
             error: function(xhr, status, error) {
                 console.error(xhr.responseText);

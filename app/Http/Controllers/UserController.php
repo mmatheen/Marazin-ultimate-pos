@@ -10,38 +10,48 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view user', ['only' => ['index', 'show','user']]);
+        $this->middleware('permission:create user', ['only' => ['store']]);
+        $this->middleware('permission:edit user', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete user', ['only' => ['destroy']]);
+    }
+
     public function user()
     {
-        $roles = Role::all();
-        $locations = Location::all();
-        return view('user.user', compact('roles', 'locations'));
+        return view('user.user');
     }
 
     public function index()
     {
-        $getValue = User::with('location')->get();
-        if ($getValue->count() > 0) {
+        $users = User::with(['roles','location'])->get();  // it will get the roles details from spatie model not custom model
 
-            // get the role name code start
-            $getValue->transform(function ($user) {
-                $roleNames = $user->roles->pluck('name')->toArray(); // Fetch the role names as an array
-                $user->role_name = implode(', ', $roleNames); // Join role names into a single string
-                unset($user->roles); // Remove the roles array from the response
-                return $user;
-            });
-            // get the role name code end
-
+        if ($users->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => $users->map(function ($user) {
+                    return [
+                        'id' => $user->id,
+                        'name_title' => $user->name_title,
+                        'full_name' => $user->full_name,
+                        'user_name' => $user->user_name,
+                        'email' => $user->email,
+                        'role' => $user->getRoleNames()->first(), // Convert array to a single string
+                        'location' => $user->location->name,
+                    ];
+                }),
             ]);
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Records Found!"
+                'message' => 'No Records Found!'
             ]);
         }
     }
+
+
 
     /**
      * Show the form for creating a new resource.
@@ -68,13 +78,12 @@ class UserController extends Controller
             $request->all(),
             [
                 'name_title' => 'required|string|max:10',
-                'name' => 'required|string',
+                'full_name' => 'required|string',
                 'user_name' => 'required|string|max:50|unique:users,user_name',
-                'roles' => 'required|string|max:50',
-                'location_id' => 'required|integer|exists:locations,id',
                 'email' => 'required|email|unique:users,email',
                 'password' => 'required|string|min:5|confirmed',  // Requires at least 5 characters and confirms password
-                'roles' => 'required|string|exists:roles,name'
+                'roles' => 'required|string|exists:roles,name',
+                'location_id' => 'required|string|exists:locations,id',
             ]
         );
 
@@ -87,19 +96,16 @@ class UserController extends Controller
 
             $getValue = User::create([
 
-                'name_title' => $request->name_title ?? '',
-                'name' => $request->name ?? '',
-                'user_name' => $request->user_name ?? '',
-                'role_name' => $request->roles ?? '',
-                'location_id' => $request->location_id ?? '',
+                'name_title' => $request->name_title,
+                'full_name' => $request->full_name,
+                'user_name' => $request->user_name,
                 'email' => $request->email,
+                'location_id' => $request->location_id,
                 'password' => bcrypt($request->password),
             ]);
 
             // Assign role by role to model_has_roles table code start
-            if ($getValue && $request->roles) {
-                $getValue->assignRole($request->roles);
-            }
+            $getValue->assignRole($request->roles);
             // Assign role by role to model_has_roles table code end
 
 
@@ -125,11 +131,24 @@ class UserController extends Controller
      */
     public function show(int $id)
     {
-        $getValue = User::find($id);
-        if ($getValue) {
+        // Find the user by ID
+        $user = User::with(['roles','location'])->find($id);
+
+        if ($user) {
+            // Get the first role name as a string
+            $roleName = $user->getRoleNames()->first();
+
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => [
+                    'id' => $user->id,
+                    'name_title' => $user->name_title,
+                    'full_name' => $user->full_name,
+                    'user_name' => $user->user_name,
+                    'email' => $user->email,
+                    'role' => $roleName, // Single role name instead of an array
+                    'location_id' => $user->location->id,
+                ]
             ]);
         } else {
             return response()->json([
@@ -148,22 +167,26 @@ class UserController extends Controller
 
     public function edit(int $id)
     {
+        // Find the user by ID
+        $user = User::with(['roles','location'])->find($id);
 
-
-        $getValue = User::with('location')->find($id);
-
-        if ($getValue) {
-
-            // get the role name code start
-            $roleNames = $getValue->roles->pluck('name')->toArray(); // Fetch the role names as an array
-            $getValue->role_name = implode(', ', $roleNames); // Join role names into a single string
-            unset($getValue->roles); // Remove the roles array from the response
-            // get the role name code end
+        if ($user) {
+            // Get the first role name as a string
+            $roleName = $user->getRoleNames()->first();
 
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'message' => [
+                    'id' => $user->id,
+                    'name_title' => $user->name_title,
+                    'full_name' => $user->full_name,
+                    'user_name' => $user->user_name,
+                    'email' => $user->email,
+                    'role' => $roleName, // Single role name instead of an array
+                    'location_id' => $user->location->id,
+                ]
             ]);
+
         } else {
             return response()->json([
                 'status' => 404,
@@ -171,6 +194,7 @@ class UserController extends Controller
             ]);
         }
     }
+
 
     /**
      * Update the specified resource in storage.
@@ -181,11 +205,11 @@ class UserController extends Controller
      */
     public function update(Request $request, int $id)
     {
-        // Fetch the user by ID
-        $userDetails = User::find($id);
+        // Find the user by ID
+        $user = User::find($id);
 
         // Check if the user exists
-        if (!$userDetails) {
+        if (!$user) {
             return response()->json([
                 'status' => 404,
                 'message' => "No Such User Found!"
@@ -197,13 +221,12 @@ class UserController extends Controller
             $request->all(),
             [
                 'name_title' => 'required|string|max:10',
-                'name' => 'required|string',
-                'user_name' => 'required|string|max:50|unique:users,user_name,' . $userDetails->id, // Unique username except for current user
-                'roles' => 'required|string|max:50',
-                'location_id' => 'required|integer|exists:locations,id',
-                'email' => 'required|email|unique:users,email,' . $userDetails->id, // Unique email except for current user
+                'full_name' => 'required|string',
+                'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id, // Unique except for current user
+                'email' => 'required|email|unique:users,email,' . $user->id, // Unique except for current user
                 'password' => 'nullable|string|min:5|confirmed', // Allow null for password
-                'roles' => 'required|string|exists:roles,name'
+                'roles' => 'required|string|exists:roles,name',// Role should exist in roles table
+                'location_id' => 'required|string|exists:locations,id',
             ]
         );
 
@@ -215,22 +238,20 @@ class UserController extends Controller
             ]);
         }
 
-        // Update the user details
-        // Detach and assign roles if roles are provided code start for modal_has_roles
-        if ($request->roles) {
-            $userDetails->roles()->detach();
-            $userDetails->assignRole($request->roles);
-        }
-
-        $userDetails->update([
-            'name_title' => $request->name_title ?? '',
-            'name' => $request->name ?? '',
-            'user_name' => $request->user_name ?? '',
-            'role_name' => $request->roles ?? '',
-            'location_id' => $request->location_id ?? '',
+        // Update user details
+        $user->update([
+            'name_title' => $request->name_title,
+            'full_name' => $request->full_name,
+            'user_name' => $request->user_name,
             'email' => $request->email,
-            'password' => $request->filled('password') ? bcrypt($request->password) : $userDetails->password, // Update password only if provided
+            'location_id' => $request->location_id,
+            'password' => $request->filled('password') ? bcrypt($request->password) : $user->password, // Update password only if provided
         ]);
+
+        // **Update Role (Detach old and assign new role)**
+        if ($request->roles) {
+            $user->syncRoles([$request->roles]); // Remove old roles & assign new one
+        }
 
         return response()->json([
             'status' => 200,
@@ -239,24 +260,31 @@ class UserController extends Controller
     }
 
 
+
     /**
      * Remove the specified resource from storage.
      *
      * @param  \App\Models\Lecturer  $lecturer
      * @return \Illuminate\Http\Response
      */
+
     public function destroy(int $id)
     {
-        $getValue = User::find($id);
-        if ($getValue) {
+        // Find the user by ID
+        $user = User::find($id);
 
-            $getValue->delete();
+        if ($user) {
+            // Remove all assigned roles before deleting
+            $user->roles()->detach();
+
+            // Delete user
+            $user->delete();
+
             return response()->json([
                 'status' => 200,
-                'message' => "User Details Deleted Successfully!"
+                'message' => "User Deleted Successfully!"
             ]);
         } else {
-
             return response()->json([
                 'status' => 404,
                 'message' => "No Such User Found!"
@@ -264,3 +292,4 @@ class UserController extends Controller
         }
     }
 }
+

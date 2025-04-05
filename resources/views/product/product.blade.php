@@ -95,21 +95,41 @@
                             </ul>
                         </div>
                     </div>
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="tab-content">
-                                <div class="tab-pane show active" id="solid-justified-tab1">
-                                    <div class="card-body">
-                                        <div class="page-header">
-                                            <div class="row align-items-center">
-                                                <div class="col-auto text-end float-end ms-auto download-grp">
-                                                    <a href="{{ route('add-product') }}"><button type="button"
-                                                            class="btn btn-outline-info"><i class="fas fa-plus px-2">
-                                                            </i>Add</button></a>
-                                                    <button type="button" class="btn btn-outline-info "
-                                                        data-bs-toggle="modal" data-bs-target="#addModal"><i
-                                                            class="fas fa-download"></i>&nbsp;&nbsp;Download</button>
-                                                </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {{-- table row --}}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card card-table">
+                <div class="row">
+                    <div class="col-md-12">
+                        <ul class="nav nav-tabs nav-tabs-solid">
+                            <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1" data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
+                            <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li>
+                            @can('view import-product')
+                            <li class="nav-item"><a class="nav-link" href="#solid-justified-tab3" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Import Bulk Product</a></li>
+                            @endcan
+                        </ul>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="tab-content">
+                            <div class="tab-pane show active" id="solid-justified-tab1">
+                                <div class="card-body">
+                                    <div class="page-header">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto text-end float-end ms-auto download-grp">
+                                                @can('add product')
+                                                <a href="{{ route('add-product') }}"><button type="button" class="btn btn-outline-info"><i class="fas fa-plus px-2"> </i>Add</button></a>
+                                                @endcan
+                                                <button type="button" class="btn btn-outline-info " data-bs-toggle="modal" data-bs-target="#addModal"><i class="fas fa-download"></i>&nbsp;&nbsp;Download</button>
+
+
                                             </div>
                                         </div>
                                         <!-- Your HTML structure -->
@@ -167,17 +187,45 @@
                                         </table>
                                     </div>
                                 </div>
-                                <div class="tab-pane" id="solid-justified-tab3">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div class="card card-table">
-                                                <div class="card-body">
-                                                    <div class="page-header">
-                                                        <div class="row align-items-center">
-                                                            <form action="#" id="importProductForm" method="POST"
-                                                                enctype="multipart/form-data">
-                                                                @csrf
-                                                                <div class="row">
+                            </div>
+                            <div class="tab-pane" id="solid-justified-tab2">
+                                <div class="table-responsive">
+                                    <table class="datatable table table-stripped" style="width:100%" id="example1">
+                                        <thead>
+                                            <tr>
+                                                <th>Action</th>
+                                                <th>SKU</th>
+                                                <th>Product</th>
+                                                <th>Variation</th>
+                                                <th>Category</th>
+                                                <th>Location</th>
+                                                <th>Unit Selling Price</th>
+                                                <th>Current Stock</th>
+                                                <th>Current Stock Value (By Purchase Price)</th>
+                                                <th>Current Stock Value (By Sale Price)</th>
+                                                <th>Potential Profit</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Data from AJAX will be dynamically appended here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane" id="solid-justified-tab3">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card card-table">
+                                            <div class="card-body">
+                                                <div class="page-header">
+                                                    <div class="row align-items-center">
+                                                        <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data">
+                                                            @csrf
+                                                            <div class="row">
+
+                                                                <div class="col-md-6 mt-4">
+                                                                    <a class="btn btn-outline-success mt-2" id="export_btn" href="{{ route('excel-product-blank-template-export') }}"><i class="fas fa-download"></i> &nbsp; Download template file</a>
+                                                                </div>
 
                                                                     <div class="col-md-6 mt-4">
                                                                         <a class="btn btn-outline-success mt-2"

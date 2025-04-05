@@ -17,6 +17,14 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseReturnController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view purchase-return', ['only' => ['purchaseReturn']]);
+        $this->middleware('permission:add purchase-return', ['only' => ['addPurchaseReturn']]);
+        $this->middleware('permission:create purchase-return', ['only' => ['storeOrUpdate']]);
+        $this->middleware('permission:edit purchase-return', ['only' => ['edit','storeOrUpdate']]);
+    }
+
     public function purchaseReturn()
     {
         return view('purchase.purchase_return');
@@ -63,8 +71,8 @@ class PurchaseReturnController extends Controller
                         'location_id' => $request->location_id,
                         'return_date' => $request->return_date,
                         'attach_document' => $attachDocument,
-                        'return_total' => $totalReturnAmount, 
-                        'total_paid' => 0, 
+                        'return_total' => $totalReturnAmount,
+                        'total_paid' => 0,
                         'total_due' => $totalReturnAmount,
                         'payment_status' => 'Due',
                     ]

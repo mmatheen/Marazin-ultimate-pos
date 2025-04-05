@@ -8,6 +8,16 @@ use Illuminate\Support\Facades\Validator;
 
 class SalesCommissionAgentsController extends Controller
 {
+
+    function __construct()
+    {
+
+        $this->middleware('permission:view sales-commission-agent', ['only' => ['index', 'show','SalesCommissionAgents']]);
+        $this->middleware('permission:create sales-commission-agent', ['only' => ['store']]);
+        $this->middleware('permission:edit sales-commission-agent', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete sales-commission-agent', ['only' => ['destroy']]);
+    }
+
     public function SalesCommissionAgents(){
 
         return view('sales_commission.sales_commission');

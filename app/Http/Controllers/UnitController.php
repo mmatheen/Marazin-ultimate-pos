@@ -8,6 +8,16 @@ use Illuminate\Support\Facades\Validator;
 
 class UnitController extends Controller
 {
+
+    function __construct()
+    {
+        $this->middleware('permission:view unit', ['only' => ['index', 'show','unit']]);
+        $this->middleware('permission:create unit', ['only' => ['store']]);
+        $this->middleware('permission:edit unit', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete unit', ['only' => ['destroy']]);
+    }
+
+
     public function unit(){
         return view('unit.unit');
     }

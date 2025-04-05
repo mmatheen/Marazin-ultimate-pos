@@ -40,14 +40,14 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
     public function model(array $row)
     {
         DB::beginTransaction(); // Begin the transaction
-    
+
         try {
             $validator = Validator::make($row, [
                 'sku' => [
                     'nullable',
                     'regex:/^[a-zA-Z0-9\-]+$/',
-                    'max:255',  
-                    Rule::unique('products', 'sku') 
+                    'max:255',
+                    Rule::unique('products', 'sku')
                 ],
                 'product_name' => 'required|string',
                 'unit_name' => 'required|string',
@@ -58,15 +58,15 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'sku.unique' => 'The SKU "' . $row['sku'] . '" already exists. Please provide a unique SKU.',
                 'sku.regex' => 'The SKU must be a string containing only letters, numbers, and hyphens.',
             ]);
-    
+
             if ($validator->fails()) {
                 $this->validationErrors[] = $validator->errors()->all();
                 Log::error('Validation Errors for SKU:', $validator->errors()->toArray());
-    
-                DB::rollBack(); 
+
+                DB::rollBack();
                 return null;
             }
-    
+
             // **Generate SKU if not provided**
             if (empty($row['sku'])) {
                 $lastProduct = Product::whereRaw("sku REGEXP '^[0-9]+$'")->orderBy('id', 'desc')->first();
@@ -77,10 +77,10 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 }
                 $row['sku'] = str_pad($lastSkuNumber + 1, 4, '0', STR_PAD_LEFT); // Format: 0001, 0002, 0003
             }
-            
-        
+
+
             $authLocationId = auth()->user()->location_id;
-            
+
 
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authLocationId]);
             $brand = !empty($row['brand_name']) ? Brand::firstOrCreate(['name' => $row['brand_name']], ['location_id' => $authLocationId]) : null;
@@ -89,18 +89,18 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'subCategoryname' => $row['sub_category_name'],
                 'main_category_id' => $mainCategory ? $mainCategory->id : null,
             ], ['location_id' => $authLocationId]) : null;
-    
+
             // **Store data for later use if necessary**
             $this->data[] = $row;
-    
+
             // Create and return a new Product model
             $product = new Product([
                 'product_name' => $row['product_name'],
                 'sku' => $row['sku'], // Use generated or provided SKU
                 'unit_id' => $unit->id, // Use resolved Unit ID
-                'brand_id' => $brand ? $brand->id : null, 
+                'brand_id' => $brand ? $brand->id : null,
                 'main_category_id' => $mainCategory ? $mainCategory->id : null,
-                'sub_category_id' => $subCategory ? $subCategory->id : null, 
+                'sub_category_id' => $subCategory ? $subCategory->id : null,
                 'stock_alert' => 1,
                 'stock_alert_quantity' => $row['stock_alert_quantity'],
                 'product_image_name' => $row['product_image_name'],
@@ -115,25 +115,25 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                 'special_price' => $row['special_price'],
                 'max_retail_price' => $row['max_retail_price'],
             ]);
-    
+
             // Save the product to the database
             $product->save();
-    
+
             // Get the primary key (id) of the newly created product
             $productId = $product->id;
-    
+
             // Insert into location_product table
             DB::table('location_product')->insert([
                 'location_id' => $authLocationId,
                 'product_id' => $productId,
             ]);
-    
+
             // Check if quantity is provided
             if (!empty($row['qty'])) {
                 $formattedExpiryDate = $row['expiry_date']
                 ? \Carbon\Carbon::parse($row['expiry_date'])->format('Y-m-d')
                 : null;
-    
+
                 // Batch processing
                 $batch = Batch::updateOrCreate(
                     [
@@ -150,7 +150,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                         'expiry_date' => $formattedExpiryDate,
                     ]
                 );
-    
+
                 $locationBatch = LocationBatch::updateOrCreate(
                     [
                         'batch_id' => $batch->id,
@@ -160,7 +160,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                         'qty' => $row['qty'],
                     ]
                 );
-    
+
                 // Create stock history entry
                 StockHistory::updateOrCreate(
                     [
@@ -172,9 +172,9 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
                     ]
                 );
             }
-    
+
             DB::commit(); // Commit the transaction if everything is successful
-    
+
             return $product; // Return the created Product instance
         } catch (\Exception $e) {
             DB::rollBack(); // Roll back the transaction if an exception occurs

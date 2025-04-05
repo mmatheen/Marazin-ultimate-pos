@@ -7,30 +7,20 @@
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
             rules: {
-
-
                 first_name: {
                     required: true,
-
                 },
-
                 mobile_no: {
                     required: true,
-
                 },
-
             },
             messages: {
-
-
                 first_name: {
                     required: "First Name is required",
                 },
-
                 mobile_no: {
                     required: "Mobile No  is required",
                 },
-
             },
             errorElement: 'span',
             errorPlacement: function(error, element) {
@@ -105,11 +95,8 @@
                         row.append('<td>Rs ' + item.current_balance + '</td>');
                         row.append('<td>Rs ' + item.total_purchase_due + '</td>');
                         row.append('<td>Rs ' + item.total_return_due + '</td>');
-                        row.append('<td><button type="button" value="' + item.id +
-                            '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' +
-                            item.id +
-                            '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>'
-                            );
+                        row.append('<td>' + '@can("edit supplier")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can("delete supplier")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         table.row.add(row).draw(false);
                     });
                 },
@@ -193,8 +180,7 @@
                         // Clear validation error messages
                         showFetchData();
                         supplierGetAll();
-                        document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                        document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

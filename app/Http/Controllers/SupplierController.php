@@ -10,6 +10,14 @@ use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view supplier', ['only' => ['index', 'show','Supplier']]);
+        $this->middleware('permission:create supplier', ['only' => ['store']]);
+        $this->middleware('permission:edit supplier', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete supplier', ['only' => ['destroy']]);
+    }
+
     public function Supplier(){
         return view('contact.supplier.supplier');
     }
@@ -139,14 +147,14 @@ class SupplierController extends Controller
     public function update(Request $request, int $id)
     {
         $supplier = Supplier::find($id);
-    
+
         if (!$supplier) {
             return response()->json([
                 'status' => 404,
                 'message' => "No Such Supplier Found!"
             ]);
         }
-    
+
         $validator = Validator::make(
             $request->all(),
             [
@@ -164,7 +172,7 @@ class SupplierController extends Controller
                 'opening_balance' => 'nullable|numeric',  // Ensure opening balance is a valid number
             ]
         );
-    
+
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
@@ -181,7 +189,7 @@ class SupplierController extends Controller
                 'opening_balance' => $request->opening_balance ?? 0,
                 'current_balance' => $request->opening_balance ?? 0,
             ]);
-    
+
             // Insert ledger entry for updated opening balance
             Ledger::create([
                 'transaction_date' => now(),
@@ -193,7 +201,7 @@ class SupplierController extends Controller
                 'contact_type' => 'supplier',
                 'user_id' => $supplier->id,
             ]);
-    
+
             return response()->json([
                 'status' => 200,
                 'message' => "Old Supplier Details Updated Successfully!"
