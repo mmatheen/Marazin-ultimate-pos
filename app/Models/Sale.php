@@ -90,7 +90,7 @@ class Sale extends Model
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-
+    
             // Get total sold quantity for all batches of the product in the sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
@@ -98,17 +98,16 @@ class Sale extends Model
         } else {
             // Get available stock from the batch in the location
             $availableStock = self::getAvailableStock($batchId, $locationId);
-
-            // Get sold quantity for this product and batch from the sale
+    
+            // Get sold quantity for this specific batch in the sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
                 ->where('batch_id', $batchId)
                 ->sum('quantity');
         }
-
+    
         return $availableStock + $soldQuantity;
     }
-
     public static function generateInvoiceNo()
         {
             // Get the last sale invoice number

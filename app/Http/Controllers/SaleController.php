@@ -210,6 +210,8 @@ class SaleController extends Controller
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
+                // Only generate new invoice number for new sales
+                $invoiceNo = $isUpdate ? $sale->invoice_no : Sale::generateInvoiceNo();
 
                 $subtotal = array_reduce($request->products, function ($carry, $product) {
                     return $carry + $product['subtotal'];
@@ -235,7 +237,7 @@ class SaleController extends Controller
                     'sales_date' => $request->sales_date,
                     'sale_type' => $request->sale_type,
                     'status' => $request->status,
-                    'invoice_no' => Sale::generateInvoiceNo(),
+                    'invoice_no' => $invoiceNo,
                     'reference_no' => $referenceNo,
                     'subtotal' => $subtotal,
                     'final_total' => $finalTotal,
@@ -262,11 +264,11 @@ class SaleController extends Controller
                         // Handle unlimited stock product
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
-                        $availableStock = $sale->getBatchQuantityPlusSold(
-                            $productData['batch_id'],
-                            $request->location_id,
-                            $productData['product_id']
-                        );
+                        // $availableStock = $sale->getBatchQuantityPlusSold(
+                        //     $productData['batch_id'],
+                        //     $request->location_id,
+                        //     $productData['product_id']
+                        // );
 
                         // if ($productData['quantity'] > $availableStock) {
                         //     throw new \Exception("Insufficient stock for Product ID {$productData['product_id']} in Batch ID {$productData['batch_id']}.");
@@ -618,7 +620,7 @@ class SaleController extends Controller
             // Fetch sale details with related models
             $sale = Sale::with(['products.product', 'products.batch', 'customer', 'location'])
                 ->findOrFail($id);
-
+    
             // Prepare detailed response
             $saleDetails = [
                 'sale' => $sale->only([
@@ -629,14 +631,23 @@ class SaleController extends Controller
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
                     // Get the batch ID or 'all' if no specific batch is selected
                     $batchId = $product->batch_id ?? 'all';
-
-                    // Calculate the total available quantity (stock + sold) for the batch or all batches
+    
+                    // Calculate the total available quantity (current stock + sold in this sale)
                     $totalQuantity = $sale->getBatchQuantityPlusSold(
                         $batchId,
                         $product->location_id,
                         $product->product_id
                     );
-
+    
+                    // Get current stock without the sold quantity for reference
+                    $currentStock = $batchId === 'all' 
+                        ? DB::table('location_batches')
+                            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                            ->where('batches.product_id', $product->product_id)
+                            ->where('location_batches.location_id', $product->location_id)
+                            ->sum('location_batches.qty')
+                        : Sale::getAvailableStock($batchId, $product->location_id);
+    
                     return [
                         'id' => $product->id,
                         'sale_id' => $product->sale_id,
@@ -650,7 +661,8 @@ class SaleController extends Controller
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
                         'updated_at' => $product->updated_at,
-                        'total_quantity' => $totalQuantity, // Add total quantity (stock + sold)
+                        'total_quantity' => $totalQuantity, // Stock + sold in this sale
+                        'current_stock' => $currentStock,   // Just current stock
                         'product' => optional($product->product)->only([
                             'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
                             'stock_alert', 'alert_quantity', 'product_image', 'description', 'is_imei_or_serial_no',
@@ -672,7 +684,7 @@ class SaleController extends Controller
                     'telephone_no'
                 ])
             ];
-
+    
             // Handle API or AJAX requests
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
@@ -680,9 +692,9 @@ class SaleController extends Controller
                     'sale_details' => $saleDetails,
                 ]);
             }
-
-            return view('sell.pos', compact('saleDetails'));
-
+    
+            return view('sell.pos', ['saleDetails' => $saleDetails]);
+    
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
         } catch (\Exception $e) {

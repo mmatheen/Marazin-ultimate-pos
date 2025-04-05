@@ -72,7 +72,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         return $next($request);
     }], function () {
 
-        require __DIR__ . '/role_permission.php';
+      
 
         // User Routes
         Route::get('/user', [UserController::class, 'user'])->name('user');
