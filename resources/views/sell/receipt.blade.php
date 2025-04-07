@@ -99,9 +99,14 @@
             <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
         </div>
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
-            <div> {{ Auth::user()->location->address }}</div>
-            <div>{{ Auth::user()->location->mobile }}</div>
-            <div>{{ Auth::user()->location->email }}</div>
+            @php
+                $location = Auth::user()->locations->first();
+            @endphp
+            @if($location)
+                <div>{{ $location->address }}</div>
+                <div>{{ $location->mobile }}</div>
+                <div>{{ $location->email }}</div>
+            @endif
         </div>
 
         <div
