@@ -113,7 +113,7 @@
                                             id="productTable">
                                             <thead>
                                                 <tr>
-                                                    <th><input type="checkbox" id="selectAll"></th> <!-- Select All checkbox -->
+                                                    <th><input type="checkbox" id="selectAll" style="width: 16px; height: 16px;"></th> <!-- Select All checkbox -->
                                                     <th>Action</th>
                                                     <th>Product Image</th>
                                                     <th>Product</th>

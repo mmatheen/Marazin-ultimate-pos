@@ -204,7 +204,7 @@ function formatProductData(product) {
         '/assets/img/No Product Image Available.png';
     return `
     <tr data-product-id="${product.id}">
-       <td>     <input type="checkbox" class="product-checkbox" data-product-id="${product.id}"></td>
+    <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
         <td>
             <div class="dropdown">
                 <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
@@ -412,8 +412,8 @@ function fetchProductData() {
 
             let table = $('#productTable').DataTable({
                 lengthMenu: [
-                    [10, 20, 50, 75, 100, -1],
-                    [10, 20, 50, 75, 100, "All"]
+                    [10, 20, 50, 75, 100, 500,1000,1500,2000,-1],
+                    [10, 20, 50, 75, 100,500,1000,1500,2000,"All"]
                 ],
                 columnDefs: [
                     { orderable: false, targets: [1] }

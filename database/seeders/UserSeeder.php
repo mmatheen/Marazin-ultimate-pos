@@ -32,36 +32,36 @@ class UserSeeder extends Seeder
                 'location_id' => $location_ids[0] // Assign the first location ID (Sammanthurai)
             ],
 
-            // [
-            //     'name_title' => 'Mr',
-            //     'full_name' => 'Ahamed',
-            //     'user_name' => 'Suraif',
-            //     'is_admin' => false,
-            //     'email' => 'suraif@arbtrading.lk',
-            //     'password' => '1234',
-            //     'role' => 'Admin',
-            //     'location_id' => $location_ids[0] // Assign the first location ID (Sammanthurai)
-            // ],
-            // [
-            //     'name_title' => 'Mr',
-            //     'full_name' => 'Mohamed',
-            //     'user_name' => 'Riskan',
-            //     'is_admin' => false,
-            //     'email' => 'riskan@arbtrading.lk',
-            //     'password' => '1234',
-            //     'role' => 'Admin',
-            //     'location_id' => $location_ids[0] // Assign the second location ID (Sammanthurai)
-            // ],
-            // [
-            //     'name_title' => 'Mr',
-            //     'full_name' => 'Mohamed',
-            //     'user_name' => 'Ajwath',
-            //     'is_admin' => true,
-            //     'email' => 'ajwath94@gmail.com',
-            //     'password' => '1234',
-            //     'role' => 'Super Admin',
-            //     'location_id' => $location_ids[0] // Assign the third location ID (Sammanthurai)
-            // ],
+            [
+                'name_title' => 'Mr',
+                'full_name' => 'Ahamed',
+                'user_name' => 'Suraif',
+                'is_admin' => false,
+                'email' => 'suraif@arbtrading.lk',
+                'password' => '1234',
+                'role' => 'Admin',
+                'location_id' => $location_ids[1] // Assign the first location ID (ARB FASHION)
+            ],
+            [
+                'name_title' => 'Mr',
+                'full_name' => 'Mohamed',
+                'user_name' => 'Riskan',
+                'is_admin' => false,
+                'email' => 'riskan@arbtrading.lk',
+                'password' => '1234',
+                'role' => 'Admin',
+                'location_id' => $location_ids[1] // Assign the second location ID (ARB FASHION)
+            ],
+            [
+                'name_title' => 'Mr',
+                'full_name' => 'Mohamed',
+                'user_name' => 'Ajwath',
+                'is_admin' => false,
+                'email' => 'ajwath94@gmail.com',
+                'password' => '1234',
+                'role' => 'Super Admin',
+                'location_id' => $location_ids[2] // Assign the third location ID (ARB SUPER CENTER)
+            ],
         ];
 
         foreach ($users as $userData) {

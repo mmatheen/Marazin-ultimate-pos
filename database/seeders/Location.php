@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -12,53 +11,52 @@ class Location extends Seeder
     /**
      * Run the database seeds.
      */
-
     public function run(): void
     {
         DB::table('locations')->insert([
+         
             [
                 'id' => 1,
                 'name' => 'Sammanthurai',
-                'location_id' => '001',
-                'address' => 'Kalmunai',
+                'location_id' => 'LOC0001',
+                'address' => 'Sammanthurai',
                 'province' => 'Eastern',
                 'district' => 'Ampara',
-                'city' => 'Kalmunai',
-                'email' => 'matheen@gmail.com',
-                'mobile' => '0757571411',
-                'telephone_no' => '0757571411',
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
+                'city' => 'Sammanthurai',
+                'email' => 'arb@gmail.com',
+                'mobile' => '121212121',
+                'telephone_no' => '121212121',
+                'created_at' => '2025-03-15 07:55:07',
+                'updated_at' => '2025-03-15 07:55:07',
             ],
-            // [
-            //     'id' => 2,
-            //     'name' => 'ARB FASHION',
-            //     'location_id' => '002',
-            //     'address' => 'Colombo',
-            //     'province' => 'Western',
-            //     'district' => 'Colombo',
-            //     'city' => 'Colombo',
-            //     'email' => 'colombo.com',
-            //     'mobile' => '0771234567',
-            //     'telephone_no' => '0112345678',
-            //     'created_at' => Carbon::now(),
-            //     'updated_at' => Carbon::now(),
-            // ],
-            // [
-            //     'id' => 3,
-            //     'name' => 'ARB SUPER CENTER',
-            //     'location_id' => '003',
-            //     'address' => 'Galle',
-            //     'province' => 'Southern',
-            //     'district' => 'Galle',
-            //     'city' => 'Galle',
-            //     'email' => 'galle.com',
-            //     'mobile' => '0782345678',
-            //     'telephone_no' => '0912345678',
-            //     'created_at' => Carbon::now(),
-            //     'updated_at' => Carbon::now(),
-            // ],
-
+            [
+                'id' => 2,
+                'name' => 'ARB FASHION',
+                'location_id' => 'LOC0002',
+                'address' => 'HIJRA JUNCTION',
+                'province' => 'Eastern',
+                'district' => 'Ampara',
+                'city' => 'Sammanthurai',
+                'email' => 'arbfashion@arbtradin.lk',
+                'mobile' => '777888320',
+                'telephone_no' => '0672261108',
+                'created_at' => '2025-03-15 08:02:08',
+                'updated_at' => '2025-03-15 08:02:08',
+            ],
+            [
+                'id' => 3,
+                'name' => 'ARB SUPER CENTER',
+                'location_id' => 'LOC0003',
+                'address' => 'AM01ST ROAD, SAMMANTHURAI',
+                'province' => 'Eastern',
+                'district' => 'Ampara',
+                'city' => 'SAMMANTHURAI',
+                'email' => 'info@arbtrading.lk',
+                'mobile' => '672261108',
+                'telephone_no' => '0773445906',
+                'created_at' => '2025-03-16 08:42:57',
+                'updated_at' => '2025-03-16 08:42:57',
+            ],
         ]);
     }
 }

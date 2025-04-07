@@ -63,7 +63,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             '12. sub-catagory-management' => [
-                'create sub-category', 'edit sub-catagory', 'view sub-category', 'delete sub-catagory'
+                'create sub-category', 'edit sub-catagory', 'view sub-category', 'delete sub-category'
             ],
 
             '13. warranty-management' => [
@@ -132,6 +132,27 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::create(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
 
-    
+        // Manager - Limited Permissions
+        $manager = Role::create(['name' => 'Manager']);
+        $managerPermissions = [
+            'view user', 'view role', 'view product', 'view sale', 'add sale', 'view purchase', 'view daily-report'
+        ];
+        $manager->givePermissionTo($managerPermissions);
+
+        // Cashier - Limited Permissions
+        $cashier = Role::create(['name' => 'Cashier']);
+        $cashierPermissions = [
+            'pos page', 'add sale', 'view sale', 'add return-sale', 'view return-sale'
+        ];
+        $cashier->givePermissionTo($cashierPermissions);
+
+        // Admin - Limited Permissions
+        $admin = Role::create(['name' => 'Admin']);
+        $adminPermissions = [
+            'create user', 'edit user', 'view user', 'delete user',
+            'create role', 'edit role', 'view role', 'delete role',
+            'create product', 'edit product', 'view product', 'delete product'
+        ];
+        $admin->givePermissionTo($adminPermissions);
     }
 }
