@@ -110,7 +110,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
               // setting management
               '24. location-management' => [
-                'create location', 'edit location', 'view location', 'delete location',
+                'create location', 'edit location', 'view location', 'delete location'
             ],
               // daily-report management
               '25. daily-report-management' => [
