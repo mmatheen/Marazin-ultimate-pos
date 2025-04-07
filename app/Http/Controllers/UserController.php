@@ -10,10 +10,9 @@ use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
-
     function __construct()
     {
-        $this->middleware('permission:view user', ['only' => ['index', 'show','user']]);
+        $this->middleware('permission:view user', ['only' => ['index', 'show', 'user']]);
         $this->middleware('permission:create user', ['only' => ['store']]);
         $this->middleware('permission:edit user', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete user', ['only' => ['destroy']]);
@@ -26,7 +25,7 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with(['roles','location'])->get();  // it will get the roles details from spatie model not custom model
+        $users = User::with(['roles', 'locations'])->get();
 
         if ($users->isNotEmpty()) {
             return response()->json([
@@ -38,42 +37,21 @@ class UserController extends Controller
                         'full_name' => $user->full_name,
                         'user_name' => $user->user_name,
                         'email' => $user->email,
-                        'role' => $user->getRoleNames()->first(), // Convert array to a single string
-                        'location' => $user->location->name,
+                        'role' => $user->getRoleNames()->first(),
+                        'locations' => $user->locations->pluck('name')->toArray(),
                     ];
                 }),
             ]);
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => 'No Records Found!'
+                'message' => 'No Records Found!',
             ]);
         }
     }
 
-
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
-        //  dd($request->all());
         $validator = Validator::make(
             $request->all(),
             [
@@ -81,9 +59,10 @@ class UserController extends Controller
                 'full_name' => 'required|string',
                 'user_name' => 'required|string|max:50|unique:users,user_name',
                 'email' => 'required|email|unique:users,email',
-                'password' => 'required|string|min:5|confirmed',  // Requires at least 5 characters and confirms password
+                'password' => 'required|string|min:5|confirmed',
                 'roles' => 'required|string|exists:roles,name',
-                'location_id' => 'required|string|exists:locations,id',
+                'location_id' => 'required|array',
+                'location_id.*' => 'exists:locations,id',
             ]
         );
 
@@ -92,52 +71,37 @@ class UserController extends Controller
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
+        }
 
-            $getValue = User::create([
+        $user = User::create([
+            'name_title' => $request->name_title,
+            'full_name' => $request->full_name,
+            'user_name' => $request->user_name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+        ]);
 
-                'name_title' => $request->name_title,
-                'full_name' => $request->full_name,
-                'user_name' => $request->user_name,
-                'email' => $request->email,
-                'location_id' => $request->location_id,
-                'password' => bcrypt($request->password),
+        $user->assignRole($request->roles);
+        $user->locations()->sync($request->location_id);
+
+        if ($user) {
+            return response()->json([
+                'status' => 200,
+                'message' => "New User Details Created Successfully!"
             ]);
-
-            // Assign role by role to model_has_roles table code start
-            $getValue->assignRole($request->roles);
-            // Assign role by role to model_has_roles table code end
-
-
-            if ($getValue) {
-                return response()->json([
-                    'status' => 200,
-                    'message' => "New User Details Created Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Something went wrong!"
-                ]);
-            }
+        } else {
+            return response()->json([
+                'status' => 500,
+                'message' => "Something went wrong!"
+            ]);
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function show(int $id)
     {
-        // Find the user by ID
-        $user = User::with(['roles','location'])->find($id);
+        $user = User::with(['roles', 'locations'])->find($id);
 
         if ($user) {
-            // Get the first role name as a string
-            $roleName = $user->getRoleNames()->first();
-
             return response()->json([
                 'status' => 200,
                 'message' => [
@@ -146,8 +110,9 @@ class UserController extends Controller
                     'full_name' => $user->full_name,
                     'user_name' => $user->user_name,
                     'email' => $user->email,
-                    'role' => $roleName, // Single role name instead of an array
-                    'location_id' => $user->location->id,
+                    'role' => $user->getRoleNames()->first(),
+                    'location_ids' => $user->locations->pluck('id')->toArray(),
+                    'locations' => $user->locations->pluck('name')->toArray(),
                 ]
             ]);
         } else {
@@ -157,23 +122,12 @@ class UserController extends Controller
             ]);
         }
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
 
     public function edit(int $id)
     {
-        // Find the user by ID
-        $user = User::with(['roles','location'])->find($id);
+        $user = User::with(['roles', 'locations'])->find($id);
 
         if ($user) {
-            // Get the first role name as a string
-            $roleName = $user->getRoleNames()->first();
-
             return response()->json([
                 'status' => 200,
                 'message' => [
@@ -182,11 +136,11 @@ class UserController extends Controller
                     'full_name' => $user->full_name,
                     'user_name' => $user->user_name,
                     'email' => $user->email,
-                    'role' => $roleName, // Single role name instead of an array
-                    'location_id' => $user->location->id,
+                    'role' => $user->getRoleNames()->first(),
+                    'location_ids' => $user->locations->pluck('id')->toArray(),
+                    'locations' => $user->locations->pluck('name')->toArray(),
                 ]
             ]);
-
         } else {
             return response()->json([
                 'status' => 404,
@@ -195,20 +149,10 @@ class UserController extends Controller
         }
     }
 
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, int $id)
     {
-        // Find the user by ID
         $user = User::find($id);
 
-        // Check if the user exists
         if (!$user) {
             return response()->json([
                 'status' => 404,
@@ -216,21 +160,20 @@ class UserController extends Controller
             ]);
         }
 
-        // Validate incoming request data
         $validator = Validator::make(
             $request->all(),
             [
                 'name_title' => 'required|string|max:10',
                 'full_name' => 'required|string',
-                'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id, // Unique except for current user
-                'email' => 'required|email|unique:users,email,' . $user->id, // Unique except for current user
-                'password' => 'nullable|string|min:5|confirmed', // Allow null for password
-                'roles' => 'required|string|exists:roles,name',// Role should exist in roles table
-                'location_id' => 'required|string|exists:locations,id',
+                'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id,
+                'email' => 'required|email|unique:users,email,' . $user->id,
+                'password' => 'nullable|string|min:5|confirmed',
+                'roles' => 'required|string|exists:roles,name',
+                'location_id' => 'required|array',
+                'location_id.*' => 'exists:locations,id',
             ]
         );
 
-        // Check if validation fails
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
@@ -238,20 +181,24 @@ class UserController extends Controller
             ]);
         }
 
-        // Update user details
-        $user->update([
+        $data = [
             'name_title' => $request->name_title,
             'full_name' => $request->full_name,
             'user_name' => $request->user_name,
             'email' => $request->email,
-            'location_id' => $request->location_id,
-            'password' => $request->filled('password') ? bcrypt($request->password) : $user->password, // Update password only if provided
-        ]);
+        ];
 
-        // **Update Role (Detach old and assign new role)**
-        if ($request->roles) {
-            $user->syncRoles([$request->roles]); // Remove old roles & assign new one
+        if ($request->filled('password')) {
+            $data['password'] = bcrypt($request->password);
         }
+
+        $user->update($data);
+
+        if ($request->roles) {
+            $user->syncRoles([$request->roles]);
+        }
+
+        $user->locations()->sync($request->location_id);
 
         return response()->json([
             'status' => 200,
@@ -259,25 +206,13 @@ class UserController extends Controller
         ]);
     }
 
-
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
-
     public function destroy(int $id)
     {
-        // Find the user by ID
         $user = User::find($id);
 
         if ($user) {
-            // Remove all assigned roles before deleting
             $user->roles()->detach();
-
-            // Delete user
+            $user->locations()->detach();
             $user->delete();
 
             return response()->json([
@@ -292,4 +227,3 @@ class UserController extends Controller
         }
     }
 }
-

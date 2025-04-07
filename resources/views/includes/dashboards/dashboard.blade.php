@@ -205,22 +205,22 @@
     $(document).ready(function() {
         let salesChart;
         let purchaseChart;
-
+    
         function formatCurrency(amount) {
             return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
         }
-
+    
         function fetchDashboardData(start, end) {
             $.ajax({
                 url: "/dashboard-data",
                 type: "GET",
                 dataType: "json",
                 data: {
-                    startDate: start.format('YYYY-MM-DD'),
-                    endDate: end.format('YYYY-MM-DD')
+                    startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+                    endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss')
                 },
                 success: function(response) {
                     $("#totalSales").text(formatCurrency(response.totalSales));
@@ -233,12 +233,12 @@
                     $("#totalPurchaseReturnDue").text(formatCurrency(response.totalPurchaseReturnDue));
                     $("#stockTransfer").text(response.stockTransfer);
                     $("#totalProducts").text(response.totalProducts);
-
+    
                     updateCharts(response);
                 }
             });
         }
-
+    
         function updateCharts(data) {
             // Destroy existing charts if they exist
             if (salesChart) {
@@ -247,7 +247,7 @@
             if (purchaseChart) {
                 purchaseChart.destroy();
             }
-
+    
             salesChart = new Chart(document.getElementById('salesChart'), {
                 type: 'line',
                 data: {
@@ -287,7 +287,7 @@
                     }
                 }
             });
-
+    
             purchaseChart = new Chart(document.getElementById('purchaseChart'), {
                 type: 'line',
                 data: {
@@ -328,22 +328,21 @@
                 }
             });
         }
-
-        //Date range picker 
+    
+        // Date range picker 
         $(function() {
-            var start = moment().subtract(29, 'days');
-            var end = moment();
-
+            var today = moment();
+            
             function cb(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
                 fetchDashboardData(start, end);
             }
-
+    
             $('#reportrange').daterangepicker({
-                startDate: start,
-                endDate: end,
+                startDate: today,
+                endDate: today,
                 ranges: {
-                    'Today': [moment(), moment()],
+                    'Today': [today, today],
                     'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
                     'Last 7 Days': [moment().subtract(6, 'days'), moment()],
                     'Last 30 Days': [moment().subtract(29, 'days'), moment()],
@@ -351,9 +350,11 @@
                     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 }
             }, cb);
-
-            cb(start, end);
+    
+            // Initialize with Today selected
+            cb(today, today);
         });
     });
-</script>
+    </script>
+
 @endsection

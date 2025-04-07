@@ -28,18 +28,26 @@
         <ul class="nav user-menu">
 
             <li class="nav-item dropdown noti-dropdown me-4">
-
-                {{-- dynamically change the location and only show owner --}}
-                @if(Auth::check() && is_null(Auth::user()->role_name))
+                @if(Auth::check() && Auth::user()->locations->count() > 0)
                 <select class="form-control form-select" id="location_dropdown">
-                    {{-- dynamicly location name getting --}}
+                    @foreach(Auth::user()->locations as $location)
+                        <option value="{{ $location->id }}" 
+                            @if(session('selectedLocation', Auth::user()->locations->first()->id) == $location->id) selected @endif>
+                            {{ $location->name }}
+                        </option>
+                    @endforeach
                 </select>
                 @endif
             </li>
             <li class="nav-item dropdown noti-dropdown me-3 mt-4">
-                {{-- dynamically change the location --}}
-                <p id="location_text"><b>Location:</b> <span id="location_name">Loading...</span></p>
-            </li> 
+                <p id="location_text"><b>Location:</b> <span id="location_name">
+                    @if(session('selectedLocation'))
+                        {{ Auth::user()->locations->find(session('selectedLocation'))->name ?? 'No Location' }}
+                    @else
+                        {{ Auth::user()->locations->first()->name ?? 'No Location' }}
+                    @endif
+                </span></p>
+            </li>
 
             @can('pos page')
                 <a href="{{ route('pos-create') }}" class="btn btn-primary me-3" role="button">
@@ -113,103 +121,104 @@
 
 {{-- it will get the location details code start --}}
 <script>
-    $(document).ready(function() {
+  $(document).ready(function() {
+    // Initialize elements
+    const locationSelect = $('#location_dropdown');
+    const locationNameDisplay = $('#location_name');
 
-        // Fetch the user details from the server
-        $.ajax({
-            url: '/get-all-details-using-guard',
-             type: 'GET',
-             success: function(response) {
-                if (response.status === 200) {
-                    $('#location_name').text(response.message.location.name);
-                } else {
-                    $('#location_name').text('No Location Found');
-                }
-            },
-             error: function() {
-                $('#location').text('Error retrieving details');
+    // Function to update location display
+    function updateLocationDisplay(locationId, locationName) {
+        locationNameDisplay.text(locationName);
+        localStorage.setItem('selectedLocationId', locationId);
+        localStorage.setItem('selectedLocationName', locationName);
+    }
+
+    // Get initial location details
+    $.ajax({
+        url: '/get-all-details-using-guard',
+        type: 'GET',
+        success: function(response) {
+            if (response.status === 200) {
+                $('#location_name').text(response.message.location.name);
+            } else {
+                $('#location_name').text('No Location Found');
             }
-        });
+        },
+        error: function() {
+            $('#location_name').text('Error retrieving details');
+        }
+    });
 
-        const locationSelect = $('#location_dropdown');
-        const locationNameDisplay = $('#location_name');
+    // Populate location dropdown
+    $.ajax({
+        url: '/user-location-get-all',
+        type: 'GET',
+        success: function(response) {
+            if (response.status === 200) {
+                // Clear existing options
+                locationSelect.empty();
+                locationSelect.append('<option value="">Select Location</option>');
 
-        // Fetch user and location details
-        $.ajax({
-            url: 'user-location-get-all', // Replace with your endpoint URL
-            type: 'GET',
-             success: function(response) {
-                if (response.status === 200) {
-                    // Clear any existing options
-                    locationSelect.empty();
-                    locationSelect.append('<option value="">Select Location</option>');
+                // Track unique locations
+                const uniqueLocations = new Set();
 
-                     // Use a Set to keep track of unique location IDs
-                     const uniqueLocations = new Set();
-
-                      // Loop through each message object
-                        response.message.forEach(item => {
-                            if (item.location && !uniqueLocations.has(item.location.id)) {
-                                uniqueLocations.add(item.location.id); // Mark this ID as seen
+                response.message.forEach(user => {
+                    if (user.locations) {
+                        user.locations.forEach(location => {
+                            if (!uniqueLocations.has(location.id)) {
+                                uniqueLocations.add(location.id);
+                                const selected = sessionStorage.getItem('selectedLocationId') == location.id ? 'selected' : '';
                                 locationSelect.append(
-                                    `<option value="${item.location.id}">${item.location.name}</option>`
+                                    `<option value="${location.id}" ${selected}>${location.name}</option>`
                                 );
                             }
                         });
-
-                    // Restore the selected location from localStorage if available
-                    const savedLocationId = localStorage.getItem('selectedLocationId');
-                    const savedLocationName = localStorage.getItem('selectedLocationName');
-
-                    if (savedLocationId && savedLocationName) {
-                        locationSelect.val(savedLocationId); // Set the dropdown value
-                        locationNameDisplay.text(savedLocationName); // Display the saved location name
                     }
+                });
+
+                // Restore from localStorage if available
+                const savedLocationId = localStorage.getItem('selectedLocationId');
+                const savedLocationName = localStorage.getItem('selectedLocationName');
+
+                if (savedLocationId && savedLocationName) {
+                    locationSelect.val(savedLocationId);
+                    updateLocationDisplay(savedLocationId, savedLocationName);
                 }
-            },
-             error: function(error) {
-                console.log("Error:", error);
             }
-        });
+        },
+        error: function(error) {
+            console.log("Error:", error);
+        }
+    });
 
-        // Update location text and save selection to localStorage on change
-        locationSelect.on('change', function() {
-            const selectedText = $(this).find("option:selected").text(); // Get selected text
-            const selectedValue = $(this).val(); // Get selected value
+    // Handle location change
+    locationSelect.on('change', function() {
+        const locationId = $(this).val();
+        const locationName = $(this).find('option:selected').text();
 
-            // Update the location name display
-            locationNameDisplay.text(selectedText);
-
-            // Save to localStorage
-            if (selectedValue) {
-                localStorage.setItem('selectedLocationId', selectedValue);
-                localStorage.setItem('selectedLocationName', selectedText);
-
-                // Redirect to the dashboard if a valid option is selected
-                window.location.href = '{{ route("brand") }}';
-            } else {
-                // Clear localStorage if no valid selection
-                localStorage.removeItem('selectedLocationId');
-                localStorage.removeItem('selectedLocationName');
-            }
-        });
-
-        //uptate the location in session using select box
-        $(document).on('change', '#location_dropdown', function() {
+        if (locationId) {
             $.ajax({
                 url: '/update-location',
-                 type: 'GET',
-                 data: {
-                    id: $(this).val()
+                type: 'GET',
+                data: {
+                    id: locationId
                 },
-                 success: function(response) {},
-                 error: function() {
-                    $('#location').text('Error retrieving details');
-
+                success: function(response) {
+                    if (response.status === 200) {
+                        updateLocationDisplay(locationId, locationName);
+                        window.location.reload(); // Refresh to update session-based content
+                    }
+                },
+                error: function() {
+                    console.error('Error updating location');
                 }
             });
-        })
+        } else {
+            localStorage.removeItem('selectedLocationId');
+            localStorage.removeItem('selectedLocationName');
+        }
     });
+});
     document.addEventListener('DOMContentLoaded', function () {
     fetchNotifications();
 

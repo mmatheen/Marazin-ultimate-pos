@@ -128,14 +128,41 @@
                                     <div class="mb-5">
                                         <div class="input-group local-forms">
                                             <label>Location Name<span class="login-danger">*</span></label>
-
-                                            <select id="edit_location_id" name="location_id" class="locationDropdown form-control form-select">
-                                                <option value="" selected disabled>Select Location</option>
+                                
+                                            <select id="edit_location_id" name="location_id[]" class="locationDropdown form-control form-select" multiple>
+                                                <!-- Populate options dynamically from the backend -->
                                             </select>
                                             <span class="text-danger" id="location_name_error"></span>
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <script>
+                                    $(document).ready(function() {
+                                        $('#edit_location_id').select2({
+                                            placeholder: 'Select Locations',
+                                            allowClear: true,
+                                            tags: true,
+                                            tokenSeparators: [',', ' '],
+                                            width: '100%',
+                                        });
+
+                                        $('#addAndEditModal').on('hidden.bs.modal', function() {
+                                            $('#edit_location_id').val(null).trigger('change');
+                                        });
+                                    });
+                                
+
+                                    
+                                </script>
+                                <style>
+                                                                        /* Add this to your CSS file */
+                                .select2-container--default .select2-selection--multiple {
+                                    min-width: 100% !important;
+                                }
+
+                                </style>
+                                
 
                                 <div class="col-md-6">
                                     <div class="form-group local-forms">

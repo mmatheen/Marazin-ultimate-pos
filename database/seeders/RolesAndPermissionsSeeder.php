@@ -110,7 +110,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
               // setting management
               '24. location-management' => [
-                'create location', 'edit location', 'view location', 'delete location'
+                'create location', 'edit location', 'view location', 'delete location',
             ],
               // daily-report management
               '25. daily-report-management' => [
@@ -132,16 +132,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin = Role::create(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
 
-        // Admin - Role & Warranty Management
-        // $admin = Role::create(['name' => 'Admin']);
-        // $admin->givePermissionTo(['create role', 'edit role', 'view role', 'edit warranty', 'view warranty']);
-
-        // Manager - Read-Only Access
-        // $manager = Role::create(['name' => 'Manager']);
-        // $manager->givePermissionTo(['view role', 'view warranty']);
-
-        // Cashier - Read-Only Access
-        // $cashier = Role::create(['name' => 'Cashier']);
-        // $cashier->givePermissionTo(['view role', 'view warranty']);
+    
     }
 }

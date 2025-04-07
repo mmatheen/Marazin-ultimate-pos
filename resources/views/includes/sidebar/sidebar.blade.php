@@ -71,6 +71,7 @@
                         @endcan
                         {{-- {{ activeSegment('product_list') }} --}}
         
+                        <li><a href={{ route('discounts.index')}} class="{{ set_active(['discounts.index'])}}">Discounts</a></li>
                         <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
                         <li><a href={{ route('print-label')}} class="{{ set_active(['print-label'])}}">Print Label</a></li>
                         <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>

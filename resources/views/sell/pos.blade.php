@@ -1086,12 +1086,12 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="paymentModalLabel">Add Payment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
-                            <div class="col-12 col-md-8">
+                            <!-- Left Side (Scrollable) -->
+                            <div class="col-12 col-md-8 pe-3" style="max-height: 70vh; overflow-y: auto;">
                                 <div class="card shadow-sm mb-4">
                                     <div class="card-body">
                                         <form id="paymentForm">
@@ -1101,8 +1101,7 @@
                                             <input type="hidden" id="reference_no" name="reference_no">
                                             <div class="row mb-3">
                                                 <div class="col-md-12">
-                                                    <label for="advanceBalance" class="form-label">Advance Balance :
-                                                        Rs. 0.00</label>
+                                                    <label for="advanceBalance" class="form-label">Advance Balance : Rs. 0.00</label>
                                                 </div>
                                             </div>
                                             <div id="paymentRows">
@@ -1110,46 +1109,30 @@
                                                     <div class="card-body">
                                                         <div class="row">
                                                             <div class="col-md-4">
-                                                                <label for="paymentMethod" class="form-label">Payment
-                                                                    Method</label>
-                                                                <select class="form-select payment-method"
-                                                                    name="payment_method"
-                                                                    onchange="togglePaymentFields(this)">
+                                                                <label for="paymentMethod" class="form-label">Payment Method</label>
+                                                                <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
                                                                     <option value="cash" selected>Cash</option>
                                                                     <option value="card">Credit Card</option>
                                                                     <option value="cheque">Cheque</option>
-                                                                    <option value="bank_transfer">Bank Transfer
-                                                                    </option>
+                                                                    <option value="bank_transfer">Bank Transfer</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label for="paidOn" class="form-label">Paid
-                                                                    On</label>
-                                                                <input class="form-control datetimepicker payment-date"
-                                                                    type="text" name="payment_date"
-                                                                    placeholder="DD-MM-YYYY"
-                                                                    value="${moment().format('DD-MM-YYYY')}">
+                                                                <label for="paidOn" class="form-label">Paid On</label>
+                                                                <input class="form-control datetimepicker payment-date" type="text" name="payment_date" placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label for="payAmount"
-                                                                    class="form-label">Amount</label>
-                                                                <input type="text"
-                                                                    class="form-control payment-amount"
-                                                                    id="payment-amount" name="amount"
-                                                                    oninput="validateAmount()">
-                                                                <div class="text-danger amount-error"
-                                                                    style="display:none;"></div>
+                                                                <label for="payAmount" class="form-label">Amount</label>
+                                                                <input type="text" class="form-control payment-amount" id="payment-amount" name="amount" oninput="validateAmount()">
+                                                                <div class="text-danger amount-error" style="display:none;"></div>
                                                             </div>
                                                         </div>
                                                         <div class="conditional-fields row mt-3"></div>
                                                     </div>
-                                                    <button type="button"
-                                                        class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row"
-                                                        aria-label="Close"></button>
+                                                    <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
                                                 </div>
                                             </div>
-                                            <button type="button" class="btn btn-primary w-100 mb-3"
-                                                id="addPaymentRow">Add Payment Row</button>
+                                            <button type="button" class="btn btn-primary w-100 mb-3" id="addPaymentRow">Add Payment Row</button>
                                             <div class="mb-3">
                                                 <label for="paymentNote" class="form-label">Payment Note</label>
                                                 <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
@@ -1158,8 +1141,10 @@
                                     </div>
                                 </div>
                             </div>
+    
+                            <!-- Right Side (Sticky) -->
                             <div class="col-12 col-md-4">
-                                <div class="card shadow-sm" style="height: 100%;">
+                                <div class="card shadow-sm" style="position: sticky; top: 20px; height: fit-content;">
                                     <div class="card-body bg-warning text-dark rounded" style="padding: 20px;">
                                         <div class="text-start">
                                             <p>Total Items:</p>
@@ -1181,12 +1166,12 @@
                                 </div>
                             </div>
                         </div>
+    
+                        <!-- Footer Buttons -->
                         <div class="row mt-4">
                             <div class="col-12 text-end">
-                                <button type="button" class="btn btn-secondary"
-                                    data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
-                                    Payment</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
                             </div>
                         </div>
                     </div>

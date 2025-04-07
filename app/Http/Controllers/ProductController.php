@@ -22,23 +22,10 @@ use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use App\Events\StockUpdated;
+use App\Models\Discount;
 
 class ProductController extends Controller
 {
-
-    function __construct()
-    {
-        $this->middleware('permission:view import-product', ['only' => ['importProduct']]);
-        $this->middleware('permission:create import-product', ['only' => ['importProductStore']]);
-        $this->middleware('permission:view product', ['only' => ['product','getAllProductStocks']]);
-        $this->middleware('permission:Add & Edit Opening Stock product', ['only' => ['editOpeningStock','storeOrUpdateOpeningStock']]);
-        $this->middleware('permission:product Full History', ['only' => ['getStockHistory']]);
-        $this->middleware('permission:show one product details', ['only' => ['getProductDetails']]);
-        $this->middleware('permission:create product|edit product', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:add product', ['only' => ['addProduct']]);
-        $this->middleware('permission:delete product', ['only' => ['destroy']]);
-    }
-
     public function product()
     {
         return view('product.product');
@@ -152,6 +139,39 @@ class ProductController extends Controller
             ]);
         }
     }
+
+    public function index()
+    {
+
+        $user = Auth::user();
+
+        // Check if user has a specific location associated
+        if ($user->location_id !== null) {
+            // Filter products by the user's location
+            $locationId = $user->location_id;
+
+            $getValue = Product::whereHas('locations', function($query) use ($locationId) {
+                $query->where('locations.id', $locationId);
+            })->with('locations')->get();
+        } else {
+            $getValue = Product::with('locations')->get();
+        }
+
+
+        // Check if any records were found
+        if ($getValue->count() > 0) {
+            return response()->json([
+                'status' => 200,
+                'message' => $getValue
+            ]);
+        } else {
+            return response()->json([
+                'status' => 404,
+                'message' => "No Records Found!"
+            ]);
+        }
+    }
+
 
     public function getProductDetails($id)
     {
@@ -614,41 +634,47 @@ class ProductController extends Controller
         $user = auth()->user();
         $userRole = $user->role_name;
         $userLocationId = $user->location_id;
-
+    
         // Initialize an array to store product stock data
         $productStocks = [];
-
+    
         // Retrieve products based on the user's role in chunks
-        Product::with(['batches.locationBatches.location', 'locations'])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
+        Product::with(['batches.locationBatches.location', 'locations',
+       'discounts' => function($query) {
+            $query->where('is_active', true)
+                  ->where('start_date', '<=', now())
+                  ->where(function($query) {
+                      $query->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now());
+                  });
+        }
+        ])->chunk(500, function ($products) use ($userRole, $userLocationId, &$productStocks) {
             // Process each product in the chunk
             foreach ($products as $product) {
                 // Filter the batches based on the user's location ID
                 $filteredBatches = $product->batches->filter(function ($batch) use ($userLocationId) {
                     return $batch->locationBatches->contains('location_id', $userLocationId);
                 });
-
-                // Skip the product if no batches are available at the user's location
-                if ($filteredBatches->isEmpty()) {
-                    continue;
-                }
-
-                // Calculate total stock for the user's location
-                $totalStock = $filteredBatches->sum(function ($batch) use ($userLocationId) {
+    
+                // Calculate total stock for the user's location (0 if no batches)
+                $totalStock = $filteredBatches->isEmpty() ? 0 : $filteredBatches->sum(function ($batch) use ($userLocationId) {
                     return $batch->locationBatches->where('location_id', $userLocationId)->sum('qty');
                 });
-
-                // Map through filtered batches
-                $batches = $filteredBatches->map(function ($batch) {
-                    // Map through location batches for the user's location
-                    $locationBatches = $batch->locationBatches->map(function ($locationBatch) {
-                        return [
-                            'batch_id' => $locationBatch->batch_id ?? 'N/A',
-                            'location_id' => $locationBatch->location_id ?? 'N/A',
-                            'location_name' => $locationBatch->location->name ?? 'N/A',
-                            'quantity' => $locationBatch->qty,
-                        ];
-                    });
-
+    
+                // Prepare batches data (empty array if no batches)
+                $batches = $filteredBatches->isEmpty() ? [] : $filteredBatches->map(function ($batch) use ($userLocationId) {
+                    // Get location batches for the user's location
+                    $locationBatches = $batch->locationBatches
+                        ->where('location_id', $userLocationId)
+                        ->map(function ($locationBatch) {
+                            return [
+                                'batch_id' => $locationBatch->batch_id ?? 'N/A',
+                                'location_id' => $locationBatch->location_id ?? 'N/A',
+                                'location_name' => $locationBatch->location->name ?? 'N/A',
+                                'quantity' => $locationBatch->qty,
+                            ];
+                        });
+    
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -663,7 +689,20 @@ class ProductController extends Controller
                     ];
                 });
 
-                // Add the processed product stock to the response array
+                    // Get active discounts with pivot data
+                    $activeDiscounts = $product->discounts->map(function ($discount) {
+                        return [
+                            'id' => $discount->id,
+                            'name' => $discount->name,
+                            'type' => $discount->type,
+                            'amount' => $discount->amount,
+                            'start_date' => $discount->start_date,
+                            'end_date' => $discount->end_date,
+                            'pivot' => $discount->pivot // Include pivot data if needed
+                        ];
+                    });
+
+                // Add the product to the response array regardless of whether it has batches
                 $productStocks[] = [
                     'product' => [
                         'id' => $product->id,
@@ -696,14 +735,31 @@ class ProductController extends Controller
                         ];
                     }),
                     'has_batches' => !$filteredBatches->isEmpty(),
+                    'discounts' => $activeDiscounts,
+                    'discounted_price' => $this->calculateDiscountedPrice($product->retail_price, $activeDiscounts),
                 ];
             }
         });
-
+    
         // Return the response
         return response()->json(['status' => 200, 'data' => $productStocks]);
     }
 
+        // Helper function to calculate discounted price
+    private function calculateDiscountedPrice($retailPrice, $discounts)
+    {
+        $price = $retailPrice;
+        
+        foreach ($discounts as $discount) {
+            if ($discount['type'] === 'percentage') {
+                $price = $price * (1 - ($discount['amount'] / 100));
+            } else {
+                $price = $price - $discount['amount'];
+            }
+        }
+        
+        return max($price, 0); 
+    }
 
     public function getNotifications()
     {
@@ -983,8 +1039,53 @@ class ProductController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function applyDiscount(Request $request)
+    {
+        $request->merge([
+            'product_ids' => array_unique($request->product_ids)
+        ]);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'type' => 'required|in:fixed,percentage',
+            'amount' => 'required|numeric|min:0',
+            'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after:start_date',
+            'is_active' => 'required|boolean',  // Changed to required|boolean
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id'
+        ]);
     
+        try {
+            // Create the discount
+            $discount = Discount::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'],
+                'type' => $validated['type'],
+                'amount' => $validated['amount'],
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'is_active' => (bool)$validated['is_active'],  // Explicit cast to boolean
+                'apply_to_all' => false
+            ]);
+    
+            // Attach products to the discount
+            $discount->products()->attach($validated['product_ids']);
+    
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Discount applied successfully to selected products'
+            ]);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to apply discount: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
     
-
 

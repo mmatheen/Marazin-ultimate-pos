@@ -215,7 +215,8 @@
             });
         });
 
-        window.fetchCustomerData = function(selectedCustomerId = null) {
+
+        function fetchCustomerData() {
     return $.ajax({
         url: '/customer-get-all',
         method: 'GET',
@@ -225,38 +226,24 @@
             customerSelect.empty();
 
             if (data && data.status === 200 && Array.isArray(data.message)) {
-                // Sort with Walk-in customer first
                 const sortedCustomers = data.message.sort((a, b) => {
                     if (a.first_name === 'Walking') return -1;
                     if (b.first_name === 'Walking') return 1;
-                    return a.first_name.localeCompare(b.first_name);
+                    return 0;
                 });
 
-                // Add all customers to dropdown
                 sortedCustomers.forEach(customer => {
                     const option = $('<option></option>');
                     option.val(customer.id);
-                    option.text(`${customer.first_name} ${customer.last_name} (${customer.mobile_no})`);
-                    option.data('due', customer.current_due);
+                    option.text(`${customer.first_name} ${customer.last_name} ( ${customer.mobile_no} )`);
+                    option.data('due', customer.current_due); // Store the due amount in the option
                     customerSelect.append(option);
                 });
 
-                // Select the specified customer if provided
-                if (selectedCustomerId) {
-                    if (customerSelect.find(`option[value="${selectedCustomerId}"]`).length) {
-                        customerSelect.val(selectedCustomerId);
-                        const selectedCustomer = sortedCustomers.find(c => c.id == selectedCustomerId);
-                        if (selectedCustomer) {
-                            updateDueAmount(selectedCustomer.current_due);
-                        }
-                    }
-                } else {
-                    // Default to Walk-in customer if no selection specified
-                    const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
-                    if (walkingCustomer) {
-                        customerSelect.val(walkingCustomer.id);
-                        updateDueAmount(walkingCustomer.current_due);
-                    }
+                const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
+                if (walkingCustomer) {
+                    customerSelect.val(walkingCustomer.id);
+                    updateDueAmount(walkingCustomer.current_due);
                 }
             } else {
                 console.error('Failed to fetch customer data:', data ? data.message : 'No data received');
@@ -266,20 +253,19 @@
             console.error('Error fetching customer data:', error);
         }
     });
-};
+}
 
-// Keep the change handler
+function updateDueAmount(dueAmount) {
+    // Ensure dueAmount is a valid number before calling toFixed
+    dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
+    $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+}
+
 $('#customer-id').on('change', function() {
     const selectedOption = $(this).find('option:selected');
     const dueAmount = selectedOption.data('due');
     updateDueAmount(dueAmount);
 });
-
-function updateDueAmount(dueAmount) {
-    dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
-    $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
-}
-
 
     });
 </script>

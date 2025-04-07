@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use App\Models\User;
 
 class SaleController extends Controller
 {
@@ -351,15 +352,19 @@ class SaleController extends Controller
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             
-            $html = view('sell.receipt', [
-                'sale' => $sale,
-                'customer' => $customer,
-                'products' => $products,
-                'payments' => $payments,
-                'total_discount' => $request->discount_amount ?? 0,
-                'amount_given' => $sale->amount_given,
-                'balance_amount' => $sale->balance_amount,
-            ])->render();
+                        // Fetch the user associated with the sale
+                $user = User::find($sale->user_id);
+
+                $html = view('sell.receipt', [
+                    'sale' => $sale,
+                    'customer' => $customer,
+                    'products' => $products,
+                    'payments' => $payments,
+                    'total_discount' => $request->discount_amount ?? 0,
+                    'amount_given' => $sale->amount_given,
+                    'balance_amount' => $sale->balance_amount,
+                    'user' => $user, // Pass the user to the view
+                ])->render();
     
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 

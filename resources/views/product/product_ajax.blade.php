@@ -6,6 +6,7 @@
         let brandMap = {};
         let locationMap = {};
         let subCategories = [];
+        const discountMap = {};
 
         // Validation options
         var addAndUpdateValidationOptions = {
@@ -237,6 +238,7 @@ function formatProductData(product) {
         <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
         <td>${brandMap[product.brand_id] || 'N/A'}</td>
         <td>${product.sku}</td>
+        <td>${product.discounts ? product.discounts.map(d => d.name).join(', ') : 'None'}</td>
     </tr>`;
 }
 
@@ -315,23 +317,91 @@ $('#saveLocationsButton').on('click', function() {
 });
 
 
+// Toggle both buttons when products are selected
+function toggleActionButtons() {
+    if (selectedProductIds.length > 0) {
+        $('#addLocationButton').show();
+        $('#applyDiscountButton').show();
+    } else {
+        $('#addLocationButton').hide();
+        $('#applyDiscountButton').hide();
+    }
+}
+
+// Update the checkbox change handler to use the new function
+$(document).on('change', '.product-checkbox', function() {
+    const productId = $(this).data('product-id');
+    if (this.checked) {
+        selectedProductIds.push(productId);
+    } else {
+        selectedProductIds = selectedProductIds.filter(id => id !== productId);
+    }
+    toggleActionButtons();
+});
+
+
+$('#saveDiscountButton').on('click', function() {
+    const discountData = {
+        name: $('#discountName').val(),  // Fixed typo (was discounTName)
+        description: $('#discountDescription').val(),
+        type: $('#discountType').val(),
+        amount: $('#discountAmount').val(),
+        start_date: $('#startDate').val(),
+        end_date: $('#endDate').val() || null,
+        is_active: $('#isActive').is(':checked') ? 1 : 0,  // Convert to 1/0 instead of true/false
+        product_ids: selectedProductIds
+    };
+
+    // Validate required fields
+    if (!discountData.name || !discountData.type || !discountData.amount || !discountData.start_date) {
+        toastr.error('Please fill all required fields', 'Error');
+        return;
+    }
+
+    $.ajax({
+        url: '/apply-discount',
+        type: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        data: discountData,
+        success: function(response) {
+            if (response.status === 'success') {
+                toastr.success(response.message, 'Success');
+                $('#applyDiscountModal').modal('hide');
+                $('#discountForm')[0].reset();
+                fetchProductData();
+            } else {
+                toastr.error(response.message || 'Failed to apply discount', 'Error');
+            }
+        },
+        error: function(xhr) {
+            const errors = xhr.responseJSON?.errors;
+            if (errors) {
+                Object.values(errors).forEach(error => {
+                    toastr.error(error[0], 'Validation Error');
+                });
+            } else {
+                toastr.error('An error occurred while applying discount', 'Error');
+            }
+            console.error(xhr.responseText);
+        }
+    });
+});
+
 // Fetch product data and populate the table
 function fetchProductData() {
     fetchData('/products/stocks', function(response) {
         if (response.status === 200) {
-            allProducts = response.data; // Store all data for filtering
-            populateProductFilter(); // Populate filter options
+            allProducts = response.data;
+            populateProductFilter();
 
-            // Clear existing DataTable instance if it exists
             if ($.fn.DataTable.isDataTable('#productTable')) {
-                $('#productTable').DataTable().destroy(); 
-                
+                $('#productTable').DataTable().destroy();
             }
 
-            // Clear the table body
             $('#productTable tbody').empty();
 
-            // Append rows to the table
             response.data.forEach(function(item) {
                 let product = item.product;
                 product.total_stock = item.total_stock;
@@ -340,25 +410,20 @@ function fetchProductData() {
                 $('#productTable tbody').append(formatProductData(product));
             });
 
-            // Initialize DataTable
             let table = $('#productTable').DataTable({
                 lengthMenu: [
                     [10, 20, 50, 75, 100, -1],
                     [10, 20, 50, 75, 100, "All"]
                 ],
                 columnDefs: [
-                    // Disable sorting for action column (if needed)
                     { orderable: false, targets: [1] }
                 ],
                 select: {
                     style: 'multi',
                     selector: 'td:first-child input[type="checkbox"]',
-
-                
                 },
             });
 
-            // Select/Deselect all checkboxes
             $('#selectAll').on('change', function() {
                 const isChecked = this.checked;
                 $('.product-checkbox').each(function() {
@@ -367,17 +432,14 @@ function fetchProductData() {
                 });
             });
 
-            // Prevent modal from opening when clicking on table header
             $('#productTable thead').on('click', 'th', function(event) {
                 event.stopImmediatePropagation();
             });
 
-            // Prevent modal from opening when clicking on action buttons
             $('#productTable tbody').on('click', '.dropdown-item', function(event) {
                 event.stopPropagation();
             });
 
-            // Show modal on clicking 'View' action
             $('#productTable tbody').on('click', '.view-product', function(event) {
                 event.preventDefault();
                 var productId = $(this).data('product-id');
@@ -387,30 +449,20 @@ function fetchProductData() {
                 }
             });
 
-            // Direct checkbox click handler
-$('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    // Your existing checkbox change logic here
-});
+            $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            });
 
-            // // Stop propagation on action button click
-            // $('#productTable tbody').on('click', '.action-button', function(event) {
-            //     event.stopPropagation();
-            // });
-
-           // Show modal on row click - with proper event parameter
             $('#productTable tbody').on('click', 'tr', function(event) {
-                // Check if the click originated from a checkbox or its children
                 if ($(event.target).closest('.product-checkbox, input[type="checkbox"]').length > 0) {
-                    return; // Exit if click was on checkbox
+                    return;
                 }
-                
-                // Check if click was on the action button dropdown
+
                 if ($(event.target).closest('.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
-                    return; // Exit if click was on dropdown
+                    return;
                 }
-                
+
                 var productId = $(this).data('product-id');
                 if (productId) {
                     fetchProductDetails(productId);
@@ -811,121 +863,6 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         });
 
 
-
-
-        // $(document).ready(function() {
-        //     const currentPath = window.location.pathname;
-        //     console.log(currentPath);
-        //     const productId = $('#product_id').val();
-        //     const isEditMode = currentPath.startsWith('/edit-opening-stock/');
-
-        //     // Update the page title and button text dynamically
-        //     if (isEditMode) {
-        //         $('#pageTitle').text('Edit Opening Stock for Product');
-        //         $('#breadcrumbTitle').text('Edit Opening Stock');
-        //         $('#submitOpeningStock').text('Update');
-
-        //         // Fetch existing stock data
-        //         fetchOpeningStockData(productId);
-        //     }
-
-        //     $('#submitOpeningStock').click(function(e) {
-        //         e.preventDefault();
-        //         handleFormSubmission(isEditMode, productId);
-        //     });
-
-        //     function fetchOpeningStockData(productId) {
-        //         $.ajax({
-        //             url: `/api/edit-opening-stock/${productId}`,
-        //             type: 'GET',
-        //             success: function(response) {
-        //                 if (response.status === 200) {
-        //                     let batches = response.openingStock.batches;
-
-        //                     // Debugging - Check response
-        //                     console.log("Fetched Batches:", batches);
-
-        //                     batches.forEach(function(batch) {
-        //                         let row = $(
-        //                             `tr[data-location-id="${batch.location_id}"]`
-        //                         );
-        //                         if (row.length > 0) {
-        //                             row.find(
-        //                                 'input[name^="locations"][name$="[qty]"]'
-        //                             ).val(batch.quantity);
-        //                             row.find(
-        //                                 'input[name^="locations"][name$="[batch_no]"]'
-        //                             ).val(batch.batch_no);
-        //                             row.find(
-        //                                 'input[name^="locations"][name$="[expiry_date]"]'
-        //                             ).val(batch.expiry_date);
-        //                         }
-        //                     });
-        //                 }
-        //             },
-        //             error: function(xhr) {
-        //                 toastr.error('Failed to fetch existing stock data.', 'Error');
-        //             }
-        //         });
-        //     }
-
-        //     function handleFormSubmission(isEditMode, productId) {
-        //         let form = $('#openingStockForm')[0];
-        //         let formData = new FormData(form);
-
-        //         // Additional validation for batch numbers
-        //         if (!validateBatchNumbers()) {
-        //             document.getElementsByClassName('warningSound')[0].play();
-        //             toastr.error(
-        //                 'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
-        //                 'Warning');
-        //             return;
-        //         }
-
-        //         let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-        //         $.ajax({
-        //             url: url,
-        //             type: 'POST',
-        //             headers: {
-        //                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        //             },
-        //             data: formData,
-        //             contentType: false,
-        //             processData: false,
-        //             dataType: 'json',
-        //             success: function(response) {
-        //                 if (response.status === 200) {
-        //                     toastr.success(response.message, 'Success');
-        //                     window.location.href = '/list-product';
-        //                 } else {
-        //                     toastr.error(response.message, 'Error');
-        //                 }
-        //             },
-        //             error: function(xhr) {
-        //                 if (xhr.status === 422) {
-        //                     let errors = xhr.responseJSON.errors;
-        //                     $.each(errors, function(key, val) {
-        //                         $(`#${key}_error`).text(val[0]);
-        //                     });
-        //                 } else {
-        //                     toastr.error('Unexpected error occurred', 'Error');
-        //                 }
-        //             }
-        //         });
-        //     }
-
-        //     function validateBatchNumbers() {
-        //         let isValid = true;
-        //         $('.batch-no-input').each(function() {
-        //             let batchNo = $(this).val();
-        //             if (batchNo && !/^BATCH[0-9]{3,}$/.test(batchNo)) {
-        //                 isValid = false;
-        //             }
-        //         });
-        //         return isValid;
-        //     }
-        // });
-
         $(document).ready(function() {
         const productId = $('#product_id').val();
         const productName = $('#product_name').val();
@@ -993,115 +930,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         handleFormSubmission(isEditMode, productId);
     });
 
-    // function fetchOpeningStockData(productId, isEditMode) {
-    //     const url = isEditMode ? `/edit-opening-stock/${productId}` : `/opening-stock/${productId}`;
-
-    //     $.ajax({
-    //         url: url,
-    //         type: 'GET',
-    //         success: function(response) {
-    //             if (response.status === 200) {
-    //                 const product = response.product;
-    //                 const locations = response.locations;
-    //                 const batches = response.openingStock.batches;
-
-    //                 $('#locationRows').html(''); // Clear existing rows before appending
-
-    //                 if (batches.length === 0) {
-    //                     locations.forEach(function(location, index) {
-    //                         var newRow = `
-    //                             <tr data-location-id="${location.id}">
-    //                                 <td>
-    //                                     <input type="hidden" name="locations[` + index + `][id]" value="${location.id}">
-    //                                     <p>${location.name}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <p>${product.product_name}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <p>${product.sku}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="number" class="form-control"
-    //                                         name="locations[` + index + `][qty]"
-    //                                         value="">
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control"
-    //                                         name="locations[` + index + `][unit_cost]"
-    //                                         value="${product.original_price}" readonly>
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control batch-no-input"
-    //                                         name="locations[` + index + `][batch_no]"
-    //                                         value="">
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control expiry-date-picker"
-    //                                         name="locations[` + index + `][expiry_date]"
-    //                                         value="">
-    //                                 </td>
-    //                             </tr>
-    //                         `;
-    //                         $('#locationRows').append(newRow);
-    //                     });
-    //                 } else {
-    //                     batches.forEach(function(batch, index) {
-    //                         var newRow = `
-    //                             <tr data-location-id="${batch.location_id}">
-    //                                 <td>
-    //                                     <input type="hidden" name="locations[` + index + `][id]" value="${batch.location_id}">
-    //                                     <p>${batch.location_name}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <p>${product.product_name}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <p>${product.sku}</p>
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="number" class="form-control"
-    //                                         name="locations[` + index + `][qty]"
-    //                                         value="${batch.quantity}">
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control"
-    //                                         name="locations[` + index + `][unit_cost]"
-    //                                         value="${product.original_price}" readonly>
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control batch-no-input"
-    //                                         name="locations[` + index + `][batch_no]"
-    //                                         value="${batch.batch_no}">
-    //                                 </td>
-    //                                 <td>
-    //                                     <input type="text" class="form-control expiry-date-picker"
-    //                                         name="locations[` + index + `][expiry_date]"
-    //                                         value="${batch.expiry_date}">
-    //                                 </td>
-    //                             </tr>
-    //                         `;
-    //                         $('#locationRows').append(newRow);
-    //                     });
-    //                 }
-
-    //                 initializeDateTimePicker(); // Initialize datetime picker for existing rows
-
-    //                 if (isEditMode) {
-    //                     $('#pageTitle').text('Edit Opening Stock for Product');
-    //                     $('#breadcrumbTitle').text('Edit Opening Stock');
-    //                     $('#submitOpeningStock').text('Update');
-    //                 }
-    //             } else {
-    //                 console.log('Failed to fetch existing stock data.', 'Error');
-    //             }
-    //         },
-    //         error: function(xhr) {
-    //             console.log('Failed to fetch existing stock data.', 'Error');
-    //         }
-    //     });
-    // }
-
+  
     function fetchOpeningStockData(productId, isEditMode) {
     const url = isEditMode ? `/edit-opening-stock/${productId}` : `/opening-stock/${productId}`;
 
@@ -1429,16 +1258,9 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                 </tr>
                                 <tr>
                                     <th scope="row">Price</th>
-                                    <td>$${product.retail_price}</td>
+                                    <td>Rs. ${(Number(product.retail_price) || 0).toFixed(2)}</td>
                                 </tr>
-                                <tr>
-                                    <th scope="row">Alert Quantity</th>
-                                    <td>${product.alert_quantity}</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Product Type</th>
-                                    <td>${product.product_type}</td>
-                                </tr>
+    
                             </tbody>
                         </table>
                     </div>

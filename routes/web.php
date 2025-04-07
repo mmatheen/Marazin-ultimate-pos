@@ -39,7 +39,8 @@ use App\Http\Controllers\{
     RoleAndPermissionController,
     StockAdjustmentController,
     CartController,
-    PaymentController
+    PaymentController,
+    DiscountController
 };
 
 
@@ -393,5 +394,19 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
 
         Route::post('/save-changes', [ProductController::class, 'saveChanges']);
+        Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
+
+
+            // Discount Routes
+        Route::get('/discounts', [DiscountController::class, 'index'])->name('discounts.index');
+        Route::get('/discounts/data', [DiscountController::class, 'getDiscountsData'])->name('discounts.data');
+        Route::post('/discounts', [DiscountController::class, 'store'])->name('discounts.store');
+        Route::get('/discounts/{discount}/edit', [DiscountController::class, 'edit'])->name('discounts.edit');
+        Route::put('/discounts/{discount}', [DiscountController::class, 'update'])->name('discounts.update');
+        Route::delete('/discounts/{discount}', [DiscountController::class, 'destroy'])->name('discounts.destroy');
+        Route::get('/discounts/{discount}/products', [DiscountController::class, 'getProducts'])->name('discounts.products');
+        Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
+        Route::get('/discounts/export', [DiscountController::class, 'export'])->name('discounts.export');
+
     });
 });

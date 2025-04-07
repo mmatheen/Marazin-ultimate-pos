@@ -15,7 +15,7 @@ class AuthenticationController extends Controller
 
     public function getAlluserDetails()
     {
-         $getValue = User::with('location')->get();
+         $getValue = User::with('locations')->get();
         if ($getValue->count() > 0) {
 
             return response()->json([
@@ -59,14 +59,23 @@ class AuthenticationController extends Controller
     }
 
 
-    //it will update the location in backend session code start
-    public function updateLocation(Request $request){
+    public function updateLocation(Request $request)
+    {
+        $user = auth()->user();
+        $location = $user->locations()->find($request->id);
+    
+        if (!$location) {
+            return response()->json([
+                'status' => 404,
+                'message' => "Location not found or access denied"
+            ]);
+        }
+    
         session()->put('selectedLocation', $request->id);
         return response()->json([
             'status' => 200,
             'message' => "Location Changed Successfully"
         ]);
     }
-    //it will update the location in backend session code end
 
 }

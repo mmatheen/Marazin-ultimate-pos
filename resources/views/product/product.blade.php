@@ -124,6 +124,7 @@
                                                     <th>Category</th>
                                                     <th>Brand</th>
                                                     <th>SKU</th>
+                                                    <th>Discount</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -133,8 +134,11 @@
                                     </div>
                                     
                                     <button id="addLocationButton" class="btn btn-outline-primary mt-2 btn-sm" style="display: none;"
-                                        data-bs-toggle="modal" data-bs-target="#addLocationModal">Add Location</button>
-                                </div>
+                                    data-bs-toggle="modal" data-bs-target="#addLocationModal">Add Location</button>
+                                
+                                    <button id="applyDiscountButton" class="btn btn-outline-success mt-2 btn-sm ms-2" style="display: none;"
+                                        data-bs-toggle="modal" data-bs-target="#applyDiscountModal">Apply Discount</button>
+                                    </div>
                             </div>
                             <div class="tab-pane" id="solid-justified-tab2">
                                 <div class="table-responsive">
@@ -281,6 +285,61 @@
                 </div>
             </div>
         </div>
+
+
+        {{-- // Apply Discount Modal --}}
+
+        <!-- Apply Discount Modal -->
+<div class="modal fade" id="applyDiscountModal" tabindex="-1" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="applyDiscountModalLabel">Apply Discount to Selected Products</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="discountForm">
+                    <div class="mb-3">
+                        <label for="discountName" class="form-label">Discount Name</label>
+                        <input type="text" class="form-control" id="discountName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discountDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="discountDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discountType" class="form-label">Discount Type</label>
+                        <select class="form-select" id="discountType" required>
+                            <option value="">Select Type</option>
+                            <option value="fixed">Fixed Amount</option>
+                            <option value="percentage">Percentage</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="discountAmount" class="form-label">Amount</label>
+                        <input type="number" class="form-control" id="discountAmount" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="datetime-local" class="form-control" id="startDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">End Date (Optional)</label>
+                        <input type="datetime-local" class="form-control" id="endDate">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isActive">
+                        <label class="form-check-label" for="isActive">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveDiscountButton">Save Discount</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
     {{-- Delete modal --}}

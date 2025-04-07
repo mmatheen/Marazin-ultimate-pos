@@ -6,12 +6,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
+
+
 {
+
+   
+    public function index()
+    {
+        return view('discounts.index');
+    }
+
     public function getDashboardData(Request $request)
     {
         $startDate = $request->query('startDate');
         $endDate = $request->query('endDate');
-
+    
         $totalSales = DB::table('sales')
             ->whereBetween('created_at', [$startDate, $endDate])
             ->sum('final_total');
@@ -40,7 +49,27 @@ class DashboardController extends Controller
             ->whereBetween('created_at', [$startDate, $endDate])
             ->sum('final_total');
         $totalProducts = DB::table('products')->count();
-
+    
+        // Fetch sales dates and amounts
+        $salesData = DB::table('sales')
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(final_total) as amount'))
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->get();
+    
+        $salesDates = $salesData->pluck('date');
+        $salesAmounts = $salesData->pluck('amount');
+    
+        // Fetch purchase dates and amounts
+        $purchaseData = DB::table('purchases')
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(final_total) as amount'))
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->get();
+    
+        $purchaseDates = $purchaseData->pluck('date');
+        $purchaseAmounts = $purchaseData->pluck('amount');
+    
         return response()->json([
             'totalSales' => $totalSales,
             'totalPurchases' => $totalPurchases,
@@ -52,10 +81,10 @@ class DashboardController extends Controller
             'totalSalesReturnDue' => $totalSalesReturnDue,
             'stockTransfer' => $stockTransfer,
             'totalProducts' => $totalProducts,
-            'salesDates' => [], // Add logic to fetch sales dates
-            'salesAmounts' => [], // Add logic to fetch sales amounts
-            'purchaseDates' => [], // Add logic to fetch purchase dates
-            'purchaseAmounts' => [], // Add logic to fetch purchase amounts
+            'salesDates' => $salesDates,
+            'salesAmounts' => $salesAmounts,
+            'purchaseDates' => $purchaseDates,
+            'purchaseAmounts' => $purchaseAmounts,
         ]);
     }
 }

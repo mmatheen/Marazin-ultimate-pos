@@ -75,4 +75,9 @@ class Product extends Model
     {
         return $this->hasManyThrough(PurchaseReturn::class, PurchaseReturnProduct::class, 'product_id', 'purchase_id', 'id', 'id');
     }
+
+    public function discounts()
+    {
+        return $this->belongsToMany(Discount::class)->withTimestamps();
+    }
 }
