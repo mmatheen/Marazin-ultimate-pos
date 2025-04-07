@@ -665,7 +665,8 @@
         <div class="d-flex align-items-center">
             <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
             <div class="product-info">
-                <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}</div>
+                <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || product.max_retail_price}</span></div>
+
                 <div class="text-muted me-2">${product.sku}  
                     <span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>
                     <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
