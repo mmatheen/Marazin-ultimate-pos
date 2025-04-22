@@ -881,23 +881,49 @@ class ProductController extends Controller
 
 
     public function destroy(int $id)
-    {
-        $getValue = Product::find($id);
-        if ($getValue) {
+        {
+            DB::beginTransaction();
 
-            $getValue->delete();
-            return response()->json([
-                'status' => 200,
-                'message' => "Product Deleted Successfully!"
-            ]);
-        } else {
+            try {
+                $product = Product::with('batches')->find($id);
+                
+                if (!$product) {
+                    return response()->json([
+                        'status' => 404,
+                        'message' => "No Such Product Found!"
+                    ]);
+                }
 
-            return response()->json([
-                'status' => 404,
-                'message' => "No Such Product Found!"
-            ]);
+                // Delete all related batches and their location batches
+                if ($product->batches->isNotEmpty()) {
+                    $batchIds = $product->batches->pluck('id')->toArray();
+                    
+                    // Delete location batches first
+                    LocationBatch::whereIn('batch_id', $batchIds)->delete();
+                    
+                    // Then delete the batches
+                    Batch::whereIn('id', $batchIds)->delete();
+                }
+
+                // Delete the product
+                $product->delete();
+
+                DB::commit();
+
+                return response()->json([
+                    'status' => 200,
+                    'message' => "Product and all associated batches deleted successfully!"
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                
+                return response()->json([
+                    'status' => 500,
+                    'message' => "Error deleting product: " . $e->getMessage()
+                ]);
+            }
         }
-    }
 
     public function exportBlankTemplate()
     {
@@ -1086,6 +1112,9 @@ class ProductController extends Controller
             ], 500);
         }
     }
+
+
+    
 }
     
 

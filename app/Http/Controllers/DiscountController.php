@@ -17,36 +17,63 @@ class DiscountController extends Controller
         return view('discounts.index');
     }
 
+    // public function getDiscountsData(Request $request)
+    // {
+    //     $discounts = Discount::query()->withCount('products');
+        
+    //     // Date range filter
+    //     if ($request->has('from') && $request->has('to')) {
+    //         $from = Carbon::parse($request->from)->startOfDay();
+    //         $to = Carbon::parse($request->to)->endOfDay();
+    //         $discounts->whereBetween('start_date', [$from, $to]);
+    //     }
+        
+    //     // Status filter
+    //     if ($request->has('status') && $request->status !== '') {
+    //         $discounts->where('is_active', $request->status);
+    //     }
+
+    //     // Return data in DataTables format
+    //     return DataTables::of($discounts)
+    //         ->addColumn('action', function($discount) {
+    //             return '
+    //                 <button class="btn btn-sm btn-primary edit-discount" data-id="'.$discount->id.'">Edit</button>
+    //                 <button class="btn btn-sm btn-danger delete-discount" data-id="'.$discount->id.'">Delete</button>
+    //                 <button class="btn btn-sm btn-info view-products" data-id="'.$discount->id.'">Products</button>
+    //                 <button class="btn btn-sm btn-warning toggle-status" data-id="'.$discount->id.'">
+    //                     '.($discount->is_active ? 'Deactivate' : 'Activate').'
+    //                 </button>
+    //             ';
+    //         })
+    //         ->make(true);
+    // }
     public function getDiscountsData(Request $request)
     {
-        $discounts = Discount::query()->withCount('products');
-        
-        // Date range filter
-        if ($request->has('from') && $request->has('to')) {
+        $query = Discount::query()->withCount('products');
+    
+        // Date range filter - modified to handle cases where only one date is provided
+        if ($request->filled('from')) {
             $from = Carbon::parse($request->from)->startOfDay();
+            $query->where('start_date', '>=', $from);
+        }
+    
+        if ($request->filled('to')) {
             $to = Carbon::parse($request->to)->endOfDay();
-            $discounts->whereBetween('start_date', [$from, $to]);
+            $query->where(function($q) use ($to) {
+                $q->where('end_date', '<=', $to)
+                  ->orWhereNull('end_date');
+            });
         }
-        
-        // Status filter
-        if ($request->has('status') && $request->status !== '') {
-            $discounts->where('is_active', $request->status);
+    
+        // Status filter - only apply if status is explicitly provided (0 or 1)
+        if ($request->has('status') && $request->status !== '' && $request->status !== null) {
+            $query->where('is_active', $request->status);
         }
-
-        // Return data in DataTables format
-        return DataTables::of($discounts)
-            ->addColumn('action', function($discount) {
-                return '
-                    <button class="btn btn-sm btn-primary edit-discount" data-id="'.$discount->id.'">Edit</button>
-                    <button class="btn btn-sm btn-danger delete-discount" data-id="'.$discount->id.'">Delete</button>
-                    <button class="btn btn-sm btn-info view-products" data-id="'.$discount->id.'">Products</button>
-                    <button class="btn btn-sm btn-warning toggle-status" data-id="'.$discount->id.'">
-                        '.($discount->is_active ? 'Deactivate' : 'Activate').'
-                    </button>
-                ';
-            })
-            ->make(true);
+        // When status is null/empty, don't apply any status filter (show all)
+    
+        return response()->json($query->get());
     }
+
 
     public function store(Request $request)
     {
@@ -114,7 +141,11 @@ class DiscountController extends Controller
 
     public function getProducts(Discount $discount)
     {
-        $products = $discount->products()->select('id', 'product_name', 'sku')->get();
+        // Use explicit table name for the id column to avoid ambiguity
+        $products = $discount->products()
+            ->select('products.id as product_id', 'products.product_name', 'products.sku')
+            ->get();
+    
         return response()->json($products);
     }
 

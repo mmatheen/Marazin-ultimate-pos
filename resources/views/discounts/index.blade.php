@@ -141,6 +141,58 @@
     </div>
 </div>
 
+        <!-- Apply Discount Modal -->
+        <div class="modal fade" id="applyDiscountModal" tabindex="-1" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="applyDiscountModalLabel">Apply Discount to Selected Products</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="discountForm">
+                            <div class="mb-3">
+                                <label for="discountName" class="form-label">Discount Name</label>
+                                <input type="text" class="form-control" id="discountName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="discountDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="discountDescription" rows="3"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="discountType" class="form-label">Discount Type</label>
+                                <select class="form-select" id="discountType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="fixed">Fixed Amount</option>
+                                    <option value="percentage">Percentage</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="discountAmount" class="form-label">Amount</label>
+                                <input type="number" class="form-control" id="discountAmount" step="0.01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="datetime-local" class="form-control" id="startDate" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="endDate" class="form-label">End Date (Optional)</label>
+                                <input type="datetime-local" class="form-control" id="endDate">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="isActive">
+                                <label class="form-check-label" for="isActive">Active</label>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveDiscountButton">Save Discount</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 <!-- Edit Discount Modal -->
 <div class="modal fade" id="editDiscountModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
@@ -212,13 +264,12 @@
         </div>
     </div>
 </div>
-
 <!-- Products Modal -->
-<div class="modal fade" id="productsModal" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="productsModal" tabindex="-1" role="dialog" aria-labelledby="productsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Associated Products</h5>
+                <h5 class="modal-title" id="productsModalLabel">Discounts Products</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -249,85 +300,133 @@ $(document).ready(function() {
         allowClear: true
     });
 
-    // Initialize DataTable with filters
-    var table = $('#discounts-table').DataTable({
-        processing: true,
-        serverSide: true,
+    const today = new Date().toISOString().split('T')[0];
+    $('#filter_from').val(today);
+    
+    const table = $('#discounts-table').DataTable({
         ajax: {
             url: '/discounts/data',
-            data: function(d) {
+            dataSrc: '',
+            data: function (d) {
                 d.from = $('#filter_from').val();
                 d.to = $('#filter_to').val();
-                d.status = $('#filter_status').val();
-            },
-            error: function(xhr, error, thrown) {
-                console.error("Error occurred: ", error, thrown);
+                d.status = $('#filter_status').val() === '' ? null : $('#filter_status').val();
             }
         },
-        dom: 'Bfrtip',
-        buttons: [
-            'copy', 'csv', 'excel', 'pdf', 'print'
-        ],
         columns: [
-            { data: 'id', name: 'id' },
-            { data: 'name', name: 'name' },
-            { data: 'description', name: 'description' },
-            { data: 'type', name: 'type' },
-            { data: 'amount', name: 'amount' },
-            { data: 'start_date', name: 'start_date' },
-            { data: 'end_date', name: 'end_date' },
-            { data: 'is_active', name: 'is_active' },
-            { data: 'products_count', name: 'products_count' },
-            { data: 'action', name: 'action', orderable: false, searchable: false }
-        ],
-        responsive: true,
-        order: [[0, 'desc']]
+            { data: 'id' },
+            { data: 'name' },
+            { data: 'description' },
+            { 
+                data: 'type',
+                render: function(data) {
+                    return data.charAt(0).toUpperCase() + data.slice(1);
+                }
+            },
+            { 
+                data: 'amount',
+                render: function(data) {
+                    return data ? 'Rs. ' + data : '-';
+                }
+            },
+            { 
+                data: 'start_date',
+                render: function(data) {
+                    return data ? new Date(data).toLocaleDateString() : '-';
+                }
+            },
+            { 
+                data: 'end_date',
+                render: function(data) {
+                    return data ? new Date(data).toLocaleDateString() : 'No end date';
+                }
+            },
+            {
+                data: 'is_active',
+                render: function (data) {
+                    return data ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
+                }
+            },
+            { 
+                data: 'products_count',
+                render: function(data) {
+                    return data || 0;
+                }
+            },
+            {
+                data: null,
+                render: function (data) {
+                    return `
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-primary edit-discount" data-id="${data.id}">Edit</button>
+                            <button class="btn btn-sm btn-danger delete-discount" data-id="${data.id}">Delete</button>
+                            <button class="btn btn-sm btn-info view-products" data-id="${data.id}">Products</button>
+                            <button class="btn btn-sm ${data.is_active ? 'btn-warning' : 'btn-success'} toggle-status" data-id="${data.id}">
+                                ${data.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                        </div>
+                    `;
+                }
+            }
+        ]
     });
 
-    // Apply filters
-    $('#apply_filters').click(function() {
+    // Filter buttons
+    $('#apply_filters').click(function () {
         table.ajax.reload();
     });
 
-    // Reset filters
-    $('#reset_filters').click(function() {
-        $('#filter_from').val('');
+    $('#reset_filters').click(function () {
+        $('#filter_from').val(today);
         $('#filter_to').val('');
         $('#filter_status').val('');
         table.ajax.reload();
     });
 
-    // Export buttons
-    $('.export-btn').click(function(e) {
-        e.preventDefault();
-        var type = $(this).data('type');
-        var from = $('#filter_from').val();
-        var to = $('#filter_to').val();
-        
-        window.location.href = "{{ route('discounts.export') }}?type=" + type + 
-            "&from=" + from + "&to=" + to;
+    // Create Discount - Show Modal
+    $('[data-target="#createDiscountModal"]').click(function() {
+        $('#createDiscountForm')[0].reset();
+        $('.select2').val(null).trigger('change');
+        // Set today's date as default for start date
+        $('#createDiscountForm input[name="start_date"]').val(today);
+        $('#createDiscountModal').modal('show');
     });
 
-    // Create Discount
+    // Create Discount - Submit Form
     $('#createDiscountForm').submit(function(e) {
         e.preventDefault();
+        
+        // Get selected product IDs
+        var productIds = $('#createDiscountForm select[name="product_ids[]"]').val();
+        
+        // Prepare form data
+        var formData = $(this).serializeArray();
+        if (productIds && productIds.length > 0) {
+            formData.push({name: 'apply_to_all', value: false});
+        } else {
+            formData.push({name: 'apply_to_all', value: true});
+        }
         
         $.ajax({
             url: "{{ route('discounts.store') }}",
             type: 'POST',
-            data: $(this).serialize(),
+            data: $.param(formData),
             success: function(response) {
                 $('#createDiscountModal').modal('hide');
                 table.ajax.reload();
-                toastr.success(response.success);
+                toastr.success(response.message || 'Discount created successfully');
                 $('#createDiscountForm')[0].reset();
                 $('.select2').val(null).trigger('change');
             },
             error: function(xhr) {
-                var errors = xhr.responseJSON.errors;
-                $.each(errors, function(key, value) {
-                    toastr.error(value[0]);
-                });
+                if (xhr.status === 422) {
+                    var errors = xhr.responseJSON.errors;
+                    $.each(errors, function(key, value) {
+                        toastr.error(value[0]);
+                    });
+                } else {
+                    toastr.error('An error occurred while creating the discount');
+                }
             }
         });
     });
@@ -372,13 +471,17 @@ $(document).ready(function() {
             success: function(response) {
                 $('#editDiscountModal').modal('hide');
                 table.ajax.reload();
-                toastr.success(response.success);
+                toastr.success(response.message || 'Discount updated successfully');
             },
             error: function(xhr) {
-                var errors = xhr.responseJSON.errors;
-                $.each(errors, function(key, value) {
-                    toastr.error(value[0]);
-                });
+                if (xhr.status === 422) {
+                    var errors = xhr.responseJSON.errors;
+                    $.each(errors, function(key, value) {
+                        toastr.error(value[0]);
+                    });
+                } else {
+                    toastr.error('An error occurred while updating the discount');
+                }
             }
         });
     });
@@ -387,20 +490,32 @@ $(document).ready(function() {
     $('#discounts-table').on('click', '.view-products', function() {
         var discountId = $(this).data('id');
         
-        $.get("{{ route('discounts.index') }}/" + discountId + "/products", function(data) {
-            var tbody = $('#productsTable tbody');
-            tbody.empty();
+        $.ajax({
+            url: `/discounts/${discountId}/products`,
+            type: 'GET',
+            success: function(data) {
+                var tbody = $('#productsTable tbody');
+                tbody.empty();
+                
+                if (data.length > 0) {
+                    $.each(data, function(index, product) {
+                        tbody.append('<tr><td>' +  (index + 1)  + '</td><td>' + product.product_name + 
+                                    '</td><td>' + product.sku + '</td></tr>');
+                    });
+
+                
+                }
+           
+                 else {
+                    tbody.append('<tr><td colspan="3" class="text-center">No products associated</td></tr>');
+                }
+                
+                $('#productsModal').modal('show');
+            },
             
-            if (data.length > 0) {
-                $.each(data, function(index, product) {
-                    tbody.append('<tr><td>' + product.id + '</td><td>' + product.product_name + 
-                                 '</td><td>' + product.sku + '</td></tr>');
-                });
-            } else {
-                tbody.append('<tr><td colspan="3" class="text-center">No products associated</td></tr>');
+            error: function(xhr) {
+                toastr.error('Error fetching products');
             }
-            
-            $('#productsModal').modal('show');
         });
     });
 
@@ -417,7 +532,7 @@ $(document).ready(function() {
                 },
                 success: function(response) {
                     table.ajax.reload();
-                    toastr.success(response.success);
+                    toastr.success(response.message || 'Discount deleted successfully');
                 },
                 error: function(xhr) {
                     toastr.error('Error deleting discount');
@@ -435,7 +550,9 @@ $(document).ready(function() {
             _token: "{{ csrf_token() }}"
         }, function(response) {
             table.ajax.reload();
-            toastr.success(response.success);
+            toastr.success(response.message || 'Discount status updated successfully');
+        }).fail(function() {
+            toastr.error('Error updating discount status');
         });
     });
 });

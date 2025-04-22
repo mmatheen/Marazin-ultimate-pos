@@ -648,6 +648,15 @@
 
         <script>
               $(document).ready(function() {
+
+
+                // Prevent form submission on Enter keypress in the product search input
+        $('#productSearchInput').on('keydown', function(e) {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                e.preventDefault(); // Prevent the default action of the Enter key
+            }
+        });
+        
         $('#payment-method').on('change', function() {
             togglePaymentFields();
         });

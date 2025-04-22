@@ -287,7 +287,6 @@
         </div>
 
 
-        {{-- // Apply Discount Modal --}}
 
         <!-- Apply Discount Modal -->
 <div class="modal fade" id="applyDiscountModal" tabindex="-1" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">

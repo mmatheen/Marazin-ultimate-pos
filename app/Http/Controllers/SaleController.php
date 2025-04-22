@@ -651,7 +651,34 @@ class SaleController extends Controller
                     'payment_status', 'created_at', 'updated_at'
                 ]),
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
-                    // Get the batch ID or 'all' if no specific batch is selected
+                    // Handle unlimited stock products
+                    if ($product->product->stock_alert === 0) {
+                        return [
+                            'id' => $product->id,
+                            'sale_id' => $product->sale_id,
+                            'product_id' => $product->product_id,
+                            'batch_id' => 'all', // No batches for unlimited stock
+                            'location_id' => $product->location_id,
+                            'quantity' => $product->quantity,
+                            'price_type' => $product->price_type,
+                            'price' => $product->price,
+                            'discount' => $product->discount,
+                            'tax' => $product->tax,
+                            'created_at' => $product->created_at,
+                            'updated_at' => $product->updated_at,
+                            'total_quantity' => 'Unlimited', // Indicate unlimited stock
+                            'current_stock' => 'Unlimited',  // Indicate unlimited stock
+                            'product' => optional($product->product)->only([
+                                'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
+                                'stock_alert', 'alert_quantity', 'product_image', 'description', 'is_imei_or_serial_no',
+                                'is_for_selling', 'product_type', 'pax', 'original_price', 'retail_price',
+                                'whole_sale_price', 'special_price', 'max_retail_price'
+                            ]),
+                            'batch' => null, // No batch data for unlimited stock
+                        ];
+                    }
+    
+                    // Handle regular products
                     $batchId = $product->batch_id ?? 'all';
     
                     // Calculate the total available quantity (current stock + sold in this sale)
@@ -723,8 +750,6 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'message' => $e->getMessage()]);
         }
     }
-
-
 
 
     public function deleteSuspendedSale($id)
