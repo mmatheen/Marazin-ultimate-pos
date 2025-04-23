@@ -906,34 +906,26 @@
                 saleDetails.sale_products.forEach(saleProduct => {
                     const price = saleProduct.price || saleProduct.product.retail_price;
 
-                    // Find the current stock data for this specific product
                     const stockEntry = stockData.find(stock =>
                         stock.product.id === saleProduct.product.id
                     );
 
-                    // Set the locationId from the sale data
                     if (saleDetails.sale && saleDetails.sale.location_id) {
                         locationId = saleDetails.sale.location_id;
                     }
 
-                    // Prepare batches array for this specific product
                     let batches = [];
-
-                    // First add all current batches from stock for this product
                     if (stockEntry && Array.isArray(stockEntry.batches)) {
                         batches = [...stockEntry.batches];
                     }
 
-                    // Check if the original sale batch exists in current batches
                     const originalBatchExists = batches.some(batch =>
                         batch.id === saleProduct.batch?.id
                     );
 
-                    // If original batch exists, update its quantity to include sold quantity
                     if (originalBatchExists && saleProduct.batch) {
                         batches = batches.map(batch => {
                             if (batch.id === saleProduct.batch.id) {
-                                // Find the location batch and update its quantity
                                 const updatedLocationBatches = batch
                                     .location_batches.map(lb => {
                                         if (lb.location_id === saleProduct
@@ -955,7 +947,6 @@
                             return batch;
                         });
                     } else if (saleProduct.batch) {
-                        // If original batch doesn't exist in current stock, add it with combined quantity
                         batches.push({
                             id: saleProduct.batch.id,
                             batch_no: saleProduct.batch.batch_no,
@@ -965,15 +956,13 @@
                             location_batches: [{
                                 location_id: saleProduct.location_id,
                                 quantity: saleProduct
-                                    .total_quantity // This includes current stock + sale quantity
+                                    .total_quantity
                             }]
                         });
                     }
 
-                    // Calculate total stock including sale quantity
                     let totalStock = saleProduct.total_quantity;
                     if (stockEntry) {
-                        // If we have stock data, sum all batches including the updated quantities
                         totalStock = batches.reduce((sum, batch) => {
                             return sum + batch.location_batches.reduce((batchSum,
                                 lb) => {
@@ -995,11 +984,49 @@
                         saleProduct.batch_id,
                         saleProduct.quantity,
                         saleProduct.price_type,
-                        saleProduct.quantity // Pass the original sale quantity
+                        saleProduct.quantity
                     );
                 });
 
-                // Update discount and customer fields
+                // Fetch customer data directly here
+                fetch('/customer-get-all')
+                    .then(response => response.json())
+                    .then(customerData => {
+                        if (customerData && customerData.status === 200 && Array.isArray(customerData.message)) {
+                            const customerSelect = $('#customer-id');
+                            customerSelect.empty();
+
+                            const sortedCustomers = customerData.message.sort((a, b) => {
+                                if (a.first_name === 'Walking') return -1;
+                                if (b.first_name === 'Walking') return 1;
+                                return 0;
+                            });
+
+                            sortedCustomers.forEach(customer => {
+                                const option = $('<option></option>');
+                                option.val(customer.id);
+                                option.text(`${customer.first_name} ${customer.last_name} (${customer.mobile_no})`);
+                                option.data('due', customer.current_due); // Store the due amount in the option
+                                customerSelect.append(option);
+                            });
+
+                            const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walking');
+                            if (walkingCustomer) {
+                                customerSelect.val(walkingCustomer.id);
+                                updateDueAmount(walkingCustomer.current_due);
+                            }
+
+                            // Now set the customer ID after dropdown is populated
+                            if (saleDetails.sale) {
+                                customerSelect.val(saleDetails.sale.customer_id);
+                                customerSelect.trigger('change'); // Trigger change event to update other fields
+                            }
+                        } else {
+                            console.error('Failed to fetch customer data:', customerData ? customerData.message : 'No data received');
+                        }
+                    });
+
+                // Update discount and total fields
                 const discountElement = document.getElementById('discount');
                 const discountTypeElement = document.getElementById('discount-type');
 
@@ -1009,12 +1036,6 @@
 
                 if (discountTypeElement && saleDetails.sale) {
                     discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
-                }
-
-                const customerSelect = document.getElementById('customer-id');
-                if (customerSelect) {
-                    customerSelect.value = saleDetails.sale.customer_id;
-                    $(customerSelect).trigger('change');
                 }
 
                 updateTotals();
@@ -1029,6 +1050,17 @@
         });
 }
 
+function updateDueAmount(dueAmount) {
+    // Ensure dueAmount is a valid number before calling toFixed
+    dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
+    $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+}
+
+$('#customer-id').on('change', function() {
+    const selectedOption = $(this).find('option:selected');
+    const dueAmount = selectedOption.data('due');
+    updateDueAmount(dueAmount);
+});
         $(document).ready(function() {
 
             function gatherSaleData(status) {

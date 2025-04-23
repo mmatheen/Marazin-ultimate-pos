@@ -686,7 +686,7 @@
                     <div class="col-md-12" id="mainContent">
                         <div class="card bg-white p-3">
                             <div class="row">
-                                <div class="col-12">
+                                <div class="col-12"> 
                                     <p id="sale-invoice-no" class="text-info fw-bold"></p>
                                 </div>
                             </div>
