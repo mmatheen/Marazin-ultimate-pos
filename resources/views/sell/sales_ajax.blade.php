@@ -1374,10 +1374,61 @@ $(document).on('change keyup',
         }
 
         // // Use event delegation for the action buttons and stop event propagation
+        $(document).on('click', '.delete_btn', function(event) {
+            var id = $(this).val();
+            
+            swal({
+        title: "Are you sure?",
+        text: "Do you really want to delete this sale? This action cannot be undone.",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel",
+        closeOnConfirm: false
+    },
+    function(isConfirm) {
+        if (isConfirm) {
+            $.ajax({
+                url: `sales/delete/${id}`,
+                method: 'DELETE', 
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.status === 200) {
+                        toastr.success(response.message || "Sale deleted successfully!");
+                        const successSound = document.querySelector('.successSound');
+                        fetchSalesData();
+                        swal.close();
+                        successSound.play();
+                    
+                    } else {
+                        swal("Error!", response.message || "An error occurred while deleting the sale.", "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    let errorMessage = "Unable to delete the sale. Please try again later.";
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    swal("Error!", errorMessage, "error");
+                    console.error('Delete error:', error);
+                }
+            });
+        }
+    });
+        });
+
+        // // Use event delegation for the action buttons and stop event propagation
         $(document).on('click', '.edit_btn', function(event) {
             var id = $(this).val();
             window.location.href = `/sales/edit/${id}`;
         });
+
+
+
 
         // Function to fetch sale data for editing
         function fetchSaleData(saleId) {

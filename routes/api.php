@@ -264,6 +264,8 @@ Route::get('sales_details/{id}', [SaleController::class, 'selesDetails']);
 Route::put('sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
+Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
+
 
 
         // Route to fetch all suspended sales

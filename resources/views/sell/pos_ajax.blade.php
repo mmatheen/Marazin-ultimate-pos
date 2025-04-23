@@ -1684,6 +1684,52 @@ $('#customer-id').on('change', function() {
             });
     }
 
+    function deleteSale(saleId) {
+    swal({
+        title: "Are you sure?",
+        text: "Do you really want to delete this sale? This action cannot be undone.",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel",
+        closeOnConfirm: false
+    },
+    function(isConfirm) {
+        if (isConfirm) {
+            $.ajax({
+                url: `sales/delete/${saleId}`,
+                method: 'DELETE', 
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.status === 200) {
+                        toastr.success(response.message || "Sale deleted successfully!");
+                        const successSound = document.querySelector('.successSound');
+                        swal.close();
+                        successSound.play();
+                        // Refresh the sales data
+                        loadTableData('final');
+                        fetchSalesData();
+                    
+                    } else {
+                        swal("Error!", response.message || "An error occurred while deleting the sale.", "error");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    let errorMessage = "Unable to delete the sale. Please try again later.";
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    swal("Error!", errorMessage, "error");
+                    console.error('Delete error:', error);
+                }
+            });
+        }
+    });
+}
     // // Event listener to load sales data when the page is loaded
     // document.addEventListener('DOMContentLoaded', function() {
     //     fetchSalesData();

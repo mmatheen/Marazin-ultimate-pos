@@ -624,13 +624,7 @@ class SaleController extends Controller
         return response()->json($sales);
     }
 
-    public function destroy($id)
-    {
-        $sale = Sale::findOrFail($id);
-        $sale->delete();
 
-        return response()->json(['status' => 200, 'message' => 'Sale deleted successfully!']);
-    }
 
     public function fetchSuspendedSales()
     {
@@ -774,6 +768,25 @@ class SaleController extends Controller
         return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
 
 
+    }
+
+
+    public function destroy($id)
+    {
+        $sale = Sale::findOrFail($id);
+    
+        DB::transaction(function () use ($sale) {
+            foreach ($sale->products as $product) {
+                $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                $product->delete();
+            }
+            $sale->delete();
+        });
+    
+        return response()->json([
+            'status' => 200,
+            'message' => 'Sale deleted and stock restored successfully.'
+        ], 200);
     }
 
 
