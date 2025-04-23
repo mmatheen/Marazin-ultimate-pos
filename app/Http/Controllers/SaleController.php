@@ -352,19 +352,23 @@ class SaleController extends Controller
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             
-                        // Fetch the user associated with the sale
-                $user = User::find($sale->user_id);
+              // Fetch the user associated with the sale
+            $user = User::find($sale->user_id);
 
-                $html = view('sell.receipt', [
-                    'sale' => $sale,
-                    'customer' => $customer,
-                    'products' => $products,
-                    'payments' => $payments,
-                    'total_discount' => $request->discount_amount ?? 0,
-                    'amount_given' => $sale->amount_given,
-                    'balance_amount' => $sale->balance_amount,
-                    'user' => $user, // Pass the user to the view
-                ])->render();
+            // Fetch the first location associated with the user
+            $location = $user ? $user->locations()->first() : null;
+
+            $html = view('sell.receipt', [
+                'sale' => $sale,
+                'customer' => $customer,
+                'products' => $products,
+                'payments' => $payments,
+                'total_discount' => $request->discount_amount ?? 0,
+                'amount_given' => $sale->amount_given,
+                'balance_amount' => $sale->balance_amount,
+                'user' => $user, // Pass the user to the view
+                'location' => $location, // Pass the user's location to the view
+            ])->render();
     
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 
@@ -788,15 +792,24 @@ class SaleController extends Controller
             $amount_given = $sale->amount_given;
             $balance_amount = $sale->balance_amount;
 
-            $html = view('sell.receipt', [
-                'sale' => $sale,
-                'customer' => $customer,
-                'products' => $products,
-                'payments' => $payments,
-                'total_discount' => $totalDiscount,
-                'amount_given' => $amount_given, // Pass amount_given to the view
-                'balance_amount' => $balance_amount, // Pass balance_amount to the view
-            ])->render();
+
+                            // Fetch the user associated with the sale
+                $user = User::find($sale->user_id);
+
+                // Fetch the first location associated with the user
+                $location = $user ? $user->locations()->first() : null;
+
+                $html = view('sell.receipt', [
+                    'sale' => $sale,
+                    'customer' => $customer,
+                    'products' => $products,
+                    'payments' => $payments,
+                    'total_discount' => $request->discount_amount ?? 0,
+                    'amount_given' => $sale->amount_given,
+                    'balance_amount' => $sale->balance_amount,
+                    'user' => $user, 
+                    'location' => $location,
+                ])->render();
 
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {

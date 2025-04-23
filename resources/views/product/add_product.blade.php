@@ -47,7 +47,7 @@
                                             <div class="mb-3">
                                                 <div class="form-group local-forms">
                                                     <label>Product SKU</label>
-                                                    <input class="form-control" id="edit_sku " name="sku" type="text" placeholder="Product SKU" autocomplete="off">
+                                                    <input class="form-control" id="edit_sku" name="sku" type="text" placeholder="Product SKU" autocomplete="off">
                                                     <span class="text-danger" id="sku_error"></span>
                                                 </div>
                                             </div>

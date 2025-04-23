@@ -886,142 +886,149 @@
         }
 
         function fetchEditSale(saleId) {
-            fetchAllProducts();
+    fetchAllProducts();
 
-            fetch(`/api/sales/edit/${saleId}`)
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 200) {
-                        const saleDetails = data.sale_details;
+    fetch(`/api/sales/edit/${saleId}`)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data.status === 200) {
+                const saleDetails = data.sale_details;
 
-                        saleDetails.sale_products.forEach(saleProduct => {
-                            const price = saleProduct.price || saleProduct.product.retail_price;
+                // Update the sale invoice number
+                const saleInvoiceElement = document.getElementById('sale-invoice-no');
+                if (saleInvoiceElement && saleDetails.sale) {
+                    saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
+                }
 
-                            // Find the current stock data for this specific product
-                            const stockEntry = stockData.find(stock =>
-                                stock.product.id === saleProduct.product.id
-                            );
+                saleDetails.sale_products.forEach(saleProduct => {
+                    const price = saleProduct.price || saleProduct.product.retail_price;
 
-                            // Set the locationId from the sale data
-                            if (saleDetails.sale && saleDetails.sale.location_id) {
-                                locationId = saleDetails.sale.location_id;
-                            }
+                    // Find the current stock data for this specific product
+                    const stockEntry = stockData.find(stock =>
+                        stock.product.id === saleProduct.product.id
+                    );
 
-                            // Prepare batches array for this specific product
-                            let batches = [];
-
-                            // First add all current batches from stock for this product
-                            if (stockEntry && Array.isArray(stockEntry.batches)) {
-                                batches = [...stockEntry.batches];
-                            }
-
-                            // Check if the original sale batch exists in current batches
-                            const originalBatchExists = batches.some(batch =>
-                                batch.id === saleProduct.batch?.id
-                            );
-
-                            // If original batch exists, update its quantity to include sold quantity
-                            if (originalBatchExists && saleProduct.batch) {
-                                batches = batches.map(batch => {
-                                    if (batch.id === saleProduct.batch.id) {
-                                        // Find the location batch and update its quantity
-                                        const updatedLocationBatches = batch
-                                            .location_batches.map(lb => {
-                                                if (lb.location_id === saleProduct
-                                                    .location_id) {
-                                                    return {
-                                                        ...lb,
-                                                        quantity: lb.quantity +
-                                                            saleProduct.quantity
-                                                    };
-                                                }
-                                                return lb;
-                                            });
-
-                                        return {
-                                            ...batch,
-                                            location_batches: updatedLocationBatches
-                                        };
-                                    }
-                                    return batch;
-                                });
-                            } else if (saleProduct.batch) {
-                                // If original batch doesn't exist in current stock, add it with combined quantity
-                                batches.push({
-                                    id: saleProduct.batch.id,
-                                    batch_no: saleProduct.batch.batch_no,
-                                    retail_price: saleProduct.batch.retail_price,
-                                    wholesale_price: saleProduct.batch.wholesale_price,
-                                    special_price: saleProduct.batch.special_price,
-                                    location_batches: [{
-                                        location_id: saleProduct.location_id,
-                                        quantity: saleProduct
-                                            .total_quantity // This includes current stock + sale quantity
-                                    }]
-                                });
-                            }
-
-                            // Calculate total stock including sale quantity
-                            let totalStock = saleProduct.total_quantity;
-                            if (stockEntry) {
-                                // If we have stock data, sum all batches including the updated quantities
-                                totalStock = batches.reduce((sum, batch) => {
-                                    return sum + batch.location_batches.reduce((batchSum,
-                                        lb) => {
-                                        return batchSum + lb.quantity;
-                                    }, 0);
-                                }, 0);
-                            }
-
-                            const normalizedStockEntry = {
-                                batches: batches,
-                                total_stock: totalStock,
-                                product: saleProduct.product
-                            };
-
-                            addProductToBillingBody(
-                                saleProduct.product,
-                                normalizedStockEntry,
-                                price,
-                                saleProduct.batch_id,
-                                saleProduct.quantity,
-                                saleProduct.price_type,
-                                saleProduct.quantity // Pass the original sale quantity
-                            );
-                        });
-
-                        // Update discount and customer fields
-                        const discountElement = document.getElementById('discount');
-                        const discountTypeElement = document.getElementById('discount-type');
-
-                        if (discountElement && saleDetails.sale) {
-                            discountElement.value = saleDetails.sale.discount_amount || 0;
-                        }
-
-                        if (discountTypeElement && saleDetails.sale) {
-                            discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
-                        }
-
-                        const customerSelect = document.getElementById('customer-id');
-                        if (customerSelect) {
-                            customerSelect.value = saleDetails.sale.customer_id;
-                            $(customerSelect).trigger('change');
-                        }
-
-                        updateTotals();
-                    } else {
-                        console.error('Invalid sale data:', data);
-                        toastr.error('Failed to fetch sale data.', 'Error');
+                    // Set the locationId from the sale data
+                    if (saleDetails.sale && saleDetails.sale.location_id) {
+                        locationId = saleDetails.sale.location_id;
                     }
-                })
-                .catch(error => {
-                    console.error('Error fetching sale data:', error);
-                    toastr.error('An error occurred while fetching sale data.', 'Error');
+
+                    // Prepare batches array for this specific product
+                    let batches = [];
+
+                    // First add all current batches from stock for this product
+                    if (stockEntry && Array.isArray(stockEntry.batches)) {
+                        batches = [...stockEntry.batches];
+                    }
+
+                    // Check if the original sale batch exists in current batches
+                    const originalBatchExists = batches.some(batch =>
+                        batch.id === saleProduct.batch?.id
+                    );
+
+                    // If original batch exists, update its quantity to include sold quantity
+                    if (originalBatchExists && saleProduct.batch) {
+                        batches = batches.map(batch => {
+                            if (batch.id === saleProduct.batch.id) {
+                                // Find the location batch and update its quantity
+                                const updatedLocationBatches = batch
+                                    .location_batches.map(lb => {
+                                        if (lb.location_id === saleProduct
+                                            .location_id) {
+                                            return {
+                                                ...lb,
+                                                quantity: lb.quantity +
+                                                    saleProduct.quantity
+                                            };
+                                        }
+                                        return lb;
+                                    });
+
+                                return {
+                                    ...batch,
+                                    location_batches: updatedLocationBatches
+                                };
+                            }
+                            return batch;
+                        });
+                    } else if (saleProduct.batch) {
+                        // If original batch doesn't exist in current stock, add it with combined quantity
+                        batches.push({
+                            id: saleProduct.batch.id,
+                            batch_no: saleProduct.batch.batch_no,
+                            retail_price: saleProduct.batch.retail_price,
+                            wholesale_price: saleProduct.batch.wholesale_price,
+                            special_price: saleProduct.batch.special_price,
+                            location_batches: [{
+                                location_id: saleProduct.location_id,
+                                quantity: saleProduct
+                                    .total_quantity // This includes current stock + sale quantity
+                            }]
+                        });
+                    }
+
+                    // Calculate total stock including sale quantity
+                    let totalStock = saleProduct.total_quantity;
+                    if (stockEntry) {
+                        // If we have stock data, sum all batches including the updated quantities
+                        totalStock = batches.reduce((sum, batch) => {
+                            return sum + batch.location_batches.reduce((batchSum,
+                                lb) => {
+                                return batchSum + lb.quantity;
+                            }, 0);
+                        }, 0);
+                    }
+
+                    const normalizedStockEntry = {
+                        batches: batches,
+                        total_stock: totalStock,
+                        product: saleProduct.product
+                    };
+
+                    addProductToBillingBody(
+                        saleProduct.product,
+                        normalizedStockEntry,
+                        price,
+                        saleProduct.batch_id,
+                        saleProduct.quantity,
+                        saleProduct.price_type,
+                        saleProduct.quantity // Pass the original sale quantity
+                    );
                 });
-        }
+
+                // Update discount and customer fields
+                const discountElement = document.getElementById('discount');
+                const discountTypeElement = document.getElementById('discount-type');
+
+                if (discountElement && saleDetails.sale) {
+                    discountElement.value = saleDetails.sale.discount_amount || 0;
+                }
+
+                if (discountTypeElement && saleDetails.sale) {
+                    discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
+                }
+
+                const customerSelect = document.getElementById('customer-id');
+                if (customerSelect) {
+                    customerSelect.value = saleDetails.sale.customer_id;
+                    $(customerSelect).trigger('change');
+                }
+
+                updateTotals();
+            } else {
+                console.error('Invalid sale data:', data);
+                toastr.error('Failed to fetch sale data.', 'Error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching sale data:', error);
+            toastr.error('An error occurred while fetching sale data.', 'Error');
+        });
+}
+
         $(document).ready(function() {
 
             function gatherSaleData(status) {
@@ -1597,6 +1604,7 @@
                     index + 1,
                     sale.invoice_no,
                     `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                    sale.sales_date,
                     sale.final_total,
                     `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
                      <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>

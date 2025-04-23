@@ -158,7 +158,7 @@
             $('#product_id').val(product.id);
             $('#edit_product_name').val(product.product_name);
             $('#summernote').summernote('code', product.description || ''); // Use Summernote API to set content
-            $('#edit_sku').val(product.sku || "");
+            $('#edit_sku').val(product.sku ?? '');
             $('#edit_pax').val(product.pax || 0);
             $('#edit_original_price').val(product.original_price || 0);
             $('#edit_retail_price').val(product.retail_price || 0);

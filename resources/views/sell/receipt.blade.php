@@ -99,16 +99,20 @@
             <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
         </div>
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
-            @php
-                $location = Auth::user()->locations->first();
-            @endphp
             @if($location)
-                <div>{{ $location->address }}</div>
-                <div>{{ $location->mobile }}</div>
-                <div>{{ $location->email }}</div>
+                @if($location->address)
+                    <div>{{ $location->address }}</div>
+                @endif
+                @if($location->mobile)
+                    <div>{{ $location->mobile }}</div>
+                @endif
+                @if($location->email)
+                    <div>{{ $location->email }}</div>
+                @endif
+            @else
+                <div>LOCATION DETAILS NOT AVAILABLE.</div>
             @endif
         </div>
-
         <div
             style="font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #000; border-top: 1px dashed #000; color: #000;">
             <table width="100%" border="0">
