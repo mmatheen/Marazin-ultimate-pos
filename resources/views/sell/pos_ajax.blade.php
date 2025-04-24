@@ -199,99 +199,97 @@
                 });
         }
 
-        let selectedLocationId = null;
-        const locationSelect = document.getElementById('locationSelect');
-        locationSelect.addEventListener('change', function() {
-            selectedLocationId = this.value;
-            alert('Selected Location ID: ' + selectedLocationId);
-            console.log('Selected Location ID:', selectedLocationId);
-            fetchAllProducts(); // Fetch products for the selected location
-        });
-        // Fetch all locations from the server
-        // and populate the location select dropdown
+      
 
-        fetchAllLocations();
-        setupLocationSelect()
-
-        // Fetch all locations
         function fetchAllLocations() {
-            fetch('/location-get-all')
-                .then(response => response.json())
-                .then(data => {
-                    const locations = data.message;
-                    const locationSelect = document.getElementById('locationSelect');
-
-                    locationSelect.innerHTML = '';
-
-                    if (Array.isArray(locations)) {
-                        locations.forEach(location => {
-                            const option = document.createElement('option');
-                            option.value = location.id;
-                            option.textContent = location.name;
-                            locationSelect.appendChild(option);
-                        });
-
-                        // Set default selected location and fetch its products
-                        if (locations.length > 0) {
-                            selectedLocationId = locations[0].id;
-                            locationSelect.value = selectedLocationId;
-                            fetchAllProducts(); // Fetch all products initially
-                        }
+            $.ajax({
+                url: '/location-get-all',
+                method: 'GET',
+                success: function (data) {
+                    if (data.status === 200) {
+                        populateLocationDropdown(data.message);
                     } else {
-                        console.error('Locations not found:', locations);
+                        console.error('Error fetching locations:', data.message);
                     }
-                })
-                .catch(error => {
-                    console.error('Error fetching locations:', error);
-                });
-        }
-
-        function setupLocationSelect() {
-            const locationSelect = document.getElementById('locationSelect');
-
-            if (!locationSelect) {
-                console.error('Error: locationSelect element not found');
-                return;
-            }
-
-            console.log('Found locationSelect element:', locationSelect);
-            console.log('Current value:', locationSelect.value);
-            console.log('Options:', locationSelect.options);
-
-            locationSelect.addEventListener('change', function() {
-                console.log('Change event triggered');
-                console.log('New value:', this.value);
-                alert('Selected: ' + this.value);
-                fetchAllProducts();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error('Error:', textStatus, errorThrown);
+                }
             });
         }
 
+        // Populate the dropdown and select the first location
+        function populateLocationDropdown(locations) {
+            const locationSelect = $('#locationSelect');
+            locationSelect.empty(); // Clear existing options
 
-        // Fetch all products from the server
-        function fetchAllProducts() {
-            showLoader();
+            // Add default option
+            locationSelect.append('<option value="" selected disabled>Select Location</option>');
 
-            fetch('/products/stocks')
-                .then(response => response.json())
-                .then(data => {
-                    hideLoader(); // Hide loader after fetching
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        stockData = data.data;
-                        // Populate the global allProducts array
-                        allProducts = stockData.map(stock => ({
-                            ...stock.product,
-                            total_stock: stock.total_stock
-                        }));
-                        displayProducts(stockData);
-                        initAutocomplete();
-                    } else {
-                        console.error('Invalid data:', data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
+            // Populate dropdown with locations
+            locations.forEach((location, index) => {
+                const option = $('<option></option>')
+                    .val(location.id)
+                    .text(location.name);
+
+                // Select the first location by default
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                }
+
+                locationSelect.append(option);
+            });
+
+            // Trigger the change event to show the alert for the first location
+            locationSelect.trigger('change');
         }
+
+        // Handle location selection
+        function handleLocationChange(event) {
+            const selectedLocationId = $(event.target).val();
+            if (selectedLocationId) {
+                // Clear previous products
+                posProduct.innerHTML = '';
+                // Fetch products for the selected location
+                fetchAllProducts(selectedLocationId);
+            }
+        }
+
+        // Add event listener to dropdown
+        $(document).ready(function () {
+            const locationSelect = $('#locationSelect');
+            locationSelect.on('change', handleLocationChange);
+
+            // Fetch locations once the DOM is loaded
+            fetchAllLocations();
+        });
+
+        
+
+
+        function fetchAllProducts(locationId) {
+    showLoader();
+
+    fetch(`/products/stocks?location_id=${locationId}`)
+        .then(response => response.json())
+        .then(data => {
+            hideLoader();
+            if (data.status === 200 && Array.isArray(data.data)) {
+                stockData = data.data;
+                allProducts = stockData.map(stock => ({
+                    ...stock.product,
+                    total_stock: stock.total_stock
+                }));
+                displayProducts(stockData);
+                initAutocomplete();
+            } else {
+                console.error('Invalid data:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+}
 
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
@@ -370,31 +368,32 @@
         }
 
         function displayProducts(products) {
-            posProduct.innerHTML = ''; // Clear previous products
+    posProduct.innerHTML = ''; // Clear previous products
 
-            // Filter products to show:
-            // 1. Products with stock_alert === 0 (unlimited stock, even if total_stock is 0)
-            // 2. Products with total_stock > 0 (available stock)
-            const filteredProducts = products.filter(stock =>
-                stock.total_stock > 0 || stock.product.stock_alert === 0
-            );
+    const filteredProducts = products.filter(stock => {
+        // For products with stock_alert === 0 (unlimited stock)
+        if (stock.product.stock_alert === 0) return true;
+        
+        // For other products, check if total_stock > 0
+        return stock.total_stock > 0;
+    });
 
-            if (filteredProducts.length === 0) {
-                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                return;
-            }
+    if (filteredProducts.length === 0) {
+        posProduct.innerHTML = '<p class="text-center">No products found for this location.</p>';
+        return;
+    }
 
-            filteredProducts.forEach(stock => {
-                const product = stock.product;
-                const totalQuantity = stock.total_stock;
-                const price = product.retail_price;
-                const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
+    filteredProducts.forEach(stock => {
+        const product = stock.product;
+        const totalQuantity = stock.total_stock;
+        const price = product.retail_price;
+        const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
 
-                // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
-                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
-                    `${totalQuantity} Pc(s) in stock`;
+        // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
+        const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
+            `${totalQuantity} Pc(s) in stock`;
 
-                const cardHTML = `
+        const cardHTML = `
             <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
                 <div class="product-card"> 
                     <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
@@ -411,21 +410,21 @@
                 </div>
             </div>
         `;
-                posProduct.insertAdjacentHTML('beforeend', cardHTML);
-            });
+        posProduct.insertAdjacentHTML('beforeend', cardHTML);
+    });
 
-            // Add click event to product cards
-            const productCards = document.querySelectorAll('.product-card');
-            productCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const productName = card.querySelector('img').getAttribute('alt');
-                    const selectedProduct = stockData.find(stock =>
-                        stock.product.product_name === productName
-                    ).product;
-                    addProductToTable(selectedProduct);
-                });
-            });
-        }
+    // Add click event to product cards
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        card.addEventListener('click', () => {
+            const productName = card.querySelector('img').getAttribute('alt');
+            const selectedProduct = stockData.find(stock =>
+                stock.product.product_name === productName
+            ).product;
+            addProductToTable(selectedProduct);
+        });
+    });
+}
 
         // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {

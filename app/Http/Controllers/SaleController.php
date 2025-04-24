@@ -77,59 +77,61 @@ class SaleController extends Controller
         return view('reports.daily_sales_report');
     }
 
-    public function dailyReport(Request $request){
+    public function dailyReport(Request $request)
+    {
         try {
-            $date = $request->input('date', Carbon::today()->toDateString());
+            $startDate = $request->input('start_date', Carbon::today()->toDateString());
+            $endDate = $request->input('end_date', Carbon::today()->toDateString());
 
             $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
-                ->whereDate('created_at', $date);
+                ->whereBetween('sales_date', [$startDate, $endDate]);
 
             // Calculate summaries
             $summaries = [
                 'billTotal' => $salesQuery->sum('final_total'),
                 'discounts' => $salesQuery->sum('discount_amount'),
-                'cashPayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'cashPayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'cash');
                 })->sum('total_paid'),
-                'chequePayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'chequePayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'cheque');
                 })->sum('total_paid'),
-                'onlinePayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'onlinePayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'online');
                 })->sum('total_paid'),
-                'bankTransfer' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'bankTransfer' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'bank_transfer');
                 })->sum('total_paid'),
-                'cardPayments' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'cardPayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'card');
                 })->sum('total_paid'),
-                'salesReturns' => SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                'salesReturns' => SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
                 'paymentTotal' => $salesQuery->sum('total_paid'),
                 'creditTotal' => $salesQuery->sum('total_due'),
-                'salesReturnsTotal' => SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                'salesReturnsTotal' => SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
                 'paymentTotalSummary' => $salesQuery->sum('total_paid'),
-                'pastSalesReturns' => SalesReturn::whereDate('created_at', '<', $date)->sum('return_total'),
+                'pastSalesReturns' => SalesReturn::where('created_at', '<', $startDate)->sum('return_total'),
                 'expense' => 0, // Assuming expense is not calculated here
-                'creditCollectionNew' => 0, // Assuming credit collection is not calculated here
-                'creditCollectionOld' => 0, // Assuming credit collection is not calculated here
-                'netIncome' => $salesQuery->sum('final_total') - SalesReturn::whereDate('created_at', $date)->sum('return_total'),
-                'cashPaymentsSummary' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'creditCollectionNew' => 0, // Placeholder
+                'creditCollectionOld' => 0, // Placeholder
+                'netIncome' => $salesQuery->sum('final_total') - SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
+                'cashPaymentsSummary' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'cash');
                 })->sum('total_paid'),
-                'creditCollectionNewSummary' => 0, // Assuming credit collection is not calculated here
-                'creditCollectionOldSummary' => 0, // Assuming credit collection is not calculated here
-                'expenseSummary' => 0, // Assuming expense is not calculated here
-                'cashInHand' => $salesQuery->clone()->whereHas('payments', function($query) {
+                'creditCollectionNewSummary' => 0, // Placeholder
+                'creditCollectionOldSummary' => 0, // Placeholder
+                'expenseSummary' => 0, // Placeholder
+                'cashInHand' => $salesQuery->clone()->whereHas('payments', function ($query) {
                     $query->where('payment_method', 'cash');
-                })->sum('total_paid') - SalesReturn::whereDate('created_at', $date)->sum('return_total'),
+                })->sum('total_paid') - SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
             ];
 
             $sales = $salesQuery->get();
 
-            // Fetch sales return details based on sale id
+            // Fetch sales return details based on sale ID
             $salesReturns = SalesReturn::with('customer', 'location', 'returnProducts')
-                                       ->whereIn('sale_id', $sales->pluck('id'))
-                                       ->get();
+                ->whereIn('sale_id', $sales->pluck('id'))
+                ->get();
 
             return response()->json(['sales' => $sales, 'summaries' => $summaries, 'salesReturns' => $salesReturns], 200);
         } catch (\Exception $e) {
