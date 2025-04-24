@@ -116,6 +116,10 @@ class RolesAndPermissionsSeeder extends Seeder
               '25. daily-report-management' => [
                 'view daily-report'
             ],
+              // daily-report management
+              '26. product-discount-management' => [
+                'view product-discount','create product-discount', 'edit product-discount', 'delete product-discount'
+            ],
 
         ];
 

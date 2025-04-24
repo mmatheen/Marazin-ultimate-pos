@@ -12,51 +12,30 @@ use Carbon\Carbon;
 
 class DiscountController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view product-discount', ['only' => ['index','getDiscountsData']]);
+        $this->middleware('permission:create product-discount', ['only' => ['store']]);
+        $this->middleware('permission:edit product-discount', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete product-discount', ['only' => ['destroy']]);
+    }
+
+
     public function index()
     {
         return view('discounts.index');
     }
 
-    // public function getDiscountsData(Request $request)
-    // {
-    //     $discounts = Discount::query()->withCount('products');
-        
-    //     // Date range filter
-    //     if ($request->has('from') && $request->has('to')) {
-    //         $from = Carbon::parse($request->from)->startOfDay();
-    //         $to = Carbon::parse($request->to)->endOfDay();
-    //         $discounts->whereBetween('start_date', [$from, $to]);
-    //     }
-        
-    //     // Status filter
-    //     if ($request->has('status') && $request->status !== '') {
-    //         $discounts->where('is_active', $request->status);
-    //     }
-
-    //     // Return data in DataTables format
-    //     return DataTables::of($discounts)
-    //         ->addColumn('action', function($discount) {
-    //             return '
-    //                 <button class="btn btn-sm btn-primary edit-discount" data-id="'.$discount->id.'">Edit</button>
-    //                 <button class="btn btn-sm btn-danger delete-discount" data-id="'.$discount->id.'">Delete</button>
-    //                 <button class="btn btn-sm btn-info view-products" data-id="'.$discount->id.'">Products</button>
-    //                 <button class="btn btn-sm btn-warning toggle-status" data-id="'.$discount->id.'">
-    //                     '.($discount->is_active ? 'Deactivate' : 'Activate').'
-    //                 </button>
-    //             ';
-    //         })
-    //         ->make(true);
-    // }
     public function getDiscountsData(Request $request)
     {
         $query = Discount::query()->withCount('products');
-    
+
         // Date range filter - modified to handle cases where only one date is provided
         if ($request->filled('from')) {
             $from = Carbon::parse($request->from)->startOfDay();
             $query->where('start_date', '>=', $from);
         }
-    
+
         if ($request->filled('to')) {
             $to = Carbon::parse($request->to)->endOfDay();
             $query->where(function($q) use ($to) {
@@ -64,13 +43,13 @@ class DiscountController extends Controller
                   ->orWhereNull('end_date');
             });
         }
-    
+
         // Status filter - only apply if status is explicitly provided (0 or 1)
         if ($request->has('status') && $request->status !== '' && $request->status !== null) {
             $query->where('is_active', $request->status);
         }
         // When status is null/empty, don't apply any status filter (show all)
-    
+
         return response()->json($query->get());
     }
 
@@ -145,7 +124,7 @@ class DiscountController extends Controller
         $products = $discount->products()
             ->select('products.id as product_id', 'products.product_name', 'products.sku')
             ->get();
-    
+
         return response()->json($products);
     }
 
@@ -163,7 +142,7 @@ class DiscountController extends Controller
         $type = $request->get('type', 'xlsx');
         $from = $request->get('from');
         $to = $request->get('to');
-        
+
         // return Excel::download(new DiscountsExport($from, $to), 'discounts.'.$type);
     }
 }

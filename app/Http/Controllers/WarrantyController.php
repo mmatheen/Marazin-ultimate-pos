@@ -11,23 +11,15 @@ use Illuminate\Support\Facades\Validator;
 class WarrantyController extends Controller
 {
 
-
-        // public function __construct()
-        // {
-        //     $this->middleware('permission:View Warranty', ['only' => ['index', 'warranty']]);
-        //     $this->middleware('permission:Add Warranty', ['only' => ['store']]);
-        //     $this->middleware('permission:Edit/Update Warranty', ['only' => ['update', 'edit']]);
-        //     $this->middleware('permission:Delete Warranty', ['only' => ['destroy']]);
-        // }
-
         function __construct()
         {
-             $this->middleware('permission:View Warranty|Add Warranty|Edit/Update Warranty|Delete Warranty',['only' => ['index','store']]);
-             $this->middleware('permission:View Warranty', ['only' => ['index','warranty']]);
-             $this->middleware('permission:Add Warranty', ['only' => ['store']]);
-             $this->middleware('permission:Edit/Update Warranty', ['only' => ['edit','update']]);
-             $this->middleware('permission:Delete Warranty', ['only' => ['destroy']]);
+            $this->middleware('permission:view warranty', ['only' => ['index', 'show','warranty']]);
+            $this->middleware('permission:create warranty', ['only' => ['store']]);
+            $this->middleware('permission:edit warranty', ['only' => ['edit', 'update']]);
+            $this->middleware('permission:delete warranty', ['only' => ['destroy']]);
         }
+
+
 
     public function warranty()
     {

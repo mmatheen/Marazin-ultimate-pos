@@ -65,13 +65,15 @@
                         @can('view product')
                         <li><a href={{ route('list-product') }} class="{{ set_active(['list-product'])}}">List Products</a></li>
                         @endcan
-                        
+
                         @can('add product')
                         <li><a href={{ route('add-product')}} class="{{ set_active(['add-product'])}}">Add Product</a></li>
                         @endcan
-                        {{-- {{ activeSegment('product_list') }} --}}
-        
+                        @can('view product-discount')
                         <li><a href={{ route('discounts.index')}} class="{{ set_active(['discounts.index'])}}">Discounts</a></li>
+                        @endcan
+                        {{-- {{ activeSegment('product_list') }} --}}
+
                         <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
                         <li><a href={{ route('print-label')}} class="{{ set_active(['print-label'])}}">Print Label</a></li>
                         <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>
@@ -92,7 +94,7 @@
                 <li><a href={{ route('main-category') }} class="{{ set_active(['main-category'])}}">Main Category</a></li>
                 @endcan
 
-                @can('view sub-catagory')
+                @can('view sub-category')
                 <li><a href={{ route('sub-category') }} class="{{ set_active(['sub-category'])}}">Sub Category</a></li>
                 @endcan
 
@@ -157,7 +159,7 @@
               </li>
             @endcanany
 
-    
+
             @canany(['add bulk sale payment', 'add bulk purchase payment'])
             <li class="submenu">
                 <a href="#"><i class="fas fa-clipboard"></i> <span>Add Bulk Payments</span> <span class="menu-arrow"></span></a>
