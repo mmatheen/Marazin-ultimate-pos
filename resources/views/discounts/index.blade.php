@@ -28,11 +28,11 @@
                     <div class="row mb-3">
                         <div class="col-md-3">
                             <label>Date From</label>
-                            <input type="date" class="form-control" id="filter_from">
+                            <input type="taxt" class="form-control datetimepicker" placeholder="DD-MM-YYYY" id="filter_from">
                         </div>
                         <div class="col-md-3">
                             <label>Date To</label>
-                            <input type="date" class="form-control" id="filter_to">
+                            <input type="taxt" class="form-control datetimepicker" placeholder="DD-MM-YYYY" id="filter_to">
                         </div>
                         <div class="col-md-3">
                             <label>Status</label>
@@ -43,11 +43,11 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-flex align-items-end">
-                            <button class="btn btn-primary" id="apply_filters">Apply</button>
+                            <button class="btn btn-primary me-2" id="apply_filters">Apply</button>
                             <button class="btn btn-secondary ml-2" id="reset_filters">Reset</button>
                         </div>
                     </div>
-                    
+
                     <table id="discounts-table" class="table table-bordered table-striped">
                         <thead>
                             <tr>
@@ -302,7 +302,7 @@ $(document).ready(function() {
 
     const today = new Date().toISOString().split('T')[0];
     $('#filter_from').val(today);
-    
+
     const table = $('#discounts-table').DataTable({
         ajax: {
             url: '/discounts/data',
@@ -317,25 +317,25 @@ $(document).ready(function() {
             { data: 'id' },
             { data: 'name' },
             { data: 'description' },
-            { 
+            {
                 data: 'type',
                 render: function(data) {
                     return data.charAt(0).toUpperCase() + data.slice(1);
                 }
             },
-            { 
+            {
                 data: 'amount',
                 render: function(data) {
                     return data ? 'Rs. ' + data : '-';
                 }
             },
-            { 
+            {
                 data: 'start_date',
                 render: function(data) {
                     return data ? new Date(data).toLocaleDateString() : '-';
                 }
             },
-            { 
+            {
                 data: 'end_date',
                 render: function(data) {
                     return data ? new Date(data).toLocaleDateString() : 'No end date';
@@ -347,7 +347,7 @@ $(document).ready(function() {
                     return data ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
                 }
             },
-            { 
+            {
                 data: 'products_count',
                 render: function(data) {
                     return data || 0;
@@ -395,10 +395,10 @@ $(document).ready(function() {
     // Create Discount - Submit Form
     $('#createDiscountForm').submit(function(e) {
         e.preventDefault();
-        
+
         // Get selected product IDs
         var productIds = $('#createDiscountForm select[name="product_ids[]"]').val();
-        
+
         // Prepare form data
         var formData = $(this).serializeArray();
         if (productIds && productIds.length > 0) {
@@ -406,7 +406,7 @@ $(document).ready(function() {
         } else {
             formData.push({name: 'apply_to_all', value: true});
         }
-        
+
         $.ajax({
             url: "{{ route('discounts.store') }}",
             type: 'POST',
@@ -434,7 +434,7 @@ $(document).ready(function() {
     // Edit Discount - Load Data
     $('#discounts-table').on('click', '.edit-discount', function() {
         var discountId = $(this).data('id');
-        
+
         $.get("{{ route('discounts.index') }}/" + discountId + "/edit", function(data) {
             $('#edit_discount_id').val(data.id);
             $('#edit_name').val(data.name);
@@ -444,17 +444,17 @@ $(document).ready(function() {
             $('#edit_start_date').val(data.start_date.split('T')[0]);
             $('#edit_end_date').val(data.end_date ? data.end_date.split('T')[0] : '');
             $('#edit_is_active').prop('checked', data.is_active);
-            
+
             // Initialize Select2 for edit modal
             $('.select2-edit').select2({
                 placeholder: "Select products",
                 allowClear: true
             });
-            
+
             // Set selected products
             var productIds = data.products.map(product => product.id);
             $('#edit_product_ids').val(productIds).trigger('change');
-            
+
             $('#editDiscountModal').modal('show');
         });
     });
@@ -463,7 +463,7 @@ $(document).ready(function() {
     $('#editDiscountForm').submit(function(e) {
         e.preventDefault();
         var discountId = $('#edit_discount_id').val();
-        
+
         $.ajax({
             url: "{{ route('discounts.index') }}/" + discountId,
             type: 'POST',
@@ -489,30 +489,30 @@ $(document).ready(function() {
     // View Products
     $('#discounts-table').on('click', '.view-products', function() {
         var discountId = $(this).data('id');
-        
+
         $.ajax({
             url: `/discounts/${discountId}/products`,
             type: 'GET',
             success: function(data) {
                 var tbody = $('#productsTable tbody');
                 tbody.empty();
-                
+
                 if (data.length > 0) {
                     $.each(data, function(index, product) {
-                        tbody.append('<tr><td>' +  (index + 1)  + '</td><td>' + product.product_name + 
+                        tbody.append('<tr><td>' +  (index + 1)  + '</td><td>' + product.product_name +
                                     '</td><td>' + product.sku + '</td></tr>');
                     });
 
-                
+
                 }
-           
+
                  else {
                     tbody.append('<tr><td colspan="3" class="text-center">No products associated</td></tr>');
                 }
-                
+
                 $('#productsModal').modal('show');
             },
-            
+
             error: function(xhr) {
                 toastr.error('Error fetching products');
             }
@@ -522,7 +522,7 @@ $(document).ready(function() {
     // Delete Discount
     $('#discounts-table').on('click', '.delete-discount', function() {
         var discountId = $(this).data('id');
-        
+
         if (confirm('Are you sure you want to delete this discount?')) {
             $.ajax({
                 url: "{{ route('discounts.index') }}/" + discountId,
@@ -545,7 +545,7 @@ $(document).ready(function() {
     $('#discounts-table').on('click', '.toggle-status', function() {
         var discountId = $(this).data('id');
         var button = $(this);
-        
+
         $.post("{{ route('discounts.index') }}/" + discountId + "/toggle-status", {
             _token: "{{ csrf_token() }}"
         }, function(response) {
@@ -557,7 +557,7 @@ $(document).ready(function() {
     });
 });
     </script>
-    
+
 <style>
     .select2-container--default .select2-selection--multiple {
         border: 1px solid #ced4da;
