@@ -5,12 +5,8 @@
                 <li class="menu-title">
                     <span>Main Menu</span>
                 </li>
-                <li class="submenu active">
-                    <a href="#"><i class="feather-grid"></i> <span> Dashboard</span> <span class="menu-arrow"></span></a>
-                    <ul>
-                        <li><a href={{ route('dashboard') }} class="{{ set_active(['dashboard'])}}">Admin Dashboard</a></li>
-                    </ul>
-                </li>
+              
+                <li><a href={{ route('dashboard') }} class="{{ set_active(['dashboard'])}}"><i class="feather-grid"></i> Admin Dashboard</a></li>
 
                 @canany(['view user', 'view role', 'view role & permission', 'view sales-commission-agent'])
                 <li class="submenu {{ set_active(['user'])}}">
