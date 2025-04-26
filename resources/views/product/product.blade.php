@@ -84,7 +84,7 @@
                     <div class="col-md-12">
                         <ul class="nav nav-tabs nav-tabs-solid">
                             <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1" data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
-                            <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li>
+                            {{-- <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li> --}}
                             @can('view import-product')
                             <li class="nav-item"><a class="nav-link" href="#solid-justified-tab3" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Import Bulk Product</a></li>
                             @endcan
