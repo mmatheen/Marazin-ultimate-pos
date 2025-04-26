@@ -370,12 +370,29 @@
         function displayProducts(products) {
     posProduct.innerHTML = ''; // Clear previous products
 
+    // Get the currently selected location ID
+    const selectedLocationId = $('#locationSelect').val();
+    
     const filteredProducts = products.filter(stock => {
         // For products with stock_alert === 0 (unlimited stock)
         if (stock.product.stock_alert === 0) return true;
         
-        // For other products, check if total_stock > 0
-        return stock.total_stock > 0;
+        // Check if product is assigned to the selected location
+        const isInLocation = stock.locations.some(loc => loc.location_id == selectedLocationId);
+        if (!isInLocation) return false;
+        
+        // For other products, check if total_stock > 0 at this location
+        if (stock.has_batches) {
+            // For batched products, sum quantities at this location
+            const locationStock = stock.batches.reduce((sum, batch) => {
+                const locBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                return sum + (locBatch ? locBatch.quantity : 0);
+            }, 0);
+            return locationStock > 0;
+        } else {
+            // For non-batched products, use total_stock if it's assigned to this location
+            return stock.total_stock > 0;
+        }
     });
 
     if (filteredProducts.length === 0) {
@@ -385,13 +402,24 @@
 
     filteredProducts.forEach(stock => {
         const product = stock.product;
-        const totalQuantity = stock.total_stock;
-        const price = product.retail_price;
-        const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
+        const selectedLocationId = $('#locationSelect').val();
+        
+        // Calculate stock for this location
+        let locationStock = 0;
+        if (stock.has_batches) {
+            locationStock = stock.batches.reduce((sum, batch) => {
+                const locBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                return sum + (locBatch ? locBatch.quantity : 0);
+            }, 0);
+        } else {
+            // For non-batched products, use total_stock if it's assigned to this location
+            locationStock = stock.locations.some(loc => loc.location_id == selectedLocationId) 
+                ? stock.total_stock 
+                : 0;
+        }
 
-        // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
         const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
-            `${totalQuantity} Pc(s) in stock`;
+            `${locationStock} Pc(s) in stock`;
 
         const cardHTML = `
             <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
@@ -402,7 +430,7 @@
                             <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
                         </h6>
                         <h6>
-                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : totalQuantity > 0 ? 'bg-success' : 'bg-warning'}">
+                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : locationStock > 0 ? 'bg-success' : 'bg-warning'}">
                                 ${quantityDisplay}
                             </span>
                         </h6>

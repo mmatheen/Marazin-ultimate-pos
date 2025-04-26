@@ -18,7 +18,7 @@ return new class extends Migration
             $table->date('sales_date');
             $table->enum('sale_type', ['POS', 'Normal'])->default('Normal'); // Added sale_type field
             $table->string('status');
-            $table->string('invoice_no')->nullable();
+            $table->string('invoice_no')->nullable()->unique();
             $table->decimal('subtotal', 15, 2)->default(0);
             $table->enum('discount_type', ['fixed', 'percentage'])->default('fixed');
             $table->decimal('discount_amount', 15, 2)->default(0);

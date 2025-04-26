@@ -178,7 +178,7 @@ class SaleController extends Controller
             'location_id' => 'required|integer|exists:locations,id',
             'sales_date' => 'required|date',
             'status' => 'required|string',
-            'invoice_no' => 'nullable|string',
+            'invoice_no' => 'nullable|string|unique:sales,invoice_no',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
@@ -210,18 +210,24 @@ class SaleController extends Controller
     
         try {
             $sale = DB::transaction(function () use ($request, $id) {
-                $isUpdate = $id !== null;
+               $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
-                $invoiceNo = $isUpdate ? $sale->invoice_no : Sale::generateInvoiceNo();
-    
+
+                $invoiceNo = $isUpdate ? $sale->invoice_no : null;
+                if (!$invoiceNo) {
+                    do {
+                        $invoiceNo = Sale::generateInvoiceNo();
+                    } while (Sale::where('invoice_no', $invoiceNo)->exists());
+                }
+
                 // Calculate amounts
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $finalTotal = $request->discount_type === 'percentage' 
                     ? $subtotal - ($subtotal * $discount / 100) 
                     : $subtotal - $discount;
-    
+
                 // Create the sale record first to get the ID
                 $sale->fill([
                     'customer_id' => $request->customer_id,
@@ -236,7 +242,6 @@ class SaleController extends Controller
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
                     'user_id' => auth()->id(),
-                    // Initialize payment fields with 0
                     'total_paid' => 0,
                     'total_due' => $finalTotal,
                     'amount_given' => 0,
