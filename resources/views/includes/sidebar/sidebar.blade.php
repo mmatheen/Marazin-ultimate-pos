@@ -8,7 +8,7 @@
               
                 <li><a href={{ route('dashboard') }} class="{{ set_active(['dashboard'])}}"><i class="feather-grid"></i> Admin Dashboard</a></li>
 
-                @canany(['view user', 'view role', 'view role & permission', 'view sales-commission-agent'])
+                 @canany(['view user', 'view role', 'view role & permission', 'view sales-commission-agent'])
                 <li class="submenu {{ set_active(['user'])}}">
                     <a href="#"><i class="fas fa-graduation-cap"></i> <span> User Management</span> <span class="menu-arrow"></span></a>
                     <ul>

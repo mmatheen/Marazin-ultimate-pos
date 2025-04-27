@@ -625,29 +625,24 @@
         return rowProductId == product.id && rowBatchId == batchId;
     });
 
-    // Calculate sale quantity (from the sale) and total available quantity
-    const currentSaleQuantity = existingRow ? 
-        parseInt(existingRow.querySelector('.quantity-input').value, 10) : 
-        saleQuantity;
-    const totalAvailableQuantity = batchQuantity;
-
     if (existingRow) {
         const quantityInput = existingRow.querySelector('.quantity-input');
+        const subtotalElement = existingRow.querySelector('.subtotal');
         let newQuantity = parseInt(quantityInput.value, 10) + saleQuantity;
 
-        if (newQuantity > totalAvailableQuantity && product.stock_alert !== 0) {
-            toastr.error(`You cannot add more than ${totalAvailableQuantity} units of this product.`, 'Warning');
+        if (newQuantity > batchQuantity && product.stock_alert !== 0) {
+            toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
             return;
         }
 
         quantityInput.value = newQuantity;
-        existingRow.querySelector('.price-input').value = price.toFixed(2);
-        existingRow.querySelector('.subtotal').textContent = formatAmountWithSeparators((newQuantity * price).toFixed(2));
+        const updatedSubtotal = newQuantity * price;
+        subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
 
         // Update the quantity display
         const quantityDisplay = existingRow.querySelector('.quantity-display');
         if (quantityDisplay) {
-            quantityDisplay.textContent = `${newQuantity} of ${totalAvailableQuantity} PC(s)`;
+            quantityDisplay.textContent = `${newQuantity} of ${batchQuantity} PC(s)`;
         }
 
         // Focus on the quantity input field
@@ -660,6 +655,9 @@
                 document.getElementById('productSearchInput').focus();
             }
         });
+
+        // Ensure totals are updated whenever a row is modified
+        updateTotals();
     } else {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -678,11 +676,11 @@
             <td>
                 <div class="d-flex justify-content-center">
                     <button class="btn btn-danger quantity-minus btn-sm">-</button>
-                    <input type="number" value="${saleQuantity}" min="1" max="${stockEntry.total_stock}" class="form-control quantity-input text-center">
+                    <input type="number" value="${saleQuantity}" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
                     <button class="btn btn-success quantity-plus btn-sm">+</button>
                 </div>
             </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${stockEntry.total_stock}" min="0"></td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}" min="0"></td>
             <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
             <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
             <td class="product-id d-none">${product.id}</td>
@@ -830,6 +828,28 @@
 
             const discountElement = document.getElementById('discount');
             const discountTypeElement = document.getElementById('discount-type');
+
+            if (discountElement) {
+                discountElement.addEventListener('input', () => {
+                    // Ensure percentage discount does not exceed 100
+                    if (discountTypeElement.value === 'percentage') {
+                        const discountValue = parseFloat(discountElement.value) || 0;
+                        if (discountValue > 100) {
+                            discountElement.value = 100; // Reset to maximum allowed percentage
+                            toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
+                        }
+                    }
+                    updateTotals();
+                });
+            }
+
+            if (discountTypeElement) {
+                discountTypeElement.addEventListener('change', () => {
+                    // Clear the discount value when toggling the discount type
+                    discountElement.value = '';
+                    updateTotals();
+                });
+            }
 
             const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
             const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
