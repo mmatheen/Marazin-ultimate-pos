@@ -99,172 +99,151 @@
             });
         }
 
-        // Fetch products data for autocomplete
-        function fetchProductsData() {
-            $.ajax({
-                url: '/products/stocks',
-                method: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        productsData = response.data; // Store products data
-                        setupAutocomplete(); // Initialize autocomplete
-                    }
-                },
-                error: function(error) {
-                    console.error('Error fetching products data:', error);
-                    toastr.error('Failed to fetch products data. Please try again.');
-                }
-            });
+     // Fetch products data for autocomplete
+function fetchProductsData() {
+    $.ajax({
+        url: '/products/stocks',
+        method: 'GET',
+        success: function (response) {
+            if (response.status === 200) {
+                // Sort products alphabetically by product name
+                productsData = response.data.sort((a, b) =>
+                    a.product.product_name.localeCompare(b.product.product_name)
+                );
+                setupAutocomplete(); // Initialize autocomplete
+            }
+        },
+        error: function (error) {
+            console.error('Error fetching products data:', error);
+            toastr.error('Failed to fetch products data. Please try again.');
         }
+    });
+}
 
-        // Initialize product autocomplete
-        function setupAutocomplete() {
-            const productNames = productsData.map(data => data.product.product_name);
+// Initialize product autocomplete
+function setupAutocomplete() {
+    const productNames = productsData.map(data => data.product.product_name);
 
-            $('#productSearchInput').autocomplete({
-                source: productNames,
-                select: function(event, ui) {
-                    const selectedProduct = productsData.find(data => data.product.product_name === ui.item.value);
-                    addProductToTable(selectedProduct);
-                    $(this).val(''); // Clear the search input
-                    return false;
-                }
+    $('#productSearchInput').autocomplete({
+        source: productNames,
+        select: function (event, ui) {
+            const selectedProduct = productsData.find(data => data.product.product_name === ui.item.value);
+            addOrUpdateProductInTable(selectedProduct);
+            $(this).val(''); // Clear the search input
+            return false;
+        },
+        open: function () {
+            // Set custom height for the dropdown
+            $('.ui-autocomplete').css({
+                'max-height': '200px', // Set max height for dropdown
+                'overflow-y': 'auto', // Enable scrolling
+                'overflow-x': 'hidden', // Prevent horizontal scrolling
+                'z-index': 1050, // Ensure dropdown is above other elements
             });
-        }
+        },
+    });
+}
 
-        // Add selected product to the table
-        function addProductToTable(productData) {
-            const product = productData.product;
-            const batches = productData.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
+// Add or update a product in the table
+function addOrUpdateProductInTable(productData) {
+    if (!productData || !productData.product) {
+        console.error('Invalid product data:', productData);
+        toastr.error('Invalid product data. Please try again.');
+        return;
+    }
+
+    const product = productData.product;
+
+    // Use a polyfill or fallback for flatMap for environments that don't support it
+    const batches = [].concat.apply(
+        [],
+        productData.batches.map(batch =>
+            batch.location_batches.map(locationBatch => ({
                 batch_id: batch.id,
                 batch_price: parseFloat(batch.retail_price),
-                batch_quantity: locationBatch.quantity
-            })));
+                batch_quantity: locationBatch.quantity,
+            }))
+        )
+    );
 
-            const batchOptions = batches.map(batch => `
-                <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
-                    Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price}
-                </option>
-            `).join('');
+    // Check if the product already exists in the table
+    const existingRow = $(`#productTableBody tr[data-product-id="${product.id}"]`);
+    if (existingRow.length > 0) {
+        // Product already exists, update the quantity
+        const quantityInput = existingRow.find('.quantity-input');
+        const currentQuantity = parseInt(quantityInput.val());
+        quantityInput.val(currentQuantity + 1).trigger('change'); // Increment the quantity
+        return;
+    }
 
-            const newRow = `
-                <tr class="add-row">
-                    <td>
-                        ${product.product_name}
-                        <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-                    </td>
-                    <td>
-                        <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                            ${batchOptions}
-                        </select>
-                        <div class="error-message batch-error"></div>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="1" required>
-                        <div class="error-message quantity-error text-danger"></div>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${batches[0].batch_price}" readonly>
-                    </td>
-                    <td class="add-remove text-end">
-                        <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
-                    </td>
-                </tr>
-            `;
+    // If the product does not exist, add a new row
+    const batchOptions = batches.map(batch => `
+        <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
+            Batch ${batch.batch_id} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price}
+        </option>
+    `).join('');
 
-            $('#productTableBody').append(newRow);
-            updateTotalAmount();
-            productIndex++; // Increment product index for unique naming
-        }
+    const newRow = `
+        <tr class="add-row" data-product-id="${product.id}">
+            <td>
+                ${product.product_name}
+                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+            </td>
+            <td>
+                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                    ${batchOptions}
+                </select>
+                <div class="error-message batch-error"></div>
+            </td>
+            <td>
+                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="1" required>
+                <div class="error-message quantity-error text-danger"></div>
+            </td>
+            <td>
+                <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
+            </td>
+            <td>
+                <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${batches[0].batch_price}" readonly>
+            </td>
+            <td class="add-remove text-end">
+                <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
+            </td>
+        </tr>
+    `;
 
-        // Populate form fields and product table
-        function populateForm(data) {
-            // Populate basic fields
-            $('#location_id').val(data.location_id);
-            $('#referenceNo').val(data.reference_no);
-            $('#adjustment_date').val(data.date.split(' ')[0]); // Format date to YYYY-MM-DD
-            $('#adjustmentType').val(data.adjustment_type);
-            $('#totalAmountRecovered').val(data.total_amount_recovered);
-            $('#reason').val(data.reason);
+    $('#productTableBody').append(newRow);
+    updateTotalAmount();
+    productIndex++; // Increment product index for unique naming
 
-            // Populate products table
-            const productTableBody = $('#productTableBody');
-            productTableBody.empty(); // Clear existing rows
+    // Add event listener for remove buttons for dynamically added rows
+    $('.remove-btn').off('click').on('click', function () {
+        $(this).closest('tr').remove();
+        updateTotalAmount();
+    });
 
-            let totalAmount = 0;
-            data.adjustment_products.forEach(product => {
-                const subtotal = parseFloat(product.subtotal).toFixed(2);
-                totalAmount += parseFloat(subtotal);
+    // Add event listeners for batch and quantity changes
+    $(document).off('change', '.batch-select, .quantity-input').on('change', '.batch-select, .quantity-input', function () {
+        const row = $(this).closest('tr');
+        const selectedBatch = row.find('.batch-select option:selected');
+        const unitPrice = parseFloat(selectedBatch.data('price'));
+        const quantity = parseFloat(row.find('.quantity-input').val());
+        const subtotal = quantity * unitPrice;
 
-                const row = `
-                    <tr class="add-row">
-                        <td>
-                            ${product.product.product_name}
-                            <input type="hidden" name="products[${productIndex}][product_id]" value="${product.product.id}">
-                        </td>
-                        <td>
-                            <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                                <option value="${product.batch_id}" data-price="${product.unit_price}" data-quantity="${product.quantity}" selected>
-                                    Batch ${product.batch_id} - Qty: ${product.quantity} - Price: ${product.unit_price}
-                                </option>
-                            </select>
-                            <div class="error-message batch-error"></div>
-                        </td>
-                        <td>
-                            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${product.quantity}" required>
-                            <div class="error-message quantity-error text-danger"></div>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${product.unit_price}" readonly>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${subtotal}" readonly>
-                        </td>
-                        <td class="add-remove text-end">
-                            <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
-                        </td>
-                    </tr>
-                `;
-                productTableBody.append(row);
-                productIndex++; // Increment product index for unique naming
-            });
+        row.find('.unit-price').val(unitPrice.toFixed(2));
+        row.find('.sub_total').val(subtotal.toFixed(2));
+        updateTotalAmount();
+    });
+}
 
-            // Update total amount
-            $('#totalAmount').text(totalAmount.toFixed(2));
-
-            // Add event listener for remove buttons
-            $('.remove-btn').on('click', function() {
-                $(this).closest('tr').remove();
-                updateTotalAmount();
-            });
-
-            // Add event listeners for batch and quantity changes
-            $(document).on("change", ".batch-select, .quantity-input", function() {
-                const row = $(this).closest("tr");
-                const selectedBatch = row.find(".batch-select option:selected");
-                const unitPrice = parseFloat(selectedBatch.data("price"));
-                const quantity = parseFloat(row.find(".quantity-input").val());
-                const subtotal = quantity * unitPrice;
-
-                row.find(".unit-price").val(unitPrice.toFixed(2));
-                row.find(".sub_total").val(subtotal.toFixed(2));
-                updateTotalAmount();
-            });
-        }
-
-        // Update total amount in the footer
-        function updateTotalAmount() {
-            let totalAmount = 0;
-            $(".add-row").each(function() {
-                const subtotal = parseFloat($(this).find('input[name^="products"][name$="[sub_total]"]').val());
-                totalAmount += subtotal;
-            });
-            $('#totalAmount').text(totalAmount.toFixed(2));
-        }
-
+// Update total amount in the footer
+function updateTotalAmount() {
+    let totalAmount = 0;
+    $(".add-row").each(function () {
+        const subtotal = parseFloat($(this).find('input[name^="products"][name$="[sub_total]"]').val());
+        totalAmount += subtotal;
+    });
+    $('#totalAmount').text(totalAmount.toFixed(2));
+}
         // Form submission handler
         $('#stockAdjustmentForm').validate({
             rules: {
