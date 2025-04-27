@@ -291,7 +291,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/edit-stock-transfer/{id}', [StockTransferController::class, 'edit']);
 
         Route::get('/list-sale', [SaleController::class, 'listSale'])->name('list-sale');
-        Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
+        // Route::get('/add-sale', [SaleController::class, 'addSale'])->name('add-sale');
         Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);

@@ -134,9 +134,9 @@
                     <li><a href={{ route('list-sale') }} class="{{ set_active(['list-sale'])}}">All Sales</a></li>
                     @endcan
 
-                    @can('add sale')
+                    {{-- @can('add sale')
                     <li><a href={{ route('add-sale') }} class="{{ set_active(['add-sale'])}}">Add Sale</a></li>
-                    @endcan
+                    @endcan --}}
 
                     @can('view return-sale')
                     <li><a href="{{ route('sale-return/list') }}" class="{{ set_active(['sale-return/list']) }}">List Sale Return</a></li>
