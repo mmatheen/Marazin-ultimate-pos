@@ -287,9 +287,8 @@
             }
         });
 
-        // Submit form data via AJAX
-
-        fetchStockAdjustmentList();
+      // Fetch and populate the stock adjustment data
+fetchStockAdjustmentList();
 
 function fetchStockAdjustmentList() {
     $.ajax({
@@ -310,8 +309,8 @@ function fetchStockAdjustmentList() {
     });
 }
 
-function populateStockAdjustmentTable(data, userName) {
-    $('#stockAdjustmentTable').DataTable({
+function populateStockAdjustmentTable(data) {
+    const table = $('#stockAdjustmentTable').DataTable({
         destroy: true, // Destroy existing table to reinitialize
         data: data,
         columns: [
@@ -349,6 +348,45 @@ function populateStockAdjustmentTable(data, userName) {
             { targets: [8], orderable: false } // Disable sorting for the action column
         ]
     });
+
+    // Add event listener for row click
+    $('#stockAdjustmentTable tbody').on('click', 'tr', function() {
+        const rowData = table.row(this).data(); // Get data for the clicked row
+        if (rowData) {
+            showStockAdjustmentModal(rowData); // Show the modal with details
+        }
+    });
+}
+
+// Show the stock adjustment details in a modal
+function showStockAdjustmentModal(stockAdjustment) {
+    // Set modal title and basic details
+    $('#stockAdjustmentModal .modal-title').text(`Stock Adjustment Details - ${stockAdjustment.reference_no}`);
+    $('#stockAdjustmentModal .modal-date').text(`Date: ${stockAdjustment.date}`);
+    $('#stockAdjustmentModal .modal-location').text(`Location: ${stockAdjustment.location.name}`);
+    $('#stockAdjustmentModal .modal-type').text(`Type: ${stockAdjustment.adjustment_type}`);
+    $('#stockAdjustmentModal .modal-reason').text(`Reason: ${stockAdjustment.reason}`);
+    $('#stockAdjustmentModal .modal-user').text(`User: ${stockAdjustment.user.user_name}`);
+    
+    // Populate the products table
+    const productsTableBody = $('#stockAdjustmentModal .modal-products tbody');
+    productsTableBody.empty(); // Clear existing rows
+
+    stockAdjustment.adjustment_products.forEach(product => {
+        const row = `
+            <tr>
+                <td>${product.product.product_name}</td>
+                <td>${product.batch_id}</td>
+                <td>${product.quantity}</td>
+                <td>${product.unit_price}</td>
+                <td>${product.subtotal}</td>
+            </tr>
+        `;
+        productsTableBody.append(row);
+    });
+
+    // Show the modal
+    $('#stockAdjustmentModal').modal('show');
 }
 
         // Delete stock adjustment
