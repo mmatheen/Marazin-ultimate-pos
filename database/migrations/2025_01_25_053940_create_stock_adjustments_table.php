@@ -19,7 +19,10 @@ return new class extends Migration
             $table->enum('adjustment_type', ['increase', 'decrease']);
             $table->decimal('total_amount_recovered', 10, 2)->default(0);
             $table->text('reason')->nullable();
+            $table->unsignedBigInteger('user_id')->nullable(); 
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade'); 
         });
     }
 

@@ -16,7 +16,7 @@
         // Fetch stock adjustment data if editing
         if (stockAdjustmentId) {
             $.ajax({
-                url: `/api/edit-stock-adjustment/${stockAdjustmentId}`,
+                url: `/edit-stock-adjustment/${stockAdjustmentId}`,
                 method: 'GET',
                 success: function(response) {
                     if (response.stockAdjustment) {
@@ -37,7 +37,7 @@
             const formData = $(form).serialize();
 
             // Determine the URL and method based on whether we are updating or creating
-            const url = stockAdjustmentId ? `/api/stock-adjustment/update/${stockAdjustmentId}` : '/api/stock-adjustment/store';
+            const url = stockAdjustmentId ? `/stock-adjustment/update/${stockAdjustmentId}` : '/stock-adjustment/store';
             const method = stockAdjustmentId ? 'PUT' : 'POST';
 
             $.ajax({
@@ -51,7 +51,7 @@
                 success: function(data) {
                     if (data.message) {
                         toastr.success(data.message, 'Adjust');
-                        location.reload(); // Reload the page after successful submission
+                        window.location.href = '/list-stock-adjustment'; // Redirect to the list page
                     } else {
                         if (data.errors) {
                             for (const [key, value] of Object.entries(data.errors)) {
@@ -297,7 +297,7 @@ function fetchStockAdjustmentList() {
         method: 'GET',
         success: function(response) {
             if (response.status === 200) {
-                populateStockAdjustmentTable(response.stockAdjustment, response.userName);
+                populateStockAdjustmentTable(response.stockAdjustment);
             } else {
                 console.error('Error fetching stock adjustments:', response.message);
                 toastr.error('Failed to fetch stock adjustments. Please try again.');
@@ -329,7 +329,7 @@ function populateStockAdjustmentTable(data, userName) {
             },
             { data: 'total_amount_recovered' },
             { data: 'reason' },
-            { data: 'userName' }, // Assuming 'userName' is part of the response
+            { data: 'user.user_name' }, // Assuming 'userName' is part of the response
             {
                 data: 'id',
                 render: function(data, type, row) {

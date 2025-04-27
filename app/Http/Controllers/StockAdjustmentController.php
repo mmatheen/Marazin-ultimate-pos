@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\StockAdjustment;
 use App\Models\AdjustmentProduct;
 use App\Models\Batch;
-use App\Models\Location;
+use App\Models\User;
 use App\Models\LocationBatch;
 use App\Models\Product;
 use App\Models\StockHistory;
@@ -24,17 +24,14 @@ class StockAdjustmentController extends Controller
 
     public function index()
     {
-        // Fetch all stock adjustments with related products and location
-        $stockAdjustments = StockAdjustment::with('adjustmentProducts.product', 'location')->get();
+        // Fetch all stock adjustments with related products, location, and user
+        $stockAdjustments = StockAdjustment::with('adjustmentProducts.product', 'location', 'user')->get();
 
-                // Get the authenticated user
-            $user = auth()->user();
-
-            return response()->json([
-                'status' => 200,
-                'stockAdjustment' => $stockAdjustments,
-                'userName' => $user->name, // Add the user's name to the response
-            ]);
+        // Return response as JSON
+        return response()->json([
+            'status' => 200,
+            'stockAdjustment' => $stockAdjustments,
+        ]);
     }
 
     public function addStockAdjustment()
@@ -80,6 +77,7 @@ class StockAdjustmentController extends Controller
                 'adjustment_type' => $request->adjustment_type,
                 'total_amount_recovered' => $request->total_amount_recovered,
                 'reason' => $request->reason,
+                'user_id' => auth()->id(), 
             ])->save();
 
             // Delete existing adjustment products if updating
@@ -155,11 +153,11 @@ class StockAdjustmentController extends Controller
     }
 
     // Show details of a specific stock adjustment
-    public function show(StockAdjustment $stockAdjustment)
-    {
-        $stockAdjustment->load('adjustmentProducts.product', 'location');
-        return view('stock_adjustments.show', compact('stockAdjustment'));
-    }
+    // public function show(StockAdjustment $stockAdjustment)
+    // {
+    //     $stockAdjustment->load('adjustmentProducts.product', 'location');
+    //     return view('stock_adjustments.show', compact('stockAdjustment'));
+    // }
 
     public function edit($id)
     {

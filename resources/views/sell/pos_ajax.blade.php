@@ -809,88 +809,75 @@
         };
 
         function updateTotals() {
-            const billingBody = document.getElementById('billing-body');
-            let totalItems = 0;
-            let totalAmount = 0;
+    const billingBody = document.getElementById('billing-body');
+    let totalItems = 0;
+    let totalAmount = 0;
 
-            billingBody.querySelectorAll('tr').forEach(row => {
-                const quantity = parseInt(row.querySelector('.quantity-input').value);
+    // Calculate total items and total amount
+    billingBody.querySelectorAll('tr').forEach(row => {
+        const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
+        const price = parseFloat(row.querySelector('.price-input').value) || 0;
+        const subtotal = quantity * price;
 
-                const price = parseFloat(row.querySelector('.price-input').value);
-                const subtotal = quantity * price;
+        row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal.toFixed(2));
 
-                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
-                    .toFixed(2));
+        totalItems += quantity;
+        totalAmount += subtotal;
+    });
 
-                totalItems += quantity;
-                totalAmount += subtotal;
-            });
+    const discountElement = document.getElementById('discount');
+    const discountTypeElement = document.getElementById('discount-type');
 
-            const discountElement = document.getElementById('discount');
-            const discountTypeElement = document.getElementById('discount-type');
+    // Get discount value and type
+    const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+    const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
-            if (discountElement) {
-                discountElement.addEventListener('input', () => {
-                    // Ensure percentage discount does not exceed 100
-                    if (discountTypeElement.value === 'percentage') {
-                        const discountValue = parseFloat(discountElement.value) || 0;
-                        if (discountValue > 100) {
-                            discountElement.value = 100; // Reset to maximum allowed percentage
-                            toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
-                        }
-                    }
-                    updateTotals();
-                });
+    let totalAmountWithDiscount;
+
+    // Apply discount logic
+    if (discountType === 'percentage') {
+        totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
+    } else {
+        totalAmountWithDiscount = totalAmount - discount;
+    }
+
+    // Ensure totals are not negative
+    totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
+
+    // Update UI
+    document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
+    document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+    document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount.toFixed(2));
+    document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+    document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+    document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+}
+
+// Attach event listeners for discount input and type dropdown
+const discountElement = document.getElementById('discount');
+const discountTypeElement = document.getElementById('discount-type');
+
+if (discountElement) {
+    discountElement.addEventListener('input', () => {
+        // Ensure percentage discount does not exceed 100
+        if (discountTypeElement && discountTypeElement.value === 'percentage') {
+            const discountValue = parseFloat(discountElement.value) || 0;
+            if (discountValue > 100) {
+                discountElement.value = 100; // Reset to maximum allowed percentage
+                toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
             }
-
-            if (discountTypeElement) {
-                discountTypeElement.addEventListener('change', () => {
-                    // Clear the discount value when toggling the discount type
-                    discountElement.value = '';
-                    updateTotals();
-                });
-            }
-
-            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
-            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
-
-            let totalAmountWithDiscount;
-
-            console.log("final_amount " + totalAmountWithDiscount);
-
-            if (discountType === 'percentage') {
-                totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
-            } else {
-                totalAmountWithDiscount = totalAmount - discount;
-            }
-
-            console.log("finaltotal " + totalAmountWithDiscount);
-
-            document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
-            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-            document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
-                .toFixed(2));
-            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
-
-
-            document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
-                .toFixed(2));
-            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
         }
+        updateTotals();
+    });
+}
 
-        const discountElement = document.getElementById('discount');
-        const discountTypeElement = document.getElementById('discount-type');
-
-        if (discountElement) {
-            discountElement.addEventListener('input', updateTotals);
-        }
-
-        if (discountTypeElement) {
-            discountTypeElement.addEventListener('change', updateTotals);
-        }
-
+if (discountTypeElement) {
+    discountTypeElement.addEventListener('change', () => {
+        // Clear the discount value when toggling the discount type
+        if (discountElement) discountElement.value = '';
+        updateTotals();
+    });
+}
 
         let saleId = null;
 

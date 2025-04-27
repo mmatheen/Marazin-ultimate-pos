@@ -16,6 +16,7 @@ class StockAdjustment extends Model
         'adjustment_type',
         'total_amount_recovered',
         'reason',
+        'user_id',
     ];
 
     // Relationship with AdjustmentProduct
@@ -28,5 +29,11 @@ class StockAdjustment extends Model
     public function location()
     {
         return $this->belongsTo(Location::class);
+    }
+
+    // Relationship with User
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }
