@@ -40,7 +40,8 @@ use App\Http\Controllers\{
     StockAdjustmentController,
     CartController,
     PaymentController,
-    DiscountController
+    DiscountController,
+    ReportController,
 };
 
 
@@ -407,5 +408,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
         Route::get('/discounts/export', [DiscountController::class, 'export'])->name('discounts.export');
         Route::get('/discounts/{discount}/products', [DiscountController::class, 'getProducts'])->name('discounts.products');
+    
+    
+        //report routes
+        Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
+    
     });
 });

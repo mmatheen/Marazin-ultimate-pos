@@ -206,7 +206,7 @@ function addOrUpdateProductInTable(productData) {
                 <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${batches[0].batch_price}" readonly>
             </td>
             <td class="add-remove text-end">
-                <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
+                <a href="javascript:void(0);" class="remove-btn text-danger"><i class="fas fa-trash"></i></a>
             </td>
         </tr>
     `;

@@ -268,106 +268,114 @@
 
 
         // Fetch all products from the server
-        function fetchAllProducts() {
-            showLoader();
+function fetchAllProducts() {
+    showLoader();
 
-            fetch('/products/stocks')
-                .then(response => response.json())
-                .then(data => {
-                    hideLoader(); // Hide loader after fetching
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        stockData = data.data;
-                        // Populate the global allProducts array
-                        allProducts = stockData.map(stock => ({
-                            ...stock.product,
-                            total_stock: stock.total_stock
-                        }));
-                        displayProducts(stockData);
-                        initAutocomplete();
-                    } else {
-                        console.error('Invalid data:', data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
-        }
+    fetch('/products/stocks')
+        .then(response => response.json())
+        .then(data => {
+            hideLoader(); // Hide loader after fetching
+            if (data.status === 200 && Array.isArray(data.data)) {
+                stockData = data.data;
+                // Populate the global allProducts array
+                allProducts = stockData.map(stock => ({
+                    ...stock.product,
+                    total_stock: stock.total_stock,
+                    location_id: stock.batches.length > 0 && stock.batches[0].location_batches.length > 0
+                        ? stock.batches[0].location_batches[0].location_id
+                        : null // Fetch location_id dynamically
+                }));
+                displayProducts(stockData);
+                initAutocomplete();
+            } else {
+                console.error('Invalid data:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+}
 
-        function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.product_name && product.product_name.toLowerCase().includes(
-                            searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
-
-                    response(filteredProducts.length ?
-                        filteredProducts.map(p => ({
-                            label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
-                            value: p.product_name,
-                            product: p
-                        })) : [{
-                            label: "No products found",
-                            value: ""
-                        }]
-                    );
-
-                    if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(
-                        filteredProducts[0]);
-                },
-                select: function(event, ui) {
-                    if (!ui.item.product) return false;
-                    $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product);
-                    return false;
-                },
-                focus: function(event, ui) {
-                    $("#productSearchInput").val(ui.item.value);
-                    return false;
-                },
-                minLength: 1,
-                open: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                },
-                close: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                const $li = $("<li>").append(
-                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
-                ).appendTo(ul);
-
-                $li.data("ui-autocomplete-item", item);
-                $li.on("mouseenter", function() {
-                    $(this).addClass("ui-state-focus");
-                }).on("mouseleave", function() {
-                    $(this).removeClass("ui-state-focus");
+function initAutocomplete() {
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
+            const filteredProducts = allProducts
+                .filter(product =>
+                    (product.product_name && product.product_name.toLowerCase().startsWith(searchTerm)) ||
+                    (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
+                )
+                .sort((a, b) => {
+                    const nameA = a.product_name?.toLowerCase() || '';
+                    const nameB = b.product_name?.toLowerCase() || '';
+                    return nameA.localeCompare(nameB); // Sort alphabetically
                 });
 
-                return $li;
-            };
+            response(filteredProducts.length ?
+                filteredProducts.map(p => ({
+                    label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
+                    value: p.product_name,
+                    product: p
+                })) : [{
+                    label: "No products found",
+                    value: ""
+                }]
+            );
 
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-                if (!this.menu.element.is(":visible")) {
-                    this.search(null, event);
-                    return;
-                }
-                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-                    this.menu.isLastItem() && /^next/.test(direction)) {
-                    this._value(this.term);
-                    this.menu.blur();
-                    return;
-                }
-                this.menu[direction](event);
-                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                this.menu.active.addClass("ui-state-focus");
-            };
+            if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(
+                filteredProducts[0]);
+        },
+        select: function(event, ui) {
+            if (!ui.item.product) return false;
+            $("#productSearchInput").val("");
+            addProductToTable(ui.item.product);
+            return false;
+        },
+        focus: function(event, ui) {
+            $("#productSearchInput").val(ui.item.value);
+            return false;
+        },
+        minLength: 1,
+        open: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+        },
+        close: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
         }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        const $li = $("<li>").append(
+            `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+        ).appendTo(ul);
+
+        $li.data("ui-autocomplete-item", item);
+        $li.on("mouseenter", function() {
+            $(this).addClass("ui-state-focus");
+        }).on("mouseleave", function() {
+            $(this).removeClass("ui-state-focus");
+        });
+
+        return $li;
+    };
+
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+        if (!this.menu.element.is(":visible")) {
+            this.search(null, event);
+            return;
+        }
+        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+            this.menu.isLastItem() && /^next/.test(direction)) {
+            this._value(this.term);
+            this.menu.blur();
+            return;
+        }
+        this.menu[direction](event);
+        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+        this.menu.active.addClass("ui-state-focus");
+    };
+}
 
         function displayProducts(products) {
             posProduct.innerHTML = ''; // Clear previous products
@@ -480,54 +488,54 @@
         let selectedRow;
 
         function addProductToTable(product) {
-            console.log("Product to be added:", product);
+    console.log("Product to be added:", product);
 
-            if (!stockData || stockData.length === 0) {
-                console.error('stockData is not defined or empty');
-                toastr.error('Stock data is not available', 'Error');
-                return;
-            }
+    if (!stockData || stockData.length === 0) {
+        console.error('stockData is not defined or empty');
+        toastr.error('Stock data is not available', 'Error');
+        return;
+    }
 
-            const stockEntry = stockData.find(stock => stock.product.id === product.id);
-            console.log("stockEntry", stockEntry);
+    const stockEntry = stockData.find(stock => stock.product.id === product.id);
+    console.log("stockEntry", stockEntry);
 
-            if (!stockEntry) {
-                toastr.error('Stock entry not found for the product', 'Error');
-                return;
-            }
+    if (!stockEntry) {
+        toastr.error('Stock entry not found for the product', 'Error');
+        return;
+    }
 
-            const totalQuantity = stockEntry.total_stock;
+    const totalQuantity = stockEntry.total_stock;
 
-            if (totalQuantity === 0 && product.stock_alert !== 0) {
-                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-                return;
-            }
+    if (totalQuantity === 0 && product.stock_alert !== 0) {
+        toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+        return;
+    }
 
-            if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-                if (product.stock_alert === 0) {
-                    // Product does not have batches but has unlimited stock
-                    locationId = 1; // Set a default location ID (replace with your logic)
-                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity,
-                        'retail');
-                } else {
-                    // Product doesn't have unlimited stock but has no batches - treat as available
-                    locationId = 1; // Set a default location ID (replace with your logic)
-                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity,
-                        'retail');
-                }
-                return;
-            }
-
-            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
-                .quantity > 0);
-            if (locationBatches.length === 0) {
-                toastr.error('No batches with quantity found', 'Error');
-                return;
-            }
-
-            locationId = locationBatches[0].location_id; // Set locationId from the first available batch
-            addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
+    if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
+        if (product.stock_alert === 0) {
+            // Product does not have batches but has unlimited stock
+            locationId = product.location_id || 1; // Use dynamic location_id or default to 1
+            addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity,
+                'retail');
+        } else {
+            // Product doesn't have unlimited stock but has no batches - treat as available
+            locationId = product.location_id || 1; // Use dynamic location_id or default to 1
+            addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity,
+                'retail');
         }
+        return;
+    }
+
+    const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
+        .quantity > 0);
+    if (locationBatches.length === 0) {
+        toastr.error('No batches with quantity found', 'Error');
+        return;
+    }
+
+    locationId = locationBatches[0].location_id; // Set locationId from the first available batch
+    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
+}
 
         function showProductModal(product, stockEntry, row) {
             const modalBody = document.getElementById('productModalBody');
@@ -625,13 +633,17 @@
         return rowProductId == product.id && rowBatchId == batchId;
     });
 
+    // Adjust the batch quantity based on the saleQuantity (previously sold quantity)
+    const adjustedBatchQuantity = batchQuantity + saleQuantity;
+
     if (existingRow) {
         const quantityInput = existingRow.querySelector('.quantity-input');
         const subtotalElement = existingRow.querySelector('.subtotal');
         let newQuantity = parseInt(quantityInput.value, 10) + saleQuantity;
 
-        if (newQuantity > batchQuantity && product.stock_alert !== 0) {
-            toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
+        // Validate against the adjusted batch quantity
+        if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+            toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`, 'Warning');
             return;
         }
 
@@ -642,7 +654,7 @@
         // Update the quantity display
         const quantityDisplay = existingRow.querySelector('.quantity-display');
         if (quantityDisplay) {
-            quantityDisplay.textContent = `${newQuantity} of ${batchQuantity} PC(s)`;
+            quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
         }
 
         // Focus on the quantity input field
@@ -660,34 +672,36 @@
         updateTotals();
     } else {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                    <div class="product-info">
-                        <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || product.max_retail_price}</span></div>
-                        <div class="text-muted me-2">${product.sku}  
-                            <span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>
-                            <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                        <div class="product-info">
+                            <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px; overflow-wrap: break-word; white-space: normal;">
+                                ${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || product.max_retail_price}</span>
+                            </div>
+                            <div class="text-muted me-2">${product.sku}  
+                                ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
+                                <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </td>
-            <td>
-                <div class="d-flex justify-content-center">
-                    <button class="btn btn-danger quantity-minus btn-sm">-</button>
-                    <input type="number" value="${saleQuantity}" min="1" max="${batchQuantity}" class="form-control quantity-input text-center">
-                    <button class="btn btn-success quantity-plus btn-sm">+</button>
-                </div>
-            </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${batchQuantity}" min="0"></td>
-            <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
-            <td class="product-id d-none">${product.id}</td>
-            <td class="location-id d-none">${locationId}</td>
-            <td class="batch-id d-none">${batchId}</td>
-            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-        `;
+                </td>
+                <td>
+                    <div class="d-flex justify-content-center">
+                        <button class="btn btn-danger quantity-minus btn-sm">-</button>
+                        <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center">
+                        <button class="btn btn-success quantity-plus btn-sm">+</button>
+                    </div>
+                </td>
+                <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+                <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
+                <td><button class="btn btn-danger btn-sm remove-btn" style="cursor: pointer;">x</button></td>
+                <td class="product-id d-none">${product.id}</td>
+                <td class="location-id d-none">${locationId}</td>
+                <td class="batch-id d-none">${batchId}</td>
+                <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+            `;
         billingBody.insertBefore(row, billingBody.firstChild);
         attachRowEventListeners(row, product, stockEntry);
 
@@ -708,66 +722,80 @@
     }
 }
 
-        function attachRowEventListeners(row, product, stockEntry) {
-            const quantityInput = row.querySelector('.quantity-input');
-            const priceInput = row.querySelector('.price-input');
-            const quantityMinus = row.querySelector('.quantity-minus');
-            const quantityPlus = row.querySelector('.quantity-plus');
-            const removeBtn = row.querySelector('.remove-btn');
-            const productImage = row.querySelector('.product-image');
-            const productName = row.querySelector('.product-name');
+function attachRowEventListeners(row, product, stockEntry) {
+    const quantityInput = row.querySelector('.quantity-input');
+    const priceInput = row.querySelector('.price-input');
+    const quantityMinus = row.querySelector('.quantity-minus');
+    const quantityPlus = row.querySelector('.quantity-plus');
+    const removeBtn = row.querySelector('.remove-btn');
+    const productImage = row.querySelector('.product-image');
+    const productName = row.querySelector('.product-name');
 
-            quantityMinus.addEventListener('click', () => {
-                if (quantityInput.value > 1) {
-                    quantityInput.value--;
-                    updateTotals();
-                }
-            });
-
-            quantityPlus.addEventListener('click', () => {
-                let newQuantity = parseInt(quantityInput.value, 10) + 1;
-                if (newQuantity > parseInt(priceInput.getAttribute('data-quantity'), 10) && product
-                    .stock_alert !== 0) {
-                    document.getElementsByClassName('errorSound')[0].play();
-                    toastr.error(
-                        `You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`,
-                        'Error');
-                } else {
-                    quantityInput.value = newQuantity;
-                    updateTotals();
-                }
-            });
-
-            quantityInput.addEventListener('input', () => {
-                const quantityValue = parseInt(quantityInput.value, 10);
-                if (quantityValue > parseInt(priceInput.getAttribute('data-quantity'), 10) && product
-                    .stock_alert !== 0) {
-                    quantityInput.value = priceInput.getAttribute('data-quantity');
-                    document.getElementsByClassName('errorSound')[0].play();
-                    toastr.error(
-                        `You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`,
-                        'Error');
-                }
-                updateTotals();
-            });
-
-            priceInput.addEventListener('input', () => {
-                updateTotals();
-            });
-
-            removeBtn.addEventListener('click', () => {
-                row.remove();
-                updateTotals();
-            });
-
-            productImage.addEventListener('click', () => {
-                showProductModal(product, stockEntry, row);
-            });
-
-            productName.addEventListener('click', () => {
-                showProductModal(product, stockEntry, row);
-            });
+    // Helper function to validate and update quantities
+    const validateAndUpdateQuantity = (newQuantity) => {
+        const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+        if (newQuantity > maxQuantity && product.stock_alert !== 0) {
+            document.getElementsByClassName('errorSound')[0]?.play();
+            toastr.error(
+                `You cannot add more than ${maxQuantity} units of this product.`,
+                'Error'
+            );
+            return false;
         }
+        quantityInput.value = newQuantity;
+        updateTotals();
+        return true;
+    };
+
+    // Event listener for the minus button
+    quantityMinus.addEventListener('click', () => {
+        const currentQuantity = parseInt(quantityInput.value, 10);
+        if (currentQuantity > 1) {
+            validateAndUpdateQuantity(currentQuantity - 1);
+        }
+    });
+
+    // Event listener for the plus button
+    quantityPlus.addEventListener('click', () => {
+        const currentQuantity = parseInt(quantityInput.value, 10);
+        validateAndUpdateQuantity(currentQuantity + 1);
+    });
+
+    // Event listener for direct input in the quantity field
+    quantityInput.addEventListener('input', () => {
+        let quantityValue = parseInt(quantityInput.value, 10);
+        if (isNaN(quantityValue) || quantityValue < 1) {
+            quantityValue = 1; // Default to 1 if invalid input
+        }
+        validateAndUpdateQuantity(quantityValue);
+    });
+
+    // Event listener for price input field
+    priceInput.addEventListener('input', () => {
+        const priceValue = parseFloat(priceInput.value);
+        if (isNaN(priceValue) || priceValue < 0) {
+            toastr.error('Invalid price entered.', 'Error');
+            priceInput.value = '0.00'; // Default to 0 if invalid input
+        }
+        updateTotals();
+    });
+
+    // Event listener for the remove button
+    removeBtn.addEventListener('click', () => {
+        row.remove();
+        updateTotals();
+    });
+
+    // Event listener for product image click
+    productImage.addEventListener('click', () => {
+        showProductModal(product, stockEntry, row);
+    });
+
+    // Event listener for product name click
+    productName.addEventListener('click', () => {
+        showProductModal(product, stockEntry, row);
+    });
+}
 
 
         document.getElementById('saveProductChanges').onclick = function() {
@@ -926,6 +954,7 @@ if (discountTypeElement) {
                         batches = [...stockEntry.batches];
                     }
 
+                    // Add sold quantity back to the batch to temporarily restore the original state
                     const originalBatchExists = batches.some(batch =>
                         batch.id === saleProduct.batch?.id
                     );
@@ -933,18 +962,15 @@ if (discountTypeElement) {
                     if (originalBatchExists && saleProduct.batch) {
                         batches = batches.map(batch => {
                             if (batch.id === saleProduct.batch.id) {
-                                const updatedLocationBatches = batch
-                                    .location_batches.map(lb => {
-                                        if (lb.location_id === saleProduct
-                                            .location_id) {
-                                            return {
-                                                ...lb,
-                                                quantity: lb.quantity +
-                                                    saleProduct.quantity
-                                            };
-                                        }
-                                        return lb;
-                                    });
+                                const updatedLocationBatches = batch.location_batches.map(lb => {
+                                    if (lb.location_id === saleProduct.location_id) {
+                                        return {
+                                            ...lb,
+                                            quantity: lb.quantity + saleProduct.quantity // Add sold quantity back
+                                        };
+                                    }
+                                    return lb;
+                                });
 
                                 return {
                                     ...batch,
@@ -962,13 +988,12 @@ if (discountTypeElement) {
                             special_price: saleProduct.batch.special_price,
                             location_batches: [{
                                 location_id: saleProduct.location_id,
-                                quantity: saleProduct
-                                    .total_quantity
+                                quantity: saleProduct.total_quantity + saleProduct.quantity // Add sold quantity back
                             }]
                         });
                     }
 
-                    let totalStock = saleProduct.total_quantity;
+                    let totalStock = saleProduct.total_quantity + saleProduct.quantity; // Add sold quantity back
                     if (stockEntry) {
                         totalStock = batches.reduce((sum, batch) => {
                             return sum + batch.location_batches.reduce((batchSum,

@@ -238,108 +238,103 @@
     </div>
 
     <script>
+        $(function() {
+            var start = moment(); // Default start date is today
+            var end = moment();   // Default end date is also today
 
-$(function() {
-    var start = moment(); // Default start date is today
-    var end = moment();   // Default end date is also today
+            function cb(start, end) {
+                $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+            }
 
-    function cb(start, end) {
-        $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
-    }
+            $('#reportrange').daterangepicker({
+                startDate: start,
+                endDate: end,
+                ranges: {
+                    'Today': [moment(), moment()],
+                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                }
+            }, cb);
 
-    $('#reportrange').daterangepicker({
-        startDate: start,
-        endDate: end,
-        ranges: {
-            'Today': [moment(), moment()],
-            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-            'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-            'This Month': [moment().startOf('month'), moment().endOf('month')],
-            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-        }
-    }, cb);
-
-    cb(start, end);
-});
+            cb(start, end);
+        });
 
         document.addEventListener('DOMContentLoaded', () => {
             const customerFilter = document.getElementById('customerFilter');
             const paymentMethodFilter = document.getElementById('paymentMethodFilter');
-    
+
             if (!customerFilter || !paymentMethodFilter) {
                 console.error('Customer filter or payment method filter element not found.');
                 return;
             }
-    
+
             const filters = {
                 customer_id: customerFilter.value,
                 payment_method: paymentMethodFilter.value,
-                start_date: moment().subtract(29, 'days').format('YYYY-MM-DD'),
-                end_date: moment().format('YYYY-MM-DD')
+                start_date: moment().format('YYYY-MM-DD'), // Default to today's date
+                end_date: moment().format('YYYY-MM-DD')    // Default to today's date
             };
-    
-            fetchSalesData(filters);
-    
+
+            fetchSalesData(filters); // Fetch sales data for today's date by default
+
             $('#reportrange').on('apply.daterangepicker', (ev, picker) => {
                 filters.start_date = picker.startDate.format('YYYY-MM-DD');
                 filters.end_date = picker.endDate.format('YYYY-MM-DD');
                 fetchSalesData(filters);
             });
-    
+
             async function fetchSalesData(filters = {}) {
                 const params = new URLSearchParams(filters);
                 const url = `/daily-sales-report?${params.toString()}`;
                 console.log('Fetching data from:', url); // Debugging line
                 try {
                     const response = await fetch(url);
-    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
                     }
-    
+
                     const data = await response.json();
-                    if (!data.sales || data.sales.length === 0) {
-                        alert(data.message || 'No sales data found.');
-                        return;
-                    }
-    
+                    const filteredSales = data.sales || []; // Default to an empty array if no sales data
+                    const filteredSalesReturns = data.salesReturns || []; // Default to an empty array if no sales return data
+
                     // Filter data on the frontend based on selected filters
-                    const filteredSales = filterSalesData(data.sales, filters);
-                    const filteredSalesReturns = filterSalesReturnsData(data.salesReturns, filters);
                     const filteredSummaries = calculateSummaries(filteredSales, filteredSalesReturns);
-    
+
                     populateTable(filteredSales, filteredSalesReturns);
                     updateSummaries(filteredSummaries);
                 } catch (error) {
                     console.error('Error fetching sales data:', error);
-                    alert('An error occurred while fetching sales data.');
+                    populateTable([], []); // Populate the table with no data on error
                 }
             }
-    
+
             function filterSalesData(sales, filters) {
                 return sales.filter(sale => {
                     const customerMatch = filters.customer_id ? sale.customer_id == filters.customer_id : true;
                     const paymentMethodMatch = filters.payment_method ? sale.payments.some(payment => payment.payment_method === filters.payment_method) : true;
                     const dateMatch = filters.start_date && filters.end_date ? isDateInRange(sale.sales_date, filters.start_date, filters.end_date) : true;
-    
+
                     return customerMatch && paymentMethodMatch && dateMatch;
                 });
             }
-    
+
             function filterSalesReturnsData(salesReturns, filters) {
                 return salesReturns.filter(saleReturn => {
                     const dateMatch = filters.start_date && filters.end_date ? isDateInRange(saleReturn.return_date, filters.start_date, filters.end_date) : true;
-    
+
                     return dateMatch;
                 });
             }
-    
+
             function isDateInRange(date, startDate, endDate) {
                 const saleDate = moment(date, 'YYYY-MM-DD');
                 return saleDate.isBetween(startDate, endDate, 'day', '[]');
             }
-    
+
             function calculateSummaries(sales, salesReturns) {
                 const summaries = {
                     billTotal: 0,
@@ -365,7 +360,7 @@ $(function() {
                     expenseSummary: 0,
                     cashInHand: 0
                 };
-    
+
                 sales.forEach(sale => {
                     summaries.billTotal += parseFloat(sale.subtotal);
                     summaries.discounts += parseFloat(sale.discount_amount);
@@ -391,31 +386,31 @@ $(function() {
                                 break;
                         }
                     });
-    
+
                     summaries.paymentTotal += parseFloat(sale.final_total);
                 });
-    
+
                 salesReturns.forEach(saleReturn => {
                     summaries.salesReturns += parseFloat(saleReturn.return_total);
                     summaries.salesReturnsTotal += parseFloat(saleReturn.return_total);
                 });
-    
+
                 summaries.netIncome = summaries.paymentTotal - summaries.salesReturns;
                 summaries.cashPaymentsSummary = summaries.cashPayments;
                 summaries.creditCollectionNewSummary = summaries.creditCollectionNew;
                 summaries.creditCollectionOldSummary = summaries.creditCollectionOld;
                 summaries.expenseSummary = summaries.expense;
                 summaries.cashInHand = summaries.cashPayments - summaries.expense;
-    
+
                 return summaries;
             }
-    
+
             function populateTable(sales, salesReturns) {
                 const table = $('#salesTable').DataTable({
                     lengthMenu: [
-                    [10, 20, 50, 75, 100, -1],
-                    [10, 20, 50, 75, 100, "All"]
-                ],
+                        [10, 20, 50, 75, 100, -1],
+                        [10, 20, 50, 75, 100, "All"]
+                    ],
                     destroy: true, // Destroy any existing table instance
                     data: [], // Initialize with empty data
                     columns: [
@@ -437,7 +432,7 @@ $(function() {
                         { title: "Sales Return" }
                     ]
                 });
-    
+
                 const tableData = sales.map(sale => {
                     // Initialize payment amounts
                     let cash = 0,
@@ -447,7 +442,7 @@ $(function() {
                         card = 0,
                         returnAmount = 0,
                         credit = 0;
-    
+
                     // Map payments to their respective columns
                     sale.payments.forEach(payment => {
                         switch (payment.payment_method) {
@@ -474,11 +469,11 @@ $(function() {
                                 break;
                         }
                     });
-    
+
                     // Find sales return for the current sale
                     const saleReturn = salesReturns.find(returnItem => returnItem.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total).toFixed(2) : '0.00';
-    
+
                     return [
                         sale.invoice_no,
                         `${sale.customer?.first_name} ${sale.customer?.last_name || ''}`,
@@ -498,9 +493,13 @@ $(function() {
                         salesReturnAmount
                     ];
                 });
-    
+
                 table.clear().rows.add(tableData).draw();
-    
+
+                if (tableData.length === 0) {
+                    $('#salesTable tbody').html('<tr><td colspan="16" class="text-center">No records found</td></tr>');
+                }
+
                 // Calculate totals for each column
                 const totals = tableData.reduce((acc, row) => {
                     acc.lineTotal += parseFloat(row[3]);
