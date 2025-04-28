@@ -140,6 +140,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         // import / export excel
         Route::get('/excel-product-blank-template-export', [ProductController::class, 'exportBlankTemplate'])->name('excel-product-blank-template-export');
+        Route::get('/products/export-template', [ProductController::class, 'exportProducts'])->name('products.export-template');
         Route::post('/import-product-excel-store', [ProductController::class, 'importProductStore'])->name('import-product-excel-store');
 
         Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
