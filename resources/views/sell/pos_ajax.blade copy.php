@@ -512,17 +512,19 @@ function showProductModal(product, stockEntry, row) {
     //             break;
     //     }
     //     });
-
     function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
     const billingBody = document.getElementById('billing-body');
     const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-        const productNameCell = row.querySelector('.product-name');
-        return productNameCell && productNameCell.textContent === product.product_name;
+        const productIdCell = row.querySelector('.product-id');
+        const batchIdCell = row.querySelector('.batch-id');
+        return productIdCell && batchIdCell && 
+               productIdCell.textContent === String(product.id) && 
+               batchIdCell.textContent === String(batchId);
     });
 
     if (existingRow) {
         const quantityInput = existingRow.querySelector('.quantity-input');
-        let newQuantity = parseInt(quantityInput.value, 10) + 1;
+        let newQuantity = parseInt(quantityInput.value, 10);
 
         if (newQuantity > batchQuantity) {
             toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
@@ -679,7 +681,7 @@ function updateTotals() {
     const discount = parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0;
 
     const subtotalAmount = totalAmount - discount;
-    const totalAmountWithTaxAndShipping = subtotalAmount;
+    const totalAmountWithTaxAndShipping = subtotalAmount; // Add tax/shipping logic if needed
 
     document.getElementById('items-count').textContent = totalItems.toFixed(2);
     document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
@@ -687,6 +689,7 @@ function updateTotals() {
     document.getElementById('total').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
     document.getElementById('payment-amount').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
 }
+
 
 document.getElementById('discount').addEventListener('input', () => {
     document.getElementById('discount').value = formatNumber(parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0);

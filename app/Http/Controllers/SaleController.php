@@ -422,13 +422,7 @@ class SaleController extends Controller
     $batchIds = [];
     $totalDeductedQuantity = 0; // Variable to keep track of the total deducted quantity
 
-    // dump('Processing product sale: ' . json_encode($productData));
-    // dump('Quantity to deduct: ' . $quantityToDeduct);
-    // dump('Remaining quantity: ' . $remainingQuantity);
-    // dump('Stock type: ' . $stockType);
-    // dump('Location ID: ' . $locationId);
-    // dump('Sale ID: ' . $saleId);
-    // dump('Batch ID: ' . $productData['batch_id']);
+   
 
     if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
         // Specific batch selected
@@ -647,7 +641,6 @@ class SaleController extends Controller
             // Fetch sale details with related models
             $sale = Sale::with(['products.product', 'products.batch', 'customer', 'location'])
                 ->findOrFail($id);
-    
             // Prepare detailed response
             $saleDetails = [
                 'sale' => $sale->only([
@@ -682,17 +675,14 @@ class SaleController extends Controller
                             'batch' => null, // No batch data for unlimited stock
                         ];
                     }
-    
                     // Handle regular products
                     $batchId = $product->batch_id ?? 'all';
-    
-                    // Calculate the total available quantity (current stock + sold in this sale)
-                    $totalQuantity = $sale->getBatchQuantityPlusSold(
+                    // Calculate the total allowed quantity (current stock + sold in this sale)
+                    $totalAllowedQuantity = $sale->getBatchQuantityPlusSold(
                         $batchId,
                         $product->location_id,
                         $product->product_id
                     );
-    
                     // Get current stock without the sold quantity for reference
                     $currentStock = $batchId === 'all' 
                         ? DB::table('location_batches')
@@ -701,7 +691,6 @@ class SaleController extends Controller
                             ->where('location_batches.location_id', $product->location_id)
                             ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
-    
                     return [
                         'id' => $product->id,
                         'sale_id' => $product->sale_id,
@@ -715,7 +704,7 @@ class SaleController extends Controller
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
                         'updated_at' => $product->updated_at,
-                        'total_quantity' => $totalQuantity, // Stock + sold in this sale
+                        'total_quantity' => $totalAllowedQuantity, // Stock + sold in this sale
                         'current_stock' => $currentStock,   // Just current stock
                         'product' => optional($product->product)->only([
                             'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
@@ -738,7 +727,6 @@ class SaleController extends Controller
                     'telephone_no'
                 ])
             ];
-    
             // Handle API or AJAX requests
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
@@ -746,9 +734,7 @@ class SaleController extends Controller
                     'sale_details' => $saleDetails,
                 ]);
             }
-    
             return view('sell.pos', ['saleDetails' => $saleDetails]);
-    
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
         } catch (\Exception $e) {

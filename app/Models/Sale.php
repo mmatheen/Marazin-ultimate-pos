@@ -77,7 +77,7 @@ class Sale extends Model
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->first();
-
+    
         return $locationBatch ? $locationBatch->qty : 0;
     }
 
@@ -91,15 +91,15 @@ class Sale extends Model
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
     
-            // Get total sold quantity for all batches of the product in the sale
+            // Get total sold quantity for all batches of the product in this sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
                 ->sum('quantity');
         } else {
-            // Get available stock from the batch in the location
+            // Get available stock from the specific batch in the location
             $availableStock = self::getAvailableStock($batchId, $locationId);
     
-            // Get sold quantity for this specific batch in the sale
+            // Get sold quantity for this specific batch in this sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
                 ->where('batch_id', $batchId)
