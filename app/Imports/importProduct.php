@@ -79,7 +79,7 @@ class importProduct implements ToModel, WithHeadingRow, SkipsOnFailure
             }
 
 
-            $authLocationId = auth()->user()->location_id;
+            $authLocationId = auth()->user()->locations()->first()->id ?? null; // Get the authenticated user's location ID
 
 
             $unit = Unit::firstOrCreate(['name' => $row['unit_name']], ['location_id' => $authLocationId]);

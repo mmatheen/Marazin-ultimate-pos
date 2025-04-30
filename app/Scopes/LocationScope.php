@@ -6,15 +6,26 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Session;
 
 class LocationScope implements Scope
 {
     public function apply(Builder $builder, Model $model)
     {
-        // Check if user is authenticated and is not an admin
-        if (Auth::check() && !Auth::user()->is_admin) {
-            // Filter by location_id if user is not admin
-            $builder->where('location_id', Auth::user()->location_id);
+        if (Auth::check() && !Auth::user()->hasRole('Super Admin')) {
+            // Check if user has selected a specific location
+            $selectedLocation = Session::get('selected_location');
+
+            if ($selectedLocation) {
+                // Only show data for the selected location
+                $builder->where('location_id', $selectedLocation);
+            } else {
+                // If not selected, use all accessible locations
+                $user = Auth::user();
+                $locationIds = $user->locations->pluck('id')->toArray();
+                $builder->whereIn('location_id', $locationIds);
+            }
         }
     }
+    
 }

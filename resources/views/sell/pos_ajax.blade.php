@@ -4,6 +4,8 @@
     document.addEventListener("DOMContentLoaded", function() {
 
 
+        let selectedLocationId = null;
+
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
         const discountInput = document.getElementById('discount');
@@ -14,7 +16,7 @@
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
-        
+
 
         // Utility: Show Loader
         function showLoader() {
@@ -191,125 +193,154 @@
                 });
         }
 
-        let selectedLocationId = null;
-        const locationSelect = document.getElementById('locationSelect');
-        locationSelect.addEventListener('change', function() {
-            selectedLocationId = this.value;
-            alert('Selected Location ID: ' + selectedLocationId);
-            console.log('Selected Location ID:', selectedLocationId);
-            fetchAllProducts(); // Fetch products for the selected location
+
+
+        // Fetch all locations on page load
+        $(document).ready(function() {
+            fetchAllLocations();
+
+            // Attach change event listener
+            $('#locationSelect').on('change', handleLocationChange);
         });
-        // Fetch all locations from the server
-        // and populate the location select dropdown
 
-        fetchAllLocations();
-        setupLocationSelect()
-
-        // Fetch all locations
+        // Fetch all locations via AJAX
         function fetchAllLocations() {
-            fetch('/location-get-all')
-                .then(response => response.json())
-                .then(data => {
-                    const locations = data.message;
-                    const locationSelect = document.getElementById('locationSelect');
-
-                    locationSelect.innerHTML = '';
-
-                    if (Array.isArray(locations)) {
-                        locations.forEach(location => {
-                            const option = document.createElement('option');
-                            option.value = location.id;
-                            option.textContent = location.name;
-                            locationSelect.appendChild(option);
-                        });
-
-                        // Set default selected location and fetch its products
-                        if (locations.length > 0) {
-                            selectedLocationId = locations[0].id;
-                            locationSelect.value = selectedLocationId;
-                            fetchAllProducts(); // Fetch all products initially
-                        }
+            $.ajax({
+                url: '/location-get-all',
+                method: 'GET',
+                success: function(data) {
+                    if (data.status === 200) {
+                        populateLocationDropdown(data.message);
                     } else {
-                        console.error('Locations not found:', locations);
+                        console.error('Error fetching locations:', data.message);
                     }
-                })
-                .catch(error => {
-                    console.error('Error fetching locations:', error);
-                });
-        }
-
-        function setupLocationSelect() {
-            const locationSelect = document.getElementById('locationSelect');
-
-            if (!locationSelect) {
-                console.error('Error: locationSelect element not found');
-                return;
-            }
-
-            console.log('Found locationSelect element:', locationSelect);
-            console.log('Current value:', locationSelect.value);
-            console.log('Options:', locationSelect.options);
-
-            locationSelect.addEventListener('change', function() {
-                console.log('Change event triggered');
-                console.log('New value:', this.value);
-                alert('Selected: ' + this.value);
-                fetchAllProducts();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('AJAX Error:', textStatus, errorThrown);
+                }
             });
         }
 
+        // Populate dropdown and select first location by default
+        function populateLocationDropdown(locations) {
+            const locationSelect = $('#locationSelect');
+            locationSelect.empty(); // Clear existing options
 
+            locationSelect.append('<option value="" disabled>Select Location</option>');
+
+            locations.forEach((location, index) => {
+                const option = $('<option></option>')
+                    .val(location.id)
+                    .text(location.name);
+
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                }
+
+                locationSelect.append(option);
+            });
+
+            // Trigger change to load products for the first location
+            locationSelect.trigger('change');
+        }
+
+        // Handle location dropdown change
+        function handleLocationChange(event) {
+            selectedLocationId = $(event.target).val(); // Update global variable
+
+            if (selectedLocationId) {
+
+                billingBody.innerHTML = '';
+                updateTotals();
+                fetchAllProducts(selectedLocationId); // Pass to fetch function
+            } else {
+                console.warn("No location selected");
+            }
+        }
         // Global arrays to store products
         let allProducts = [];
         let stockData = [];
 
-        // Fetch all products from the server
+        // Fetch all products from the server based on selected location
         function fetchAllProducts() {
+            console.log("Fetching products for Location ID:", selectedLocationId); // DEBUG
+
             showLoader();
 
-            fetch('/products/stocks')
-                .then(response => response.json())
+            let url = '/products/stocks';
+
+            if (selectedLocationId) {
+                url += `?location_id=${selectedLocationId}`;
+            }
+
+            console.log('Final URL:', url); // DEBUG
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
-                    hideLoader(); // Hide loader after fetching
+                    hideLoader();
+
                     if (data.status === 200 && Array.isArray(data.data)) {
                         stockData = data.data;
-                        // Populate the global allProducts array
-                        allProducts = stockData.map(stock => ({
-                            ...stock.product,
-                            total_stock: stock.total_stock,
-                            location_id: stock.batches.length > 0 && stock.batches[0]
-                                .location_batches.length > 0 ?
-                                stock.batches[0].location_batches[0].location_id :
-                                null // Fetch location_id dynamically
-                        }));
+
+                        allProducts = stockData.map(stock => {
+                            const firstLocationBatch = stock.batches?.[0]?.location_batches?.[0] ||
+                                null;
+
+                            return {
+                                ...stock.product,
+                                total_stock: stock.total_stock,
+                                location_id: firstLocationBatch ? firstLocationBatch.location_id :
+                                    null
+                            };
+                        });
+
                         displayProducts(stockData);
                         initAutocomplete();
                     } else {
                         console.error('Invalid data:', data);
+                        alert('Failed to load product data.');
                     }
                 })
                 .catch(error => {
+                    hideLoader();
                     console.error('Error fetching data:', error);
+                    alert('An error occurred while fetching product data.');
                 });
         }
+
+        // Listen for location change
+        document.getElementById('locationSelect').addEventListener('change', function() {
+            selectedLocationId = this.value;
+            console.log("Selected Location ID (Dropdown Change):", selectedLocationId); // DEBUG
+            fetchAllProducts(); // Reload products when location changes
+        });
 
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts
-                        .filter(product =>
-                            (product.product_name && product.product_name.toLowerCase().startsWith(
+
+                    // Filter products that:
+                    // 1. Match the search term (product name or SKU)
+                    // 2. Have total_stock > 0
+                    const filteredProducts = allProducts.filter(product =>
+                        ((product.product_name && product.product_name.toLowerCase().startsWith(
                                 searchTerm)) ||
                             (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
-                        )
-                        .sort((a, b) => {
-                            const nameA = a.product_name?.toLowerCase() || '';
-                            const nameB = b.product_name?.toLowerCase() || '';
-                            return nameA.localeCompare(nameB); // Sort alphabetically
-                        });
+                            ) &&
+                        product.total_stock > 0 // 👈 Only show products with stock > 0
+                    ).sort((a, b) => {
+                        const nameA = a.product_name?.toLowerCase() || '';
+                        const nameB = b.product_name?.toLowerCase() || '';
+                        return nameA.localeCompare(nameB);
+                    });
 
-                    response(filteredProducts.length ?
+                    // Map for autocomplete UI
+                    const autoCompleteResults = filteredProducts.length ?
                         filteredProducts.map(p => ({
                             label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
                             value: p.product_name,
@@ -317,11 +348,14 @@
                         })) : [{
                             label: "No products found",
                             value: ""
-                        }]
-                    );
+                        }];
 
-                    if (filteredProducts.length === 1 && searchTerm.length >= 2) addProductToTable(
-                        filteredProducts[0]);
+                    response(autoCompleteResults);
+
+                    // If exactly one match and search term is long enough, add to table
+                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                        addProductToTable(filteredProducts[0]);
+                    }
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
@@ -481,68 +515,72 @@
             }
         }
 
-let locationId;
-let priceType = 'retail';
-let selectedRow;
+        let locationId;
+        let priceType = 'retail';
+        let selectedRow;
 
-function addProductToTable(product) {
-    console.log("Product to be added:", product);
-    if (!stockData || stockData.length === 0) {
-        console.error('stockData is not defined or empty');
-        toastr.error('Stock data is not available', 'Error');
-        return;
-    }
-    const stockEntry = stockData.find(stock => stock.product.id === product.id);
-    console.log("stockEntry", stockEntry);
-    if (!stockEntry) {
-        toastr.error('Stock entry not found for the product', 'Error');
-        return;
-    }
-    const totalQuantity = stockEntry.total_stock;
-    if (totalQuantity === 0 && product.stock_alert !== 0) {
-        toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-        return;
-    }
-    if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-        if (product.stock_alert === 0) {
-            locationId = product.location_id || 1;
-            addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity, 'retail');
-        } else {
-            locationId = product.location_id || 1;
+        function addProductToTable(product) {
+            console.log("Product to be added:", product);
+            if (!stockData || stockData.length === 0) {
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
+            }
+            const stockEntry = stockData.find(stock => stock.product.id === product.id);
+            console.log("stockEntry", stockEntry);
+            if (!stockEntry) {
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
+            }
+            const totalQuantity = stockEntry.total_stock;
+            if (totalQuantity === 0 && product.stock_alert !== 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
+            }
+            if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
+                if (product.stock_alert === 0) {
+                    locationId = product.location_id || 1;
+                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity,
+                        'retail');
+                } else {
+                    locationId = product.location_id || 1;
+                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity,
+                        'retail');
+                }
+                return;
+            }
+
+            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
+                .quantity > 0);
+            if (locationBatches.length === 0) {
+                toastr.error('No batches with available quantity found', 'Error');
+                return;
+            }
+
+            locationId = locationBatches[0].location_id; // Set from first available batch
             addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
         }
-        return;
-    }
 
-    const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
-    if (locationBatches.length === 0) {
-        toastr.error('No batches with available quantity found', 'Error');
-        return;
-    }
+        function showProductModal(product, stockEntry, row) {
+            const modalBody = document.getElementById('productModalBody');
+            const basePrice = product.retail_price;
+            const discountAmount = product.discount_amount || 0;
+            const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) :
+                basePrice - discountAmount;
 
-    locationId = locationBatches[0].location_id; // Set from first available batch
-    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
-}
-
-function showProductModal(product, stockEntry, row) {
-    const modalBody = document.getElementById('productModalBody');
-    const basePrice = product.retail_price;
-    const discountAmount = product.discount_amount || 0;
-    const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
-
-    const batchOptions = stockEntry.batches
-        .flatMap(batch => {
-            return batch.location_batches.map(locationBatch => ({
-                batch_id: batch.id,
-                batch_no: batch.batch_no,
-                retail_price: parseFloat(batch.retail_price),
-                wholesale_price: parseFloat(batch.wholesale_price),
-                special_price: parseFloat(batch.special_price),
-                batch_quantity: locationBatch.quantity
-            }));
-        })
-        .filter(batch => batch.batch_quantity > 0)
-        .map(batch => `
+            const batchOptions = stockEntry.batches
+                .flatMap(batch => {
+                    return batch.location_batches.map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        retail_price: parseFloat(batch.retail_price),
+                        wholesale_price: parseFloat(batch.wholesale_price),
+                        special_price: parseFloat(batch.special_price),
+                        batch_quantity: locationBatch.quantity
+                    }));
+                })
+                .filter(batch => batch.batch_quantity > 0)
+                .map(batch => `
             <option value="${batch.batch_id}" 
                 data-retail-price="${batch.retail_price}" 
                 data-wholesale-price="${batch.wholesale_price}" 
@@ -551,11 +589,11 @@ function showProductModal(product, stockEntry, row) {
               ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
             </option>
         `)
-        .join('');
+                .join('');
 
-    const totalQuantity = stockEntry.total_stock;
+            const totalQuantity = stockEntry.total_stock;
 
-    modalBody.innerHTML = `
+            modalBody.innerHTML = `
         <div class="d-flex align-items-center">
             <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
             <div>
@@ -582,88 +620,92 @@ function showProductModal(product, stockEntry, row) {
             ${batchOptions}
         </select>
     `;
-    selectedRow = row;
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    modal.show();
+            selectedRow = row;
+            const modal = new bootstrap.Modal(document.getElementById('productModal'));
+            modal.show();
 
-    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
-    radioButtons.forEach(radio => {
-        radio.addEventListener('change', function() {
-            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn.classList.remove('active'));
-            this.parentElement.classList.add('active');
-        });
-    });
+            const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
+                        .classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                });
+            });
 
-    // Attach change handler on dropdown to update max quantity
-    document.getElementById('modalBatchDropdown').addEventListener('change', () => {
-        const selectedOption = document.getElementById('modalBatchDropdown').selectedOptions[0];
-        const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
-        const qtyInput = selectedRow.querySelector('.quantity-input');
-        qtyInput.setAttribute('max', maxQty);
-        qtyInput.setAttribute('title', `Available: ${maxQty}`);
-    });
-}
+            // Attach change handler on dropdown to update max quantity
+            document.getElementById('modalBatchDropdown').addEventListener('change', () => {
+                const selectedOption = document.getElementById('modalBatchDropdown').selectedOptions[0];
+                const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+                const qtyInput = selectedRow.querySelector('.quantity-input');
+                qtyInput.setAttribute('max', maxQty);
+                qtyInput.setAttribute('title', `Available: ${maxQty}`);
+            });
+        }
 
-function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType, saleQuantity = 1) {
-    price = parseFloat(price);
-    if (isNaN(price)) {
-        console.error('Invalid price for product:', product.product_name);
-        toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
-        price = 0;
-    }
-
-    const billingBody = document.getElementById('billing-body');
-
-    // ✅ Get the correct batch quantity based on selected batch or "All"
-    let adjustedBatchQuantity = batchQuantity;
-
-    // If batchId is "all", get the total stock
-    if (batchId === "all") {
-        adjustedBatchQuantity = stockEntry.total_stock;
-    } else {
-        // Find the specific batch's available quantity
-        const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
-        if (selectedBatch) {
-            const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id === locationId);
-            if (locationBatch) {
-                adjustedBatchQuantity = locationBatch.quantity;
+        function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
+            saleQuantity = 1) {
+            price = parseFloat(price);
+            if (isNaN(price)) {
+                console.error('Invalid price for product:', product.product_name);
+                toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+                price = 0;
             }
-        }
-    }
 
-    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-        const rowProductId = row.querySelector('.product-id').textContent;
-        const rowBatchId = row.querySelector('.batch-id').textContent;
-        return rowProductId == product.id && rowBatchId == batchId;
-    });
+            const billingBody = document.getElementById('billing-body');
 
-    if (existingRow) {
-        const quantityInput = existingRow.querySelector('.quantity-input');
-        let currentQty = parseInt(quantityInput.value, 10);
-        let newQuantity = currentQty + saleQuantity;
+            // ✅ Get the correct batch quantity based on selected batch or "All"
+            let adjustedBatchQuantity = batchQuantity;
 
-        // ✅ Validate against adjustedBatchQuantity
-        if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
-            toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`, 'Warning');
-            return;
-        }
+            // If batchId is "all", get the total stock
+            if (batchId === "all") {
+                adjustedBatchQuantity = stockEntry.total_stock;
+            } else {
+                // Find the specific batch's available quantity
+                const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
+                if (selectedBatch) {
+                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ===
+                        locationId);
+                    if (locationBatch) {
+                        adjustedBatchQuantity = locationBatch.quantity;
+                    }
+                }
+            }
 
-        quantityInput.value = newQuantity;
-        const subtotalElement = existingRow.querySelector('.subtotal');
-        const updatedSubtotal = newQuantity * price;
-        subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                const rowProductId = row.querySelector('.product-id').textContent;
+                const rowBatchId = row.querySelector('.batch-id').textContent;
+                return rowProductId == product.id && rowBatchId == batchId;
+            });
 
-        const quantityDisplay = existingRow.querySelector('.quantity-display');
-        if (quantityDisplay) {
-            quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
-        }
+            if (existingRow) {
+                const quantityInput = existingRow.querySelector('.quantity-input');
+                let currentQty = parseInt(quantityInput.value, 10);
+                let newQuantity = currentQty + saleQuantity;
 
-        quantityInput.focus();
-        quantityInput.select();
-        updateTotals();
-    } else {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+                // ✅ Validate against adjustedBatchQuantity
+                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                    toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
+                        'Warning');
+                    return;
+                }
+
+                quantityInput.value = newQuantity;
+                const subtotalElement = existingRow.querySelector('.subtotal');
+                const updatedSubtotal = newQuantity * price;
+                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+                const quantityDisplay = existingRow.querySelector('.quantity-display');
+                if (quantityDisplay) {
+                    quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
+                }
+
+                quantityInput.focus();
+                quantityInput.select();
+                updateTotals();
+            } else {
+                const row = document.createElement('tr');
+                row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
                     <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
@@ -693,407 +735,408 @@ function addProductToBillingBody(product, stockEntry, price, batchId, batchQuant
             <td class="batch-id d-none">${batchId}</td>
             <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
         `;
-        billingBody.insertBefore(row, billingBody.firstChild);
-        attachRowEventListeners(row, product, stockEntry);
-        const quantityInput = row.querySelector('.quantity-input');
-        quantityInput.focus();
-        quantityInput.select();
-        quantityInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                document.getElementById('productSearchInput').focus();
-            }
-        });
-        updateTotals();
-    }
-}
-function attachRowEventListeners(row, product, stockEntry) {
-    const quantityInput = row.querySelector('.quantity-input');
-    const priceInput = row.querySelector('.price-input');
-    const quantityMinus = row.querySelector('.quantity-minus');
-    const quantityPlus = row.querySelector('.quantity-plus');
-    const removeBtn = row.querySelector('.remove-btn');
-    const productImage = row.querySelector('.product-image');
-    const productName = row.querySelector('.product-name');
-
-    // Helper function to validate and update quantities
-    const validateAndUpdateQuantity = (newQuantity) => {
-        const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
-        if (newQuantity > maxQuantity && product.stock_alert !== 0) {
-            document.getElementsByClassName('errorSound')[0]?.play();
-            toastr.error(
-                `You cannot add more than ${maxQuantity} units of this product.`,
-                'Error'
-            );
-            return false;
-        }
-        quantityInput.value = newQuantity;
-        updateTotals();
-        return true;
-    };
-
-    // Event listener for the minus button
-    quantityMinus.addEventListener('click', () => {
-        const currentQuantity = parseInt(quantityInput.value, 10);
-        if (currentQuantity > 1) {
-            validateAndUpdateQuantity(currentQuantity - 1);
-        }
-    });
-
-    // Event listener for the plus button
-    quantityPlus.addEventListener('click', () => {
-        const currentQuantity = parseInt(quantityInput.value, 10);
-        validateAndUpdateQuantity(currentQuantity + 1);
-    });
-
-    // Event listener for direct input in the quantity field
-    quantityInput.addEventListener('input', () => {
-        let quantityValue = parseInt(quantityInput.value, 10);
-        if (isNaN(quantityValue) || quantityValue < 1) {
-            quantityValue = 1; // Default to 1 if invalid input
-        }
-        validateAndUpdateQuantity(quantityValue);
-    });
-
-    // Event listener for price input field
-    priceInput.addEventListener('input', () => {
-        const priceValue = parseFloat(priceInput.value);
-        if (isNaN(priceValue) || priceValue < 0) {
-            toastr.error('Invalid price entered.', 'Error');
-            priceInput.value = '0.00'; // Default to 0 if invalid input
-        }
-        updateTotals();
-    });
-
-    // Event listener for the remove button
-    removeBtn.addEventListener('click', () => {
-        row.remove();
-        updateTotals();
-    });
-
-    // Event listener for product image click
-    productImage.addEventListener('click', () => {
-        showProductModal(product, stockEntry, row);
-    });
-
-    // Event listener for product name click
-    productName.addEventListener('click', () => {
-        showProductModal(product, stockEntry, row);
-    });
-}
-
-document.getElementById('saveProductChanges').onclick = function() {
-    const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
-        .value;
-    const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
-
-    const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
-    const batchId = selectedBatch.value;
-    const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
-
-    if (selectedRow) {
-        const quantityInput = selectedRow.querySelector('.quantity-input');
-        const priceInput = selectedRow.querySelector('.price-input');
-        const productNameCell = selectedRow.querySelector('.product-name');
-
-        priceInput.value = price.toFixed(2);
-        priceInput.setAttribute('data-quantity', batchQuantity);
-
-        const subtotal = parseFloat(quantityInput.value) * price;
-        selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
-            .toFixed(2));
-
-        selectedRow.querySelector('.batch-id').textContent = batchId;
-
-        // Update product name cell with stars based on selected price type
-        const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
-            selectedPriceType === 'wholesale' ?
-            '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
-            '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
-
-        productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
-
-        updateTotals();
-    }
-
-    const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
-    modal.hide();
-};
-
-function updateTotals() {
-const billingBody = document.getElementById('billing-body');
-let totalItems = 0;
-let totalAmount = 0;
-
-// Calculate total items and total amount
-billingBody.querySelectorAll('tr').forEach(row => {
-    const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
-    const price = parseFloat(row.querySelector('.price-input').value) || 0;
-    const subtotal = quantity * price;
-
-    row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
-        .toFixed(2));
-
-    totalItems += quantity;
-    totalAmount += subtotal;
-});
-
-const discountElement = document.getElementById('discount');
-const discountTypeElement = document.getElementById('discount-type');
-
-// Get discount value and type
-const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
-const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
-
-let totalAmountWithDiscount;
-
-// Apply discount logic
-if (discountType === 'percentage') {
-    totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
-} else {
-    totalAmountWithDiscount = totalAmount - discount;
-}
-
-// Ensure totals are not negative
-totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
-
-// Update UI
-document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
-document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
-    .toFixed(2));
-document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
-    totalAmountWithDiscount.toFixed(2));
-document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
-    .toFixed(2));
-document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
-    totalAmountWithDiscount.toFixed(2));
-}
-
-// Attach event listeners for discount input and type dropdown
-const discountElement = document.getElementById('discount');
-const discountTypeElement = document.getElementById('discount-type');
-
-if (discountElement) {
-    discountElement.addEventListener('input', () => {
-        // Ensure percentage discount does not exceed 100
-        if (discountTypeElement && discountTypeElement.value === 'percentage') {
-            const discountValue = parseFloat(discountElement.value) || 0;
-            if (discountValue > 100) {
-                discountElement.value = 100; // Reset to maximum allowed percentage
-                toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
-            }
-        }
-        updateTotals();
-    });
-}
-
-if (discountTypeElement) {
-    discountTypeElement.addEventListener('change', () => {
-        // Clear the discount value when toggling the discount type
-        if (discountElement) discountElement.value = '';
-        updateTotals();
-    });
-}
-
-let saleId = null;
-
-// Extract saleId from the URL path
-const pathSegments = window.location.pathname.split('/');
-saleId = pathSegments[pathSegments.length - 1];
-
-// Validate saleId to ensure it is a numeric value
-if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
-    fetchEditSale(saleId);
-} else {
-    console.warn('Invalid or missing saleId:', saleId);
-}
-
-function fetchEditSale(saleId) {
-    // fetchAllProducts();
-    fetch(`/api/sales/edit/${saleId}`)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data.status === 200) {
-                const saleDetails = data.sale_details;
-
-                // Update the sale invoice number
-                const saleInvoiceElement = document.getElementById('sale-invoice-no');
-                if (saleInvoiceElement && saleDetails.sale) {
-                    saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
-                }
-
-                saleDetails.sale_products.forEach(saleProduct => {
-                    const price = saleProduct.price || saleProduct.product.retail_price;
-
-                    const stockEntry = stockData.find(stock =>
-                        stock.product.id === saleProduct.product.id
-                    );
-
-                    if (saleDetails.sale && saleDetails.sale.location_id) {
-                        locationId = saleDetails.sale.location_id;
+                billingBody.insertBefore(row, billingBody.firstChild);
+                attachRowEventListeners(row, product, stockEntry);
+                const quantityInput = row.querySelector('.quantity-input');
+                quantityInput.focus();
+                quantityInput.select();
+                quantityInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        document.getElementById('productSearchInput').focus();
                     }
-
-                    let batches = [];
-                    if (stockEntry && Array.isArray(stockEntry.batches)) {
-                        batches = [...stockEntry.batches];
-                    }
-
-                    // Add sold quantity back to the batch to temporarily restore the original state
-                    const originalBatchExists = batches.some(batch =>
-                        batch.id === saleProduct.batch?.id
-                    );
-
-                    if (originalBatchExists && saleProduct.batch) {
-                        batches = batches.map(batch => {
-                            if (batch.id === saleProduct.batch.id) {
-                                const updatedLocationBatches = batch
-                                    .location_batches.map(lb => {
-                                        if (lb.location_id === saleProduct
-                                            .location_id) {
-                                            return {
-                                                ...lb,
-                                                quantity: lb.quantity +
-                                                    saleProduct
-                                                    .quantity // Add sold quantity back
-                                            };
-                                        }
-                                        return lb;
-                                    });
-
-                                return {
-                                    ...batch,
-                                    location_batches: updatedLocationBatches
-                                };
-                            }
-                            return batch;
-                        });
-                    } else if (saleProduct.batch) {
-                        batches.push({
-                            id: saleProduct.batch.id,
-                            batch_no: saleProduct.batch.batch_no,
-                            retail_price: saleProduct.batch.retail_price,
-                            wholesale_price: saleProduct.batch.wholesale_price,
-                            special_price: saleProduct.batch.special_price,
-                            location_batches: [{
-                                location_id: saleProduct.location_id,
-                                quantity: saleProduct.total_quantity +
-                                    saleProduct
-                                    .quantity // Add sold quantity back
-                            }]
-                        });
-                    }
-
-                    let totalStock = saleProduct.total_quantity + saleProduct
-                        .quantity; // Add sold quantity back
-                    if (stockEntry) {
-                        totalStock = batches.reduce((sum, batch) => {
-                            return sum + batch.location_batches.reduce((batchSum,
-                                lb) => {
-                                return batchSum + lb.quantity;
-                            }, 0);
-                        }, 0);
-                    }
-
-                    const normalizedStockEntry = {
-                        batches: batches,
-                        total_stock: totalStock,
-                        product: saleProduct.product
-                    };
-
-                    addProductToBillingBody(
-                        saleProduct.product,
-                        normalizedStockEntry,
-                        price,
-                        saleProduct.batch_id,
-                        saleProduct.quantity,
-                        saleProduct.price_type,
-                        saleProduct.quantity
-                    );
                 });
+                updateTotals();
+            }
+        }
 
-                // Fetch customer data directly here
-                fetch('/customer-get-all')
-                    .then(response => response.json())
-                    .then(customerData => {
-                        if (customerData && customerData.status === 200 && Array.isArray(
-                                customerData.message)) {
-                            const customerSelect = $('#customer-id');
-                            customerSelect.empty();
+        function attachRowEventListeners(row, product, stockEntry) {
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            const quantityMinus = row.querySelector('.quantity-minus');
+            const quantityPlus = row.querySelector('.quantity-plus');
+            const removeBtn = row.querySelector('.remove-btn');
+            const productImage = row.querySelector('.product-image');
+            const productName = row.querySelector('.product-name');
 
-                            const sortedCustomers = customerData.message.sort((a, b) => {
-                                if (a.first_name === 'Walking') return -1;
-                                if (b.first_name === 'Walking') return 1;
-                                return 0;
-                            });
-
-                            sortedCustomers.forEach(customer => {
-                                const option = $('<option></option>');
-                                option.val(customer.id);
-                                option.text(
-                                    `${customer.first_name} ${customer.last_name} (${customer.mobile_no})`
-                                );
-                                option.data('due', customer
-                                    .current_due); // Store the due amount in the option
-                                customerSelect.append(option);
-                            });
-
-                            const walkingCustomer = sortedCustomers.find(customer => customer
-                                .first_name === 'Walking');
-                            if (walkingCustomer) {
-                                customerSelect.val(walkingCustomer.id);
-                                updateDueAmount(walkingCustomer.current_due);
-                            }
-
-                            // Now set the customer ID after dropdown is populated
-                            if (saleDetails.sale) {
-                                customerSelect.val(saleDetails.sale.customer_id);
-                                customerSelect.trigger(
-                                    'change'); // Trigger change event to update other fields
-                            }
-                        } else {
-                            console.error('Failed to fetch customer data:', customerData ?
-                                customerData.message : 'No data received');
-                        }
-                    });
-
-                // Update discount and total fields
-                const discountElement = document.getElementById('discount');
-                const discountTypeElement = document.getElementById('discount-type');
-
-                if (discountElement && saleDetails.sale) {
-                    discountElement.value = saleDetails.sale.discount_amount || 0;
+            // Helper function to validate and update quantities
+            const validateAndUpdateQuantity = (newQuantity) => {
+                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+                if (newQuantity > maxQuantity && product.stock_alert !== 0) {
+                    document.getElementsByClassName('errorSound')[0]?.play();
+                    toastr.error(
+                        `You cannot add more than ${maxQuantity} units of this product.`,
+                        'Error'
+                    );
+                    return false;
                 }
+                quantityInput.value = newQuantity;
+                updateTotals();
+                return true;
+            };
 
-                if (discountTypeElement && saleDetails.sale) {
-                    discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
+            // Event listener for the minus button
+            quantityMinus.addEventListener('click', () => {
+                const currentQuantity = parseInt(quantityInput.value, 10);
+                if (currentQuantity > 1) {
+                    validateAndUpdateQuantity(currentQuantity - 1);
                 }
+            });
+
+            // Event listener for the plus button
+            quantityPlus.addEventListener('click', () => {
+                const currentQuantity = parseInt(quantityInput.value, 10);
+                validateAndUpdateQuantity(currentQuantity + 1);
+            });
+
+            // Event listener for direct input in the quantity field
+            quantityInput.addEventListener('input', () => {
+                let quantityValue = parseInt(quantityInput.value, 10);
+                if (isNaN(quantityValue) || quantityValue < 1) {
+                    quantityValue = 1; // Default to 1 if invalid input
+                }
+                validateAndUpdateQuantity(quantityValue);
+            });
+
+            // Event listener for price input field
+            priceInput.addEventListener('input', () => {
+                const priceValue = parseFloat(priceInput.value);
+                if (isNaN(priceValue) || priceValue < 0) {
+                    toastr.error('Invalid price entered.', 'Error');
+                    priceInput.value = '0.00'; // Default to 0 if invalid input
+                }
+                updateTotals();
+            });
+
+            // Event listener for the remove button
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updateTotals();
+            });
+
+            // Event listener for product image click
+            productImage.addEventListener('click', () => {
+                showProductModal(product, stockEntry, row);
+            });
+
+            // Event listener for product name click
+            productName.addEventListener('click', () => {
+                showProductModal(product, stockEntry, row);
+            });
+        }
+
+        document.getElementById('saveProductChanges').onclick = function() {
+            const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
+                .value;
+            const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
+
+            const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
+            const batchId = selectedBatch.value;
+            const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
+
+            if (selectedRow) {
+                const quantityInput = selectedRow.querySelector('.quantity-input');
+                const priceInput = selectedRow.querySelector('.price-input');
+                const productNameCell = selectedRow.querySelector('.product-name');
+
+                priceInput.value = price.toFixed(2);
+                priceInput.setAttribute('data-quantity', batchQuantity);
+
+                const subtotal = parseFloat(quantityInput.value) * price;
+                selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
+                    .toFixed(2));
+
+                selectedRow.querySelector('.batch-id').textContent = batchId;
+
+                // Update product name cell with stars based on selected price type
+                const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
+                    selectedPriceType === 'wholesale' ?
+                    '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
+                    '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
+
+                productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
 
                 updateTotals();
-            } else {
-                console.error('Invalid sale data:', data);
-                toastr.error('Failed to fetch sale data.', 'Error');
             }
-        })
-        .catch(error => {
-            console.error('Error fetching sale data:', error);
-            toastr.error('An error occurred while fetching sale data.', 'Error');
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
+            modal.hide();
+        };
+
+        function updateTotals() {
+            const billingBody = document.getElementById('billing-body');
+            let totalItems = 0;
+            let totalAmount = 0;
+
+            // Calculate total items and total amount
+            billingBody.querySelectorAll('tr').forEach(row => {
+                const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
+                const price = parseFloat(row.querySelector('.price-input').value) || 0;
+                const subtotal = quantity * price;
+
+                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
+                    .toFixed(2));
+
+                totalItems += quantity;
+                totalAmount += subtotal;
+            });
+
+            const discountElement = document.getElementById('discount');
+            const discountTypeElement = document.getElementById('discount-type');
+
+            // Get discount value and type
+            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
+
+            let totalAmountWithDiscount;
+
+            // Apply discount logic
+            if (discountType === 'percentage') {
+                totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
+            } else {
+                totalAmountWithDiscount = totalAmount - discount;
+            }
+
+            // Ensure totals are not negative
+            totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
+
+            // Update UI
+            document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
+            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
+                .toFixed(2));
+            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
+            document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
+                .toFixed(2));
+            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
+        }
+
+        // Attach event listeners for discount input and type dropdown
+        const discountElement = document.getElementById('discount');
+        const discountTypeElement = document.getElementById('discount-type');
+
+        if (discountElement) {
+            discountElement.addEventListener('input', () => {
+                // Ensure percentage discount does not exceed 100
+                if (discountTypeElement && discountTypeElement.value === 'percentage') {
+                    const discountValue = parseFloat(discountElement.value) || 0;
+                    if (discountValue > 100) {
+                        discountElement.value = 100; // Reset to maximum allowed percentage
+                        toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
+                    }
+                }
+                updateTotals();
+            });
+        }
+
+        if (discountTypeElement) {
+            discountTypeElement.addEventListener('change', () => {
+                // Clear the discount value when toggling the discount type
+                if (discountElement) discountElement.value = '';
+                updateTotals();
+            });
+        }
+
+        let saleId = null;
+
+        // Extract saleId from the URL path
+        const pathSegments = window.location.pathname.split('/');
+        saleId = pathSegments[pathSegments.length - 1];
+
+        // Validate saleId to ensure it is a numeric value
+        if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+            fetchEditSale(saleId);
+        } else {
+            console.warn('Invalid or missing saleId:', saleId);
+        }
+
+        function fetchEditSale(saleId) {
+            // fetchAllProducts();
+            fetch(`/api/sales/edit/${saleId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 200) {
+                        const saleDetails = data.sale_details;
+
+                        // Update the sale invoice number
+                        const saleInvoiceElement = document.getElementById('sale-invoice-no');
+                        if (saleInvoiceElement && saleDetails.sale) {
+                            saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
+                        }
+
+                        saleDetails.sale_products.forEach(saleProduct => {
+                            const price = saleProduct.price || saleProduct.product.retail_price;
+
+                            const stockEntry = stockData.find(stock =>
+                                stock.product.id === saleProduct.product.id
+                            );
+
+                            if (saleDetails.sale && saleDetails.sale.location_id) {
+                                locationId = saleDetails.sale.location_id;
+                            }
+
+                            let batches = [];
+                            if (stockEntry && Array.isArray(stockEntry.batches)) {
+                                batches = [...stockEntry.batches];
+                            }
+
+                            // Add sold quantity back to the batch to temporarily restore the original state
+                            const originalBatchExists = batches.some(batch =>
+                                batch.id === saleProduct.batch?.id
+                            );
+
+                            if (originalBatchExists && saleProduct.batch) {
+                                batches = batches.map(batch => {
+                                    if (batch.id === saleProduct.batch.id) {
+                                        const updatedLocationBatches = batch
+                                            .location_batches.map(lb => {
+                                                if (lb.location_id === saleProduct
+                                                    .location_id) {
+                                                    return {
+                                                        ...lb,
+                                                        quantity: lb.quantity +
+                                                            saleProduct
+                                                            .quantity // Add sold quantity back
+                                                    };
+                                                }
+                                                return lb;
+                                            });
+
+                                        return {
+                                            ...batch,
+                                            location_batches: updatedLocationBatches
+                                        };
+                                    }
+                                    return batch;
+                                });
+                            } else if (saleProduct.batch) {
+                                batches.push({
+                                    id: saleProduct.batch.id,
+                                    batch_no: saleProduct.batch.batch_no,
+                                    retail_price: saleProduct.batch.retail_price,
+                                    wholesale_price: saleProduct.batch.wholesale_price,
+                                    special_price: saleProduct.batch.special_price,
+                                    location_batches: [{
+                                        location_id: saleProduct.location_id,
+                                        quantity: saleProduct.total_quantity +
+                                            saleProduct
+                                            .quantity // Add sold quantity back
+                                    }]
+                                });
+                            }
+
+                            let totalStock = saleProduct.total_quantity + saleProduct
+                                .quantity; // Add sold quantity back
+                            if (stockEntry) {
+                                totalStock = batches.reduce((sum, batch) => {
+                                    return sum + batch.location_batches.reduce((batchSum,
+                                        lb) => {
+                                        return batchSum + lb.quantity;
+                                    }, 0);
+                                }, 0);
+                            }
+
+                            const normalizedStockEntry = {
+                                batches: batches,
+                                total_stock: totalStock,
+                                product: saleProduct.product
+                            };
+
+                            addProductToBillingBody(
+                                saleProduct.product,
+                                normalizedStockEntry,
+                                price,
+                                saleProduct.batch_id,
+                                saleProduct.quantity,
+                                saleProduct.price_type,
+                                saleProduct.quantity
+                            );
+                        });
+
+                        // Fetch customer data directly here
+                        fetch('/customer-get-all')
+                            .then(response => response.json())
+                            .then(customerData => {
+                                if (customerData && customerData.status === 200 && Array.isArray(
+                                        customerData.message)) {
+                                    const customerSelect = $('#customer-id');
+                                    customerSelect.empty();
+
+                                    const sortedCustomers = customerData.message.sort((a, b) => {
+                                        if (a.first_name === 'Walking') return -1;
+                                        if (b.first_name === 'Walking') return 1;
+                                        return 0;
+                                    });
+
+                                    sortedCustomers.forEach(customer => {
+                                        const option = $('<option></option>');
+                                        option.val(customer.id);
+                                        option.text(
+                                            `${customer.first_name} ${customer.last_name} (${customer.mobile_no})`
+                                        );
+                                        option.data('due', customer
+                                            .current_due); // Store the due amount in the option
+                                        customerSelect.append(option);
+                                    });
+
+                                    const walkingCustomer = sortedCustomers.find(customer => customer
+                                        .first_name === 'Walking');
+                                    if (walkingCustomer) {
+                                        customerSelect.val(walkingCustomer.id);
+                                        updateDueAmount(walkingCustomer.current_due);
+                                    }
+
+                                    // Now set the customer ID after dropdown is populated
+                                    if (saleDetails.sale) {
+                                        customerSelect.val(saleDetails.sale.customer_id);
+                                        customerSelect.trigger(
+                                            'change'); // Trigger change event to update other fields
+                                    }
+                                } else {
+                                    console.error('Failed to fetch customer data:', customerData ?
+                                        customerData.message : 'No data received');
+                                }
+                            });
+
+                        // Update discount and total fields
+                        const discountElement = document.getElementById('discount');
+                        const discountTypeElement = document.getElementById('discount-type');
+
+                        if (discountElement && saleDetails.sale) {
+                            discountElement.value = saleDetails.sale.discount_amount || 0;
+                        }
+
+                        if (discountTypeElement && saleDetails.sale) {
+                            discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
+                        }
+
+                        updateTotals();
+                    } else {
+                        console.error('Invalid sale data:', data);
+                        toastr.error('Failed to fetch sale data.', 'Error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching sale data:', error);
+                    toastr.error('An error occurred while fetching sale data.', 'Error');
+                });
+        }
+
+        function updateDueAmount(dueAmount) {
+            // Ensure dueAmount is a valid number before calling toFixed
+            dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
+            $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+        }
+
+        $('#customer-id').on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            const dueAmount = selectedOption.data('due');
+            updateDueAmount(dueAmount);
         });
-}
-
-function updateDueAmount(dueAmount) {
-    // Ensure dueAmount is a valid number before calling toFixed
-    dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
-    $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
-}
-
-$('#customer-id').on('change', function() {
-    const selectedOption = $(this).find('option:selected');
-    const dueAmount = selectedOption.data('due');
-    updateDueAmount(dueAmount);
-});
 
 
 
@@ -1722,56 +1765,59 @@ $('#customer-id').on('change', function() {
     }
 
     function deleteSale(saleId) {
-    swal({
-        title: "Are you sure?",
-        text: "Do you really want to delete this sale? This action cannot be undone.",
-        type: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#3085d6",
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "Cancel",
-        closeOnConfirm: false
-    }, function(isConfirm) {
-        if (isConfirm) {
-            $.ajax({
-                url: `/sales/delete/${saleId}`,
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.status === 200) {
-                        // First close the swal
-                        swal.close();
+        swal({
+            title: "Are you sure?",
+            text: "Do you really want to delete this sale? This action cannot be undone.",
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel",
+            closeOnConfirm: false
+        }, function(isConfirm) {
+            if (isConfirm) {
+                $.ajax({
+                    url: `/sales/delete/${saleId}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200) {
+                            // First close the swal
+                            swal.close();
 
-                        // Use setTimeout to ensure swal is fully closed before proceeding
-                        setTimeout(function () {
-                            toastr.success(response.message || "Sale deleted successfully!");
-                            const successSound = document.querySelector('.successSound');
-                            if (successSound) {
-                                successSound.play();
-                            }
-                            // Refresh the sales data
-                            loadTableData('final');
-                            fetchSalesData();
-                        }, 100); // small delay to allow swal to visually close
-                    } else {
-                        swal("Error!", response.message || "An error occurred while deleting the sale.", "error");
+                            // Use setTimeout to ensure swal is fully closed before proceeding
+                            setTimeout(function() {
+                                toastr.success(response.message ||
+                                    "Sale deleted successfully!");
+                                const successSound = document.querySelector(
+                                    '.successSound');
+                                if (successSound) {
+                                    successSound.play();
+                                }
+                                // Refresh the sales data
+                                loadTableData('final');
+                                fetchSalesData();
+                            }, 100); // small delay to allow swal to visually close
+                        } else {
+                            swal("Error!", response.message ||
+                                "An error occurred while deleting the sale.", "error");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMessage = "Unable to delete the sale. Please try again later.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        swal("Error!", errorMessage, "error");
+                        console.error('Delete error:', error);
                     }
-                },
-                error: function(xhr, status, error) {
-                    let errorMessage = "Unable to delete the sale. Please try again later.";
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    swal("Error!", errorMessage, "error");
-                    console.error('Delete error:', error);
-                }
-            });
-        }
-    });
-}
+                });
+            }
+        });
+    }
 
     // // Event listener to load sales data when the page is loaded
     // document.addEventListener('DOMContentLoaded', function() {

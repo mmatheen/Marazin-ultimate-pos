@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Location;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class LocationController extends Controller
 {
@@ -22,22 +23,31 @@ class LocationController extends Controller
         return view('location.location');
     }
 
-    public function index()
-    {
-        $getValue = Location::all();
+   // Index method to list locations
+   public function index()
+   {
+       // Check if the user is a Super Admin
+       if (Auth::user()->is_admin) {
+           // Super Admin can see all locations
+           $locations = Location::all();
+       } else {
+           // Non-admin users can see only their assigned locations
+           $locations = Auth::user()->locations;  // Assuming the 'locations' relation is set up correctly in the User model
+       }
 
-        if ($getValue->count() > 0) {
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue,
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
-            ]);
-        }
-    }
+       if ($locations->count() > 0) {
+           return response()->json([
+               'status' => 200,
+               'message' => $locations,
+           ]);
+       } else {
+           return response()->json([
+               'status' => 404,
+               'message' => "No Records Found!"
+           ]);
+       }
+   }
+
     /**
      * Show the form for creating a new resource.
      *
@@ -52,8 +62,6 @@ class LocationController extends Controller
 
     public function store(Request $request)
     {
-
-        // dd($request->all());
         $validator = Validator::make(
             $request->all(),
             [
@@ -63,10 +71,9 @@ class LocationController extends Controller
                     'string',
                     'max:255',
                     'unique:locations',
-                    function($attribute, $value, $fail) {
-                        // Custom rule for location_id format
+                    function ($attribute, $value, $fail) {
                         if (!preg_match('/^LOC\d{4}$/', $value)) {
-                            $fail('The ' . $attribute . ' must be in the format LOC followed by 4 digits. eg:  LOC0001');
+                            $fail('The ' . $attribute . ' must be in the format LOC followed by 4 digits. eg: LOC0001');
                         }
                     }
                 ],
@@ -75,48 +82,37 @@ class LocationController extends Controller
                 'district' => 'required|string|max:255',
                 'city' => 'required|string|max:255',
                 'email' => 'required|email|unique:locations',
-                'mobile' => ['required', 'regex:/^(0?\d{9})$/'],  // Matches 10 digits with or without leading 0
-                'telephone_no' => ['required', 'regex:/^(0?\d{9})$/'],  // Matches 10 digits with or without leading 0
+                'mobile' => ['required', 'regex:/^(0?\d{9})$/'],
+                'telephone_no' => ['required', 'regex:/^(0?\d{9})$/'],
             ],
             [
                 'mobile.required' => 'Please enter a valid mobile number with 10 digits.',
                 'telephone_no.required' => 'Please enter a valid telephone number with 10 digits.',
-                'mobile.regex' => 'Please enter a valid mobile number with 10 digits.',
-                'telephone_no.regex' => 'Please enter a valid telephone number with 10 digits.',
                 'location_id.unique' => 'The location_id has already been taken.',
             ]
         );
 
+        // Auto-generate location_id if not provided
+        $location_id = $request->location_id;
+        if (!$location_id) {
+            $prefix = 'LOC';
+            $latestLocation = Location::where('location_id', 'like', $prefix . '%')->orderBy('location_id', 'desc')->first();
 
-    // Custom logic for generating location_id auto-increment code start
+            if ($latestLocation) {
+                $latestID = intval(substr($latestLocation->location_id, strlen($prefix)));
+            } else {
+                $latestID = 1;
+            }
 
-    // Generate location_id only if not provided
-    $location_id = $request->location_id;
-    if (!$location_id) {
-        // Custom logic for generating location_id auto-increment code
-        $prefix = 'LOC'; // The prefix for location_id
-        $latestLocation = Location::where('location_id', 'like', $prefix . '%')->orderBy('location_id', 'desc')->first();
-
-        // Extract the numeric part of the latest location_id and increment it
-        if ($latestLocation) {
-            // Extract numeric part after the prefix 'LOC'
-            $latestID = intval(substr($latestLocation->location_id, strlen($prefix)));
-        } else {
-            $latestID = 1; // If no record found, start from 1
-        }
-
-        $nextID = $latestID + 1;
-        $location_id = $prefix . sprintf("%04d", $nextID); // Format as LOC0001, LOC0002, etc.
-
-        // Check for uniqueness of the generated location_id and regenerate if necessary
-        while (Location::where('location_id', $location_id)->exists()) {
-            $nextID++;
+            $nextID = $latestID + 1;
             $location_id = $prefix . sprintf("%04d", $nextID);
+
+            // Ensure the generated location_id is unique
+            while (Location::where('location_id', $location_id)->exists()) {
+                $nextID++;
+                $location_id = $prefix . sprintf("%04d", $nextID);
+            }
         }
-    }
-        // Custom logic for generating location_id auto-increment code end
-
-
 
         if ($validator->fails()) {
             return response()->json([
@@ -124,11 +120,10 @@ class LocationController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-
-            $getValue = Location::create([
-
+            // Create the location and assign to Super Admin
+            $location = Location::create([
                 'name' => $request->name,
-                'location_id' => $location_id, // Use unique generated location ID
+                'location_id' => $location_id,
                 'address' => $request->address,
                 'province' => $request->province,
                 'district' => $request->district,
@@ -138,11 +133,15 @@ class LocationController extends Controller
                 'telephone_no' => $request->telephone_no,
             ]);
 
+            if ($location) {
+                // Automatically assign the location to the Super Admin
+                if (Auth::user()->is_admin) {
+                    Auth::user()->locations()->attach($location->id);
+                }
 
-            if ($getValue) {
                 return response()->json([
                     'status' => 200,
-                    'message' => "New Location Details Created Successfully!"
+                    'message' => "New Location Created Successfully!"
                 ]);
             } else {
                 return response()->json([
@@ -153,12 +152,8 @@ class LocationController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Lecturer  $lecturer
-     * @return \Illuminate\Http\Response
-     */
+
+
     public function show(int $id)
     {
         $getValue = Location::find($id);

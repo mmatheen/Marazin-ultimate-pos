@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Sale extends Model
 {
-    use HasFactory;
+    use HasFactory, LocationTrait;
 
     protected $fillable = [
         'customer_id',
