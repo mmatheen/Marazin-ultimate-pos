@@ -2,7 +2,8 @@
 
 namespace App\Traits;
 
-use App\Models\Scopes\LocationScope;
+use App\Scopes\LocationScope;
+
 use Illuminate\Support\Facades\Auth;
 
 trait LocationTrait{
@@ -20,6 +21,5 @@ trait LocationTrait{
             }
         });
     }
-
 
 }

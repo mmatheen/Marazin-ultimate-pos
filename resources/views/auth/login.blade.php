@@ -117,8 +117,8 @@
 
                                 <div class="form-group">
                                     <label>Password<span class="login-danger">*</span></label>
-                                    <input type="text" class="form-control pass-input1 @error('password') is-invalid @enderror" name="password" autocomplete="current-password">
-                                    <span class="profile-views feather-eye toggle-password1"></span>
+                                    <input type="password" class="form-control pass-input1 @error('password') is-invalid @enderror" name="password" autocomplete="current-password">
+                                    <span class="profile-views feather-eye-off toggle-password1"></span>
                                     @if ($errors->has('password'))
                                     <span class="text-danger mt-2">{{ $errors->first('password') }}</span>
                                     @endif

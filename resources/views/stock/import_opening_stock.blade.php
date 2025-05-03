@@ -80,6 +80,7 @@
                                             <option selected disabled>Please Select Location</option>
                                             @foreach($locations as $location)
                                             <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                           
                                             @endforeach
                                         </select>
                                     </div>

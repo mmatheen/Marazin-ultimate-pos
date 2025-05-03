@@ -128,7 +128,7 @@
                                     <div class="mb-5">
                                         <div class="input-group local-forms">
                                             <label>Location Name<span class="login-danger">*</span></label>
-                                
+
                                             <select id="edit_location_id" name="location_id[]" class="locationDropdown form-control form-select" multiple>
                                                 <!-- Populate options dynamically from the backend -->
                                             </select>
@@ -136,7 +136,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <script>
                                     $(document).ready(function() {
                                         $('#edit_location_id').select2({
@@ -151,10 +151,10 @@
                                             $('#edit_location_id').val(null).trigger('change');
                                         });
                                     });
-                                
 
-                                    
                                 </script>
+
+
                                 <style>
                                                                         /* Add this to your CSS file */
                                 .select2-container--default .select2-selection--multiple {
@@ -162,7 +162,7 @@
                                 }
 
                                 </style>
-                                
+
 
                                 <div class="col-md-6">
                                     <div class="form-group local-forms">
@@ -176,7 +176,7 @@
                                     <div class="form-group local-forms">
                                         <label>Password <span class="login-danger">*</span></label>
                                         <input class="form-control pass-input1" id="edit_password" name="password" type="password" placeholder="Enter Password">
-                                        <span class="profile-views feather-eye toggle-password1"></span>
+                                        <span class="profile-views feather-eye-off toggle-password1"></span>
                                         <span class="text-danger" id="password_error"></span>
                                     </div>
                                 </div>
@@ -185,7 +185,7 @@
                                     <div class="form-group local-forms">
                                         <label>Confirm Password <span class="login-danger">*</span></label>
                                         <input class="form-control pass-input2" id="edit_confirm_password" name="password_confirmation" autocomplete="new-password" type="password" placeholder="Enter Password">
-                                        <span class="profile-views feather-eye toggle-password2"></span>
+                                        <span class="profile-views feather-eye-off toggle-password2"></span>
                                         <span class="text-danger" id="confirm_password_error"></span>
                                     </div>
                                 </div>

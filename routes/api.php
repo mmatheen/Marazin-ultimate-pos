@@ -199,7 +199,6 @@ Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
 //stop product route
 
-
   //start unit route
   Route::get('/unit', [UnitController::class, 'unit'])->name('brand');
   Route::get('/unit-edit/{id}', [UnitController::class, 'edit']);
@@ -241,11 +240,9 @@ Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit'
 Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
 Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
 
-
 Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
 Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
-
 
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
 Route::get('/search/sales', [SaleController::class, 'searchSales']);
@@ -317,7 +314,7 @@ Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 
 Route::post('/supplier-payment', [PaymentController::class, 'handleSupplierPayment']);
                 // web.php (Routes)
-  Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
+Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
 
     //route fetch All daily report sales
-    Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
+Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);

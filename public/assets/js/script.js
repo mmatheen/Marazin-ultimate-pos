@@ -36,6 +36,7 @@
         $("html").addClass("menu-opened");
         return false;
     });
+    
     // .toggle-password1
     if ($(".toggle-password1").length > 0) {
         $(document).on("click", ".toggle-password1", function () {
@@ -48,7 +49,7 @@
             }
         });
     }
-    
+
 // .toggle-password2
     if ($(".toggle-password2").length > 0) {
         $(document).on("click", ".toggle-password2", function () {

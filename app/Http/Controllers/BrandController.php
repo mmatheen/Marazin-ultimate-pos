@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 
 class BrandController extends Controller
 {
-
     function __construct()
     {
         $this->middleware('permission:view brand', ['only' => ['index', 'show','Brand']]);

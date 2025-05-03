@@ -20,8 +20,8 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
     {{-- <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}"> --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
-
     <link rel="stylesheet" href="{{ asset('assets/plugins/datatables/datatables.min.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
     <link rel="stylesheet" href="{{ asset('assets/plugins/toastr/toatr.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/summernote/summernote-bs4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
@@ -52,40 +52,48 @@
             border-color: rgb(3, 105, 54) !important;
         }
 
+    </style>
 
 
+    {{-- datatable custom style color code start  --}}
 
-
-        /* Sticky Search and Pagination */
-        .dataTables_wrapper {
-            position: relative;
+    <style>
+        /* PDF button style */
+        .dt-button.buttons-pdf.buttons-html5 {
+            background-color: #1372ee !important;
+            border-color: #1372ee !important;
+            color: #fff !important;
+            margin: 20px 10px;
         }
-
-        .dataTables_filter {
-            position: absolute;
-            top: 0;
-            right: 0;
-            background: white;
-            padding: 10px;
-            z-index: 10;
+    
+        /* Excel button style */
+        .dt-button.buttons-excel.buttons-html5 {
+            background-color: #26C76F !important;
+            border-color: #26C76F !important;
+            color: #fff !important;
+            margin: 20px 10px;
         }
-
-        .dataTables_paginate {
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            background: white;
-            padding: 10px;
-            z-index: 10;
+    
+        /* Flex row for search filter and dt-controls */
+        .dataTables_wrapper .dt-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* optional: wrap on small screens */
         }
-
-        /* Make table wrapper scrollable */
-        .table-responsive {
-            overflow-x: auto;
-            position: relative;
-            max-width: 100%;
+    
+        /* Optional: spacing adjustments */
+        .dataTables_wrapper .dt-buttons {
+            margin-bottom: 10px;
+        }
+    
+        .dataTables_wrapper .dt-controls {
+            margin-left: auto;
+            /* or use padding/margin if needed for alignment */
         }
     </style>
+    
+    {{-- data table customize style end --}}
 
 </head>
 
@@ -127,8 +135,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+
+    <!-- DataTables -->
     <script src="{{ asset('assets/plugins/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/datatables/datatables.min.js') }}"></script>
+
+    <!-- Buttons extension for DataTables -->
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+
+    <!-- JSZip and PDFMake for Excel/PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+
     <script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
     <script src="{{ asset('assets/plugins/toastr/toastr.js') }}"></script>
     <script src="{{ asset('assets/js/jquery-ui.min.js') }}"></script>
@@ -153,9 +175,9 @@
         $(document).ready(function() {
             $('.selectBox').select2();
         });
-        
 
-    
+
+
     </script>
 
     <script>

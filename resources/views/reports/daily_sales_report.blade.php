@@ -19,15 +19,48 @@
             </div>
             <div>
                 <div class="card card-body mb-4">
-                    <div class="student-group-form">
+                    
+                    <div class="student-group-form d-flex align-items-start flex-wrap gap-2">
                         <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
                             <i class="fas fa-filter"></i> &nbsp; Filters
                         </button>
-                        {{-- <button class="btn btn-secondary" type="button" onclick="printReport()">
-                            <i class="fas fa-print"></i> &nbsp; Print
-                        </button> --}}
+                    
+                        <div class="btn-group">
+                            <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                                Columns Visibility
+                            </button>
+                            <ul class="dropdown-menu p-3" aria-labelledby="dropdownMenuButton" id="columnVisibilityDropdown" style="width: 400px;">
+                                <div class="row">
+                             
+                                    <div class="col-md-6">
+                                        <li><a class="dropdown-item" href="#" data-value="hide all">1. Hide All Columns</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="show all">2. Show All Columns</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="0">3. Invoice No</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="1">4. Customer</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="2">5. Date</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="3">7. Line Total</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="4">6. Line Discount</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="5">8. Sub Total</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="6">9. Bill Discount</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="7">10. Net Bill Total</a></li>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <li><a class="dropdown-item" href="#" data-value="8">11. Cash</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="9">12. Online</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="10">13. Bank Transfer</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="11">14. Cheque</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="12">15. Card</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="13">16. Return</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="14">17. Credit</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="15">18. Sales Return</a></li>
+                                    </div>
+                                </div>
+                            </ul>
+                        </div>
                     </div>
+                    
                 </div>
             </div>
             <div class="collapse" id="collapseExample">
@@ -68,6 +101,7 @@
             </div>
         </div>
         {{-- Table Section --}}
+
         <div class="row">
             <div class="col-md-12">
                 <div class="card card-table">
@@ -96,7 +130,7 @@
                                 </thead>
                                 <tbody>
                                 </tbody>
-                                
+
                                 <tfoot style="border-top: 2px solid #dee2e6;">
                                     <tr>
                                         <th colspan="3">Total</th>
@@ -236,6 +270,8 @@
             </div>
         </div>
     </div>
+
+   
 
     <script>
         $(function() {
@@ -411,8 +447,25 @@
                         [10, 20, 50, 75, 100, -1],
                         [10, 20, 50, 75, 100, "All"]
                     ],
-                    destroy: true, // Destroy any existing table instance
-                    data: [], // Initialize with empty data
+                    destroy: true,         // Reinitialize the table if it already exists
+                    deferRender: true,     // Render rows only when needed
+                    pageLength: 10,        // Number of rows per page
+                    dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
+
+                    buttons: [
+                        {
+                            extend: 'pdfHtml5',
+                            text: '<i class="fa fa-file-pdf"></i> PDF',
+                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
+                            exportOptions: { columns: ':visible' }
+                        },
+                        {
+                            extend: 'excelHtml5',
+                            text: '<i class="fa fa-file-excel"></i> Excel',
+                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
+                            exportOptions: { columns: ':visible' }
+                        }
+                        ],
                     columns: [
                         { title: "Invoice No" },
                         { title: "Customer" },
@@ -431,6 +484,28 @@
                         { title: "Credit" },
                         { title: "Sales Return" }
                     ]
+                });
+
+                 //  Column visibility dropdown outside DataTable
+
+                    $('#columnVisibilityDropdown a').on('click', function (e) {
+                    e.preventDefault();
+                    var selectedValue = $(this).data('value');
+                    if (selectedValue === "hide all") {
+                        table.columns().visible(false);
+                    } else if (selectedValue === "show all") {
+                        table.columns().visible(true);
+                    } else {
+                        var column = table.column(selectedValue);
+                        column.visible(!column.visible());
+                    }
+                });
+
+                //  Stop closing on click inside dropdown
+                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function (item) {
+                    item.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                    });
                 });
 
                 const tableData = sales.map(sale => {
