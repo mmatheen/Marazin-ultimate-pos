@@ -224,14 +224,14 @@
                                 <td>Expense</td>
                                 <td id="expense">0.00</td>
                             </tr>
-                            <tr>
+                            {{-- <tr>
                                 <td>Credit Collection (New Bills)</td>
                                 <td id="creditCollectionNew">0.00</td>
                             </tr>
                             <tr>
                                 <td>Credit Collection (Old Bills)</td>
                                 <td id="creditCollectionOld">0.00</td>
-                            </tr>
+                            </tr> --}}
                             <tr>
                                 <td>Net Income</td>
                                 <td id="netIncome">0.00</td>
@@ -248,14 +248,14 @@
                                 <td>Cash Payments</td>
                                 <td id="cashPaymentsSummary">0.00</td>
                             </tr>
-                            <tr>
+                            {{-- <tr>
                                 <td>Credit Collection (New Bills)</td>
                                 <td id="creditCollectionNewSummary">0.00</td>
                             </tr>
                             <tr>
                                 <td>Credit Collection (Old Bills)</td>
                                 <td id="creditCollectionOldSummary">0.00</td>
-                            </tr>
+                            </tr> --}}
                             <tr>
                                 <td>Expense</td>
                                 <td id="expenseSummary">0.00</td>
@@ -386,12 +386,12 @@
                     paymentTotalSummary: 0,
                     pastSalesReturns: 0,
                     expense: 0,
-                    creditCollectionNew: 0,
-                    creditCollectionOld: 0,
+                    // creditCollectionNew: 0,
+                    // creditCollectionOld: 0,
                     netIncome: 0,
                     cashPaymentsSummary: 0,
-                    creditCollectionNewSummary: 0,
-                    creditCollectionOldSummary: 0,
+                    // creditCollectionNewSummary: 0,
+                    // creditCollectionOldSummary: 0,
                     expenseSummary: 0,
                     cashInHand: 0
                 };
@@ -432,9 +432,9 @@
 
                 summaries.netIncome = summaries.paymentTotal - summaries.salesReturns;
                 summaries.cashPaymentsSummary = summaries.cashPayments;
-                summaries.creditCollectionNewSummary = summaries.creditCollectionNew;
-                summaries.creditCollectionOldSummary = summaries.creditCollectionOld;
-                summaries.expenseSummary = summaries.expense;
+                // summaries.creditCollectionNewSummary = summaries.creditCollectionNew;
+                // summaries.creditCollectionOldSummary = summaries.creditCollectionOld;
+                // summaries.expenseSummary = summaries.expense;
                 summaries.cashInHand = summaries.cashPayments - summaries.expense;
 
                 return summaries;
@@ -442,6 +442,8 @@
 
             function populateTable(sales, salesReturns) {
                 const table = $('#salesTable').DataTable({
+                    // dom: 'Bfrtip',
+                    // buttons: ['copy'],
                     lengthMenu: [
                         [10, 20, 50, 75, 100, -1],
                         [10, 20, 50, 75, 100, "All"]
@@ -463,6 +465,16 @@
                             text: '<i class="fa fa-file-excel"></i> Excel',
                             filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
                             exportOptions: { columns: ':visible' }
+                        },
+                        {
+                            extend: 'print',
+                            text: '<i class="fa fa-print"></i> Print',
+                            title: 'Daily Sales Report',
+                            exportOptions: { columns: ':visible' },
+                            customize: function (win) {
+                                $(win.document.body).find('h1').remove();
+                                $(win.document.body).find('table').addClass('table table-bordered');
+                            }
                         }
                         ],
                     columns: [
@@ -483,6 +495,7 @@
                         { title: "Credit" },
                         { title: "Sales Return" }
                     ]
+                    
                 });
 
                  //  Column visibility dropdown DataTable code start

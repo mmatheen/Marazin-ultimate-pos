@@ -46,9 +46,14 @@ class SaleController extends Controller
 
     public function pos()
     {
-        $user = Auth::user();
-        $location = Location::find($user->location_id);
-        return view('sell.pos', compact('location'));
+        
+        return view('sell.pos');
+    }
+
+    public function pos2()
+    {
+      
+        return view('sell.pos2');
     }
 
     public function posList()

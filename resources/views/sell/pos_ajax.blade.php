@@ -195,7 +195,7 @@
 
         let isEditing = false;
 
-        $(document).ready(function () {
+        $(document).ready(function() {
 
             fetchAllLocations();
             $('#locationSelect').on('change', handleLocationChange);
@@ -332,7 +332,7 @@
                         ((product.product_name && product.product_name.toLowerCase().startsWith(
                                 searchTerm)) ||
                             (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
-                            ) &&
+                        ) &&
                         product.total_stock > 0 // 👈 Only show products with stock > 0
                     ).sort((a, b) => {
                         const nameA = a.product_name?.toLowerCase() || '';
@@ -644,69 +644,67 @@
             });
         }
 
-        function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1) {
-            price = parseFloat(price);
-            if (isNaN(price)) {
-                console.error('Invalid price for product:', product.product_name);
-                toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
-                price = 0;
+        function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType, saleQuantity = 1) {
+    price = parseFloat(price);
+    if (isNaN(price)) {
+        console.error('Invalid price for product:', product.product_name);
+        toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+        price = 0;
+    }
+
+    const billingBody = document.getElementById('billing-body');
+
+    let adjustedBatchQuantity = batchQuantity;
+
+    if (batchId === "all") {
+        adjustedBatchQuantity = stockEntry.total_stock;
+    } else {
+        const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
+        if (selectedBatch) {
+            const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id === locationId);
+            if (locationBatch) {
+                adjustedBatchQuantity = locationBatch.quantity;
             }
+        }
+    }
 
-            const billingBody = document.getElementById('billing-body');
+    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+        const rowProductId = row.querySelector('.product-id').textContent;
+        const rowBatchId = row.querySelector('.batch-id').textContent;
+        return rowProductId == product.id && rowBatchId == batchId;
+    });
 
-            //  Get the correct batch quantity based on selected batch or "All"
-            let adjustedBatchQuantity = batchQuantity;
+    if (existingRow) {
+        // Handle existing row
+        const quantityInput = existingRow.querySelector('.quantity-input');
+        let currentQty = parseInt(quantityInput.value, 10);
+        let newQuantity = currentQty + saleQuantity;
 
-            // If batchId is "all", get the total stock
-            if (batchId === "all") {
-                adjustedBatchQuantity = stockEntry.total_stock;
-            } else {
-                // Find the specific batch's available quantity
-                const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
-                if (selectedBatch) {
-                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ===
-                        locationId);
-                    if (locationBatch) {
-                        adjustedBatchQuantity = locationBatch.quantity;
-                    }
-                }
-            }
+        if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+            toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`, 'Warning');
+            return;
+        }
 
-            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                const rowProductId = row.querySelector('.product-id').textContent;
-                const rowBatchId = row.querySelector('.batch-id').textContent;
-                return rowProductId == product.id && rowBatchId == batchId;
-            });
+        quantityInput.value = newQuantity;
+        const subtotalElement = existingRow.querySelector('.subtotal');
+        const updatedSubtotal = newQuantity * price;
+        subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
 
-            if (existingRow) {
-                const quantityInput = existingRow.querySelector('.quantity-input');
-                let currentQty = parseInt(quantityInput.value, 10);
-                let newQuantity = currentQty + saleQuantity;
+        updateTotals();
+    } else {
+        // Calculate MRP - Retail Price discount
+        const mrp = parseFloat(product.max_retail_price || 0);
+        const retailPrice = parseFloat(product.retail_price || 0);
 
-                // Validate against adjustedBatchQuantity
-                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
-                    toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
-                        'Warning');
-                    return;
-                }
+        let discountType = 'fixed';
+        let discountAmount = 0;
 
-                quantityInput.value = newQuantity;
-                const subtotalElement = existingRow.querySelector('.subtotal');
-                const updatedSubtotal = newQuantity * price;
-                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+        if (mrp > retailPrice) {
+            discountAmount = mrp - retailPrice;
+        }
 
-                const quantityDisplay = existingRow.querySelector('.quantity-display');
-                if (quantityDisplay) {
-                    quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
-                }
-
-                quantityInput.focus();
-                quantityInput.select();
-                updateTotals();
-            } else {
-                const row = document.createElement('tr');
-                row.innerHTML = `
+        const row = document.createElement('tr');
+        row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
                     <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
@@ -715,7 +713,6 @@
                             ${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || ''}</span>
                         </div>
                         <div class="text-muted me-2">${product.sku}
-                            ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
                             <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
                         </div>
                     </div>
@@ -729,26 +726,32 @@
                 </div>
             </td>
             <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+            <td>
+                <select class="form-select discount-type">
+                    <option value="fixed" ${discountType === 'fixed' ? 'selected' : ''}>Fixed</option>
+                    <option value="percentage" ${discountType === 'percentage' ? 'selected' : ''}>Percentage</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" value="${discountAmount.toFixed(2)}" class="form-control discount-amount text-center" placeholder="0" min="0" max="${discountType === 'percentage' ? 100 : ''}">
+            </td>
             <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
             <td class="product-id d-none">${product.id}</td>
             <td class="location-id d-none">${locationId}</td>
             <td class="batch-id d-none">${batchId}</td>
-            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+            <td class="discount-data d-none">${JSON.stringify({ type: discountType, amount: discountAmount })}</td>
         `;
-                billingBody.insertBefore(row, billingBody.firstChild);
-                attachRowEventListeners(row, product, stockEntry);
-                const quantityInput = row.querySelector('.quantity-input');
-                quantityInput.focus();
-                quantityInput.select();
-                quantityInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        document.getElementById('productSearchInput').focus();
-                    }
-                });
-                updateTotals();
-            }
-        }
+
+        billingBody.insertBefore(row, billingBody.firstChild);
+        attachRowEventListeners(row, product, stockEntry);
+        const quantityInput = row.querySelector('.quantity-input');
+        quantityInput.focus();
+        quantityInput.select();
+
+        updateTotals();
+    }
+}
 
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');
@@ -939,7 +942,7 @@
             });
         }
 
-    
+
         function fetchEditSale(saleId) {
             // fetchAllProducts();
             fetch(`/api/sales/edit/${saleId}`)

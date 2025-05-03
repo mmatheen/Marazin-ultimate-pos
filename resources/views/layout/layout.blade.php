@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
     {{-- <title>ARB - Distribution </title> --}}
-    <title>ARB - Distribution @yield('title') </title>
+    <title>ARB - Fashion @yield('title') </title>
     <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
@@ -70,6 +70,14 @@
         .dt-button.buttons-excel.buttons-html5 {
             background-color: #26C76F !important;
             border-color: #26C76F !important;
+            color: #fff !important;
+            margin: 20px 10px;
+        }
+
+        /* Print button style */
+        .dt-button.buttons-print{
+            background-color: #131111 !important;
+            border-color: #000 !important;
             color: #fff !important;
             margin: 20px 10px;
         }
@@ -158,6 +166,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 
 
     <script src="{{ asset('assets/plugins/toastr/toastr.min.js') }}"></script>
