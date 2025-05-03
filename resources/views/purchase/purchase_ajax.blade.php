@@ -98,15 +98,18 @@
                 dataType: 'json',
                 success: function(data) {
                     const locationSelect = $('#services');
-                    locationSelect.html(
-                        '<option selected disabled>Please Select Locations</option>');
+                    locationSelect.html('<option selected disabled>Select Location</option>');
 
                     if (data.status === 200) {
                         data.message.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(
-                                location.name);
+                            const option = $('<option></option>').val(location.id).text(location.name);
                             locationSelect.append(option);
                         });
+
+                        // Trigger change for the first location by default
+                        if (data.message.length > 0) {
+                            locationSelect.val(data.message[0].id).trigger('change');
+                        }
                     } else {
                         console.error('Failed to fetch location data:', data.message);
                     }
@@ -116,19 +119,22 @@
                 }
             });
         }
-
         let allProducts = []; // Store all product data
 
-function fetchProducts() {
-    fetch('/products/stocks')
+function fetchProducts(locationId) {
+    let url = '/products/stocks';
+
+    if (locationId) {
+        url += `?location_id=${locationId}`;
+    }
+
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             if (data.status === 200 && Array.isArray(data.data)) {
                 allProducts = data.data.map(stock => {
-                    if (!stock.product) {
-                        console.error("Product data is missing:", stock);
-                        return null;
-                    }
+                    if (!stock.product) return null;
+
                     return {
                         id: stock.product.id,
                         name: stock.product.product_name,
@@ -144,13 +150,25 @@ function fetchProducts() {
                         stock_alert: stock.product.stock_alert || 0
                     };
                 }).filter(product => product !== null);
-                initAutocomplete(allProducts); // Initialize autocomplete
+
+                initAutocomplete(allProducts); // Initialize autocomplete with filtered products
             } else {
                 console.error("Failed to fetch product data:", data);
             }
         })
         .catch(error => console.error("Error fetching products:", error));
 }
+
+$(document).ready(function () {
+    fetchLocations(); // Fetch all locations
+
+    $('#services').on('change', function () {
+        const selectedLocationId = $(this).val();
+        if (selectedLocationId) {
+            fetchProducts(selectedLocationId); // Pass location ID to fetch only relevant products
+        }
+    });
+});
 
 function initAutocomplete(products) {
     $("#productSearchInput").autocomplete({

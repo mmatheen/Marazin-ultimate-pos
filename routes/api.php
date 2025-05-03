@@ -318,3 +318,6 @@ Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 Route::post('/supplier-payment', [PaymentController::class, 'handleSupplierPayment']);
                 // web.php (Routes)
   Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
+
+    //route fetch All daily report sales
+    Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);

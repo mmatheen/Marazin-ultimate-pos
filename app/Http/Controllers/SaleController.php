@@ -735,6 +735,7 @@ class SaleController extends Controller
                 ]);
             }
             return view('sell.pos', ['saleDetails' => $saleDetails]);
+
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
         } catch (\Exception $e) {

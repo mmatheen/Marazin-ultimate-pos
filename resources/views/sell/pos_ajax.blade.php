@@ -193,14 +193,23 @@
                 });
         }
 
+        let isEditing = false;
 
+        $(document).ready(function () {
 
-        // Fetch all locations on page load
-        $(document).ready(function() {
             fetchAllLocations();
-
-            // Attach change event listener
             $('#locationSelect').on('change', handleLocationChange);
+
+            // Detect if we're in edit mode
+            const pathSegments = window.location.pathname.split('/');
+            const saleId = pathSegments[pathSegments.length - 1];
+
+            if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+                isEditing = true;
+                fetchEditSale(saleId);
+            } else {
+                console.warn('Invalid or missing saleId:', saleId);
+            }
         });
 
         // Fetch all locations via AJAX
@@ -244,15 +253,14 @@
             locationSelect.trigger('change');
         }
 
-        // Handle location dropdown change
         function handleLocationChange(event) {
             selectedLocationId = $(event.target).val(); // Update global variable
-
             if (selectedLocationId) {
-
-                billingBody.innerHTML = '';
+                if (!isEditing) {
+                    billingBody.innerHTML = '';
+                }
                 updateTotals();
-                fetchAllProducts(selectedLocationId); // Pass to fetch function
+                fetchAllProducts(selectedLocationId); // Still fetch products for autocomplete
             } else {
                 console.warn("No location selected");
             }
@@ -311,13 +319,6 @@
                     alert('An error occurred while fetching product data.');
                 });
         }
-
-        // Listen for location change
-        document.getElementById('locationSelect').addEventListener('change', function() {
-            selectedLocationId = this.value;
-            console.log("Selected Location ID (Dropdown Change):", selectedLocationId); // DEBUG
-            fetchAllProducts(); // Reload products when location changes
-        });
 
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
@@ -654,7 +655,7 @@
 
             const billingBody = document.getElementById('billing-body');
 
-            // ✅ Get the correct batch quantity based on selected batch or "All"
+            //  Get the correct batch quantity based on selected batch or "All"
             let adjustedBatchQuantity = batchQuantity;
 
             // If batchId is "all", get the total stock
@@ -683,7 +684,7 @@
                 let currentQty = parseInt(quantityInput.value, 10);
                 let newQuantity = currentQty + saleQuantity;
 
-                // ✅ Validate against adjustedBatchQuantity
+                // Validate against adjustedBatchQuantity
                 if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
                     toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
                         'Warning');
@@ -938,19 +939,7 @@
             });
         }
 
-        let saleId = null;
-
-        // Extract saleId from the URL path
-        const pathSegments = window.location.pathname.split('/');
-        saleId = pathSegments[pathSegments.length - 1];
-
-        // Validate saleId to ensure it is a numeric value
-        if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
-            fetchEditSale(saleId);
-        } else {
-            console.warn('Invalid or missing saleId:', saleId);
-        }
-
+    
         function fetchEditSale(saleId) {
             // fetchAllProducts();
             fetch(`/api/sales/edit/${saleId}`)

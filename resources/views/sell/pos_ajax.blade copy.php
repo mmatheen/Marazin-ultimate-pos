@@ -1,11 +1,11 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
 
 
+        let selectedLocationId = null;
 
-
-        // Elements
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
         const discountInput = document.getElementById('discount');
@@ -15,15 +15,12 @@
         const categoryBtn = document.getElementById('category-btn');
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
-        // const baseUrl = "http://127.0.0.1:8000"; // Base URL for the images
 
-        // Global arrays to store products
-        let allProducts = [];
-        let stockData = [];
 
-        // Show loader
+
+        // Utility: Show Loader
         function showLoader() {
-            const loaderHTML = `
+            posProduct.innerHTML = `
         <div class="loader-container">
             <div class="loader">
                 <div class="circle"></div>
@@ -31,16 +28,12 @@
                 <div class="circle"></div>
                 <div class="circle"></div>
             </div>
-        </div>
-    `;
-            posProduct.innerHTML = loaderHTML;
-            posProduct.style.position = 'relative';
+        </div>`;
         }
 
-        // Hide loader
+        // Utility: Hide Loader
         function hideLoader() {
             posProduct.innerHTML = '';
-            posProduct.style.position = '';
         }
 
         allProductsBtn.onclick = function() {
@@ -83,8 +76,8 @@
                             });
 
                             const nextButton = document.createElement('button');
-                            nextButton.textContent = 'Next';
-                            nextButton.classList.add('btn', 'btn-outline-blue');
+                            nextButton.textContent = 'Next >>';
+                            nextButton.classList.add('btn', 'btn-outline-purple');
                             nextButton.addEventListener('click', () => {
                                 fetchSubcategories(category.id);
                             });
@@ -200,126 +193,288 @@
                 });
         }
 
+
+
+        // Fetch all locations on page load
+        $(document).ready(function() {
+            fetchAllLocations();
+
+            // Attach change event listener
+            $('#locationSelect').on('change', handleLocationChange);
+        });
+
+        // Fetch all locations via AJAX
+        function fetchAllLocations() {
+            $.ajax({
+                url: '/location-get-all',
+                method: 'GET',
+                success: function(data) {
+                    if (data.status === 200) {
+                        populateLocationDropdown(data.message);
+                    } else {
+                        console.error('Error fetching locations:', data.message);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('AJAX Error:', textStatus, errorThrown);
+                }
+            });
+        }
+
+        // Populate dropdown and select first location by default
+        function populateLocationDropdown(locations) {
+            const locationSelect = $('#locationSelect');
+            locationSelect.empty(); // Clear existing options
+
+            locationSelect.append('<option value="" disabled>Select Location</option>');
+
+            locations.forEach((location, index) => {
+                const option = $('<option></option>')
+                    .val(location.id)
+                    .text(location.name);
+
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                }
+
+                locationSelect.append(option);
+            });
+
+            // Trigger change to load products for the first location
+            locationSelect.trigger('change');
+        }
+
+        // Handle location dropdown change
+        function handleLocationChange(event) {
+            selectedLocationId = $(event.target).val(); // Update global variable
+
+            if (selectedLocationId) {
+
+                billingBody.innerHTML = '';
+                updateTotals();
+                fetchAllProducts(selectedLocationId); // Pass to fetch function
+            } else {
+                console.warn("No location selected");
+            }
+        }
+        // Global arrays to store products
+        let allProducts = [];
+        let stockData = [];
+
+        // Fetch all products from the server based on selected location
         function fetchAllProducts() {
+            console.log("Fetching products for Location ID:", selectedLocationId); // DEBUG
+
             showLoader();
-            fetch('/products/stocks')
-                .then(response => response.json())
+
+            let url = '/products/stocks';
+
+            if (selectedLocationId) {
+                url += `?location_id=${selectedLocationId}`;
+            }
+
+            console.log('Final URL:', url); // DEBUG
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
-                    hideLoader(); // Hide loader after fetching
+                    hideLoader();
+
                     if (data.status === 200 && Array.isArray(data.data)) {
                         stockData = data.data;
-                        // Populate the global allProducts array
-                        allProducts = stockData.map(stock => stock.product);
+
+                        allProducts = stockData.map(stock => {
+                            const firstLocationBatch = stock.batches?.[0]?.location_batches?.[0] ||
+                                null;
+
+                            return {
+                                ...stock.product,
+                                total_stock: stock.total_stock,
+                                location_id: firstLocationBatch ? firstLocationBatch.location_id :
+                                    null
+                            };
+                        });
+
                         displayProducts(stockData);
                         initAutocomplete();
                     } else {
                         console.error('Invalid data:', data);
+                        alert('Failed to load product data.');
                     }
                 })
                 .catch(error => {
+                    hideLoader();
                     console.error('Error fetching data:', error);
+                    alert('An error occurred while fetching product data.');
                 });
         }
+
+        // Listen for location change
+        document.getElementById('locationSelect').addEventListener('change', function() {
+            selectedLocationId = this.value;
+            console.log("Selected Location ID (Dropdown Change):", selectedLocationId); // DEBUG
+            fetchAllProducts(); // Reload products when location changes
+        });
 
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = allProducts.filter(product =>
-                        (product.product_name && product.product_name.toLowerCase().includes(
-                            searchTerm)) ||
-                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                    );
 
-                    if (filteredProducts.length === 0) {
-                        // Optionally display a "No products found" in the dropdown
-                        response([{
+                    // Filter products that:
+                    // 1. Match the search term (product name or SKU)
+                    // 2. Have total_stock > 0
+                    const filteredProducts = allProducts.filter(product =>
+                        ((product.product_name && product.product_name.toLowerCase().startsWith(
+                                searchTerm)) ||
+                            (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
+                            ) &&
+                        product.total_stock > 0 // 👈 Only show products with stock > 0
+                    ).sort((a, b) => {
+                        const nameA = a.product_name?.toLowerCase() || '';
+                        const nameB = b.product_name?.toLowerCase() || '';
+                        return nameA.localeCompare(nameB);
+                    });
+
+                    // Map for autocomplete UI
+                    const autoCompleteResults = filteredProducts.length ?
+                        filteredProducts.map(p => ({
+                            label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
+                            value: p.product_name,
+                            product: p
+                        })) : [{
                             label: "No products found",
                             value: ""
-                        }]);
-                    } else {
-                        response(filteredProducts.map(product => ({
-                            label: `${product.product_name} (${product.sku || 'No SKU'})`,
-                            value: product.product_name,
-                            product: product
-                        })));
+                        }];
+
+                    response(autoCompleteResults);
+
+                    // If exactly one match and search term is long enough, add to table
+                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                        addProductToTable(filteredProducts[0]);
                     }
                 },
                 select: function(event, ui) {
-                    // If no valid product is selected, ignore
                     if (!ui.item.product) return false;
-
-                    // Populate the input field with the selected product name
-                    $("#productSearchInput").val(ui.item.value);
-
-                    // Add the selected product to the data table
+                    $("#productSearchInput").val("");
                     addProductToTable(ui.item.product);
                     return false;
+                },
+                focus: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    return false;
+                },
+                minLength: 1,
+                open: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                },
+                close: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
                 }
             }).autocomplete("instance")._renderItem = function(ul, item) {
-                // Customize the dropdown appearance
-                if (!item.product) {
-                    return $("<li>")
-                        .append(`<div style="color: red;">${item.label}</div>`)
-                        .appendTo(ul);
-                }
+                const $li = $("<li>").append(
+                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+                ).appendTo(ul);
 
-                return $("<li>")
-                    .append(`<div>${item.label}</div>`)
-                    .appendTo(ul);
+                $li.data("ui-autocomplete-item", item);
+                $li.on("mouseenter", function() {
+                    $(this).addClass("ui-state-focus");
+                }).on("mouseleave", function() {
+                    $(this).removeClass("ui-state-focus");
+                });
+
+                return $li;
             };
 
-            // Prevent default aria-live and aria-autocomplete attributes
             $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-
-            // Remove the default autocomplete status element
             $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+                if (!this.menu.element.is(":visible")) {
+                    this.search(null, event);
+                    return;
+                }
+                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+                    this.menu.isLastItem() && /^next/.test(direction)) {
+                    this._value(this.term);
+                    this.menu.blur();
+                    return;
+                }
+                this.menu[direction](event);
+                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                this.menu.active.addClass("ui-state-focus");
+            };
         }
 
         function displayProducts(products) {
             posProduct.innerHTML = ''; // Clear previous products
 
-            if (products.length === 0) {
+            // Filter products to show:
+            // 1. Products with stock_alert === 0 (unlimited stock, even if total_stock is 0)
+            // 2. Products with total_stock > 0 (available stock)
+            const filteredProducts = products.filter(stock =>
+                stock.total_stock > 0 || stock.product.stock_alert === 0
+            );
+
+            if (filteredProducts.length === 0) {
                 posProduct.innerHTML = '<p class="text-center">No products found.</p>';
                 return;
             }
 
-
-            products.forEach(stock => {
+            filteredProducts.forEach(stock => {
                 const product = stock.product;
                 const totalQuantity = stock.total_stock;
                 const price = product.retail_price;
                 const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
 
+                // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
+                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
+                    `${totalQuantity} Pc(s) in stock`;
+
                 const cardHTML = `
-                <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                    <div class="product-card">
-                        <img src="/assets/images/${product.product_image}" alt="${product.product_name}">
-                        <div class="product-card-body">
-                            <h6>${product.product_name} <br>
-                                <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                            </h6>
-                            <h6>
-                                <span class="badge bg-success">${totalQuantity} Pc(s) in stock</span>
-                            </h6>
-                        </div>
+            <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
+                <div class="product-card"> 
+                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                    <div class="product-card-body">
+                        <h6>${product.product_name} <br>
+                            <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                        </h6>
+                        <h6>
+                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : totalQuantity > 0 ? 'bg-success' : 'bg-warning'}">
+                                ${quantityDisplay}
+                            </span>
+                        </h6>
                     </div>
                 </div>
-            `;
+            </div>
+        `;
                 posProduct.insertAdjacentHTML('beforeend', cardHTML);
             });
+
             // Add click event to product cards
             const productCards = document.querySelectorAll('.product-card');
-
             productCards.forEach(card => {
                 card.addEventListener('click', () => {
-                    const productId = card.querySelector('img').getAttribute(
-                        'alt'); // Get the product ID from the alt attribute
-                    const selectedProduct = stockData.find(stock => stock.product
-                        .product_name === productId).product;
+                    const productName = card.querySelector('img').getAttribute('alt');
+                    const selectedProduct = stockData.find(stock =>
+                        stock.product.product_name === productName
+                    ).product;
                     addProductToTable(selectedProduct);
                 });
             });
+        }
+
+        // Function to format amounts with separators for display
+        function formatAmountWithSeparators(amount) {
+            return new Intl.NumberFormat().format(amount);
+        }
+
+        // Function to parse formatted amounts back to numbers
+        function parseFormattedAmount(formattedAmount) {
+            return parseFloat(formattedAmount.replace(/,/g, ''));
         }
 
         // Filter products by category
@@ -361,74 +516,86 @@
         }
 
         let locationId;
-let priceType = 'retail';
-let selectedRow;
+        let priceType = 'retail';
+        let selectedRow;
 
-function addProductToTable(product) {
-    console.log("Product to be added:", product);
+        function addProductToTable(product) {
+            console.log("Product to be added:", product);
+            if (!stockData || stockData.length === 0) {
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
+            }
+            const stockEntry = stockData.find(stock => stock.product.id === product.id);
+            console.log("stockEntry", stockEntry);
+            if (!stockEntry) {
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
+            }
+            const totalQuantity = stockEntry.total_stock;
+            if (totalQuantity === 0 && product.stock_alert !== 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
+            }
+            if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
+                if (product.stock_alert === 0) {
+                    locationId = product.location_id || 1;
+                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity,
+                        'retail');
+                } else {
+                    locationId = product.location_id || 1;
+                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity,
+                        'retail');
+                }
+                return;
+            }
 
-    if (!stockData || stockData.length === 0) {
-        console.error('stockData is not defined or empty');
-        toastr.error('Stock data is not available', 'Error');
-        return;
-    }
+            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
+                .quantity > 0);
+            if (locationBatches.length === 0) {
+                toastr.error('No batches with available quantity found', 'Error');
+                return;
+            }
 
-    const stockEntry = stockData.find(stock => stock.product.id === product.id);
-    console.log("stockEntry", stockEntry);
+            locationId = locationBatches[0].location_id; // Set from first available batch
+            addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
+        }
 
-    if (!stockEntry) {
-        toastr.error('Stock entry not found for the product', 'Error');
-        return;
-    }
+        function showProductModal(product, stockEntry, row) {
+            const modalBody = document.getElementById('productModalBody');
+            const basePrice = product.retail_price;
+            const discountAmount = product.discount_amount || 0;
+            const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) :
+                basePrice - discountAmount;
 
-    const totalQuantity = stockEntry.total_stock;
-    if (totalQuantity === 0) {
-        toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-        return;
-    }
-
-    if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-        toastr.error('No batches found for the product', 'Error');
-        return;
-    }
-
-    const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb.quantity > 0);
-    if (locationBatches.length === 0) {
-        toastr.error('No batches with quantity found', 'Error');
-        return;
-    }
-
-    locationId = locationBatches[0].location_id;
-
-    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
-}
-
-function showProductModal(product, stockEntry, row) {
-    const modalBody = document.getElementById('productModalBody');
-    const basePrice = product.retail_price;
-    const discountAmount = product.discount_amount || 0;
-    const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) : basePrice - discountAmount;
-
-    const batches = Array.isArray(stockEntry.batches) ? stockEntry.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
-        batch_id: batch.id,
-        batch_no: batch.batch_no,
-        retail_price: parseFloat(batch.retail_price),
-        wholesale_price: parseFloat(batch.wholesale_price),
-        special_price: parseFloat(batch.special_price),
-        batch_quantity: locationBatch.quantity
-    }))) : [];
-
-    const batchOptions = batches
-        .filter(batch => batch.batch_quantity > 0)
-        .map(batch => `
-            <option value="${batch.batch_id}" data-retail-price="${batch.retail_price}" data-wholesale-price="${batch.wholesale_price}" data-special-price="${batch.special_price}" data-quantity="${batch.batch_quantity}">
-              ${batch.batch_no} - Qty: ${batch.batch_quantity} - R: ${batch.retail_price.toFixed(2)} - W: ${batch.wholesale_price.toFixed(2)} - S: ${batch.special_price.toFixed(2)}
+            const batchOptions = stockEntry.batches
+                .flatMap(batch => {
+                    return batch.location_batches.map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        retail_price: parseFloat(batch.retail_price),
+                        wholesale_price: parseFloat(batch.wholesale_price),
+                        special_price: parseFloat(batch.special_price),
+                        batch_quantity: locationBatch.quantity
+                    }));
+                })
+                .filter(batch => batch.batch_quantity > 0)
+                .map(batch => `
+            <option value="${batch.batch_id}" 
+                data-retail-price="${batch.retail_price}" 
+                data-wholesale-price="${batch.wholesale_price}" 
+                data-special-price="${batch.special_price}" 
+                data-quantity="${batch.batch_quantity}">
+              ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
             </option>
-        `).join('');
+        `)
+                .join('');
 
-    modalBody.innerHTML = `
+            const totalQuantity = stockEntry.total_stock;
+
+            modalBody.innerHTML = `
         <div class="d-flex align-items-center">
-            <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
             <div>
                 <div class="font-weight-bold">${product.product_name}</div>
                 <div class="text-muted">${product.sku}</div>
@@ -447,685 +614,1028 @@ function showProductModal(product, stockEntry, row) {
             </label>
         </div>
         <select id="modalBatchDropdown" class="form-select mt-3">
-            <option value="all" data-retail-price="${finalPrice}" data-quantity="${stockEntry.total_stock}">
-                All - Qty: ${stockEntry.total_stock} - Price: ${finalPrice.toFixed(2)}
+            <option value="all" data-retail-price="${finalPrice}" data-quantity="${totalQuantity}">
+                All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(finalPrice.toFixed(2))}
             </option>
             ${batchOptions}
         </select>
     `;
+            selectedRow = row;
+            const modal = new bootstrap.Modal(document.getElementById('productModal'));
+            modal.show();
 
-    selectedRow = row;
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    modal.show();
-
-    // Add event listeners for the radio buttons to change the active class
-    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
-    radioButtons.forEach(radio => {
-        radio.addEventListener('change', function() {
-            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => {
-                btn.classList.remove('active');
+            const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
+                        .classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                });
             });
-            this.parentElement.classList.add('active');
-        });
-    });
-}
 
-
-    // $(document).keydown(function(e) {
-    //     // Define key codes for shortcuts
-    //     const keyCodes = {
-    //         addProduct: 65, // 'A' key for adding a product
-    //         selectCustomer: 67, // 'C' key for selecting a customer
-    //         cashButton: 83, // 'S' key for cash sale
-    //         suspendButton: 80, // 'P' key for suspending a sale
-    //         creditSaleButton: 84, // 'T' key for credit sale
-    //     };
-
-    //     // Handle shortcuts
-    //     switch (e.which) {
-    //         case keyCodes.addProduct:
-    //             e.preventDefault();
-    //             // Focus on product search or add product to billing body
-    //             $('#productSearchInput').focus();
-    //             break;
-    //         case keyCodes.selectCustomer:
-    //             e.preventDefault();
-    //             // Open the customer selection modal
-    //             $('#customerModal').modal('show');
-    //             break;
-    //         case keyCodes.cashButton:
-    //             e.preventDefault();
-    //             // Trigger the cash sale button
-    //             $('#cashButton').trigger('click');
-    //             break;
-    //         case keyCodes.suspendButton:
-    //             e.preventDefault();
-    //             // Trigger the suspend sale button
-    //             $('#suspendModal').trigger('click');
-    //             break;
-    //         case keyCodes.creditSaleButton:
-    //             e.preventDefault();
-    //             // Trigger the credit sale button
-    //             $('#creditSaleButton').trigger('click');
-    //             break;
-    //         default:
-    //             break;
-    //     }
-    //     });
-    function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType) {
-    const billingBody = document.getElementById('billing-body');
-    const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-        const productIdCell = row.querySelector('.product-id');
-        const batchIdCell = row.querySelector('.batch-id');
-        return productIdCell && batchIdCell && 
-               productIdCell.textContent === String(product.id) && 
-               batchIdCell.textContent === String(batchId);
-    });
-
-    if (existingRow) {
-        const quantityInput = existingRow.querySelector('.quantity-input');
-        let newQuantity = parseInt(quantityInput.value, 10);
-
-        if (newQuantity > batchQuantity) {
-            toastr.error(`You cannot add more than ${batchQuantity} units of this product.`, 'Warning');
-            return;
+            // Attach change handler on dropdown to update max quantity
+            document.getElementById('modalBatchDropdown').addEventListener('change', () => {
+                const selectedOption = document.getElementById('modalBatchDropdown').selectedOptions[0];
+                const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+                const qtyInput = selectedRow.querySelector('.quantity-input');
+                qtyInput.setAttribute('max', maxQty);
+                qtyInput.setAttribute('title', `Available: ${maxQty}`);
+            });
         }
 
-        quantityInput.value = newQuantity;
-        existingRow.querySelector('.price-input').value = formatNumber(price);
-        existingRow.querySelector('.subtotal').textContent = formatNumber(newQuantity * price);
+        function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
+            saleQuantity = 1) {
+            price = parseFloat(price);
+            if (isNaN(price)) {
+                console.error('Invalid price for product:', product.product_name);
+                toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+                price = 0;
+            }
 
-    } else {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+            const billingBody = document.getElementById('billing-body');
+
+            // ✅ Get the correct batch quantity based on selected batch or "All"
+            let adjustedBatchQuantity = batchQuantity;
+
+            // If batchId is "all", get the total stock
+            if (batchId === "all") {
+                adjustedBatchQuantity = stockEntry.total_stock;
+            } else {
+                // Find the specific batch's available quantity
+                const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
+                if (selectedBatch) {
+                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ===
+                        locationId);
+                    if (locationBatch) {
+                        adjustedBatchQuantity = locationBatch.quantity;
+                    }
+                }
+            }
+
+            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                const rowProductId = row.querySelector('.product-id').textContent;
+                const rowBatchId = row.querySelector('.batch-id').textContent;
+                return rowProductId == product.id && rowBatchId == batchId;
+            });
+
+            if (existingRow) {
+                const quantityInput = existingRow.querySelector('.quantity-input');
+                let currentQty = parseInt(quantityInput.value, 10);
+                let newQuantity = currentQty + saleQuantity;
+
+                // ✅ Validate against adjustedBatchQuantity
+                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                    toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
+                        'Warning');
+                    return;
+                }
+
+                quantityInput.value = newQuantity;
+                const subtotalElement = existingRow.querySelector('.subtotal');
+                const updatedSubtotal = newQuantity * price;
+                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+                const quantityDisplay = existingRow.querySelector('.quantity-display');
+                if (quantityDisplay) {
+                    quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
+                }
+
+                quantityInput.focus();
+                quantityInput.select();
+                updateTotals();
+            } else {
+                const row = document.createElement('tr');
+                row.innerHTML = `
             <td>
                 <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                    <div>
-                        <div class="font-weight-bold product-name">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
+                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                    <div class="product-info">
+                        <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px;">
+                            ${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || ''}</span>
+                        </div>
+                        <div class="text-muted me-2">${product.sku}
+                            ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
+                            <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
+                        </div>
                     </div>
                 </div>
             </td>
             <td>
-               <div class="input-group quantity-container mb-3">
-                    <button class="quantity-minus btn btn-outline-secondary btn-sm">-</button>
-                    <input type="number" value="1" min="1" max="${batchQuantity}" class="form-control quantity-input mx-2">
-                    <button class="quantity-plus btn btn-outline-secondary btn-sm">+</button>
+                <div class="d-flex justify-content-center">
+                    <button class="btn btn-danger quantity-minus btn-sm">-</button>
+                    <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}">
+                    <button class="btn btn-success quantity-plus btn-sm">+</button>
                 </div>
             </td>
-            <td><input type="text" value="${formatNumber(price)}" class="form-control price-input" data-quantity="${batchQuantity}" oninput="formatAmount(this)"></td>
-            <td class="subtotal">${formatNumber(price)}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn">X</button></td>
-            <td class="product-id" style="display:none">${product.id}</td>
-            <td class="location-id" style="display:none">${locationId}</td>
-            <td class="batch-id" style="display:none">${batchId}</td>
-            <td class="discount-data" style="display:none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
+            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+            <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
+            <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
+            <td class="product-id d-none">${product.id}</td>
+            <td class="location-id d-none">${locationId}</td>
+            <td class="batch-id d-none">${batchId}</td>
+            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
         `;
-
-        billingBody.insertBefore(row, billingBody.firstChild);
-        attachRowEventListeners(row, product, stockEntry);
-        row.querySelector('.quantity-input').focus();
-    }
-
-    updateTotals();
-}
-
-function attachRowEventListeners(row, product, stockEntry) {
-    const quantityInput = row.querySelector('.quantity-input');
-    const priceInput = row.querySelector('.price-input');
-    const quantityMinus = row.querySelector('.quantity-minus');
-    const quantityPlus = row.querySelector('.quantity-plus');
-    const removeBtn = row.querySelector('.remove-btn');
-    const productImage = row.querySelector('.product-image');
-    const productName = row.querySelector('.product-name');
-
-    quantityMinus.addEventListener('click', () => {
-        if (quantityInput.value > 1) {
-            quantityInput.value--;
-            updateTotals();
-        }
-    });
-
-    quantityPlus.addEventListener('click', () => {
-        let newQuantity = parseInt(quantityInput.value, 10) + 1;
-        if (newQuantity > parseInt(priceInput.getAttribute('data-quantity'), 10)) {
-            document.getElementsByClassName('errorSound')[0].play();
-            toastr.error(`You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`, 'Error');
-        } else {
-            quantityInput.value = newQuantity;
-            updateTotals();
-        }
-    });
-
-    quantityInput.addEventListener('input', () => {
-        const quantityValue = parseInt(quantityInput.value, 10);
-        if (quantityValue > parseInt(priceInput.getAttribute('data-quantity'), 10)) {
-            quantityInput.value = priceInput.getAttribute('data-quantity');
-            document.getElementsByClassName('errorSound')[0].play();
-            toastr.error(`You cannot add more than ${priceInput.getAttribute('data-quantity')} units of this product.`, 'Error');
-        }
-        updateTotals();
-    });
-
-    priceInput.addEventListener('input', () => {
-        priceInput.value = formatNumber(parseFloat(priceInput.value.replace(/,/g, '')) || 0);
-        updateTotals();
-    });
-
-    removeBtn.addEventListener('click', () => {
-        row.remove();
-        updateTotals();
-    });
-
-    productImage.addEventListener('click', () => {
-        showProductModal(product, stockEntry, row);
-    });
-
-    productName.addEventListener('click', () => {
-        showProductModal(product, stockEntry, row);
-    });
-}
-
-document.getElementById('saveProductChanges').onclick = function() {
-    const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked').value;
-    const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
-
-    const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
-    const batchId = selectedBatch.value;
-    const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
-
-    if (selectedRow) {
-        const quantityInput = selectedRow.querySelector('.quantity-input');
-        const priceInput = selectedRow.querySelector('.price-input');
-        const productNameCell = selectedRow.querySelector('.product-name');
-
-        priceInput.value = formatNumber(price);
-        priceInput.setAttribute('data-quantity', batchQuantity);
-
-        const subtotal = parseFloat(quantityInput.value) * price;
-        selectedRow.querySelector('.subtotal').textContent = formatNumber(subtotal);
-
-        selectedRow.querySelector('.batch-id').textContent = batchId;
-
-        // Update product name cell with stars based on selected price type
-        const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
-                      selectedPriceType === 'wholesale' ? '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
-                      '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
-
-        productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
-
-        updateTotals();
-    }
-
-    const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
-    modal.hide();
-};
-
-function updateTotals() {
-    const billingBody = document.getElementById('billing-body');
-    let totalItems = 0;
-    let totalAmount = 0;
-
-    billingBody.querySelectorAll('tr').forEach(row => {
-        const quantity = parseInt(row.querySelector('.quantity-input').value);
-        const price = parseFloat(row.querySelector('.price-input').value.replace(/,/g, ''));
-        const subtotal = quantity * price;
-
-        row.querySelector('.subtotal').textContent = formatNumber(subtotal);
-
-        totalItems += quantity;
-        totalAmount += subtotal;
-    });
-
-    const discount = parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0;
-
-    const subtotalAmount = totalAmount - discount;
-    const totalAmountWithTaxAndShipping = subtotalAmount; // Add tax/shipping logic if needed
-
-    document.getElementById('items-count').textContent = totalItems.toFixed(2);
-    document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-    document.getElementById('total-amount').textContent = formatNumber(totalAmountWithTaxAndShipping);
-    document.getElementById('total').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
-    document.getElementById('payment-amount').textContent = 'Rs ' + formatNumber(totalAmountWithTaxAndShipping);
-}
-
-
-document.getElementById('discount').addEventListener('input', () => {
-    document.getElementById('discount').value = formatNumber(parseFloat(document.getElementById('discount').value.replace(/,/g, '')) || 0);
-    updateTotals();
-});
-
-function formatNumber(value) {
-    return new Intl.NumberFormat('en-IN').format(value.toFixed(2));
-}
-
-$(document).ready(function() {
-    function gatherSaleData(status) {
-        const uniqueNumber = new Date().getTime() % 10000;
-        const customerId = $('#customer-id').val();
-        const salesDate = new Date().toISOString().slice(0, 10);
-
-        if (!locationId) {
-            // toastr.error('Location ID is required.');
-
-            return;
+                billingBody.insertBefore(row, billingBody.firstChild);
+                attachRowEventListeners(row, product, stockEntry);
+                const quantityInput = row.querySelector('.quantity-input');
+                quantityInput.focus();
+                quantityInput.select();
+                quantityInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        document.getElementById('productSearchInput').focus();
+                    }
+                });
+                updateTotals();
+            }
         }
 
-        const saleData = {
-            customer_id: customerId,
-            sales_date: salesDate,
-            location_id: locationId, // Use the global locationId
-            status: status,
-            sale_type: "POS",
-            products: []
+        function attachRowEventListeners(row, product, stockEntry) {
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            const quantityMinus = row.querySelector('.quantity-minus');
+            const quantityPlus = row.querySelector('.quantity-plus');
+            const removeBtn = row.querySelector('.remove-btn');
+            const productImage = row.querySelector('.product-image');
+            const productName = row.querySelector('.product-name');
+
+            // Helper function to validate and update quantities
+            const validateAndUpdateQuantity = (newQuantity) => {
+                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+                if (newQuantity > maxQuantity && product.stock_alert !== 0) {
+                    document.getElementsByClassName('errorSound')[0]?.play();
+                    toastr.error(
+                        `You cannot add more than ${maxQuantity} units of this product.`,
+                        'Error'
+                    );
+                    return false;
+                }
+                quantityInput.value = newQuantity;
+                updateTotals();
+                return true;
+            };
+
+            // Event listener for the minus button
+            quantityMinus.addEventListener('click', () => {
+                const currentQuantity = parseInt(quantityInput.value, 10);
+                if (currentQuantity > 1) {
+                    validateAndUpdateQuantity(currentQuantity - 1);
+                }
+            });
+
+            // Event listener for the plus button
+            quantityPlus.addEventListener('click', () => {
+                const currentQuantity = parseInt(quantityInput.value, 10);
+                validateAndUpdateQuantity(currentQuantity + 1);
+            });
+
+            // Event listener for direct input in the quantity field
+            quantityInput.addEventListener('input', () => {
+                let quantityValue = parseInt(quantityInput.value, 10);
+                if (isNaN(quantityValue) || quantityValue < 1) {
+                    quantityValue = 1; // Default to 1 if invalid input
+                }
+                validateAndUpdateQuantity(quantityValue);
+            });
+
+            // Event listener for price input field
+            priceInput.addEventListener('input', () => {
+                const priceValue = parseFloat(priceInput.value);
+                if (isNaN(priceValue) || priceValue < 0) {
+                    toastr.error('Invalid price entered.', 'Error');
+                    priceInput.value = '0.00'; // Default to 0 if invalid input
+                }
+                updateTotals();
+            });
+
+            // Event listener for the remove button
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updateTotals();
+            });
+
+            // Event listener for product image click
+            productImage.addEventListener('click', () => {
+                showProductModal(product, stockEntry, row);
+            });
+
+            // Event listener for product name click
+            productName.addEventListener('click', () => {
+                showProductModal(product, stockEntry, row);
+            });
+        }
+
+        document.getElementById('saveProductChanges').onclick = function() {
+            const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
+                .value;
+            const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
+
+            const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
+            const batchId = selectedBatch.value;
+            const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
+
+            if (selectedRow) {
+                const quantityInput = selectedRow.querySelector('.quantity-input');
+                const priceInput = selectedRow.querySelector('.price-input');
+                const productNameCell = selectedRow.querySelector('.product-name');
+
+                priceInput.value = price.toFixed(2);
+                priceInput.setAttribute('data-quantity', batchQuantity);
+
+                const subtotal = parseFloat(quantityInput.value) * price;
+                selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
+                    .toFixed(2));
+
+                selectedRow.querySelector('.batch-id').textContent = batchId;
+
+                // Update product name cell with stars based on selected price type
+                const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
+                    selectedPriceType === 'wholesale' ?
+                    '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
+                    '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
+
+                productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
+
+                updateTotals();
+            }
+
+            const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
+            modal.hide();
         };
 
-        $('#billing-body tr').each(function() {
-            const productRow = $(this);
-            const batchId = productRow.find('.batch-id').text().trim();
-            const productData = {
-                product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
-                location_id: parseInt(productRow.find('.location-id').text().trim(), 10),
-                quantity: parseInt(productRow.find('.quantity-input').val().trim(), 10),
-                price_type: priceType,
-                unit_price: parseFloat(productRow.find('.price-input').val().trim()),
-                subtotal: parseFloat(productRow.find('.subtotal').text().trim()),
-                discount: parseFloat(productRow.find('.discount-data').data('amount')) || 0,
-                tax: 0,
-                batch_id: batchId === "all" ? "all" : batchId,
-            };
-            saleData.products.push(productData);
-        });
+        function updateTotals() {
+            const billingBody = document.getElementById('billing-body');
+            let totalItems = 0;
+            let totalAmount = 0;
 
-        if (saleData.products.length === 0) {
-            toastr.error('At least one product is required.');
-            return null;
+            // Calculate total items and total amount
+            billingBody.querySelectorAll('tr').forEach(row => {
+                const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
+                const price = parseFloat(row.querySelector('.price-input').value) || 0;
+                const subtotal = quantity * price;
+
+                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
+                    .toFixed(2));
+
+                totalItems += quantity;
+                totalAmount += subtotal;
+            });
+
+            const discountElement = document.getElementById('discount');
+            const discountTypeElement = document.getElementById('discount-type');
+
+            // Get discount value and type
+            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
+
+            let totalAmountWithDiscount;
+
+            // Apply discount logic
+            if (discountType === 'percentage') {
+                totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
+            } else {
+                totalAmountWithDiscount = totalAmount - discount;
+            }
+
+            // Ensure totals are not negative
+            totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
+
+            // Update UI
+            document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
+            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
+                .toFixed(2));
+            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
+            document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
+                .toFixed(2));
+            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
         }
 
-        return saleData;
-    }
+        // Attach event listeners for discount input and type dropdown
+        const discountElement = document.getElementById('discount');
+        const discountTypeElement = document.getElementById('discount-type');
 
-    function sendSaleData(saleData, saleId = null) {
-        const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
-        const method = 'POST';
-
-        $.ajax({
-            url: url,
-            type: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-            },
-            data: JSON.stringify(saleData),
-            success: function(response) {
-                if (response.message && response.invoice_html) {
-                    document.getElementsByClassName('successSound')[0].play();
-                    toastr.success(response.message);
-
-                    // Create a print area dynamically
-                    var printArea = document.createElement('div');
-                    printArea.innerHTML = response.invoice_html;
-                    document.body.appendChild(printArea);
-
-                    // Print the invoice
-                    window.print();
-
-                    // Remove print area after printing
-                    document.body.removeChild(printArea);
-
-                    // Reset the form and refresh products
-                    resetForm();
-                    fetchAllProducts();
-                } else {
-                    toastr.error('Failed to record sale: ' + response.message);
+        if (discountElement) {
+            discountElement.addEventListener('input', () => {
+                // Ensure percentage discount does not exceed 100
+                if (discountTypeElement && discountTypeElement.value === 'percentage') {
+                    const discountValue = parseFloat(discountElement.value) || 0;
+                    if (discountValue > 100) {
+                        discountElement.value = 100; // Reset to maximum allowed percentage
+                        toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
+                    }
                 }
-            },
-            error: function(xhr, status, error) {
-                toastr.error('An error occurred: ' + xhr.responseText);
-            }
+                updateTotals();
+            });
+        }
+
+        if (discountTypeElement) {
+            discountTypeElement.addEventListener('change', () => {
+                // Clear the discount value when toggling the discount type
+                if (discountElement) discountElement.value = '';
+                updateTotals();
+            });
+        }
+
+        let saleId = null;
+
+        // Extract saleId from the URL path
+        const pathSegments = window.location.pathname.split('/');
+        saleId = pathSegments[pathSegments.length - 1];
+
+        // Validate saleId to ensure it is a numeric value
+        if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+            fetchEditSale(saleId);
+        } else {
+            console.warn('Invalid or missing saleId:', saleId);
+        }
+
+        function fetchEditSale(saleId) {
+            // fetchAllProducts();
+            fetch(`/api/sales/edit/${saleId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 200) {
+                        const saleDetails = data.sale_details;
+
+                        // Update the sale invoice number
+                        const saleInvoiceElement = document.getElementById('sale-invoice-no');
+                        if (saleInvoiceElement && saleDetails.sale) {
+                            saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
+                        }
+
+                        saleDetails.sale_products.forEach(saleProduct => {
+                            const price = saleProduct.price || saleProduct.product.retail_price;
+
+                            const stockEntry = stockData.find(stock =>
+                                stock.product.id === saleProduct.product.id
+                            );
+
+                            if (saleDetails.sale && saleDetails.sale.location_id) {
+                                locationId = saleDetails.sale.location_id;
+                            }
+
+                            let batches = [];
+                            if (stockEntry && Array.isArray(stockEntry.batches)) {
+                                batches = [...stockEntry.batches];
+                            }
+
+                            // Add sold quantity back to the batch to temporarily restore the original state
+                            const originalBatchExists = batches.some(batch =>
+                                batch.id === saleProduct.batch?.id
+                            );
+
+                            if (originalBatchExists && saleProduct.batch) {
+                                batches = batches.map(batch => {
+                                    if (batch.id === saleProduct.batch.id) {
+                                        const updatedLocationBatches = batch
+                                            .location_batches.map(lb => {
+                                                if (lb.location_id === saleProduct
+                                                    .location_id) {
+                                                    return {
+                                                        ...lb,
+                                                        quantity: lb.quantity +
+                                                            saleProduct
+                                                            .quantity // Add sold quantity back
+                                                    };
+                                                }
+                                                return lb;
+                                            });
+
+                                        return {
+                                            ...batch,
+                                            location_batches: updatedLocationBatches
+                                        };
+                                    }
+                                    return batch;
+                                });
+                            } else if (saleProduct.batch) {
+                                batches.push({
+                                    id: saleProduct.batch.id,
+                                    batch_no: saleProduct.batch.batch_no,
+                                    retail_price: saleProduct.batch.retail_price,
+                                    wholesale_price: saleProduct.batch.wholesale_price,
+                                    special_price: saleProduct.batch.special_price,
+                                    location_batches: [{
+                                        location_id: saleProduct.location_id,
+                                        quantity: saleProduct.total_quantity +
+                                            saleProduct
+                                            .quantity // Add sold quantity back
+                                    }]
+                                });
+                            }
+
+                            let totalStock = saleProduct.total_quantity + saleProduct
+                                .quantity; // Add sold quantity back
+                            if (stockEntry) {
+                                totalStock = batches.reduce((sum, batch) => {
+                                    return sum + batch.location_batches.reduce((batchSum,
+                                        lb) => {
+                                        return batchSum + lb.quantity;
+                                    }, 0);
+                                }, 0);
+                            }
+
+                            const normalizedStockEntry = {
+                                batches: batches,
+                                total_stock: totalStock,
+                                product: saleProduct.product
+                            };
+
+                            addProductToBillingBody(
+                                saleProduct.product,
+                                normalizedStockEntry,
+                                price,
+                                saleProduct.batch_id,
+                                saleProduct.quantity,
+                                saleProduct.price_type,
+                                saleProduct.quantity
+                            );
+                        });
+
+                        // Fetch customer data directly here
+                        fetch('/customer-get-all')
+                            .then(response => response.json())
+                            .then(customerData => {
+                                if (customerData && customerData.status === 200 && Array.isArray(
+                                        customerData.message)) {
+                                    const customerSelect = $('#customer-id');
+                                    customerSelect.empty();
+
+                                    const sortedCustomers = customerData.message.sort((a, b) => {
+                                        if (a.first_name === 'Walking') return -1;
+                                        if (b.first_name === 'Walking') return 1;
+                                        return 0;
+                                    });
+
+                                    sortedCustomers.forEach(customer => {
+                                        const option = $('<option></option>');
+                                        option.val(customer.id);
+                                        option.text(
+                                            `${customer.first_name} ${customer.last_name} (${customer.mobile_no})`
+                                        );
+                                        option.data('due', customer
+                                            .current_due); // Store the due amount in the option
+                                        customerSelect.append(option);
+                                    });
+
+                                    const walkingCustomer = sortedCustomers.find(customer => customer
+                                        .first_name === 'Walking');
+                                    if (walkingCustomer) {
+                                        customerSelect.val(walkingCustomer.id);
+                                        updateDueAmount(walkingCustomer.current_due);
+                                    }
+
+                                    // Now set the customer ID after dropdown is populated
+                                    if (saleDetails.sale) {
+                                        customerSelect.val(saleDetails.sale.customer_id);
+                                        customerSelect.trigger(
+                                            'change'); // Trigger change event to update other fields
+                                    }
+                                } else {
+                                    console.error('Failed to fetch customer data:', customerData ?
+                                        customerData.message : 'No data received');
+                                }
+                            });
+
+                        // Update discount and total fields
+                        const discountElement = document.getElementById('discount');
+                        const discountTypeElement = document.getElementById('discount-type');
+
+                        if (discountElement && saleDetails.sale) {
+                            discountElement.value = saleDetails.sale.discount_amount || 0;
+                        }
+
+                        if (discountTypeElement && saleDetails.sale) {
+                            discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
+                        }
+
+                        updateTotals();
+                    } else {
+                        console.error('Invalid sale data:', data);
+                        toastr.error('Failed to fetch sale data.', 'Error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching sale data:', error);
+                    toastr.error('An error occurred while fetching sale data.', 'Error');
+                });
+        }
+
+        function updateDueAmount(dueAmount) {
+            // Ensure dueAmount is a valid number before calling toFixed
+            dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
+            $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+        }
+
+        $('#customer-id').on('change', function() {
+            const selectedOption = $(this).find('option:selected');
+            const dueAmount = selectedOption.data('due');
+            updateDueAmount(dueAmount);
         });
-}
-
-    function gatherCashPaymentData() {
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
-        const today = new Date().toISOString().slice(0, 10);
-
-        return [{
-            payment_method: 'cash',
-            payment_date: today,
-            amount: totalAmount
-        }];
-    }
-
-    $('#cashButton').on('click', function() {
-        const saleData = gatherSaleData('completed');
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
-        else{
-            saleData.payments = gatherCashPaymentData();
-            sendSaleData(saleData);
-        }
-
-    });
-
-    $('#cardButton').on('click', function() {
-        $('#cardModal').modal('show');
-    });
-
-    function gatherCardPaymentData() {
-        const cardNumber = $('#card_number').val().trim();
-        const cardHolderName = $('#card_holder_name').val().trim();
-        // const cardType = $('#card_type').val().trim();
-        const cardExpiryMonth = $('#card_expiry_month').val().trim();
-        const cardExpiryYear = $('#card_expiry_year').val().trim();
-        const cardSecurityCode = $('#card_security_code').val().trim();
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
-        const today = new Date().toISOString().slice(0, 10);
-
-        return [{
-            payment_method: 'card',
-            payment_date: today,
-            amount: totalAmount,
-            card_number: cardNumber,
-            card_holder_name: cardHolderName,
-            // card_type: cardType,
-            card_expiry_month: cardExpiryMonth,
-            card_expiry_year: cardExpiryYear,
-            card_security_code: cardSecurityCode
-        }];
-    }
 
 
-    $('#confirmCardPayment').on('click', function() {
-        // if (!validateCartFields()) {
-        //     return;
-        // }
-        const saleData = gatherSaleData('completed');
 
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
+        $(document).ready(function() {
 
-        saleData.payments = gatherCardPaymentData();
-        sendSaleData(saleData);
-        $('#cardModal').modal('hide');
-        resetCardModal();
-    });
+            function gatherSaleData(status) {
+                const uniqueNumber = new Date().getTime() % 10000;
+                const customerId = $('#customer-id').val();
+                const salesDate = new Date().toISOString().slice(0, 10);
 
+                if (!locationId) {
+                    toastr.error('Location ID is required.');
+                    return null;
+                }
 
-    $('#chequeButton').on('click', function() {
-        $('#chequeModal').modal('show');
-    });
-    function gatherChequePaymentData() {
-        const chequeNumber = $('#cheque_number').val().trim();
-        const bankBranch = $('#cheque_bank_branch').val().trim();
-        const chequeReceivedDate = $('#cheque_received_date').val().trim();
-        const chequeValidDate = $('#cheque_valid_date').val().trim();
-        const chequeGivenBy = $('#cheque_given_by').val().trim();
-        const totalAmount = parseFloat($('#total-amount').text().trim()); // Ensure #total-amount element exists
-        const today = new Date().toISOString().slice(0, 10);
+                const saleData = {
+                    customer_id: customerId,
+                    sales_date: salesDate,
+                    location_id: locationId,
+                    status: status,
+                    sale_type: "POS",
+                    products: [],
+                    discount_type: $('#discount-type').val(),
+                    discount_amount: parseFormattedAmount($('#discount').val()) || 0,
+                    total_amount: parseFormattedAmount($('#total-amount').text()) || 0,
+                };
 
-        return [{
-            payment_method: 'cheque',
-            payment_date: today,
-            amount: totalAmount,
-            cheque_number: chequeNumber,
-            bank_branch: bankBranch,
-            cheque_received_date: chequeReceivedDate,
-            cheque_valid_date: chequeValidDate,
-            cheque_given_by: chequeGivenBy
-        }];
-    }
+                const productRows = $('#billing-body tr');
+                if (productRows.length === 0) {
+                    toastr.error('At least one product is required.');
+                    return null;
+                }
 
-    function validateChequeFields() {
-        let isValid = true;
+                productRows.each(function() {
+                    const productRow = $(this);
+                    const batchId = productRow.find('.batch-id').text().trim();
+                    const locationId = productRow.find('.location-id').text().trim();
 
-        if ($('#cheque_number').val().trim() === '') {
-            $('#chequeNumberError').text('Cheque Number is required.');
-            isValid = false;
-        } else {
-            $('#chequeNumberError').text('');
-        }
+                    if (!locationId) {
+                        toastr.error('Location ID is missing for a product.');
+                        return;
+                    }
 
-        // if ($('#cheque_bank_branch').val().trim() === '') {
-        //     $('#bankBranchError').text('Bank Branch is required.');
-        //     isValid = false;
-        // } else {
-        //     $('#bankBranchError').text('');
-        // }
+                    const productData = {
+                        product_id: parseInt(productRow.find('.product-id').text().trim(),
+                            10),
+                        location_id: parseInt(locationId, 10),
+                        quantity: parseInt(productRow.find('.quantity-input').val().trim(),
+                            10),
+                        price_type: priceType,
+                        unit_price: parseFormattedAmount(productRow.find('.price-input')
+                            .val().trim()),
+                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
+                            .trim()),
+                        discount: parseFloat(productRow.find('.discount-data').data(
+                            'amount')) || 0,
+                        tax: 0,
+                        batch_id: batchId === "all" ? "all" : batchId,
+                    };
+                    saleData.products.push(productData);
+                });
 
-        if ($('#cheque_received_date').val().trim() === '') {
-            $('#chequeReceivedDateError').text('Cheque Received Date is required.');
-            isValid = false;
-        } else {
-            $('#chequeReceivedDateError').text('');
-        }
-
-        if ($('#cheque_valid_date').val().trim() === '') {
-            $('#chequeValidDateError').text('Cheque Valid Date is required.');
-            isValid = false;
-        } else {
-            $('#chequeValidDateError').text('');
-        }
+                return saleData;
+            }
 
 
-        return isValid;
-    }
+            function sendSaleData(saleData, saleId = null) {
+                // Extract saleId from the URL if not provided
+                if (!saleId) {
+                    const pathSegments = window.location.pathname.split('/');
+                    const possibleSaleId = pathSegments[pathSegments.length - 1];
+                    if (!isNaN(possibleSaleId) && possibleSaleId !== 'pos' && possibleSaleId !==
+                        'list-sale') {
+                        saleId = possibleSaleId;
+                    }
+                }
 
-    $('#confirmChequePayment').on('click', function() {
-        if (!validateChequeFields()) {
-            return;
-        }
+                const url = saleId ? `/sales/update/${saleId}` : '/sales/store';
+                const method = 'POST';
 
-        const saleData = gatherSaleData('completed');
+                $.ajax({
+                    url: url,
+                    type: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    },
+                    data: JSON.stringify(saleData),
+                    success: function(response) {
+                        if (response.message && response.invoice_html) {
+                            document.getElementsByClassName('successSound')[0].play();
+                            toastr.success(response.message);
 
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
+                            // Create a hidden iframe for printing
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'fixed';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            document.body.appendChild(iframe);
 
-        saleData.payments = gatherChequePaymentData();
-        sendSaleData(saleData);
-        $('#chequeModal').modal('hide');
-        resetChequeModal();
-    });
+                            // Write the receipt content to the iframe
+                            iframe.contentDocument.open();
+                            iframe.contentDocument.write(response.invoice_html);
+                            iframe.contentDocument.close();
 
-    function resetCardModal() {
-        $('#card_number').val('');
-        $('#card_holder_name').val('');
-        $('#card_type').val('visa');
-        $('#card_expiry_month').val('');
-        $('#card_expiry_year').val('');
-        $('#card_security_code').val('');
-    }
+                            iframe.onload = function() {
+                                // Trigger the print dialog from the iframe
+                                iframe.contentWindow.print();
 
-    function resetChequeModal() {
-        $('#cheque_number').val('');
-        $('#bank_branch').val('');
-        $('#cheque_received_date').val('');
-        $('#cheque_valid_date').val('');
-        $('#cheque_given_by').val('');
-        $('.error-message').text('');
-    }
+                                iframe.contentWindow.onafterprint = function() {
+                                    // Remove the iframe after printing
+                                    document.body.removeChild(iframe);
 
+                                    // Only redirect for edit sales, not for new sales
+                                    if (saleId) {
+                                        window.location.href = '/pos-create';
+                                    }
+                                };
+                            };
 
-    $('#creditSaleButton').on('click', function() {
-        const customerId = $('#customer-id').val();
-        if (customerId == 1) {
-            toastr.error('Credit sale is not allowed for Walking Customer. Please choose another customer.');
-            return;
-        }
+                            // Reset the form and refresh products
+                            resetForm();
+                            fetchAllProducts();
+                            fetchSalesData();
 
-        const saleData = gatherSaleData('completed');
+                        } else {
+                            toastr.error('Failed to record sale: ' + response.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('An error occurred: ' + xhr.responseText);
+                    }
+                });
+            }
 
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
+            function gatherCashPaymentData() {
+                const totalAmount = parseFormattedAmount($('#final-total-amount').text()
+                    .trim()); // Ensure #total-amount element exists
+                console.log("final_amount " + totalAmount);
+                const today = new Date().toISOString().slice(0, 10);
 
-         sendSaleData(saleData);
+                return [{
+                    payment_method: 'cash',
+                    payment_date: today,
+                    amount: totalAmount
+                }];
+            }
 
-    });
+            $('#cashButton').on('click', function() {
+                const saleData = gatherSaleData('final');
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                } else {
+                    saleData.payments = gatherCashPaymentData();
 
-    $('#suspendModal').on('click', '#confirmSuspend', function() {
-        const saleData = gatherSaleData('suspend');
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
+                    // Calculate balance amount
+                    const totalAmount = parseFormattedAmount($('#final-total-amount').text()
+                        .trim());
+                    const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
+                    const balance = amountGiven - totalAmount;
+                    saleData.balance_amount = balance; // Add balance amount to saleData
+                    saleData.amount_given = amountGiven; // Add amount given to saleData
 
-            sendSaleData(saleData);
-            let modal = bootstrap.Modal.getInstance(document.getElementById("suspendModal"));
-            modal.hide();
+                    // Extract sale ID from URL
+                    const pathSegments = window.location.pathname.split('/');
+                    const saleId = pathSegments[pathSegments.length - 1];
 
-    });
+                    sendSaleData(saleData, !isNaN(saleId) ? saleId : null);
 
-    document.getElementById('finalize_payment').addEventListener('click', function() {
-        const saleData = gatherSaleData('completed');
-        if (!saleData) {
-            toastr.error('Please add at least one product before completing the sale.');
-            return;
-        }
-
-            const paymentData = gatherPaymentData();
-            saleData.payments = paymentData;
-            sendSaleData(saleData);
-            let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
-            modal.hide();
-
-    });
-
-    function gatherPaymentData() {
-        const paymentData = [];
-        document.querySelectorAll('.payment-row').forEach(row => {
-            const paymentMethod = row.querySelector('.payment-method').value;
-            const paymentDate = row.querySelector('.payment-date').value;
-            const amount = parseFloat(row.querySelector('.payment-amount').value);
-            const conditionalFields = {};
-
-            row.querySelectorAll('.conditional-fields input').forEach(input => {
-                conditionalFields[input.name] = input.value;
+                }
             });
 
-            paymentData.push({
-                payment_method: paymentMethod,
-                payment_date: paymentDate,
-                amount: amount,
-                ...conditionalFields
+            $('#cardButton').on('click', function() {
+                $('#cardModal').modal('show');
             });
-        });
-        return paymentData;
-    }
 
-    $('#holdButton').on('click', function() {
-        const saleData = gatherSaleData('hold');
-        if (saleData) {
-            sendSaleData(saleData);
-        }
-    });
+            function gatherCardPaymentData() {
+                const cardNumber = $('#card_number').val().trim();
+                const cardHolderName = $('#card_holder_name').val().trim();
+                const cardExpiryMonth = $('#card_expiry_month').val().trim();
+                const cardExpiryYear = $('#card_expiry_year').val().trim();
+                const cardSecurityCode = $('#card_security_code').val().trim();
+                const totalAmount = parseFormattedAmount($('#final-total-amount').text()
+                    .trim()); // Ensure #total-amount element exists
+                const today = new Date().toISOString().slice(0, 10);
 
-    function fetchSuspendedSales() {
-        $.ajax({
-            url: '/sales/suspended',
-            type: 'GET',
-            success: function(response) {
-                displaySuspendedSales(response);
-                $('#suspendSalesModal').modal('show');
-            },
-            error: function(xhr, status, error) {
-                toastr.error('Failed to fetch suspended sales: ' + xhr.responseText);
+                return [{
+                    payment_method: 'card',
+                    payment_date: today,
+                    amount: totalAmount,
+                    card_number: cardNumber,
+                    card_holder_name: cardHolderName,
+                    card_expiry_month: cardExpiryMonth,
+                    card_expiry_year: cardExpiryYear,
+                    card_security_code: cardSecurityCode
+                }];
             }
-        });
-    }
 
-    function displaySuspendedSales(sales) {
-        const suspendedSalesContainer = $('#suspendedSalesContainer');
-        suspendedSalesContainer.empty();
+            $('#confirmCardPayment').on('click', function() {
+                const saleData = gatherSaleData('final');
 
-        sales.forEach(sale => {
-            const finalTotal = parseFloat(sale.final_total);
-            const saleRow = `
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                }
+
+                saleData.payments = gatherCardPaymentData();
+                sendSaleData(saleData);
+                $('#cardModal').modal('hide');
+                resetCardModal();
+            });
+
+            $('#chequeButton').on('click', function() {
+                $('#chequeModal').modal('show');
+            });
+
+            function gatherChequePaymentData() {
+                const chequeNumber = $('#cheque_number').val().trim();
+                const bankBranch = $('#cheque_bank_branch').val().trim();
+                const chequeReceivedDate = $('#cheque_received_date').val().trim();
+                const chequeValidDate = $('#cheque_valid_date').val().trim();
+                const chequeGivenBy = $('#cheque_given_by').val().trim();
+                const totalAmount = parseFormattedAmount($('#final-total-amount').text()
+                    .trim()); // Ensure #total-amount element exists
+                const today = new Date().toISOString().slice(0, 10);
+
+                return [{
+                    payment_method: 'cheque',
+                    payment_date: today,
+                    amount: totalAmount,
+                    cheque_number: chequeNumber,
+                    bank_branch: bankBranch,
+                    cheque_received_date: chequeReceivedDate,
+                    cheque_valid_date: chequeValidDate,
+                    cheque_given_by: chequeGivenBy
+                }];
+            }
+
+            function validateChequeFields() {
+                let isValid = true;
+
+                if ($('#cheque_number').val().trim() === '') {
+                    $('#chequeNumberError').text('Cheque Number is required.');
+                    isValid = false;
+                } else {
+                    $('#chequeNumberError').text('');
+                }
+
+                if ($('#cheque_received_date').val().trim() === '') {
+                    $('#chequeReceivedDateError').text('Cheque Received Date is required.');
+                    isValid = false;
+                } else {
+                    $('#chequeReceivedDateError').text('');
+                }
+
+                if ($('#cheque_valid_date').val().trim() === '') {
+                    $('#chequeValidDateError').text('Cheque Valid Date is required.');
+                    isValid = false;
+                } else {
+                    $('#chequeValidDateError').text('');
+                }
+
+                return isValid;
+            }
+
+            $('#confirmChequePayment').on('click', function() {
+                if (!validateChequeFields()) {
+                    return;
+                }
+
+                const saleData = gatherSaleData('final');
+
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                }
+
+                saleData.payments = gatherChequePaymentData();
+                sendSaleData(saleData);
+                $('#chequeModal').modal('hide');
+                resetChequeModal();
+            });
+
+            function resetCardModal() {
+                $('#card_number').val('');
+                $('#card_holder_name').val('');
+                $('#card_type').val('visa');
+                $('#card_expiry_month').val('');
+                $('#card_expiry_year').val('');
+                $('#card_security_code').val('');
+            }
+
+            function resetChequeModal() {
+                $('#cheque_number').val('');
+                $('#bank_branch').val('');
+                $('#cheque_received_date').val('');
+                $('#cheque_valid_date').val('');
+                $('#cheque_given_by').val('');
+                $('.error-message').text('');
+            }
+
+            $('#creditSaleButton').on('click', function() {
+                const customerId = $('#customer-id').val();
+                if (customerId == 1) {
+                    toastr.error(
+                        'Credit sale is not allowed for Walking Customer. Please choose another customer.'
+                    );
+                    return;
+                }
+
+                const saleData = gatherSaleData('final');
+
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                }
+
+                sendSaleData(saleData);
+            });
+
+            $('#suspendModal').on('click', '#confirmSuspend', function() {
+                const saleData = gatherSaleData('suspend');
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                }
+
+                sendSaleData(saleData);
+                let modal = bootstrap.Modal.getInstance(document.getElementById(
+                    "suspendModal"));
+                modal.hide();
+            });
+
+            document.getElementById('finalize_payment').addEventListener('click', function() {
+                const saleData = gatherSaleData('final');
+                if (!saleData) {
+                    toastr.error('Please add at least one product before completing the sale.');
+                    return;
+                }
+
+                const paymentData = gatherPaymentData();
+                saleData.payments = paymentData;
+                sendSaleData(saleData);
+                let modal = bootstrap.Modal.getInstance(document.getElementById(
+                    "paymentModal"));
+                modal.hide();
+            });
+
+            function gatherPaymentData() {
+                const paymentData = [];
+                document.querySelectorAll('.payment-row').forEach(row => {
+                    const paymentMethod = row.querySelector('.payment-method').value;
+                    const paymentDate = row.querySelector('.payment-date').value;
+                    const amount = parseFormattedAmount(row.querySelector('.payment-amount')
+                        .value);
+                    const conditionalFields = {};
+
+                    row.querySelectorAll('.conditional-fields input').forEach(input => {
+                        conditionalFields[input.name] = input.value;
+                    });
+
+                    paymentData.push({
+                        payment_method: paymentMethod,
+                        payment_date: paymentDate,
+                        amount: amount,
+                        ...conditionalFields
+                    });
+                });
+                return paymentData;
+            }
+
+
+            function fetchSuspendedSales() {
+                $.ajax({
+                    url: '/sales/suspended',
+                    type: 'GET',
+                    success: function(response) {
+                        displaySuspendedSales(response);
+                        $('#suspendSalesModal').modal('show');
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('Failed to fetch suspended sales: ' + xhr
+                            .responseText);
+                    }
+                });
+            }
+
+            function displaySuspendedSales(sales) {
+                const suspendedSalesContainer = $('#suspendedSalesContainer');
+                suspendedSalesContainer.empty();
+
+                sales.forEach(sale => {
+                    const finalTotal = parseFormattedAmount(sale.final_total);
+                    const saleRow = `
             <tr>
                 <td>${sale.invoice_no}</td>
                 <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
                 <td>${sale.customer ? sale.customer.name : 'Walk-In Customer'}</td>
                 <td>${sale.products.length}</td>
-                <td>$${finalTotal.toFixed(2)}</td>
+                <td>$${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
                 <td>
-                    <a href="pos/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
+                    <a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
                     <button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>
                 </td>
             </tr>`;
-            suspendedSalesContainer.append(saleRow);
-        });
+                    suspendedSalesContainer.append(saleRow);
+                });
 
-        $('.editSaleButton').on('click', function() {
-            const saleId = $(this).data('sale-id');
-            // editSale(saleId);
-        });
+                $('.editSaleButton').on('click', function() {
+                    const saleId = $(this).data('sale-id');
+                    // editSale(saleId);
+                });
 
-        $('.deleteSuspendButton').on('click', function() {
-            const saleId = $(this).data('sale-id');
-            deleteSuspendedSale(saleId);
-        });
-    }
-
-    // Function to delete a suspended sale
-    function deleteSuspendedSale(saleId) {
-        $.ajax({
-            url: `/api/sales/delete-suspended/${saleId}`,
-            type: 'DELETE',
-            success: function(response) {
-                toastr.success(response.message);
-                // Code to update the POS page after deletion
-                fetchSuspendedSales(); // Refresh suspended sales list
-            },
-            error: function(xhr, status, error) {
-                toastr.error('Failed to delete suspended sale: ' + xhr.responseText);
-            }
-        });
-    }
-
-    // Event listener for the pause circle button to fetch and show suspended sales
-    $('#pauseCircleButton').on('click', function() {
-        fetchSuspendedSales();
-    });
-
-    $('#amount-given').on('keyup', function(event) {
-        if (event.key === 'Enter') {
-            const totalAmount = parseFloat($('#total-amount').text().trim());
-            const amountGiven = parseFloat($('#amount-given').val().trim());
-
-            if (isNaN(amountGiven) || amountGiven <= 0) {
-                toastr.error('Please enter a valid amount given by the customer.');
-                return;
+                $('.deleteSuspendButton').on('click', function() {
+                    const saleId = $(this).data('sale-id');
+                    deleteSuspendedSale(saleId);
+                });
             }
 
-            const balance = amountGiven - totalAmount;
-            if (balance < 0) {
-                toastr.error('The given amount is less than the total amount.');
-                return;
+            // Function to delete a suspended sale
+            function deleteSuspendedSale(saleId) {
+                $.ajax({
+                    url: `/api/sales/delete-suspended/${saleId}`,
+                    type: 'DELETE',
+                    success: function(response) {
+                        toastr.success(response.message);
+                        // Code to update the POS page after deletion
+                        fetchSuspendedSales(); // Refresh suspended sales list
+                    },
+                    error: function(xhr, status, error) {
+                        toastr.error('Failed to delete suspended sale: ' + xhr
+                            .responseText);
+                    }
+                });
             }
 
-            swal({
-                title: "Balance Amount",
-                text: "The balance amount to be returned is Rs. " + balance.toFixed(2),
-                type: "info",
-                showCancelButton: false,
-                confirmButtonText: "OK",
-            }, function() {
-                $('#cashButton').trigger('click');
+            // Event listener for the pause circle button to fetch and show suspended sales
+            $('#pauseCircleButton').on('click', function() {
+                fetchSuspendedSales();
             });
-        }
-    });
 
-    // Fetch suspended sales when the POS page loads
-    // fetchSuspendedSales();
-});
+            $('#amount-given').on('input', function() {
+                let amountGiven = parseFormattedAmount($(this).val()) ||
+                    0; // Default to 0 if empty
+                $(this).val(amountGiven ? formatAmountWithSeparators(amountGiven) :
+                    ''); // Show empty when cleared
+            });
+
+
+            $('#amount-given').on('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    const totalAmount = parseFormattedAmount($('#final-total-amount').text()
+                        .trim());
+                    const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
+
+                    if (isNaN(amountGiven) || amountGiven <= 0) {
+                        toastr.error('Please enter a valid amount given by the customer.');
+                        return;
+                    }
+
+                    const balance = amountGiven - totalAmount;
+                    if (balance < 0) {
+                        toastr.error('The given amount is less than the total amount.');
+                        return;
+                    }
+
+
+                    swal({
+                        title: "Balance Amount  Rs. " + formatAmountWithSeparators(
+                            balance.toFixed()),
+                        // text: "The balance amount to be returned is Rs. " +
+
+                        type: "info",
+                        showCancelButton: false,
+                        confirmButtonText: "OK",
+                        customClass: {
+                            title: 'swal-title-large',
+                            text: 'swal-title-large' // Use the same class as title for larger text
+                        }
+                    }, function() {
+                        $('#cashButton').trigger('click');
+                    });
+                }
+            });
+
+            // Fetch suspended sales when the POS page loads
+            // fetchSuspendedSales();
+
+
+
+
+
+        });
+
+
+
+        document.getElementById('cancelButton').addEventListener('click', resetForm);
 
         function resetForm() {
             document.getElementById('customer-id').value = 1;
@@ -1134,146 +1644,257 @@ $(document).ready(function() {
                 input.value = 1;
             });
 
-
             const billingBodyRows = document.querySelectorAll('#billing-body tr');
             billingBodyRows.forEach(row => {
                 row.remove();
             });
 
-             document.getElementById('amount-given').value = ''; // Reset the amount given field
+            document.getElementById('amount-given').value = ''; // Reset the amount given field
 
+            // Reset discount fields
+            document.getElementById('discount').value = '';
+            document.getElementById('discount-type').value = 'fixed';
 
             updateTotals();
         }
 
-    })
 
-    function fetchAllSales() {
+
+
+
+
+    });
+    $(document).ready(function() {
+        // Initialize DataTable
+        $('#transactionTable').DataTable();
+
+        // Fetch sales data on page load
+        fetchSalesData();
+    });
+
+    let sales = [];
+
+    // Function to fetch sales data from the server using AJAX
+    function fetchSalesData() {
         $.ajax({
             url: '/sales',
-            method: 'GET',
-            success: function(response) {
-                var salesData = response.sales.filter(sale => sale.sale_type === 'POS');
-                var tableBody = $('#posTable tbody');
-                tableBody.empty();
-
-                salesData.forEach(sale => {
-                    var customerName = sale.customer.prefix + ' ' + sale.customer.first_name + ' ' +
-                        sale.customer.last_name;
-                    var row = `<tr>
-                            <td><input type="checkbox" class="checked" /></td>
-                            <td>
-                                                        <div class="dropdown dropdown-action">
-                                                            <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                                            </a>
-                                                            <div class="dropdown-menu dropdown-menu-end">
-                                                                <a class="dropdown-item view-sale-return" href="#" data-id="${sale.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                                <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                                                <a class="dropdown-item edit-link" href="/sale-return/edit/${sale.id}" data-id="${sale.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                                                <a class="dropdown-item add-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
-                                                                <a class="dropdown-item view-payment-btn" href="" data-id="${sale.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                            <td>${sale.sales_date}</td>
-                            <td>${sale.invoice_no || ''}</td>
-                            <td>${customerName}</td>
-                            <td>${sale.customer.mobile_no}</td>
-                            <td>${sale.location.name}</td>
-                            <td>
-                                ${(() => {
-                                    let paymentStatusBadge = '';
-                                    if (sale.payment_status === 'Due') {
-                                        paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
-                                    } else if (sale.payment_status === 'Partial') {
-                                        paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
-                                    } else if (sale.payment_status === 'Paid') {
-                                        paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
-                                    } else {
-                                        paymentStatusBadge = '<span class="badge bg-secondary">' + sale.payment_status + '</span>';
-                                    }
-                                    return paymentStatusBadge;
-                                })()}
-                            </td>
-                            <td>${sale.payments.length > 0 ? sale.payments[0].payment_method : ''}</td>
-                            <td>${sale.final_total}</td>
-                            <td>${sale.total_paid}</td>
-                            <td>${sale.total_due}</td>
-                            <td>${sale.products.length}</td>
-                            <td>${sale.customer.first_name}</td>
-                        </tr>`;
-                    tableBody.append(row);
-                });
-
-                $('#posTable').DataTable();
-                feather.replace(); // Initialize Feather icons
-
-                // Attach event listeners to dynamically created buttons
-                $('.view-details').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement view details functionality here
-                    console.log('View details for sale ID:', saleId);
-                });
-
-                $('.edit_btn').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement edit functionality here
-                    console.log('Edit sale ID:', saleId);
-                });
-
-                $('.delete_btn').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement delete functionality here
-                    console.log('Delete sale ID:', saleId);
-                });
-
-                $('.add-payment').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement add payment functionality here
-                    console.log('Add payment for sale ID:', saleId);
-                });
-
-                $('.view-payments').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement view payments functionality here
-                    console.log('View payments for sale ID:', saleId);
-                });
-
-                $('.sell-return').on('click', function() {
-                    var saleId = $(this).val();
-                    // Implement sell return functionality here
-                    console.log('Sell return for sale ID:', saleId);
-                });
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                if (Array.isArray(data)) {
+                    sales = data;
+                } else if (data.sales && Array.isArray(data.sales)) {
+                    sales = data.sales;
+                } else {
+                    console.error('Unexpected data format:', data);
+                }
+                // Load the default tab data (e.g., 'final')
+                loadTableData('final');
             },
-            error: function(error) {
+            error: function(xhr, status, error) {
                 console.error('Error fetching sales data:', error);
             }
         });
     }
 
-    $(document).ready(function() {
-        fetchAllSales();
+    // Function to load the sales data into the DataTable
+    function loadTableData(status) {
+        const table = $('#transactionTable').DataTable();
+        table.clear().draw(); // Clear existing data
 
-    });
+        const filteredSales = sales
+            .filter(sale => sale.status === status)
+            .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
 
-    function formatAmount(input) {
-        let value = input.value.replace(/,/g, '');
-        if (!isNaN(value) && value !== '') {
-            let formattedValue = parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            let cursorPosition = input.selectionStart;
-            input.value = formattedValue;
-            input.setSelectionRange(cursorPosition, cursorPosition);
+        if (filteredSales.length === 0) {
+            table.row.add([
+                '', 'No records found', '', '', ''
+            ]).draw();
+        } else {
+            filteredSales.forEach((sale, index) => {
+                table.row.add([
+                    index + 1,
+                    sale.invoice_no,
+                    `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                    sale.sales_date,
+                    sale.final_total,
+                    `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                     <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
+                     <button class='btn btn-outline-danger btn-sm' onclick="deleteSale(${sale.id})">Delete</button>`
+                ]).draw();
+            });
         }
     }
 
-</script>
+    // Function to navigate to the edit page
+    function navigateToEdit(saleId) {
+        window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
+    }
 
+    // Function to print the receipt for the sale
+    function printReceipt(saleId) {
+        fetch(`/sales/print-recent-transaction/${saleId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.invoice_html) {
+                    const iframe = document.createElement('iframe');
+                    iframe.style.position = 'fixed';
+                    iframe.style.width = '0';
+                    iframe.style.height = '0';
+                    iframe.style.border = 'none';
+                    document.body.appendChild(iframe);
+
+                    iframe.contentDocument.open();
+                    iframe.contentDocument.write(data.invoice_html);
+                    iframe.contentDocument.close();
+
+                    iframe.onload = function() {
+                        iframe.contentWindow.print();
+                        iframe.contentWindow.onafterprint = function() {
+                            document.body.removeChild(iframe);
+                        };
+                    };
+                } else {
+                    alert('Failed to fetch the receipt. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching the receipt:', error);
+                alert('An error occurred while fetching the receipt. Please try again.');
+            });
+    }
+
+    function deleteSale(saleId) {
+        swal({
+            title: "Are you sure?",
+            text: "Do you really want to delete this sale? This action cannot be undone.",
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "Cancel",
+            closeOnConfirm: false
+        }, function(isConfirm) {
+            if (isConfirm) {
+                $.ajax({
+                    url: `/sales/delete/${saleId}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status === 200) {
+                            // First close the swal
+                            swal.close();
+
+                            // Use setTimeout to ensure swal is fully closed before proceeding
+                            setTimeout(function() {
+                                toastr.success(response.message ||
+                                    "Sale deleted successfully!");
+                                const successSound = document.querySelector(
+                                    '.successSound');
+                                if (successSound) {
+                                    successSound.play();
+                                }
+                                // Refresh the sales data
+                                loadTableData('final');
+                                fetchSalesData();
+                            }, 100); // small delay to allow swal to visually close
+                        } else {
+                            swal("Error!", response.message ||
+                                "An error occurred while deleting the sale.", "error");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMessage = "Unable to delete the sale. Please try again later.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        swal("Error!", errorMessage, "error");
+                        console.error('Delete error:', error);
+                    }
+                });
+            }
+        });
+    }
+
+    // // Event listener to load sales data when the page is loaded
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     fetchSalesData();
+
+
+    // });
+</script>
 
 
 {{-- For jQuery --}}
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
+<!-- Include Mousetrap library -->
+{{-- <script src="{{ asset('assets/js/mousetrap.js') }}"></script> --}}
+<script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentRowIndex = 0;
 
+        function focusQuantityInput() {
+            const quantityInputs = document.querySelectorAll('.quantity-input');
+            if (quantityInputs.length > 0) {
+                quantityInputs[currentRowIndex].focus();
+                quantityInputs[currentRowIndex].select();
+                currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
+            }
+        }
+
+        hotkeys('f2', function(event) {
+            event.preventDefault();
+            focusQuantityInput();
+        });
+
+        hotkeys('f4', function(event) {
+            event.preventDefault();
+            const productSearchInput = document.getElementById('productSearchInput');
+            if (productSearchInput) {
+                productSearchInput.focus();
+                productSearchInput.select();
+            } else {
+                console.warn('No product search input found.');
+            }
+        });
+
+        hotkeys('f5', function(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to refresh the page?')) {
+                location.reload();
+            }
+        });
+
+        if (typeof hotkeys !== 'undefined') {
+            hotkeys('ctrl+shift+c', function(event) {
+                event.preventDefault();
+                const customerSelect = $('#customer-id');
+                if (customerSelect.length) {
+                    customerSelect.select2('open');
+
+                    // Wait a bit, then focus on the search input inside Select2
+                    setTimeout(() => {
+                        $('.select2-search__field').focus();
+                    }, 100);
+                } else {
+                    console.warn('No customer select input found.');
+                }
+            });
+        } else {
+            console.error('Hotkeys library is not loaded.');
+        }
+        // Initial focus on the first quantity input if available
+        focusQuantityInput();
+    });
+</script>
+</script>
+
+<!-- Include cleave.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
 {{-- For sound --}}
 <audio class="successSound" src="{{ asset('assets/sounds/success.mp3') }}"></audio>
 <audio class="errorSound" src="{{ asset('assets/sounds/error.mp3') }}"></audio>
@@ -1320,7 +1941,9 @@ $(document).ready(function() {
 <script>
     // In your Javascript (external .js resource or <script> tag)
     $(document).ready(function() {
-        $('.select2Box').select2();
+        $('.selectBox').select2();
+
+
     });
 </script>
 
