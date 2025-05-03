@@ -54,12 +54,6 @@
                     <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS
                 </a>
             @endcan
-
-            @can('pos page')
-                <a href="{{ route('pos-create/new') }}" class="btn btn-secondary me-3" role="button">
-                    <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS New
-                </a>
-            @endcan
                 
             {{-- Notification dropdown --}}
             
