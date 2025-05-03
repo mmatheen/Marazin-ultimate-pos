@@ -95,6 +95,15 @@
     
     {{-- data table customize style end --}}
 
+   
+   {{-- visibility column style end --}}
+     <style>
+     .selected-column {
+        background-color:rgb(205, 222, 231) !important;
+        font-weight: 600;
+    }
+    </style>
+
 </head>
 
 <body>
