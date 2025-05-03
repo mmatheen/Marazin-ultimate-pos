@@ -110,6 +110,7 @@
                             <table class="datatable table table-stripped" style="width:100%" id="salesTable">
                                 <thead>
                                     <tr>
+                                        <th>#</th>
                                         <th>Invoice No</th>
                                         <th>Customer</th>
                                         <th>Date</th>
@@ -133,7 +134,7 @@
 
                                 <tfoot style="border-top: 2px solid #dee2e6;">
                                     <tr>
-                                        <th colspan="3">Total</th>
+                                        <th colspan="4">Total</th>
                                         <th id="totalLineTotal"></th>
                                         <th id="totalLineDiscount"></th>
                                         <th id="totalSubTotal"></th>
@@ -478,6 +479,7 @@
                         }
                         ],
                     columns: [
+                        { title: "#" },
                         { title: "Invoice No" },
                         { title: "Customer" },
                         { title: "Date" },
@@ -596,6 +598,7 @@
                 //  Column visibility dropdown DataTable code end
 
 
+                let tableIndex = 0;
                 const tableData = sales.map(sale => {
                     // Initialize payment amounts
                     let cash = 0,
@@ -636,8 +639,9 @@
                     // Find sales return for the current sale
                     const saleReturn = salesReturns.find(returnItem => returnItem.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total).toFixed(2) : '0.00';
-
                     return [
+                        ++tableIndex,
+                        sale.invoice_no,
                         sale.invoice_no,
                         `${sale.customer?.first_name} ${sale.customer?.last_name || ''}`,
                         new Date(sale.sales_date).toLocaleDateString(),
