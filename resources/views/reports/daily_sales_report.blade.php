@@ -204,11 +204,11 @@
 
         
     <script>
-        $(function() {
-            var start = moment(); // Default start date is today
-            var end = moment();   // Default end date is also today
+        $(function () {
+            const start = moment(); // Default start date is today
+            const end = moment();   // Default end date is also today
     
-            function cb(start, end) {
+            function setDateRange(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
             }
     
@@ -223,18 +223,16 @@
                     'This Month': [moment().startOf('month'), moment().endOf('month')],
                     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 }
-            }, cb);
+            }, setDateRange);
     
-            cb(start, end);
+            setDateRange(start, end);
         });
     
         document.addEventListener('DOMContentLoaded', () => {
             const customerFilter = document.getElementById('customerFilter');
-            const paymentMethodFilter = document.getElementById('paymentMethodFilter');
     
             const filters = {
-                customer_id: customerFilter ? customerFilter.value : '',
-                payment_method: paymentMethodFilter ? paymentMethodFilter.value : '',
+                customer_id: '',
                 start_date: moment().format('YYYY-MM-DD'),
                 end_date: moment().format('YYYY-MM-DD')
             };
@@ -247,26 +245,60 @@
                 fetchSalesData(filters);
             });
     
-            async function fetchSalesData(filters = {}) {
+            if (customerFilter) {
+                customerFilter.addEventListener('change', () => {
+                    filters.customer_id = customerFilter.value || '';
+                    fetchSalesData(filters); // Trigger fetch with updated filters
+                });
+            }
+    
+            async function fetchSalesData(filters) {
                 const params = new URLSearchParams(filters);
                 const url = `/daily-sales-report?${params.toString()}`;
-                
+    
                 try {
+                    console.log('Fetching data with filters:', filters); // Debugging filter values
                     const response = await fetch(url);
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    
+    
                     const data = await response.json();
+                    console.log('Data received:', data); // Debugging the returned data
+    
+                    populateCustomerDropdown(data.sales || []);
                     populateTable(data.sales || [], data.salesReturns || []);
                     updateSummaries(data.summaries || {});
                 } catch (error) {
                     console.error('Error fetching sales data:', error);
+                    populateCustomerDropdown([]);
                     populateTable([], []);
                 }
             }
     
+            function populateCustomerDropdown(sales) {
+                if (!customerFilter) return;
+    
+                const customerMap = new Map();
+                sales.forEach(sale => {
+                    if (sale.customer) {
+                        const customerName = `${sale.customer.first_name || ''} ${sale.customer.last_name || ''}`.trim();
+                        if (customerName) {
+                            customerMap.set(sale.customer.id, customerName);
+                        }
+                    }
+                });
+    
+                customerFilter.innerHTML = '<option value="">Select Customer</option>';
+                customerMap.forEach((name, id) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = name;
+                    customerFilter.appendChild(option);
+                });
+            }
+    
             function populateTable(sales, salesReturns) {
                 const table = $('#salesTable').DataTable({
-                    lengthMenu: [[10, 20, 50, 75, 100, -1], [10, 20, 50, 75, 100, "All"]],
+                    lengthMenu: [[10, 20, 50, -1], [10, 20, 50, "All"]],
                     destroy: true,
                     deferRender: true,
                     pageLength: 10,
@@ -311,109 +343,10 @@
                         { title: "Sales Return" }
                     ]
                 });
-
-                 //  Column visibility dropdown DataTable code start
-
-                 function updateDropdownHighlights() {
-                    $('#columnVisibilityDropdown a').each(function () {
-                        const value = $(this).data('value');
-
-                        if (value === "hide all") {
-                            $(this).removeClass('selected-column');
-                        } else if (value === "show all") {
-                            // Highlight only if all columns are visible
-                            let allVisible = true;
-                            table.columns().every(function () {
-                                if (!this.visible()) {
-                                    allVisible = false;
-                                }
-                            });
-                            if (allVisible) {
-                                $(this).addClass('selected-column');
-                            } else {
-                                $(this).removeClass('selected-column');
-                            }
-                        } else if (!isNaN(value)) {
-                            if (table.column(value).visible()) {
-                                $(this).addClass('selected-column');
-                            } else {
-                                $(this).removeClass('selected-column');
-                            }
-                        }
-                    });
-                }
-
-                $('#columnVisibilityDropdown a').on('click', function (e) {
-                    e.preventDefault();
-                    const selectedValue = $(this).data('value');
-
-                    if (selectedValue === "hide all") {
-                        table.columns().visible(false);
-
-                        // Remove all highlights
-                        $('#columnVisibilityDropdown a').removeClass('selected-column');
-
-                        // Highlight only "Hide All"
-                        $(this).addClass('selected-column');
-                    } 
-                    else if (selectedValue === "show all") {
-                        table.columns().visible(true);
-
-                        // Highlight all column items and also "Show All"
-                        $('#columnVisibilityDropdown a').each(function () {
-                            const val = $(this).data('value');
-                            if (!isNaN(val) || val === "show all") {
-                                $(this).addClass('selected-column');
-                            } else {
-                                $(this).removeClass('selected-column');
-                            }
-                        });
-                    } 
-                    else {
-                        const column = table.column(selectedValue);
-                        column.visible(!column.visible());
-
-                        // Always remove highlight from hide all
-                        $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass('selected-column');
-
-                        // Toggle selected column's highlight
-                        if (column.visible()) {
-                            $(this).addClass('selected-column');
-                        } else {
-                            $(this).removeClass('selected-column');
-                        }
-
-                        // Re-check and update "Show All" highlight if all are now visible
-                        updateDropdownHighlights();
-                    }
-                });
-
-                // Prevent dropdown from closing
-                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function (item) {
-                    item.addEventListener('click', function (e) {
-                        e.stopPropagation();
-                    });
-                });
-
-                // On page load — show all columns and highlight all column items and "Show All"
-                $(document).ready(function () {
-                    table.columns().visible(true);
-                    $('#columnVisibilityDropdown a').each(function () {
-                        const value = $(this).data('value');
-                        if (!isNaN(value) || value === "show all") {
-                            $(this).addClass('selected-column');
-                        }
-                    });
-                });
-
-
-                //  Column visibility dropdown DataTable code end
     
                 let tableIndex = 0;
                 const tableData = sales.map(sale => {
                     let cash = 0, bankTransfer = 0, cheque = 0, card = 0;
-                    
-                    // Calculate payment method totals
                     sale.payments.forEach(payment => {
                         switch (payment.payment_method) {
                             case 'cash': cash += parseFloat(payment.amount); break;
@@ -423,7 +356,6 @@
                         }
                     });
     
-                    // Find sales return for this sale
                     const saleReturn = salesReturns.find(returnItem => returnItem.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
     
@@ -439,7 +371,6 @@
                         bankTransfer.toFixed(2),
                         cheque.toFixed(2),
                         card.toFixed(2),
-                        // Credit amount is the total_due from the sale
                         parseFloat(sale.total_due).toFixed(2),
                         salesReturnAmount.toFixed(2)
                     ];
@@ -447,7 +378,6 @@
     
                 table.clear().rows.add(tableData).draw();
     
-                // Calculate and update footer totals
                 if (tableData.length > 0) {
                     const totals = tableData.reduce((acc, row) => ({
                         subTotal: acc.subTotal + parseFloat(row[4]),
@@ -476,13 +406,11 @@
                     $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
                 } else {
                     $('#salesTable tbody').html('<tr><td colspan="13" class="text-center">No records found</td></tr>');
-                    // Reset footer totals
                     $('tfoot th:not(:first-child)').text('0.00');
                 }
             }
     
             function updateSummaries(summaries) {
-                // Update summary cards
                 $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
                 $('#discounts').text(parseFloat(summaries.discounts || 0).toFixed(2));
                 $('#cashPayments').text(parseFloat(summaries.cashPayments || 0).toFixed(2));
@@ -494,13 +422,6 @@
                 $('#salesReturns').text(parseFloat(summaries.salesReturns || 0).toFixed(2));
                 $('#netIncome').text(parseFloat(summaries.netIncome || 0).toFixed(2));
                 $('#cashInHand').text(parseFloat(summaries.cashInHand || 0).toFixed(2));
-                
-                // Additional debugging to verify values
-                console.log('Summary values:', {
-                    cashPayments: summaries.cashPayments,
-                    creditTotal: summaries.creditTotal,
-                    cashInHand: summaries.cashInHand
-                });
             }
         });
     </script>

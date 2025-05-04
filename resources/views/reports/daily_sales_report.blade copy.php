@@ -500,9 +500,9 @@
                     
                 });
 
-                 //  Column visibility dropdown DataTable code start
+               //  Column visibility dropdown DataTable code start
 
-                function updateDropdownHighlights() {
+                 function updateDropdownHighlights() {
                     $('#columnVisibilityDropdown a').each(function () {
                         const value = $(this).data('value');
 
