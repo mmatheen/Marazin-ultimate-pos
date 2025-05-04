@@ -37,24 +37,21 @@
                                     <div class="col-md-6">
                                         <li><a class="dropdown-item" href="#" data-value="hide all">1. Hide All Columns</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="show all">2. Show All Columns</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="0">3. Invoice No</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="1">4. Customer</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="2">5. Date</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="3">7. Line Total</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="4">6. Line Discount</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="5">8. Sub Total</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="6">9. Bill Discount</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="7">10. Net Bill Total</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="0">3. ID</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="1">4. Invoice No</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="2">5. Customer</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="3">6. Date</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="4">7. Sub Total</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="5">8. Bill Discount</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="6">9. Net Bill Total</a></li>
                                     </div>
                                     <div class="col-md-6">
-                                        <li><a class="dropdown-item" href="#" data-value="8">11. Cash</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="9">12. Online</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="10">13. Bank Transfer</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="11">14. Cheque</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="12">15. Card</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="13">16. Return</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="14">17. Credit</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="15">18. Sales Return</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="7">10. Cash</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="8">11. Bank Transfer</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="9">12. Cheque</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="10">13. Card</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="11">14. Credit</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="12">15. Sales Return</a></li>
                                     </div>
                                 </div>
                             </ul>
