@@ -64,7 +64,7 @@
                 <div class="card card-body mb-4">
                     <div class="student-group-form">
                         <div class="row">
-                            <div class="col-lg-4 col-md-6">
+                            <div class="col-lg-6 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Customer:</label>
                                     <select class="form-control select" id="customerFilter">
@@ -73,16 +73,8 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-lg-4 col-md-6">
-                                <div class="form-group local-forms">
-                                    <label>Payment Method:</label>
-                                    <select class="form-control select" id="paymentMethodFilter">
-                                        <option value="">Select Payment Method</option>
-                                        <!-- Populate with payment method options -->
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-lg-4 col-md-6">
+                            
+                            <div class="col-lg-6 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Date Range:</label>
                                     <div id="reportrange"
