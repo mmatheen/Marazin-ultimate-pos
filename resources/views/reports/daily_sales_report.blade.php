@@ -218,11 +218,11 @@
         $(function() {
             var start = moment(); // Default start date is today
             var end = moment();   // Default end date is also today
-
+    
             function cb(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
             }
-
+    
             $('#reportrange').daterangepicker({
                 startDate: start,
                 endDate: end,
@@ -235,153 +235,53 @@
                     'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
                 }
             }, cb);
-
+    
             cb(start, end);
         });
-
+    
         document.addEventListener('DOMContentLoaded', () => {
             const customerFilter = document.getElementById('customerFilter');
             const paymentMethodFilter = document.getElementById('paymentMethodFilter');
-
-            if (!customerFilter || !paymentMethodFilter) {
-                console.error('Customer filter or payment method filter element not found.');
-                return;
-            }
-
+    
             const filters = {
-                customer_id: customerFilter.value,
-                payment_method: paymentMethodFilter.value,
-                start_date: moment().format('YYYY-MM-DD'), // Default to today's date
-                end_date: moment().format('YYYY-MM-DD')    // Default to today's date
+                customer_id: customerFilter ? customerFilter.value : '',
+                payment_method: paymentMethodFilter ? paymentMethodFilter.value : '',
+                start_date: moment().format('YYYY-MM-DD'),
+                end_date: moment().format('YYYY-MM-DD')
             };
-
-            fetchSalesData(filters); // Fetch sales data for today's date by default
-
+    
+            fetchSalesData(filters);
+    
             $('#reportrange').on('apply.daterangepicker', (ev, picker) => {
                 filters.start_date = picker.startDate.format('YYYY-MM-DD');
                 filters.end_date = picker.endDate.format('YYYY-MM-DD');
                 fetchSalesData(filters);
             });
-
+    
             async function fetchSalesData(filters = {}) {
                 const params = new URLSearchParams(filters);
                 const url = `/daily-sales-report?${params.toString()}`;
-                console.log('Fetching data from:', url); // Debugging line
+                
                 try {
                     const response = await fetch(url);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    
                     const data = await response.json();
-                    const filteredSales = data.sales || []; // Default to an empty array if no sales data
-                    const filteredSalesReturns = data.salesReturns || []; // Default to an empty array if no sales return data
-
-                    // Filter data on the frontend based on selected filters
-                    const filteredSummaries = calculateSummaries(filteredSales, filteredSalesReturns);
-
-                    populateTable(filteredSales, filteredSalesReturns);
-                    updateSummaries(filteredSummaries);
+                    populateTable(data.sales || [], data.salesReturns || []);
+                    updateSummaries(data.summaries || {});
                 } catch (error) {
                     console.error('Error fetching sales data:', error);
-                    populateTable([], []); // Populate the table with no data on error
+                    populateTable([], []);
                 }
             }
-
-            function filterSalesData(sales, filters) {
-                return sales.filter(sale => {
-                    const customerMatch = filters.customer_id ? sale.customer_id == filters.customer_id : true;
-                    const paymentMethodMatch = filters.payment_method ? sale.payments.some(payment => payment.payment_method === filters.payment_method) : true;
-                    const dateMatch = filters.start_date && filters.end_date ? isDateInRange(sale.sales_date, filters.start_date, filters.end_date) : true;
-
-                    return customerMatch && paymentMethodMatch && dateMatch;
-                });
-            }
-
-            function filterSalesReturnsData(salesReturns, filters) {
-                return salesReturns.filter(saleReturn => {
-                    const dateMatch = filters.start_date && filters.end_date ? isDateInRange(saleReturn.return_date, filters.start_date, filters.end_date) : true;
-
-                    return dateMatch;
-                });
-            }
-
-            function isDateInRange(date, startDate, endDate) {
-                const saleDate = moment(date, 'YYYY-MM-DD');
-                return saleDate.isBetween(startDate, endDate, 'day', '[]');
-            }
-
-            function calculateSummaries(sales, salesReturns) {
-                const summaries = {
-                    billTotal: 0,
-                    discounts: 0,
-                    cashPayments: 0,
-                    chequePayments: 0,
-                    bankTransfer: 0,
-                    cardPayments: 0,
-                    salesReturns: 0,
-                    paymentTotal: 0,
-                    creditTotal: 0,
-                    salesReturnsTotal: 0,
-                    paymentTotalSummary: 0,
-                    pastSalesReturns: 0,
-                    netIncome: 0,
-                    cashPaymentsSummary: 0,
-                    cashInHand: 0
-                };
-
-                sales.forEach(sale => {
-                    summaries.billTotal += parseFloat(sale.subtotal);
-                    summaries.discounts += parseFloat(sale.discount_amount);
-                    sale.payments.forEach(payment => {
-                        switch (payment.payment_method) {
-                            case 'cash':
-                                summaries.cashPayments += parseFloat(payment.amount);
-                                break;
-                            case 'bank_transfer':
-                                summaries.bankTransfer += parseFloat(payment.amount);
-                                break;
-                            case 'cheque':
-                                summaries.chequePayments += parseFloat(payment.amount);
-                                break;
-                            case 'card':
-                                summaries.cardPayments += parseFloat(payment.amount);
-                                break;
-                            case 'credit':
-                                summaries.creditTotal += parseFloat(payment.amount);
-                                break;
-                        }
-                    });
-
-                    summaries.paymentTotal += parseFloat(sale.final_total);
-                });
-
-                salesReturns.forEach(saleReturn => {
-                    summaries.salesReturns += parseFloat(saleReturn.return_total);
-                    summaries.salesReturnsTotal += parseFloat(saleReturn.return_total);
-                });
-
-                summaries.netIncome = summaries.paymentTotal - summaries.salesReturns;
-                summaries.cashPaymentsSummary = summaries.cashPayments;
-                summaries.cashInHand = summaries.cashPayments - summaries.expense;
-
-                return summaries;
-            }
-
+    
             function populateTable(sales, salesReturns) {
                 const table = $('#salesTable').DataTable({
-                    // dom: 'Bfrtip',
-                    // buttons: ['copy'],
-                    lengthMenu: [
-                        [10, 20, 50, 75, 100, -1],
-                        [10, 20, 50, 75, 100, "All"]
-                    ],
-                    destroy: true,         // Reinitialize the table if it already exists
-                    deferRender: true,     // Render rows only when needed
-                    pageLength: 10,        // Number of rows per page
+                    lengthMenu: [[10, 20, 50, 75, 100, -1], [10, 20, 50, 75, 100, "All"]],
+                    destroy: true,
+                    deferRender: true,
+                    pageLength: 10,
                     dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
-
                     buttons: [
                         {
                             extend: 'pdfHtml5',
@@ -405,7 +305,7 @@
                                 $(win.document.body).find('table').addClass('table table-bordered');
                             }
                         }
-                        ],
+                    ],
                     columns: [
                         { title: "#" },
                         { title: "Invoice No" },
@@ -421,12 +321,11 @@
                         { title: "Credit" },
                         { title: "Sales Return" }
                     ]
-                    
                 });
 
                  //  Column visibility dropdown DataTable code start
 
-                function updateDropdownHighlights() {
+                 function updateDropdownHighlights() {
                     $('#columnVisibilityDropdown a').each(function () {
                         const value = $(this).data('value');
 
@@ -520,103 +419,79 @@
 
 
                 //  Column visibility dropdown DataTable code end
-
-
+    
                 let tableIndex = 0;
                 const tableData = sales.map(sale => {
-                    // Initialize payment amounts
-                    let cash = 0,
-                        bankTransfer = 0,
-                        cheque = 0,
-                        card = 0,
-                        returnAmount = 0,
-                        credit = 0;
-
-                    // Map payments to their respective columns
+                    let cash = 0, bankTransfer = 0, cheque = 0, card = 0;
+                    
+                    // Calculate payment method totals
                     sale.payments.forEach(payment => {
                         switch (payment.payment_method) {
-                            case 'cash':
-                                cash += parseFloat(payment.amount);
-                                break;
-                            case 'bank_transfer':
-                                bankTransfer += parseFloat(payment.amount);
-                                break;
-                            case 'cheque':
-                                cheque += parseFloat(payment.amount);
-                                break;
-                            case 'card':
-                                card += parseFloat(payment.amount);
-                                break;
-                            case 'credit':
-                                credit += parseFloat(payment.amount);
-                                break;
+                            case 'cash': cash += parseFloat(payment.amount); break;
+                            case 'bank_transfer': bankTransfer += parseFloat(payment.amount); break;
+                            case 'cheque': cheque += parseFloat(payment.amount); break;
+                            case 'card': card += parseFloat(payment.amount); break;
                         }
                     });
-
-                    // Find sales return for the current sale
+    
+                    // Find sales return for this sale
                     const saleReturn = salesReturns.find(returnItem => returnItem.sale_id === sale.id);
-                    const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total).toFixed(2) : '0.00';
+                    const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
+    
                     return [
                         ++tableIndex,
                         sale.invoice_no,
-                        `${sale.customer?.first_name} ${sale.customer?.last_name || ''}`,
+                        `${sale.customer?.first_name || ''} ${sale.customer?.last_name || ''}`.trim(),
                         new Date(sale.sales_date).toLocaleDateString(),
                         parseFloat(sale.subtotal).toFixed(2),
-                        sale.discount_amount || '0.00',
+                        parseFloat(sale.discount_amount || 0).toFixed(2),
                         parseFloat(sale.final_total).toFixed(2),
                         cash.toFixed(2),
                         bankTransfer.toFixed(2),
                         cheque.toFixed(2),
                         card.toFixed(2),
-                        credit.toFixed(2),
-                        salesReturnAmount,
+                        // Credit amount is the total_due from the sale
+                        parseFloat(sale.total_due).toFixed(2),
+                        salesReturnAmount.toFixed(2)
                     ];
                 });
-
+    
                 table.clear().rows.add(tableData).draw();
-
-                if (tableData.length === 0) {
-                    $('#salesTable tbody').html('<tr><td colspan="16" class="text-center">No records found</td></tr>');
+    
+                // Calculate and update footer totals
+                if (tableData.length > 0) {
+                    const totals = tableData.reduce((acc, row) => ({
+                        subTotal: acc.subTotal + parseFloat(row[4]),
+                        billDiscount: acc.billDiscount + parseFloat(row[5]),
+                        netBillTotal: acc.netBillTotal + parseFloat(row[6]),
+                        cash: acc.cash + parseFloat(row[7]),
+                        bankTransfer: acc.bankTransfer + parseFloat(row[8]),
+                        cheque: acc.cheque + parseFloat(row[9]),
+                        card: acc.card + parseFloat(row[10]),
+                        credit: acc.credit + parseFloat(row[11]),
+                        salesReturn: acc.salesReturn + parseFloat(row[12])
+                    }), {
+                        subTotal: 0, billDiscount: 0, netBillTotal: 0,
+                        cash: 0, bankTransfer: 0, cheque: 0, card: 0,
+                        credit: 0, salesReturn: 0
+                    });
+    
+                    $('#totalSubTotal').text(totals.subTotal.toFixed(2));
+                    $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
+                    $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
+                    $('#totalCash').text(totals.cash.toFixed(2));
+                    $('#totalBankTransfer').text(totals.bankTransfer.toFixed(2));
+                    $('#totalCheque').text(totals.cheque.toFixed(2));
+                    $('#totalCard').text(totals.card.toFixed(2));
+                    $('#totalCredit').text(totals.credit.toFixed(2));
+                    $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
+                } else {
+                    $('#salesTable tbody').html('<tr><td colspan="13" class="text-center">No records found</td></tr>');
+                    // Reset footer totals
+                    $('tfoot th:not(:first-child)').text('0.00');
                 }
-
-                // Calculate totals for each column
-                const totals = tableData.reduce((acc, row) => {
-                   
-                    acc.subTotal += parseFloat(row[4]);
-                    acc.billDiscount += parseFloat(row[5]);
-                    acc.netBillTotal += parseFloat(row[6]);
-                    acc.cash += parseFloat(row[7]);
-                    acc.bankTransfer += parseFloat(row[8]);
-                    acc.cheque += parseFloat(row[9]);
-                    acc.card += parseFloat(row[10]);
-                    acc.credit += parseFloat(row[11]);
-                    acc.salesReturn += parseFloat(row[12]);
-                    return acc;
-                }, {
-                   
-                    subTotal: 0,
-                    billDiscount: 0,
-                    netBillTotal: 0,
-                    cash: 0,
-                    bankTransfer: 0,
-                    cheque: 0,
-                    card: 0,
-                    credit: 0,
-                    salesReturn: 0
-                });
-
-                // Update totals in the footer
-                $('#totalSubTotal').text(totals.subTotal.toFixed(2));
-                $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
-                $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
-                $('#totalCash').text(totals.cash.toFixed(2));
-                $('#totalBankTransfer').text(totals.bankTransfer.toFixed(2));
-                $('#totalCheque').text(totals.cheque.toFixed(2));
-                $('#totalCard').text(totals.card.toFixed(2));
-                $('#totalCredit').text(totals.credit.toFixed(2));
-                $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
             }
-
+    
             function updateSummaries(summaries) {
                 // Update summary cards
                 $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
@@ -630,8 +505,14 @@
                 $('#salesReturns').text(parseFloat(summaries.salesReturns || 0).toFixed(2));
                 $('#netIncome').text(parseFloat(summaries.netIncome || 0).toFixed(2));
                 $('#cashInHand').text(parseFloat(summaries.cashInHand || 0).toFixed(2));
+                
+                // Additional debugging to verify values
+                console.log('Summary values:', {
+                    cashPayments: summaries.cashPayments,
+                    creditTotal: summaries.creditTotal,
+                    cashInHand: summaries.cashInHand
+                });
             }
-
         });
     </script>
 
