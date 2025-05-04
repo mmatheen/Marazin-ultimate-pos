@@ -343,6 +343,104 @@
                         { title: "Sales Return" }
                     ]
                 });
+
+                  //  Column visibility dropdown DataTable code start
+
+                 function updateDropdownHighlights() {
+                    $('#columnVisibilityDropdown a').each(function () {
+                        const value = $(this).data('value');
+
+                        if (value === "hide all") {
+                            $(this).removeClass('selected-column');
+                        } else if (value === "show all") {
+                            // Highlight only if all columns are visible
+                            let allVisible = true;
+                            table.columns().every(function () {
+                                if (!this.visible()) {
+                                    allVisible = false;
+                                }
+                            });
+                            if (allVisible) {
+                                $(this).addClass('selected-column');
+                            } else {
+                                $(this).removeClass('selected-column');
+                            }
+                        } else if (!isNaN(value)) {
+                            if (table.column(value).visible()) {
+                                $(this).addClass('selected-column');
+                            } else {
+                                $(this).removeClass('selected-column');
+                            }
+                        }
+                    });
+                }
+
+                $('#columnVisibilityDropdown a').on('click', function (e) {
+                    e.preventDefault();
+                    const selectedValue = $(this).data('value');
+
+                    if (selectedValue === "hide all") {
+                        table.columns().visible(false);
+
+                        // Remove all highlights
+                        $('#columnVisibilityDropdown a').removeClass('selected-column');
+
+                        // Highlight only "Hide All"
+                        $(this).addClass('selected-column');
+                    } 
+                    else if (selectedValue === "show all") {
+                        table.columns().visible(true);
+
+                        // Highlight all column items and also "Show All"
+                        $('#columnVisibilityDropdown a').each(function () {
+                            const val = $(this).data('value');
+                            if (!isNaN(val) || val === "show all") {
+                                $(this).addClass('selected-column');
+                            } else {
+                                $(this).removeClass('selected-column');
+                            }
+                        });
+                    } 
+                    else {
+                        const column = table.column(selectedValue);
+                        column.visible(!column.visible());
+
+                        // Always remove highlight from hide all
+                        $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass('selected-column');
+
+                        // Toggle selected column's highlight
+                        if (column.visible()) {
+                            $(this).addClass('selected-column');
+                        } else {
+                            $(this).removeClass('selected-column');
+                        }
+
+                        // Re-check and update "Show All" highlight if all are now visible
+                        updateDropdownHighlights();
+                    }
+                });
+
+                // Prevent dropdown from closing
+                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function (item) {
+                    item.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                    });
+                });
+
+                // On page load — show all columns and highlight all column items and "Show All"
+                $(document).ready(function () {
+                    table.columns().visible(true);
+                    $('#columnVisibilityDropdown a').each(function () {
+                        const value = $(this).data('value');
+                        if (!isNaN(value) || value === "show all") {
+                            $(this).addClass('selected-column');
+                        }
+                    });
+                });
+
+
+                //  Column visibility dropdown DataTable code end
+
     
                 let tableIndex = 0;
                 const tableData = sales.map(sale => {

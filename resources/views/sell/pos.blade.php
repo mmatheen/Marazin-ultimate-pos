@@ -716,10 +716,6 @@
                                                     <th>Product</th>
                                                     <th class="text-center">Quantity</th>
                                                     <th class="text-center">Unit Price</th>
-                                                    <!-- New Columns -->
-                                                    <th class="text-center">Discount Type</th>
-                                                    <th class="text-center">Discount Value</th>
-                                                    <!-- End New Columns -->
                                                     <th class="text-center">Subtotal</th>
                                                     <th class="text-center" style="color: red;">X</th>
                                                 </tr>
@@ -745,8 +741,8 @@
                                     <div class="form-group">
                                         <label for="discount-type">Discount Type</label>
                                         <div class="btn-group w-100" role="group" aria-label="Discount Type">
-                                            <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Rs</button>
-                                            <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">%</button>
+                                            <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Fixed</button>
+                                            <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">Percentage</button>
                                         </div>
                                         <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                                     </div>
