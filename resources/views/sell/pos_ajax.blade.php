@@ -310,13 +310,13 @@
                         initAutocomplete();
                     } else {
                         console.error('Invalid data:', data);
-                        alert('Failed to load product data.');
+                        // alert('Failed to load product data.');
                     }
                 })
                 .catch(error => {
                     hideLoader();
                     console.error('Error fetching data:', error);
-                    alert('An error occurred while fetching product data.');
+                    // alert('An error occurred while fetching product data.');
                 });
         }
 
@@ -1756,12 +1756,12 @@
                         };
                     };
                 } else {
-                    alert('Failed to fetch the receipt. Please try again.');
+                    // alert('Failed to fetch the receipt. Please try again.');
                 }
             })
             .catch(error => {
                 console.error('Error fetching the receipt:', error);
-                alert('An error occurred while fetching the receipt. Please try again.');
+                // alert('An error occurred while fetching the receipt. Please try again.');
             });
     }
 
