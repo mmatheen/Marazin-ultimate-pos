@@ -114,13 +114,17 @@
                                         <th>Invoice No</th>
                                         <th>Customer</th>
                                         <th>Date</th>
+                                        <th>Line Total</th>
+                                        <th>Line Discount</th>
                                         <th>Sub Total</th>
                                         <th>Bill Discount</th>
                                         <th>Net Bill Total</th>
                                         <th>Cash</th>
+                                        <th>Online</th>
                                         <th>Bank Transfer</th>
                                         <th>Cheque</th>
                                         <th>Card</th>
+                                        <th>Return</th>
                                         <th>Credit</th>
                                         <th>Sales Return</th>
                                     </tr>
@@ -131,16 +135,19 @@
                                 <tfoot style="border-top: 2px solid #dee2e6;">
                                     <tr>
                                         <th colspan="4">Total</th>
+                                        <th id="totalLineTotal"></th>
+                                        <th id="totalLineDiscount"></th>
                                         <th id="totalSubTotal"></th>
                                         <th id="totalBillDiscount"></th>
                                         <th id="totalNetBillTotal"></th>
                                         <th id="totalCash"></th>
+                                        <th id="totalOnline"></th>
                                         <th id="totalBankTransfer"></th>
                                         <th id="totalCheque"></th>
                                         <th id="totalCard"></th>
+                                        <th id="totalReturn"></th>
                                         <th id="totalCredit"></th>
                                         <th id="totalSalesReturn"></th>
-
                                     </tr>
                                 </tfoot>
                             </table>
@@ -150,7 +157,7 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="card card-body">
                     <table class="table table-bordered">
                         <tbody>
@@ -167,40 +174,92 @@
                                 <td id="cashPayments">0.00</td>
                             </tr>
                             <tr>
-                                <td>Card Payments</td>
-                                <td id="cardPayments">0.00</td>
-                            </tr>
-                            <tr>
                                 <td>Cheque Payments</td>
                                 <td id="chequePayments">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Online Payments</td>
+                                <td id="onlinePayments">0.00</td>
                             </tr>
                             <tr>
                                 <td>Bank Transfer</td>
                                 <td id="bankTransfer">0.00</td>
                             </tr>
                             <tr>
-                                <td>Payment Total</td>
-                                <td id="paymentTotal">0.00</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card card-body">
-                    <table class="table table-bordered">
-                        <tbody>
-                            <tr>
-                                <td>Credit Total</td>
-                                <td id="creditTotal">0.00</td>
+                                <td>Card Payments</td>
+                                <td id="cardPayments">0.00</td>
                             </tr>
                             <tr>
                                 <td>Sales Returns</td>
                                 <td id="salesReturns">0.00</td>
                             </tr>
                             <tr>
+                                <td>Payment Total</td>
+                                <td id="paymentTotal">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Credit Total</td>
+                                <td id="creditTotal">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Sales Returns Total</td>
+                                <td id="salesReturnsTotal">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-body">
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <td>Payment Total</td>
+                                <td id="paymentTotalSummary">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Past Sales Returns</td>
+                                <td id="pastSalesReturns">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Expense</td>
+                                <td id="expense">0.00</td>
+                            </tr>
+                            {{-- <tr>
+                                <td>Credit Collection (New Bills)</td>
+                                <td id="creditCollectionNew">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Credit Collection (Old Bills)</td>
+                                <td id="creditCollectionOld">0.00</td>
+                            </tr> --}}
+                            <tr>
                                 <td>Net Income</td>
                                 <td id="netIncome">0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-body">
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <td>Cash Payments</td>
+                                <td id="cashPaymentsSummary">0.00</td>
+                            </tr>
+                            {{-- <tr>
+                                <td>Credit Collection (New Bills)</td>
+                                <td id="creditCollectionNewSummary">0.00</td>
+                            </tr>
+                            <tr>
+                                <td>Credit Collection (Old Bills)</td>
+                                <td id="creditCollectionOldSummary">0.00</td>
+                            </tr> --}}
+                            <tr>
+                                <td>Expense</td>
+                                <td id="expenseSummary">0.00</td>
                             </tr>
                             <tr>
                                 <td>Cash in Hand</td>
@@ -318,6 +377,7 @@
                     discounts: 0,
                     cashPayments: 0,
                     chequePayments: 0,
+                    onlinePayments: 0,
                     bankTransfer: 0,
                     cardPayments: 0,
                     salesReturns: 0,
@@ -326,8 +386,14 @@
                     salesReturnsTotal: 0,
                     paymentTotalSummary: 0,
                     pastSalesReturns: 0,
+                    expense: 0,
+                    // creditCollectionNew: 0,
+                    // creditCollectionOld: 0,
                     netIncome: 0,
                     cashPaymentsSummary: 0,
+                    // creditCollectionNewSummary: 0,
+                    // creditCollectionOldSummary: 0,
+                    expenseSummary: 0,
                     cashInHand: 0
                 };
 
@@ -338,6 +404,9 @@
                         switch (payment.payment_method) {
                             case 'cash':
                                 summaries.cashPayments += parseFloat(payment.amount);
+                                break;
+                            case 'online':
+                                summaries.onlinePayments += parseFloat(payment.amount);
                                 break;
                             case 'bank_transfer':
                                 summaries.bankTransfer += parseFloat(payment.amount);
@@ -364,6 +433,9 @@
 
                 summaries.netIncome = summaries.paymentTotal - summaries.salesReturns;
                 summaries.cashPaymentsSummary = summaries.cashPayments;
+                // summaries.creditCollectionNewSummary = summaries.creditCollectionNew;
+                // summaries.creditCollectionOldSummary = summaries.creditCollectionOld;
+                // summaries.expenseSummary = summaries.expense;
                 summaries.cashInHand = summaries.cashPayments - summaries.expense;
 
                 return summaries;
@@ -411,13 +483,17 @@
                         { title: "Invoice No" },
                         { title: "Customer" },
                         { title: "Date" },
+                        { title: "Line Total" },
+                        { title: "Line Discount" },
                         { title: "Sub Total" },
                         { title: "Bill Discount" },
                         { title: "Net Bill Total" },
                         { title: "Cash" },
+                        { title: "Online" },
                         { title: "Bank Transfer" },
                         { title: "Cheque" },
                         { title: "Card" },
+                        { title: "Return" },
                         { title: "Credit" },
                         { title: "Sales Return" }
                     ]
@@ -526,6 +602,7 @@
                 const tableData = sales.map(sale => {
                     // Initialize payment amounts
                     let cash = 0,
+                        online = 0,
                         bankTransfer = 0,
                         cheque = 0,
                         card = 0,
@@ -538,6 +615,9 @@
                             case 'cash':
                                 cash += parseFloat(payment.amount);
                                 break;
+                            case 'online':
+                                online += parseFloat(payment.amount);
+                                break;
                             case 'bank_transfer':
                                 bankTransfer += parseFloat(payment.amount);
                                 break;
@@ -546,6 +626,9 @@
                                 break;
                             case 'card':
                                 card += parseFloat(payment.amount);
+                                break;
+                            case 'return':
+                                returnAmount += parseFloat(payment.amount);
                                 break;
                             case 'credit':
                                 credit += parseFloat(payment.amount);
@@ -564,12 +647,16 @@
                         parseFloat(sale.subtotal).toFixed(2),
                         sale.discount_amount || '0.00',
                         parseFloat(sale.final_total).toFixed(2),
+                        parseFloat(sale.total_paid).toFixed(2),
+                        parseFloat(sale.total_due).toFixed(2),
                         cash.toFixed(2),
+                        online.toFixed(2),
                         bankTransfer.toFixed(2),
                         cheque.toFixed(2),
                         card.toFixed(2),
+                        returnAmount.toFixed(2),
                         credit.toFixed(2),
-                        salesReturnAmount,
+                        salesReturnAmount
                     ];
                 });
 
@@ -581,57 +668,62 @@
 
                 // Calculate totals for each column
                 const totals = tableData.reduce((acc, row) => {
-                   
-                    acc.subTotal += parseFloat(row[4]);
-                    acc.billDiscount += parseFloat(row[5]);
-                    acc.netBillTotal += parseFloat(row[6]);
-                    acc.cash += parseFloat(row[7]);
-                    acc.bankTransfer += parseFloat(row[8]);
-                    acc.cheque += parseFloat(row[9]);
-                    acc.card += parseFloat(row[10]);
-                    acc.credit += parseFloat(row[11]);
-                    acc.salesReturn += parseFloat(row[12]);
+                    acc.lineTotal += parseFloat(row[4]);
+                    acc.lineDiscount += parseFloat(row[5]);
+                    acc.subTotal += parseFloat(row[6]);
+                    acc.billDiscount += parseFloat(row[7]);
+                    acc.netBillTotal += parseFloat(row[8]);
+                    acc.cash += parseFloat(row[9]);
+                    acc.online += parseFloat(row[10]);
+                    acc.bankTransfer += parseFloat(row[11]);
+                    acc.cheque += parseFloat(row[12]);
+                    acc.card += parseFloat(row[13]);
+                    acc.return += parseFloat(row[14]);
+                    acc.credit += parseFloat(row[15]);
+                    acc.salesReturn += parseFloat(row[16]);
                     return acc;
                 }, {
-                   
+                    lineTotal: 0,
+                    lineDiscount: 0,
                     subTotal: 0,
                     billDiscount: 0,
                     netBillTotal: 0,
                     cash: 0,
+                    online: 0,
                     bankTransfer: 0,
                     cheque: 0,
                     card: 0,
+                    return: 0,
                     credit: 0,
                     salesReturn: 0
                 });
 
-                // Update totals in the footer
+                // Update footer with totals
+                $('#totalLineTotal').text(totals.lineTotal.toFixed(2));
+                $('#totalLineDiscount').text(totals.lineDiscount.toFixed(2));
                 $('#totalSubTotal').text(totals.subTotal.toFixed(2));
                 $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
                 $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
                 $('#totalCash').text(totals.cash.toFixed(2));
+                $('#totalOnline').text(totals.online.toFixed(2));
                 $('#totalBankTransfer').text(totals.bankTransfer.toFixed(2));
                 $('#totalCheque').text(totals.cheque.toFixed(2));
                 $('#totalCard').text(totals.card.toFixed(2));
+                $('#totalReturn').text(totals.return.toFixed(2));
                 $('#totalCredit').text(totals.credit.toFixed(2));
                 $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
             }
 
             function updateSummaries(summaries) {
-                // Update summary cards
-                $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
-                $('#discounts').text(parseFloat(summaries.discounts || 0).toFixed(2));
-                $('#cashPayments').text(parseFloat(summaries.cashPayments || 0).toFixed(2));
-                $('#cardPayments').text(parseFloat(summaries.cardPayments || 0).toFixed(2));
-                $('#chequePayments').text(parseFloat(summaries.chequePayments || 0).toFixed(2));
-                $('#bankTransfer').text(parseFloat(summaries.bankTransfer || 0).toFixed(2));
-                $('#paymentTotal').text(parseFloat(summaries.paymentTotal || 0).toFixed(2));
-                $('#creditTotal').text(parseFloat(summaries.creditTotal || 0).toFixed(2));
-                $('#salesReturns').text(parseFloat(summaries.salesReturns || 0).toFixed(2));
-                $('#netIncome').text(parseFloat(summaries.netIncome || 0).toFixed(2));
-                $('#cashInHand').text(parseFloat(summaries.cashInHand || 0).toFixed(2));
+                Object.keys(summaries).forEach(key => {
+                    const element = document.getElementById(key);
+                    if (element) {
+                        element.textContent = parseFloat(summaries[key]).toFixed(2);
+                    } else {
+                        console.error(`Element with id '${key}' not found.`);
+                    }
+                });
             }
-
         });
     </script>
 

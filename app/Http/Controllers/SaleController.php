@@ -87,62 +87,130 @@ class SaleController extends Controller
         try {
             $startDate = $request->input('start_date', Carbon::today()->toDateString());
             $endDate = $request->input('end_date', Carbon::today()->toDateString());
-
+    
             $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
                 ->whereBetween('sales_date', [$startDate, $endDate]);
-
-            // Calculate summaries
-            $summaries = [
-                'billTotal' => $salesQuery->sum('final_total'),
-                'discounts' => $salesQuery->sum('discount_amount'),
-                'cashPayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'cash');
-                })->sum('total_paid'),
-                'chequePayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'cheque');
-                })->sum('total_paid'),
-                'onlinePayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'online');
-                })->sum('total_paid'),
-                'bankTransfer' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'bank_transfer');
-                })->sum('total_paid'),
-                'cardPayments' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'card');
-                })->sum('total_paid'),
-                'salesReturns' => SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
-                'paymentTotal' => $salesQuery->sum('total_paid'),
-                'creditTotal' => $salesQuery->sum('total_due'),
-                'salesReturnsTotal' => SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
-                'paymentTotalSummary' => $salesQuery->sum('total_paid'),
-                'pastSalesReturns' => SalesReturn::where('created_at', '<', $startDate)->sum('return_total'),
-                'expense' => 0, // Assuming expense is not calculated here
-                'creditCollectionNew' => 0, // Placeholder
-                'creditCollectionOld' => 0, // Placeholder
-                'netIncome' => $salesQuery->sum('final_total') - SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
-                'cashPaymentsSummary' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'cash');
-                })->sum('total_paid'),
-                'creditCollectionNewSummary' => 0, // Placeholder
-                'creditCollectionOldSummary' => 0, // Placeholder
-                'expenseSummary' => 0, // Placeholder
-                'cashInHand' => $salesQuery->clone()->whereHas('payments', function ($query) {
-                    $query->where('payment_method', 'cash');
-                })->sum('total_paid') - SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total'),
-            ];
-
+    
+            // Get all sales for the period
             $sales = $salesQuery->get();
-
+    
+            // Calculate payment totals
+            $cashPayments = 0;
+            $chequePayments = 0;
+            $bankTransferPayments = 0;
+            $cardPayments = 0;
+            $creditTotal = 0;
+    
+            foreach ($sales as $sale) {
+                foreach ($sale->payments as $payment) {
+                    switch ($payment->payment_method) {
+                        case 'cash':
+                            $cashPayments += $payment->amount;
+                            break;
+                        case 'cheque':
+                            $chequePayments += $payment->amount;
+                            break;
+                        case 'bank_transfer':
+                            $bankTransferPayments += $payment->amount;
+                            break;
+                        case 'card':
+                            $cardPayments += $payment->amount;
+                            break;
+                    }
+                }
+                $creditTotal += $sale->total_due;
+            }
+    
+            // Calculate sales returns
+            $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total');
+            $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
+    
+            $summaries = [
+                'billTotal' => $sales->sum('final_total'),
+                'discounts' => $sales->sum('discount_amount'),
+                'cashPayments' => $cashPayments,
+                'chequePayments' => $chequePayments,
+                'bankTransfer' => $bankTransferPayments,
+                'cardPayments' => $cardPayments,
+                'salesReturns' => $salesReturns,
+                'paymentTotal' => $paymentTotal,
+                'creditTotal' => $creditTotal,
+                'netIncome' => $sales->sum('final_total') - $salesReturns,
+                'cashInHand' => $cashPayments - $salesReturns, // Basic cash in hand calculation
+            ];
+    
             // Fetch sales return details based on sale ID
-            $salesReturns = SalesReturn::with('customer', 'location', 'returnProducts')
+            $salesReturnsDetails = SalesReturn::with('customer', 'location', 'returnProducts')
                 ->whereIn('sale_id', $sales->pluck('id'))
                 ->get();
-
-            return response()->json(['sales' => $sales, 'summaries' => $summaries, 'salesReturns' => $salesReturns], 200);
+    
+            return response()->json([
+                'sales' => $sales,
+                'summaries' => $summaries,
+                'salesReturns' => $salesReturnsDetails
+            ], 200);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred while fetching sales data.', 'details' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'An error occurred while fetching sales data.',
+                'details' => $e->getMessage()
+            ], 500);
         }
     }
+
+//     public function dailyReport(Request $request)
+// {
+//     try {
+//         $startDate = $request->input('start_date', Carbon::today()->toDateString());
+//         $endDate = $request->input('end_date', Carbon::today()->toDateString());
+
+//         $salesQuery = Sale::with(['customer', 'payments'])
+//             ->whereBetween('sales_date', [$startDate, $endDate]);
+
+//         if ($request->customer_id) {
+//             $salesQuery->where('customer_id', $request->customer_id);
+//         }
+
+//         if ($request->payment_method) {
+//             $salesQuery->whereHas('payments', function($query) use ($request) {
+//                 $query->where('payment_method', $request->payment_method);
+//             });
+//         }
+
+//         $sales = $salesQuery->get();
+//         $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->get();
+
+//         // Calculate summaries
+//         $summaries = [
+//             'billTotal' => $sales->sum('subtotal'),
+//             'discounts' => $sales->sum('discount_amount'),
+//             'cashPayments' => $sales->sum(function($sale) {
+//                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
+//             }),
+//             'cardPayments' => $sales->sum(function($sale) {
+//                 return $sale->payments->where('payment_method', 'card')->sum('amount');
+//             }),
+//             'paymentTotal' => $sales->sum('final_total'),
+//             'creditTotal' => $sales->sum('total_due'),
+//             'salesReturns' => $salesReturns->sum('return_total'),
+//             'netIncome' => $sales->sum('final_total') - $salesReturns->sum('return_total'),
+//             'cashInHand' => $sales->sum(function($sale) {
+//                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
+//             }) - $salesReturns->sum('return_total')
+//         ];
+
+//         return response()->json([
+//             'sales' => $sales,
+//             'salesReturns' => $salesReturns,
+//             'summaries' => $summaries
+//         ], 200);
+
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'error' => 'An error occurred while fetching sales data.',
+//             'details' => $e->getMessage()
+//         ], 500);
+//     }
+// }
 
 
 
