@@ -24,9 +24,9 @@
                         <li><a href={{ route('group-role-and-permission-view') }} class="{{ set_active(['group-role-and-permission-view'])}}">Role And Permission</a></li>
                         @endcan
 
-                        @can('view sales-commission-agent')
+                        {{-- @can('view sales-commission-agent')
                         <li><a href={{ route('sales-commission-agent') }} class="{{ set_active(['sales-commission-agent'])}}">Sales Commissions</a></li>
-                        @endcan
+                        @endcan --}}
                     </ul>
                 </li>
                 @endcanany
@@ -44,11 +44,11 @@
                         <li><a href={{ route('customer') }} class="{{ set_active(['customer'])}}">Customer</a></li>
                         @endcan
 
-                        @can('view customer-group')
+                        {{-- @can('view customer-group')
                         <li><a href={{ route('customer-group') }} class="{{ set_active(['customer-group'])}}">Customer Groups</a></li>
                         @endcan
 
-                        <li><a href={{ route('import-contact') }} class="{{ set_active(['import-contact'])}}">Import Contacts</a></li>
+                        <li><a href={{ route('import-contact') }} class="{{ set_active(['import-contact'])}}">Import Contacts</a></li> --}}
                     </ul>
                 </li>
                 @endcanany
@@ -70,17 +70,17 @@
                         @endcan
                         {{-- {{ activeSegment('product_list') }} --}}
 
-                        <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
+                        {{-- <li><a href={{ route('update-price')}} class="{{ set_active(['update-price'])}}">Update Price</a></li>
                         <li><a href={{ route('print-label')}} class="{{ set_active(['print-label'])}}">Print Label</a></li>
                         <li><a href={{ route('variation')}} class="{{ set_active(['variation'])}}">Variation</a></li>
-                        <li><a href={{ route('variation-title')}} class="{{ set_active(['variation-title'])}}">Variation Title</a></li>
+                        <li><a href={{ route('variation-title')}} class="{{ set_active(['variation-title'])}}">Variation Title</a></li> --}}
                         @can('view import-product')
                         <li><a href={{ route('import-product')}} class="{{ set_active(['import-product'])}}">Import Products</a></li>
                         @endcan
 
                         {{-- <li><a href={{ route('import-opening-stock')}} class="{{ set_active(['import-opening-stock'])}}">Import Opening Stock</a>
                 </li> --}}
-                <li><a href={{ route('selling-price-group') }} class="{{ set_active(['selling-price-group'])}}">Selling Price Group</a></li>
+                {{-- <li><a href={{ route('selling-price-group') }} class="{{ set_active(['selling-price-group'])}}">Selling Price Group</a></li> --}}
 
                 @can('view unit')
                 <li><a href={{ route('unit') }} class="{{ set_active(['unit'])}}">Unit</a></li>
@@ -207,7 +207,7 @@
             </li>
             @endcanany
 
-            @canany(['view parent-expense', 'view child-expense'])
+            {{-- @canany(['view parent-expense', 'view child-expense'])
             <li class="submenu">
                 <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span> <span class="menu-arrow"></span></a>
                 <ul>
@@ -219,7 +219,7 @@
                     @endcan
                 </ul>
             </li>
-            @endcanany
+            @endcanany --}}
 
 
             @canany(['view daily-report'])

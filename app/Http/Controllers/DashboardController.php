@@ -22,10 +22,10 @@ class DashboardController extends Controller
         $endDate = $request->query('endDate');
     
         $totalSales = DB::table('sales')
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereBetween('sales_date', [$startDate, $endDate])
             ->sum('final_total');
         $totalSalesDue = DB::table('sales')
-            ->whereBetween('created_at', [$startDate, $endDate])
+            ->whereBetween('sales_date', [$startDate, $endDate])
             ->sum('total_due');
         $totalPurchases = DB::table('purchases')
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -52,9 +52,9 @@ class DashboardController extends Controller
     
         // Fetch sales dates and amounts
         $salesData = DB::table('sales')
-            ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(final_total) as amount'))
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->groupBy(DB::raw('DATE(created_at)'))
+            ->select(DB::raw('DATE(sales_date) as date'), DB::raw('SUM(final_total) as amount'))
+            ->whereBetween('sales_date', [$startDate, $endDate])
+            ->groupBy(DB::raw('DATE(sales_date)'))
             ->get();
     
         $salesDates = $salesData->pluck('date');
