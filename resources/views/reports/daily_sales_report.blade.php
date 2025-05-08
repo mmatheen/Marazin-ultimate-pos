@@ -1,7 +1,6 @@
 @extends('layout.layout')
 @section('title', 'Daily Sales Report')
 @section('content')
-
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
@@ -19,45 +18,51 @@
             </div>
             <div>
                 <div class="card card-body mb-4">
-                    
+
                     <div class="student-group-form d-flex align-items-start flex-wrap gap-2">
                         <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
                             <i class="fas fa-filter"></i> &nbsp; Filters
                         </button>
-                    
+
                         <div class="btn-group">
                             <button class="btn btn-success dropdown-toggle" type="button" id="dropdownMenuButton"
                                 data-bs-toggle="dropdown" aria-expanded="false">
                                 Columns Visibility
                             </button>
-                            <ul class="dropdown-menu p-3" aria-labelledby="dropdownMenuButton" id="columnVisibilityDropdown" style="width: 400px;">
+                            <ul class="dropdown-menu p-3" aria-labelledby="dropdownMenuButton" id="columnVisibilityDropdown"
+                                style="width: 400px;">
                                 <div class="row">
-                             
+
                                     <div class="col-md-6">
-                                        <li><a class="dropdown-item" href="#" data-value="hide all">1. Hide All Columns</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="show all">2. Show All Columns</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="hide all">1. Hide All
+                                                Columns</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="show all">2. Show All
+                                                Columns</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="0">3. ID</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="1">4. Invoice No</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="2">5. Customer</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="3">6. Date</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="4">7. Sub Total</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="5">8. Bill Discount</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="6">9. Net Bill Total</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="6">9. Net Bill Total</a>
+                                        </li>
                                     </div>
                                     <div class="col-md-6">
                                         <li><a class="dropdown-item" href="#" data-value="7">10. Cash</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="8">11. Bank Transfer</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="8">11. Bank Transfer</a>
+                                        </li>
                                         <li><a class="dropdown-item" href="#" data-value="9">12. Cheque</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="10">13. Card</a></li>
                                         <li><a class="dropdown-item" href="#" data-value="11">14. Credit</a></li>
-                                        <li><a class="dropdown-item" href="#" data-value="12">15. Sales Return</a></li>
+                                        <li><a class="dropdown-item" href="#" data-value="12">15. Sales Return</a>
+                                        </li>
                                     </div>
                                 </div>
                             </ul>
                         </div>
                     </div>
-                    
+
                 </div>
             </div>
             <div class="collapse" id="collapseExample">
@@ -73,7 +78,7 @@
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <div class="col-lg-6 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Date Range:</label>
@@ -119,7 +124,7 @@
 
                                 <tfoot style="border-top: 2px solid #dee2e6;">
                                     <tr>
-                                        <th colspan="4">Total</th>
+                                        <th colspan="4" class="text-center" style="font-size: 20px;">Total</th>
                                         <th id="totalSubTotal"></th>
                                         <th id="totalBillDiscount"></th>
                                         <th id="totalNetBillTotal"></th>
@@ -202,16 +207,16 @@
         </div>
     </div>
 
-        
+
     <script>
-        $(function () {
+        $(function() {
             const start = moment(); // Default start date is today
-            const end = moment();   // Default end date is also today
-    
+            const end = moment(); // Default end date is also today
+
             function setDateRange(start, end) {
                 $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
             }
-    
+
             $('#reportrange').daterangepicker({
                 startDate: start,
                 endDate: end,
@@ -221,49 +226,50 @@
                     'Last 7 Days': [moment().subtract(6, 'days'), moment()],
                     'Last 30 Days': [moment().subtract(29, 'days'), moment()],
                     'This Month': [moment().startOf('month'), moment().endOf('month')],
-                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1,
+                        'month').endOf('month')]
                 }
             }, setDateRange);
-    
+
             setDateRange(start, end);
         });
-    
+
         document.addEventListener('DOMContentLoaded', () => {
             const customerFilter = document.getElementById('customerFilter');
-    
+
             const filters = {
                 customer_id: '',
                 start_date: moment().format('YYYY-MM-DD'),
                 end_date: moment().format('YYYY-MM-DD')
             };
-    
+
             fetchSalesData(filters);
-    
+
             $('#reportrange').on('apply.daterangepicker', (ev, picker) => {
                 filters.start_date = picker.startDate.format('YYYY-MM-DD');
                 filters.end_date = picker.endDate.format('YYYY-MM-DD');
                 fetchSalesData(filters);
             });
-    
+
             if (customerFilter) {
                 customerFilter.addEventListener('change', () => {
                     filters.customer_id = customerFilter.value || '';
                     fetchSalesData(filters); // Trigger fetch with updated filters
                 });
             }
-    
+
             async function fetchSalesData(filters) {
                 const params = new URLSearchParams(filters);
                 const url = `/daily-sales-report?${params.toString()}`;
-    
+
                 try {
                     console.log('Fetching data with filters:', filters); // Debugging filter values
                     const response = await fetch(url);
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-    
+
                     const data = await response.json();
                     console.log('Data received:', data); // Debugging the returned data
-    
+
                     populateCustomerDropdown(data.sales || []);
                     populateTable(data.sales || [], data.salesReturns || []);
                     updateSummaries(data.summaries || {});
@@ -273,20 +279,21 @@
                     populateTable([], []);
                 }
             }
-    
+
             function populateCustomerDropdown(sales) {
                 if (!customerFilter) return;
-    
+
                 const customerMap = new Map();
                 sales.forEach(sale => {
                     if (sale.customer) {
-                        const customerName = `${sale.customer.first_name || ''} ${sale.customer.last_name || ''}`.trim();
+                        const customerName =
+                            `${sale.customer.first_name || ''} ${sale.customer.last_name || ''}`.trim();
                         if (customerName) {
                             customerMap.set(sale.customer.id, customerName);
                         }
                     }
                 });
-    
+
                 customerFilter.innerHTML = '<option value="">Select Customer</option>';
                 customerMap.forEach((name, id) => {
                     const option = document.createElement('option');
@@ -295,59 +302,129 @@
                     customerFilter.appendChild(option);
                 });
             }
-    
+
             function populateTable(sales, salesReturns) {
                 const table = $('#salesTable').DataTable({
-                    lengthMenu: [[10, 20, 50, -1], [10, 20, 50, "All"]],
+                    lengthMenu: [
+                        [10, 20, 50, -1],
+                        [10, 20, 50, "All"]
+                    ],
                     destroy: true,
                     deferRender: true,
                     pageLength: 10,
                     dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                     buttons: [
                         {
-                            extend: 'pdfHtml5',
-                            text: '<i class="fa fa-file-pdf"></i> PDF',
-                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
-                            exportOptions: { columns: ':visible' }
-                        },
+    extend: 'pdfHtml5',
+    text: '<i class="fa fa-file-pdf"></i> PDF',
+    orientation: 'landscape',
+    pageSize: 'A4',
+    filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
+    exportOptions: {
+        columns: ':visible',
+        footer: true, // <-- Important: enables footer in PDF
+        format: {
+            body: function(data, row, column, node) {
+                return data;
+            },
+            header: function(data, column, node) {
+                return data;
+            }
+        }
+    },
+    customize: function (doc) {
+        // Auto-fit the columns by setting equal widths based on the number of columns
+        const colCount = doc.content[1].table.body[0].length;
+        doc.content[1].table.widths = new Array(colCount).fill('*');
+
+        // Optional: Style adjustments
+        doc.styles.tableHeader.fontSize = 10;
+        doc.styles.tableBodyEven.fontSize = 9;
+        doc.styles.tableBodyOdd.fontSize = 9;
+    }
+},
                         {
                             extend: 'excelHtml5',
                             text: '<i class="fa fa-file-excel"></i> Excel',
-                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
-                            exportOptions: { columns: ':visible' }
+                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0,
+                                10),
+                            exportOptions: {
+                                columns: ':visible'
+                            }
                         },
                         {
                             extend: 'print',
                             text: '<i class="fa fa-print"></i> Print',
-                            title: 'Daily Sales Report',
-                            exportOptions: { columns: ':visible' },
-                            customize: function (win) {
-                                $(win.document.body).find('h1').remove();
+                            title: 'ARB Fashion Daily Sales Report',
+                            exportOptions: {
+                                columns: ':visible',
+                                format: {
+                                    // Remove `footer: true` and use this instead:
+                                    body: function(data, row, column, node) {
+                                        return data;
+                                    },
+                                    header: function(data, column, node) {
+                                        return data;
+                                    }
+                                }
+                            },
+                            customize: function(win) {
+                                // Manually ensure the footer is included
+                                const footer = $('#salesTable tfoot').clone();
+                                $(win.document.body).find('table').append(footer);
+
+                                // Styling adjustments
                                 $(win.document.body).find('table').addClass('table table-bordered');
+                                $(win.document.body).find('h1').remove();
                             }
                         }
                     ],
-                    columns: [
-                        { title: "#" },
-                        { title: "Invoice No" },
-                        { title: "Customer" },
-                        { title: "Date" },
-                        { title: "Sub Total" },
-                        { title: "Bill Discount" },
-                        { title: "Net Bill Total" },
-                        { title: "Cash" },
-                        { title: "Bank Transfer" },
-                        { title: "Cheque" },
-                        { title: "Card" },
-                        { title: "Credit" },
-                        { title: "Sales Return" }
+                    columns: [{
+                            title: "#"
+                        },
+                        {
+                            title: "Invoice No"
+                        },
+                        {
+                            title: "Customer"
+                        },
+                        {
+                            title: "Date"
+                        },
+                        {
+                            title: "Sub Total"
+                        },
+                        {
+                            title: "Bill Discount"
+                        },
+                        {
+                            title: "Net Bill Total"
+                        },
+                        {
+                            title: "Cash"
+                        },
+                        {
+                            title: "Bank Transfer"
+                        },
+                        {
+                            title: "Cheque"
+                        },
+                        {
+                            title: "Card"
+                        },
+                        {
+                            title: "Credit"
+                        },
+                        {
+                            title: "Sales Return"
+                        }
                     ]
                 });
 
-                  //  Column visibility dropdown DataTable code start
+                //  Column visibility dropdown DataTable code start
 
-                 function updateDropdownHighlights() {
-                    $('#columnVisibilityDropdown a').each(function () {
+                function updateDropdownHighlights() {
+                    $('#columnVisibilityDropdown a').each(function() {
                         const value = $(this).data('value');
 
                         if (value === "hide all") {
@@ -355,7 +432,7 @@
                         } else if (value === "show all") {
                             // Highlight only if all columns are visible
                             let allVisible = true;
-                            table.columns().every(function () {
+                            table.columns().every(function() {
                                 if (!this.visible()) {
                                     allVisible = false;
                                 }
@@ -375,7 +452,7 @@
                     });
                 }
 
-                $('#columnVisibilityDropdown a').on('click', function (e) {
+                $('#columnVisibilityDropdown a').on('click', function(e) {
                     e.preventDefault();
                     const selectedValue = $(this).data('value');
 
@@ -387,12 +464,11 @@
 
                         // Highlight only "Hide All"
                         $(this).addClass('selected-column');
-                    } 
-                    else if (selectedValue === "show all") {
+                    } else if (selectedValue === "show all") {
                         table.columns().visible(true);
 
                         // Highlight all column items and also "Show All"
-                        $('#columnVisibilityDropdown a').each(function () {
+                        $('#columnVisibilityDropdown a').each(function() {
                             const val = $(this).data('value');
                             if (!isNaN(val) || val === "show all") {
                                 $(this).addClass('selected-column');
@@ -400,13 +476,13 @@
                                 $(this).removeClass('selected-column');
                             }
                         });
-                    } 
-                    else {
+                    } else {
                         const column = table.column(selectedValue);
                         column.visible(!column.visible());
 
                         // Always remove highlight from hide all
-                        $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass('selected-column');
+                        $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass(
+                            'selected-column');
 
                         // Toggle selected column's highlight
                         if (column.visible()) {
@@ -421,16 +497,16 @@
                 });
 
                 // Prevent dropdown from closing
-                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function (item) {
-                    item.addEventListener('click', function (e) {
+                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function(item) {
+                    item.addEventListener('click', function(e) {
                         e.stopPropagation();
                     });
                 });
 
                 // On page load — show all columns and highlight all column items and "Show All"
-                $(document).ready(function () {
+                $(document).ready(function() {
                     table.columns().visible(true);
-                    $('#columnVisibilityDropdown a').each(function () {
+                    $('#columnVisibilityDropdown a').each(function() {
                         const value = $(this).data('value');
                         if (!isNaN(value) || value === "show all") {
                             $(this).addClass('selected-column');
@@ -441,22 +517,33 @@
 
                 //  Column visibility dropdown DataTable code end
 
-    
+
                 let tableIndex = 0;
                 const tableData = sales.map(sale => {
-                    let cash = 0, bankTransfer = 0, cheque = 0, card = 0;
+                    let cash = 0,
+                        bankTransfer = 0,
+                        cheque = 0,
+                        card = 0;
                     sale.payments.forEach(payment => {
                         switch (payment.payment_method) {
-                            case 'cash': cash += parseFloat(payment.amount); break;
-                            case 'bank_transfer': bankTransfer += parseFloat(payment.amount); break;
-                            case 'cheque': cheque += parseFloat(payment.amount); break;
-                            case 'card': card += parseFloat(payment.amount); break;
+                            case 'cash':
+                                cash += parseFloat(payment.amount);
+                                break;
+                            case 'bank_transfer':
+                                bankTransfer += parseFloat(payment.amount);
+                                break;
+                            case 'cheque':
+                                cheque += parseFloat(payment.amount);
+                                break;
+                            case 'card':
+                                card += parseFloat(payment.amount);
+                                break;
                         }
                     });
-    
+
                     const saleReturn = salesReturns.find(returnItem => returnItem.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
-    
+
                     return [
                         ++tableIndex,
                         sale.invoice_no,
@@ -473,9 +560,9 @@
                         salesReturnAmount.toFixed(2)
                     ];
                 });
-    
+
                 table.clear().rows.add(tableData).draw();
-    
+
                 if (tableData.length > 0) {
                     const totals = tableData.reduce((acc, row) => ({
                         subTotal: acc.subTotal + parseFloat(row[4]),
@@ -488,11 +575,17 @@
                         credit: acc.credit + parseFloat(row[11]),
                         salesReturn: acc.salesReturn + parseFloat(row[12])
                     }), {
-                        subTotal: 0, billDiscount: 0, netBillTotal: 0,
-                        cash: 0, bankTransfer: 0, cheque: 0, card: 0,
-                        credit: 0, salesReturn: 0
+                        subTotal: 0,
+                        billDiscount: 0,
+                        netBillTotal: 0,
+                        cash: 0,
+                        bankTransfer: 0,
+                        cheque: 0,
+                        card: 0,
+                        credit: 0,
+                        salesReturn: 0
                     });
-    
+
                     $('#totalSubTotal').text(totals.subTotal.toFixed(2));
                     $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
                     $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
@@ -503,11 +596,12 @@
                     $('#totalCredit').text(totals.credit.toFixed(2));
                     $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
                 } else {
-                    $('#salesTable tbody').html('<tr><td colspan="13" class="text-center">No records found</td></tr>');
+                    $('#salesTable tbody').html(
+                        '<tr><td colspan="13" class="text-center">No records found</td></tr>');
                     $('tfoot th:not(:first-child)').text('0.00');
                 }
             }
-    
+
             function updateSummaries(summaries) {
                 $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
                 $('#discounts').text(parseFloat(summaries.discounts || 0).toFixed(2));
