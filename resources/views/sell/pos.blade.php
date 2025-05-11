@@ -480,8 +480,24 @@
             .quantity-input {
                 width: 60px;
                 text-align: center;
+                border-radius:0 !important;
             }
-        
+
+            .quantity-minus {
+                border-radius: 3px 0 0 3px !important;
+                
+            }
+            .quantity-plus {
+                border-radius: 0 3px 3px 0 !important;
+                
+            }
+
+                .customer-select2 .select2-container--default .select2-selection--single {
+                    border-radius: 5px 0 0 5px !important;
+
+
+                }
+                        
             .batch-dropdown {
                 width: 100%;
                 margin-top: 5px;
@@ -693,8 +709,8 @@
                             <div class="row">
                                 <div class="col-md-5">
                                     
-                                    <div class="d-flex justify-content-center">
-                                        <select class="form-control selectBox rounded-start" id="customer-id">
+                                    <div class="d-flex justify-content-center customer-select2">
+                                        <select class="form-control selectBox" id="customer-id">
                                             <option selected disabled>Please Select</option>
                                         </select>
                                         <button type="button" class="btn btn-outline-info rounded-0" id="addCustomerButton">
@@ -715,6 +731,8 @@
                                                 <tr>
                                                     <th>Product</th>
                                                     <th class="text-center">Quantity</th>
+                                                    <th class="text-center">Discount (Rs)</th>
+                                                    <th class="text-center">Discount (%)</th>
                                                     <th class="text-center">Unit Price</th>
                                                     <th class="text-center">Subtotal</th>
                                                     <th class="text-center" style="color: red;">X</th>
@@ -739,7 +757,7 @@
                                 </div>
                                 <div class="col-md-3">
                                     <div class="form-group">
-                                        <label for="discount-type">Discount Type</label>
+                                        <label for="discount-type">Global Discount Type</label>
                                         <div class="btn-group w-100" role="group" aria-label="Discount Type">
                                             <button type="button" class="btn btn-outline-primary active" id="fixed-discount-btn">Fixed</button>
                                             <button type="button" class="btn btn-outline-primary" id="percentage-discount-btn">Percentage</button>
@@ -747,12 +765,12 @@
                                         <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                                     </div>
                                 </div>
+                                
                                 <div class="col-md-2">
                                     <div class="form-group">
                                         <label>Discount</label>
                                         <div class="input-group">
-                                            <input type="text" id="discount" name="discount" class="form-control"
-                                                placeholder="0.00">
+                                            <input type="text" id="global-discount" name="discount" class="form-control" placeholder="0.00">
                                             <span class="input-group-text" id="discount-icon">Rs</span>
                                         </div>
                                     </div>

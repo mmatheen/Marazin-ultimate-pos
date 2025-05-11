@@ -195,7 +195,7 @@
 
         let isEditing = false;
 
-        $(document).ready(function () {
+        $(document).ready(function() {
 
             fetchAllLocations();
             $('#locationSelect').on('change', handleLocationChange);
@@ -332,7 +332,7 @@
                         ((product.product_name && product.product_name.toLowerCase().startsWith(
                                 searchTerm)) ||
                             (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
-                            ) &&
+                        ) &&
                         product.total_stock > 0 // 👈 Only show products with stock > 0
                     ).sort((a, b) => {
                         const nameA = a.product_name?.toLowerCase() || '';
@@ -468,14 +468,17 @@
             });
         }
 
-        // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {
             return new Intl.NumberFormat().format(amount);
         }
 
-        // Function to parse formatted amounts back to numbers
         function parseFormattedAmount(formattedAmount) {
-            return parseFloat(formattedAmount.replace(/,/g, ''));
+            if (typeof formattedAmount !== 'string' && typeof formattedAmount !== 'number') {
+                return 0;
+            }
+            const cleaned = String(formattedAmount).replace(/[^0-9.-]/g, '');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : parsed;
         }
 
         // Filter products by category
@@ -550,14 +553,12 @@
                 }
                 return;
             }
-
             const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
                 .quantity > 0);
             if (locationBatches.length === 0) {
                 toastr.error('No batches with available quantity found', 'Error');
                 return;
             }
-
             locationId = locationBatches[0].location_id; // Set from first available batch
             addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
         }
@@ -652,13 +653,35 @@
                 toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
                 price = 0;
             }
-
             const billingBody = document.getElementById('billing-body');
-
-            //  Get the correct batch quantity based on selected batch or "All"
-            let adjustedBatchQuantity = batchQuantity;
-
+            // Check if product has active discounts
+            const activeDiscount = stockEntry.discounts && stockEntry.discounts.length > 0 ?
+                stockEntry.discounts.find(d => d.is_active && !d.is_expired) : null;
+            // Calculate default fixed discount (MRP - Retail Price)
+            const defaultFixedDiscount = product.max_retail_price - product.retail_price;
+            // Calculate final price and discount values
+            let finalPrice = price;
+            let discountFixed = 0;
+            let discountPercent = 0;
+            if (activeDiscount) {
+                if (activeDiscount.type === 'percentage') {
+                    discountPercent = activeDiscount.amount;
+                    // Calculate discounted price based on MRP, not current price
+                    finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
+                } else if (activeDiscount.type === 'fixed') {
+                    discountFixed = activeDiscount.amount;
+                    finalPrice = product.max_retail_price - discountFixed;
+                    if (finalPrice < 0) finalPrice = 0;
+                }
+            } else {
+                // Apply default discount (MRP - Retail Price) when no active discount
+                discountFixed = defaultFixedDiscount;
+                finalPrice = product.retail_price; // Use retail price as base
+                discountPercent = (discountFixed / product.max_retail_price) *
+                    100; // Calculate percentage equivalent
+            }
             // If batchId is "all", get the total stock
+            let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
                 adjustedBatchQuantity = stockEntry.total_stock;
             } else {
@@ -672,70 +695,75 @@
                     }
                 }
             }
-
+            // Check if the product already exists in the billing body
             const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
                 const rowProductId = row.querySelector('.product-id').textContent;
                 const rowBatchId = row.querySelector('.batch-id').textContent;
                 return rowProductId == product.id && rowBatchId == batchId;
             });
-
             if (existingRow) {
+                // Product already exists, update the quantity
                 const quantityInput = existingRow.querySelector('.quantity-input');
                 let currentQty = parseInt(quantityInput.value, 10);
                 let newQuantity = currentQty + saleQuantity;
-
                 // Validate against adjustedBatchQuantity
                 if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
                     toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
                         'Warning');
                     return;
                 }
-
                 quantityInput.value = newQuantity;
                 const subtotalElement = existingRow.querySelector('.subtotal');
-                const updatedSubtotal = newQuantity * price;
+                const updatedSubtotal = newQuantity * finalPrice;
                 subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
-
                 const quantityDisplay = existingRow.querySelector('.quantity-display');
                 if (quantityDisplay) {
                     quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
                 }
-
                 quantityInput.focus();
                 quantityInput.select();
                 updateTotals();
             } else {
+                // Product does not exist, add a new row
                 const row = document.createElement('tr');
                 row.innerHTML = `
-            <td>
-                <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                    <div class="product-info">
-                        <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px;">
-                            ${product.product_name}<span class="badge bg-info">Max: ${product.max_retail_price || ''}</span>
-                        </div>
-                        <div class="text-muted me-2">${product.sku}
-                            ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
-                            <span class="badge bg-secondary ms-1">Total: ${stockEntry.total_stock} Pc(s)</span>
-                        </div>
+        <td>
+            <div class="d-flex align-items-center">
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+                <div class="product-info">
+                    <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px;">
+                        ${product.product_name} <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
+                        ${activeDiscount ? `<span class="badge bg-success ms-1">Discount: ${activeDiscount.amount}${activeDiscount.type === 'percentage' ? '%' : ''}</span>` : 
+                          (defaultFixedDiscount > 0 ? `` : '')}
+                    </div>
+                    <div class="text-muted me-2">${product.sku}
+                        ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
+                        <span class="badge bg-secondary ms-1">Stock: ${adjustedBatchQuantity} Pc(s)</span>
                     </div>
                 </div>
-            </td>
-            <td>
-                <div class="d-flex justify-content-center">
-                    <button class="btn btn-danger quantity-minus btn-sm">-</button>
-                    <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}">
-                    <button class="btn btn-success quantity-plus btn-sm">+</button>
-                </div>
-            </td>
-            <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
-            <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
-            <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
-            <td class="product-id d-none">${product.id}</td>
-            <td class="location-id d-none">${locationId}</td>
-            <td class="batch-id d-none">${batchId}</td>
-            <td class="discount-data d-none">${JSON.stringify({ type: product.discount_type, amount: product.discount_amount })}</td>
-        `;
+            </div>
+        </td>
+        <td>
+            <div class="d-flex justify-content-center">
+                <button class="btn btn-danger quantity-minus btn">-</button>
+                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}">
+                <button class="btn btn-success quantity-plus btn">+</button>
+            </div>
+        </td>
+        <td>
+            <input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}" ${activeDiscount?.type === 'percentage' ? 'disabled' : ''}>
+        </td>
+        <td>
+            <input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}" ${activeDiscount?.type === 'fixed' ? 'disabled' : ''}>
+        </td>
+        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+        <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * finalPrice).toFixed(2))}</td>
+        <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
+        <td class="product-id d-none">${product.id}</td>
+        <td class="location-id d-none">${locationId}</td>
+        <td class="batch-id d-none">${batchId}</td>
+        <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
+    `;
                 billingBody.insertBefore(row, billingBody.firstChild);
                 attachRowEventListeners(row, product, stockEntry);
                 const quantityInput = row.querySelector('.quantity-input');
@@ -746,6 +774,7 @@
                         document.getElementById('productSearchInput').focus();
                     }
                 });
+                disableConflictingDiscounts(row);
                 updateTotals();
             }
         }
@@ -758,6 +787,39 @@
             const removeBtn = row.querySelector('.remove-btn');
             const productImage = row.querySelector('.product-image');
             const productName = row.querySelector('.product-name');
+            const fixedDiscountInput = row.querySelector(".fixed_discount");
+            const percentDiscountInput = row.querySelector(".percent_discount");
+
+            // Handle discount inputs
+            if (fixedDiscountInput) {
+                fixedDiscountInput.addEventListener('input', () => {
+                    handleDiscountToggle(fixedDiscountInput);
+                    updateTotals();
+                });
+            }
+            if (percentDiscountInput) {
+                percentDiscountInput.addEventListener('input', () => {
+                    handleDiscountToggle(percentDiscountInput);
+                    updateTotals();
+                });
+            }
+
+            // Price input change → Recalculate discount
+            priceInput.addEventListener('input', () => {
+                const mrpElement = row.querySelector('.product-name .badge.bg-info');
+                const mrpText = mrpElement ? mrpElement.textContent.trim() : '';
+                const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
+                let priceValue = parseFloat(priceInput.value);
+                if (isNaN(priceValue) || priceValue < 0) {
+                    toastr.error('Invalid price entered.', 'Error');
+                    priceValue = 0;
+                    priceInput.value = '0.00';
+                }
+                const discountAmount = mrp - priceValue;
+                fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+                disableConflictingDiscounts(row); // Ensure conflict check
+                updateTotals();
+            });
 
             // Helper function to validate and update quantities
             const validateAndUpdateQuantity = (newQuantity) => {
@@ -798,16 +860,6 @@
                 validateAndUpdateQuantity(quantityValue);
             });
 
-            // Event listener for price input field
-            priceInput.addEventListener('input', () => {
-                const priceValue = parseFloat(priceInput.value);
-                if (isNaN(priceValue) || priceValue < 0) {
-                    toastr.error('Invalid price entered.', 'Error');
-                    priceInput.value = '0.00'; // Default to 0 if invalid input
-                }
-                updateTotals();
-            });
-
             // Event listener for the remove button
             removeBtn.addEventListener('click', () => {
                 row.remove();
@@ -823,6 +875,9 @@
             productName.addEventListener('click', () => {
                 showProductModal(product, stockEntry, row);
             });
+
+            // Newly added: Disable conflicting discounts when product is added
+            disableConflictingDiscounts(row);
         }
 
         document.getElementById('saveProductChanges').onclick = function() {
@@ -863,41 +918,109 @@
             modal.hide();
         };
 
+        function disableConflictingDiscounts(row) {
+            const fixed = row.querySelector(".fixed_discount");
+            const percent = row.querySelector(".percent_discount");
+
+            if (!fixed || !percent) return;
+
+            const fixedVal = parseFloat(fixed.value) || 0;
+            const percentVal = parseFloat(percent.value) || 0;
+
+            if (fixedVal > 0) {
+                percent.disabled = true;
+                percent.value = '';
+            } else if (percentVal > 0) {
+                fixed.disabled = true;
+                fixed.value = '';
+            } else {
+                fixed.disabled = false;
+                percent.disabled = false;
+            }
+        }
+
+        function handleDiscountToggle(input) {
+            const row = input.closest('tr');
+            const fixedDiscountInput = row.querySelector('.fixed_discount');
+            const percentDiscountInput = row.querySelector('.percent_discount');
+            const priceInput = row.querySelector('.price-input');
+
+            // Get MRP
+            const mrpElement = row.querySelector('.product-name .badge.bg-info');
+            const mrpText = mrpElement ? mrpElement.textContent.trim() : '0';
+            const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
+
+            // Disable conflicting inputs
+            if (fixedDiscountInput === input && fixedDiscountInput.value !== '') {
+                percentDiscountInput.disabled = true;
+                percentDiscountInput.value = '';
+            } else if (percentDiscountInput === input && percentDiscountInput.value !== '') {
+                fixedDiscountInput.disabled = true;
+                fixedDiscountInput.value = '';
+            } else {
+                fixedDiscountInput.disabled = false;
+                percentDiscountInput.disabled = false;
+            }
+
+            // Recalculate unit price
+            if (fixedDiscountInput.value !== '') {
+                const discountAmount = parseFloat(fixedDiscountInput.value);
+                const calculatedPrice = mrp - discountAmount;
+                priceInput.value = calculatedPrice > 0 ? calculatedPrice.toFixed(2) : '0.00';
+            } else if (percentDiscountInput.value !== '') {
+                const discountPercent = parseFloat(percentDiscountInput.value);
+                const calculatedPrice = mrp * (1 - discountPercent / 100);
+                priceInput.value = calculatedPrice > 0 ? calculatedPrice.toFixed(2) : '0.00';
+            } else {
+                priceInput.value = mrp.toFixed(2);
+            }
+
+            updateTotals();
+        }
+
         function updateTotals() {
             const billingBody = document.getElementById('billing-body');
             let totalItems = 0;
             let totalAmount = 0;
 
-            // Calculate total items and total amount
+            // Calculate total items and total amount from each row
             billingBody.querySelectorAll('tr').forEach(row => {
-                const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
-                const price = parseFloat(row.querySelector('.price-input').value) || 0;
-                const subtotal = quantity * price;
+                const quantityInput = row.querySelector('.quantity-input');
+                const priceInput = row.querySelector('.price-input');
+                const fixedDiscountInput = row.querySelector('.fixed_discount');
+                const percentDiscountInput = row.querySelector('.percent_discount');
+                const quantity = parseInt(quantityInput.value, 10) || 0;
+                const basePrice = parseFloat(priceInput.value) || 0;
 
+                // Recalculate subtotal based on unit price
+                const subtotal = quantity * basePrice;
+
+                // Update UI
                 row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
                     .toFixed(2));
-
                 totalItems += quantity;
                 totalAmount += subtotal;
             });
 
-            const discountElement = document.getElementById('discount');
+            // Global discount
+            const discountElement = document.getElementById(
+            'global-discount'); // Corrected to use 'global-discount'
             const discountTypeElement = document.getElementById('discount-type');
+            const globalDiscount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
+            const globalDiscountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
-            // Get discount value and type
-            const discount = discountElement ? parseFloat(discountElement.value) || 0 : 0;
-            const discountType = discountTypeElement ? discountTypeElement.value : 'fixed';
+            // console.log('Global Discount:', globalDiscount);
+            // console.log('Global Discount Type:', globalDiscountType);
+            
+            let totalAmountWithDiscount = totalAmount;
 
-            let totalAmountWithDiscount;
-
-            // Apply discount logic
-            if (discountType === 'percentage') {
-                totalAmountWithDiscount = totalAmount - (totalAmount * discount / 100);
+            if (globalDiscountType === 'percentage') {
+                totalAmountWithDiscount -= totalAmount * (globalDiscount / 100);
             } else {
-                totalAmountWithDiscount = totalAmount - discount;
+                totalAmountWithDiscount -= globalDiscount;
             }
 
-            // Ensure totals are not negative
+            // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
 
             // Update UI
@@ -913,31 +1036,21 @@
                 totalAmountWithDiscount.toFixed(2));
         }
 
-        // Attach event listeners for discount input and type dropdown
-        const discountElement = document.getElementById('discount');
-        const discountTypeElement = document.getElementById('discount-type');
-
-        if (discountElement) {
-            discountElement.addEventListener('input', () => {
-                // Ensure percentage discount does not exceed 100
-                if (discountTypeElement && discountTypeElement.value === 'percentage') {
-                    const discountValue = parseFloat(discountElement.value) || 0;
-                    if (discountValue > 100) {
-                        discountElement.value = 100; // Reset to maximum allowed percentage
-                        toastr.warning('Percentage discount cannot exceed 100%', 'Warning');
-                    }
+        //chanege event global discount
+        const globalDiscountInput = document.getElementById('global-discount'); 
+        const globalDiscountTypeInput = document.getElementById('discount-type');
+        if (globalDiscountInput) {
+            globalDiscountInput.addEventListener('input', function() {
+                const discountValue = parseFloat(this.value) || 0;
+                const discountType = globalDiscountTypeInput.value;
+                if (discountType === 'percentage') {
+                    this.value = Math.min(discountValue, 100); // Limit to 100%
                 }
                 updateTotals();
             });
         }
+        
 
-        if (discountTypeElement) {
-            discountTypeElement.addEventListener('change', () => {
-                // Clear the discount value when toggling the discount type
-                if (discountElement) discountElement.value = '';
-                updateTotals();
-            });
-        }
 
         let saleId = null;
 
@@ -949,11 +1062,10 @@
         if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
             fetchEditSale(saleId);
         } else {
-            console.warn('Invalid or missing saleId:', saleId);
+            // console.warn('Invalid or missing saleId:', saleId);
         }
 
         function fetchEditSale(saleId) {
-            // fetchAllProducts();
             fetch(`/api/sales/edit/${saleId}`)
                 .then(response => {
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
@@ -962,34 +1074,27 @@
                 .then(data => {
                     if (data.status === 200) {
                         const saleDetails = data.sale_details;
-
                         // Update the sale invoice number
                         const saleInvoiceElement = document.getElementById('sale-invoice-no');
                         if (saleInvoiceElement && saleDetails.sale) {
                             saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
                         }
-
                         saleDetails.sale_products.forEach(saleProduct => {
                             const price = saleProduct.price || saleProduct.product.retail_price;
-
                             const stockEntry = stockData.find(stock =>
                                 stock.product.id === saleProduct.product.id
                             );
-
                             if (saleDetails.sale && saleDetails.sale.location_id) {
                                 locationId = saleDetails.sale.location_id;
                             }
-
                             let batches = [];
                             if (stockEntry && Array.isArray(stockEntry.batches)) {
                                 batches = [...stockEntry.batches];
                             }
-
                             // Add sold quantity back to the batch to temporarily restore the original state
                             const originalBatchExists = batches.some(batch =>
                                 batch.id === saleProduct.batch?.id
                             );
-
                             if (originalBatchExists && saleProduct.batch) {
                                 batches = batches.map(batch => {
                                     if (batch.id === saleProduct.batch.id) {
@@ -1006,7 +1111,6 @@
                                                 }
                                                 return lb;
                                             });
-
                                         return {
                                             ...batch,
                                             location_batches: updatedLocationBatches
@@ -1018,9 +1122,12 @@
                                 batches.push({
                                     id: saleProduct.batch.id,
                                     batch_no: saleProduct.batch.batch_no,
-                                    retail_price: saleProduct.batch.retail_price,
-                                    wholesale_price: saleProduct.batch.wholesale_price,
-                                    special_price: saleProduct.batch.special_price,
+                                    retail_price: parseFloat(saleProduct.batch
+                                        .retail_price),
+                                    wholesale_price: parseFloat(saleProduct.batch
+                                        .wholesale_price),
+                                    special_price: parseFloat(saleProduct.batch
+                                        .special_price),
                                     location_batches: [{
                                         location_id: saleProduct.location_id,
                                         quantity: saleProduct.total_quantity +
@@ -1029,7 +1136,6 @@
                                     }]
                                 });
                             }
-
                             let totalStock = saleProduct.total_quantity + saleProduct
                                 .quantity; // Add sold quantity back
                             if (stockEntry) {
@@ -1040,13 +1146,11 @@
                                     }, 0);
                                 }, 0);
                             }
-
                             const normalizedStockEntry = {
                                 batches: batches,
                                 total_stock: totalStock,
                                 product: saleProduct.product
                             };
-
                             addProductToBillingBody(
                                 saleProduct.product,
                                 normalizedStockEntry,
@@ -1057,7 +1161,6 @@
                                 saleProduct.quantity
                             );
                         });
-
                         // Fetch customer data directly here
                         fetch('/customer-get-all')
                             .then(response => response.json())
@@ -1066,13 +1169,11 @@
                                         customerData.message)) {
                                     const customerSelect = $('#customer-id');
                                     customerSelect.empty();
-
                                     const sortedCustomers = customerData.message.sort((a, b) => {
                                         if (a.first_name === 'Walking') return -1;
                                         if (b.first_name === 'Walking') return 1;
                                         return 0;
                                     });
-
                                     sortedCustomers.forEach(customer => {
                                         const option = $('<option></option>');
                                         option.val(customer.id);
@@ -1083,14 +1184,12 @@
                                             .current_due); // Store the due amount in the option
                                         customerSelect.append(option);
                                     });
-
                                     const walkingCustomer = sortedCustomers.find(customer => customer
                                         .first_name === 'Walking');
                                     if (walkingCustomer) {
                                         customerSelect.val(walkingCustomer.id);
                                         updateDueAmount(walkingCustomer.current_due);
                                     }
-
                                     // Now set the customer ID after dropdown is populated
                                     if (saleDetails.sale) {
                                         customerSelect.val(saleDetails.sale.customer_id);
@@ -1102,19 +1201,15 @@
                                         customerData.message : 'No data received');
                                 }
                             });
-
                         // Update discount and total fields
                         const discountElement = document.getElementById('discount');
                         const discountTypeElement = document.getElementById('discount-type');
-
                         if (discountElement && saleDetails.sale) {
                             discountElement.value = saleDetails.sale.discount_amount || 0;
                         }
-
                         if (discountTypeElement && saleDetails.sale) {
                             discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
                         }
-
                         updateTotals();
                     } else {
                         console.error('Invalid sale data:', data);
@@ -1153,6 +1248,24 @@
                     return null;
                 }
 
+                // Get discount values - default to 'fixed' and 0 if not set
+                const discountType = $('#discount-type').val() || 'fixed';
+                const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
+
+                // Calculate total amount and final amount
+                const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
+                let finalAmount = totalAmount;
+
+                // Apply discount
+                if (discountType === 'percentage') {
+                    finalAmount -= totalAmount * (discountAmount / 100);
+                } else {
+                    finalAmount -= discountAmount;
+                }
+
+                // Ensure final amount doesn't go negative
+                finalAmount = Math.max(0, finalAmount);
+
                 const saleData = {
                     customer_id: customerId,
                     sales_date: salesDate,
@@ -1160,9 +1273,10 @@
                     status: status,
                     sale_type: "POS",
                     products: [],
-                    discount_type: $('#discount-type').val(),
-                    discount_amount: parseFormattedAmount($('#discount').val()) || 0,
-                    total_amount: parseFormattedAmount($('#total-amount').text()) || 0,
+                    discount_type: discountType, // Always include discount_type
+                    discount_amount: discountAmount,
+                    total_amount: totalAmount,
+                    final_total: finalAmount, // Add final_total field
                 };
 
                 const productRows = $('#billing-body tr');
@@ -1175,6 +1289,14 @@
                     const productRow = $(this);
                     const batchId = productRow.find('.batch-id').text().trim();
                     const locationId = productRow.find('.location-id').text().trim();
+                    const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
+                        .trim()) || 0;
+                    const discountPercent = parseFloat(productRow.find('.percent_discount')
+                        .val().trim()) || 0;
+
+                    // Determine which discount is active
+                    const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
+                    const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
 
                     if (!locationId) {
                         toastr.error('Location ID is missing for a product.');
@@ -1192,8 +1314,8 @@
                             .val().trim()),
                         subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
                             .trim()),
-                        discount: parseFloat(productRow.find('.discount-data').data(
-                            'amount')) || 0,
+                        discount_amount: discountAmount,
+                        discount_type: discountType,
                         tax: 0,
                         batch_id: batchId === "all" ? "all" : batchId,
                     };
@@ -1277,7 +1399,7 @@
             function gatherCashPaymentData() {
                 const totalAmount = parseFormattedAmount($('#final-total-amount').text()
                     .trim()); // Ensure #total-amount element exists
-                console.log("final_amount " + totalAmount);
+                // console.log("final_amount " + totalAmount);
                 const today = new Date().toISOString().slice(0, 10);
 
                 return [{
@@ -1292,24 +1414,37 @@
                 if (!saleData) {
                     toastr.error('Please add at least one product before completing the sale.');
                     return;
-                } else {
-                    saleData.payments = gatherCashPaymentData();
-
-                    // Calculate balance amount
-                    const totalAmount = parseFormattedAmount($('#final-total-amount').text()
-                        .trim());
-                    const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
-                    const balance = amountGiven - totalAmount;
-                    saleData.balance_amount = balance; // Add balance amount to saleData
-                    saleData.amount_given = amountGiven; // Add amount given to saleData
-
-                    // Extract sale ID from URL
-                    const pathSegments = window.location.pathname.split('/');
-                    const saleId = pathSegments[pathSegments.length - 1];
-
-                    sendSaleData(saleData, !isNaN(saleId) ? saleId : null);
-
                 }
+
+                // Get amount given (optional)
+                const amountGiven = parseFormattedAmount($('#amount-given').val().trim()) || 0;
+
+                // Only calculate balance if amount was actually given
+                if (amountGiven > 0) {
+                    const balance = amountGiven - saleData.final_total;
+
+                    if (balance < 0) {
+                        toastr.error('Amount given is less than the total amount due.');
+                        return;
+                    }
+
+                    // Only add these fields if amount was given
+                    saleData.balance_amount = balance;
+                    saleData.amount_given = amountGiven;
+                }
+
+                // Always include cash payment (amount will be final_total if no amount given)
+                saleData.payments = [{
+                    payment_method: 'cash',
+                    payment_date: new Date().toISOString().slice(0, 10),
+                    amount: amountGiven > 0 ? amountGiven : saleData.final_total
+                }];
+
+                // Extract sale ID from URL
+                const pathSegments = window.location.pathname.split('/');
+                const saleId = pathSegments[pathSegments.length - 1];
+
+                sendSaleData(saleData, !isNaN(saleId) ? saleId : null);
             });
 
             $('#cardButton').on('click', function() {
@@ -1653,7 +1788,7 @@
             document.getElementById('amount-given').value = ''; // Reset the amount given field
 
             // Reset discount fields
-            document.getElementById('discount').value = '';
+            document.getElementById('global-discount').value = '';
             document.getElementById('discount-type').value = 'fixed';
 
             updateTotals();
@@ -1709,7 +1844,8 @@
 
         if (filteredSales.length === 0) {
             table.row.add([
-                '', 'No records found', '', '', ''
+                '', 'No records found', '', '', '',
+                '' // Ensure the number of columns matches the DataTable definition
             ]).draw();
         } else {
             filteredSales.forEach((sale, index) => {
@@ -1720,8 +1856,8 @@
                     sale.sales_date,
                     sale.final_total,
                     `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                     <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>
-                     <button class='btn btn-outline-danger btn-sm' onclick="deleteSale(${sale.id})">Delete</button>`
+                     <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
+                    '' // Add an empty column to match the DataTable definition
                 ]).draw();
             });
         }
@@ -1765,60 +1901,60 @@
             });
     }
 
-    function deleteSale(saleId) {
-        swal({
-            title: "Are you sure?",
-            text: "Do you really want to delete this sale? This action cannot be undone.",
-            type: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#d33",
-            cancelButtonColor: "#3085d6",
-            confirmButtonText: "Yes, delete it!",
-            cancelButtonText: "Cancel",
-            closeOnConfirm: false
-        }, function(isConfirm) {
-            if (isConfirm) {
-                $.ajax({
-                    url: `/sales/delete/${saleId}`,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.status === 200) {
-                            // First close the swal
-                            swal.close();
+    // function deleteSale(saleId) {
+    //     swal({
+    //         title: "Are you sure?",
+    //         text: "Do you really want to delete this sale? This action cannot be undone.",
+    //         type: "warning",
+    //         showCancelButton: true,
+    //         confirmButtonColor: "#d33",
+    //         cancelButtonColor: "#3085d6",
+    //         confirmButtonText: "Yes, delete it!",
+    //         cancelButtonText: "Cancel",
+    //         closeOnConfirm: false
+    //     }, function(isConfirm) {
+    //         if (isConfirm) {
+    //             $.ajax({
+    //                 url: `/sales/delete/${saleId}`,
+    //                 method: 'DELETE',
+    //                 headers: {
+    //                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+    //                 },
+    //                 success: function(response) {
+    //                     if (response.status === 200) {
+    //                         // First close the swal
+    //                         swal.close();
 
-                            // Use setTimeout to ensure swal is fully closed before proceeding
-                            setTimeout(function() {
-                                toastr.success(response.message ||
-                                    "Sale deleted successfully!");
-                                const successSound = document.querySelector(
-                                    '.successSound');
-                                if (successSound) {
-                                    successSound.play();
-                                }
-                                // Refresh the sales data
-                                loadTableData('final');
-                                fetchSalesData();
-                            }, 100); // small delay to allow swal to visually close
-                        } else {
-                            swal("Error!", response.message ||
-                                "An error occurred while deleting the sale.", "error");
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        let errorMessage = "Unable to delete the sale. Please try again later.";
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        swal("Error!", errorMessage, "error");
-                        console.error('Delete error:', error);
-                    }
-                });
-            }
-        });
-    }
+    //                         // Use setTimeout to ensure swal is fully closed before proceeding
+    //                         setTimeout(function() {
+    //                             toastr.success(response.message ||
+    //                                 "Sale deleted successfully!");
+    //                             const successSound = document.querySelector(
+    //                                 '.successSound');
+    //                             if (successSound) {
+    //                                 successSound.play();
+    //                             }
+    //                             // Refresh the sales data
+    //                             loadTableData('final');
+    //                             fetchSalesData();
+    //                         }, 100); // small delay to allow swal to visually close
+    //                     } else {
+    //                         swal("Error!", response.message ||
+    //                             "An error occurred while deleting the sale.", "error");
+    //                     }
+    //                 },
+    //                 error: function(xhr, status, error) {
+    //                     let errorMessage = "Unable to delete the sale. Please try again later.";
+    //                     if (xhr.responseJSON && xhr.responseJSON.message) {
+    //                         errorMessage = xhr.responseJSON.message;
+    //                     }
+    //                     swal("Error!", errorMessage, "error");
+    //                     console.error('Delete error:', error);
+    //                 }
+    //             });
+    //         }
+    //     });
+    // }
 
     // // Event listener to load sales data when the page is loaded
     // document.addEventListener('DOMContentLoaded', function() {

@@ -177,7 +177,7 @@
                             <span>{{ number_format($product->price, 0, '.', ',') }}</span>
                         </td>
                         <td align="left" valign="top" class="quantity-with-pcs">
-                            <span>&times; {{ $product->quantity }} pcs</span> <!-- Align "pcs" next to quantity -->
+                            <span>&times; {{ $product->quantity }} pcs</span>
                         </td>
                         <td valign="top" align="right">
                             <span
@@ -193,6 +193,31 @@
         <div style="position: relative; margin-bottom: 12px;">
             <table width="100%" border="0" style="color: #000;">
                 <tbody>
+                    <tr>
+                        <td align="right"><strong>SUBTOTAL</strong></td>
+                        <td width="80" align="right" style="font-weight: bold;">
+                            {{ number_format($sale->subtotal, 0, '.', ',') }}</td>
+                    </tr>
+                    @if($sale->discount_amount > 0)
+                    <tr>
+                        <td align="right">
+                            <strong>DISCOUNT 
+                            @if($sale->discount_type == 'percentage')
+                                ({{ $sale->discount_amount }}%)
+                            @else
+                                (RS)
+                            @endif
+                            </strong>
+                        </td>
+                        <td width="80" align="right">
+                            @if($sale->discount_type == 'percentage')
+                                -{{ number_format(($sale->subtotal * $sale->discount_amount / 100), 0, '.', ',') }}
+                            @else
+                                -{{ number_format($sale->discount_amount, 0, '.', ',') }}
+                            @endif
+                        </td>
+                    </tr>
+                    @endif
                     <tr>
                         <td align="right"><strong>TOTAL</strong></td>
                         <td width="80" align="right" style="font-weight: bold;">
@@ -232,6 +257,19 @@
                     return ($product->product->max_retail_price - $product->price) *
                         ($product->quantity > 1 ? 1 : $product->quantity);
                 });
+                
+                // Calculate bill discount if exists
+                $bill_discount = 0;
+                if($sale->discount_amount > 0) {
+                    if($sale->discount_type == 'percentage') {
+                        $bill_discount = $sale->subtotal * $sale->discount_amount / 100;
+                    } else {
+                        $bill_discount = $sale->discount_amount;
+                    }
+                }
+                
+                // Total all discounts (product discounts + bill discount)
+                $total_all_discounts = $total_discount + $bill_discount;
             @endphp
         </div>
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
@@ -243,17 +281,12 @@
             <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
                 <strong style="font-size: 16px;">{{ $products->sum('quantity') }}</strong><br>
                 <span style="font-size: 10px;">TOTAL QTY</span>
-
-
             </div>
             <div style="flex: 1; padding: 4px;">
-                <strong style="font-size: 16px;">{{ number_format($total_discount, 0, '.', ',') }}</strong><br>
+                <strong style="font-size: 16px;">{{ number_format($total_all_discounts, 0, '.', ',') }}</strong><br>
                 <span style="font-size: 10px;"> TOTAL DISCOUNT</span>
-
-
             </div>
         </div>
-
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">

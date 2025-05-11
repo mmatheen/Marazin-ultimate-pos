@@ -315,34 +315,34 @@
                     dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                     buttons: [
                         {
-    extend: 'pdfHtml5',
-    text: '<i class="fa fa-file-pdf"></i> PDF',
-    orientation: 'landscape',
-    pageSize: 'A4',
-    filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
-    exportOptions: {
-        columns: ':visible',
-        footer: true, // <-- Important: enables footer in PDF
-        format: {
-            body: function(data, row, column, node) {
-                return data;
-            },
-            header: function(data, column, node) {
-                return data;
-            }
-        }
-    },
-    customize: function (doc) {
-        // Auto-fit the columns by setting equal widths based on the number of columns
-        const colCount = doc.content[1].table.body[0].length;
-        doc.content[1].table.widths = new Array(colCount).fill('*');
+                        extend: 'pdfHtml5',
+                        text: '<i class="fa fa-file-pdf"></i> PDF',
+                        orientation: 'landscape',
+                        pageSize: 'A4',
+                        filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0, 10),
+                        exportOptions: {
+                            columns: ':visible',
+                            footer: true, // <-- Important: enables footer in PDF
+                            format: {
+                                body: function(data, row, column, node) {
+                                    return data;
+                                },
+                                header: function(data, column, node) {
+                                    return data;
+                                }
+                            }
+                        },
+                        customize: function (doc) {
+                            // Auto-fit the columns by setting equal widths based on the number of columns
+                            const colCount = doc.content[1].table.body[0].length;
+                            doc.content[1].table.widths = new Array(colCount).fill('*');
 
-        // Optional: Style adjustments
-        doc.styles.tableHeader.fontSize = 10;
-        doc.styles.tableBodyEven.fontSize = 9;
-        doc.styles.tableBodyOdd.fontSize = 9;
-    }
-},
+                            // Optional: Style adjustments
+                            doc.styles.tableHeader.fontSize = 10;
+                            doc.styles.tableBodyEven.fontSize = 9;
+                            doc.styles.tableBodyOdd.fontSize = 9;
+                        }
+                    },
                         {
                             extend: 'excelHtml5',
                             text: '<i class="fa fa-file-excel"></i> Excel',

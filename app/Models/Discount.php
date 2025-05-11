@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Discount extends Model
 {
@@ -12,7 +13,7 @@ class Discount extends Model
     protected $fillable = [
         'name',
         'description',
-        'type',
+        'type', // 'fixed' or 'percentage'
         'amount',
         'start_date',
         'end_date',
@@ -27,9 +28,11 @@ class Discount extends Model
         'apply_to_all' => 'boolean'
     ];
 
-    public function products()
+    public function products(): BelongsToMany
     {
-        return $this->belongsToMany(Product::class);
+        return $this->belongsToMany(Product::class)
+            ->withTimestamps()
+            ->withPivot(['created_at', 'updated_at']);
     }
 
     public function scopeActive($query)
@@ -38,8 +41,25 @@ class Discount extends Model
                     ->where('start_date', '<=', now())
                     ->where(function($q) {
                         $q->whereNull('end_date')
-                          ->orWhere('end_date', '>', now());
+                          ->orWhere('end_date', '>=', now());
                     });
     }
-}
 
+    public function isCurrentlyActive(): bool
+    {
+        return $this->is_active &&
+               $this->start_date <= now() &&
+               ($this->end_date === null || $this->end_date >= now());
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($discount) {
+            if ($discount->end_date !== null && $discount->end_date < now()) {
+                $discount->is_active = false;
+            }
+        });
+    }
+}

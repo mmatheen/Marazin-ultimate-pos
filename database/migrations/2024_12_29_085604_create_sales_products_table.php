@@ -20,7 +20,8 @@ return new class extends Migration
             $table->integer('quantity');
             $table->enum('price_type', ['retail', 'wholesale', 'special']);
             $table->decimal('price', 8, 2);
-            $table->decimal('discount', 8, 2)->nullable();
+            $table->decimal('discount_amount', 8, 2)->nullable();
+            $table->enum('discount_type', ['fixed', 'percentage'])->nullable();
             $table->decimal('tax', 8, 2)->nullable();
             $table->timestamps();
 
@@ -30,7 +31,6 @@ return new class extends Migration
             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
     }
-
     /**
      * Reverse the migrations.
      */

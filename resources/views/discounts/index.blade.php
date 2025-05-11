@@ -325,8 +325,13 @@ $(document).ready(function() {
             },
             {
                 data: 'amount',
-                render: function(data) {
-                    return data ? 'Rs. ' + data : '-';
+                render: function(data, type, row) {
+                    if (row.type === 'percentage') {
+                        return data ? data + '%' : '-';
+                    } else if (row.type === 'fixed') {
+                        return data ? 'Rs. ' + data : '-';
+                    }
+                    return '-';
                 }
             },
             {

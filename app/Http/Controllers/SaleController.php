@@ -561,7 +561,8 @@ class SaleController extends Controller
             'batch_id' => $batchId,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
-            'discount' => $productData['discount'],
+            'discount_amount' => $productData['discount_amount'],
+            'discount_type' => $productData['discount_type'],
             'tax' => $productData['tax'],
         ]);
     }
@@ -610,7 +611,8 @@ class SaleController extends Controller
             'batch_id' => null,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
-            'discount' => $productData['discount'],
+            'discount_amount' => $productData['discount_amount'],
+            'discount_type' => $productData['discount_type'],
             'tax' => $productData['tax'],
         ]);
 
@@ -733,7 +735,8 @@ class SaleController extends Controller
                             'quantity' => $product->quantity,
                             'price_type' => $product->price_type,
                             'price' => $product->price,
-                            'discount' => $product->discount,
+                            'dicount_type' => $product->discount_type,
+                            'discount_amount' => $product->discount_amount,
                             'tax' => $product->tax,
                             'created_at' => $product->created_at,
                             'updated_at' => $product->updated_at,
@@ -773,7 +776,8 @@ class SaleController extends Controller
                         'quantity' => $product->quantity,
                         'price_type' => $product->price_type,
                         'price' => $product->price,
-                        'discount' => $product->discount,
+                       'dicount_type' => $product->discount_type,
+                        'discount_amount' => $product->discount_amount,
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
                         'updated_at' => $product->updated_at,

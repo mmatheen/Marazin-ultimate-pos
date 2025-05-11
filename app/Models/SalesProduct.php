@@ -9,9 +9,6 @@ class SalesProduct extends Model
 {
     use HasFactory;
 
-    // protected $fillable = [
-    //     'sale_id', 'product_id', 'batch_id', 'location_id','quantity', 'unit_price', 'discount', 'tax',
-    // ];
     protected $fillable = [
         'sale_id',
         'product_id',
@@ -20,10 +17,10 @@ class SalesProduct extends Model
         'quantity',
         'price_type',
         'price',
-        'discount',
+        'discount_amount',
+        'discount_type', // 'fixed' or 'percentage'
         'tax',
     ];
-
 
     public function sale()
     {

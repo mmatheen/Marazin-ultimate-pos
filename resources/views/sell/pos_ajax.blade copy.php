@@ -193,14 +193,23 @@
                 });
         }
 
+        let isEditing = false;
 
+        $(document).ready(function () {
 
-        // Fetch all locations on page load
-        $(document).ready(function() {
             fetchAllLocations();
-
-            // Attach change event listener
             $('#locationSelect').on('change', handleLocationChange);
+
+            // Detect if we're in edit mode
+            const pathSegments = window.location.pathname.split('/');
+            const saleId = pathSegments[pathSegments.length - 1];
+
+            if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
+                isEditing = true;
+                fetchEditSale(saleId);
+            } else {
+                console.warn('Invalid or missing saleId:', saleId);
+            }
         });
 
         // Fetch all locations via AJAX
@@ -244,15 +253,14 @@
             locationSelect.trigger('change');
         }
 
-        // Handle location dropdown change
         function handleLocationChange(event) {
             selectedLocationId = $(event.target).val(); // Update global variable
-
             if (selectedLocationId) {
-
-                billingBody.innerHTML = '';
+                if (!isEditing) {
+                    billingBody.innerHTML = '';
+                }
                 updateTotals();
-                fetchAllProducts(selectedLocationId); // Pass to fetch function
+                fetchAllProducts(selectedLocationId); // Still fetch products for autocomplete
             } else {
                 console.warn("No location selected");
             }
@@ -302,22 +310,15 @@
                         initAutocomplete();
                     } else {
                         console.error('Invalid data:', data);
-                        alert('Failed to load product data.');
+                        // alert('Failed to load product data.');
                     }
                 })
                 .catch(error => {
                     hideLoader();
                     console.error('Error fetching data:', error);
-                    alert('An error occurred while fetching product data.');
+                    // alert('An error occurred while fetching product data.');
                 });
         }
-
-        // Listen for location change
-        document.getElementById('locationSelect').addEventListener('change', function() {
-            selectedLocationId = this.value;
-            console.log("Selected Location ID (Dropdown Change):", selectedLocationId); // DEBUG
-            fetchAllProducts(); // Reload products when location changes
-        });
 
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
@@ -467,15 +468,18 @@
             });
         }
 
-        // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {
-            return new Intl.NumberFormat().format(amount);
-        }
+                return new Intl.NumberFormat().format(amount);
+            }
 
-        // Function to parse formatted amounts back to numbers
-        function parseFormattedAmount(formattedAmount) {
-            return parseFloat(formattedAmount.replace(/,/g, ''));
-        }
+            function parseFormattedAmount(formattedAmount) {
+                if (typeof formattedAmount !== 'string' && typeof formattedAmount !== 'number') {
+                    return 0;
+                }
+                const cleaned = String(formattedAmount).replace(/[^0-9.-]/g, '');
+                const parsed = parseFloat(cleaned);
+                return isNaN(parsed) ? 0 : parsed;
+            }
 
         // Filter products by category
         function filterProductsByCategory(categoryId) {
@@ -654,7 +658,7 @@
 
             const billingBody = document.getElementById('billing-body');
 
-            // ✅ Get the correct batch quantity based on selected batch or "All"
+            //  Get the correct batch quantity based on selected batch or "All"
             let adjustedBatchQuantity = batchQuantity;
 
             // If batchId is "all", get the total stock
@@ -683,7 +687,7 @@
                 let currentQty = parseInt(quantityInput.value, 10);
                 let newQuantity = currentQty + saleQuantity;
 
-                // ✅ Validate against adjustedBatchQuantity
+                // Validate against adjustedBatchQuantity
                 if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
                     toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
                         'Warning');
@@ -727,7 +731,18 @@
                     <button class="btn btn-success quantity-plus btn-sm">+</button>
                 </div>
             </td>
+            
             <td><input type="number" value="${price.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+            <td>
+                <select class="form-select discount-type">
+                    <option value="fixed">Fixed</option>
+                    <option value="percentage">Percentage</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" value="0" min="0" class="form-control discount-amount text-center">
+            </td>
+           <td class="discounted-price text-center mt-2">Rs ${price.toFixed(2)}</td>
             <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * price).toFixed(2))}</td>
             <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
             <td class="product-id d-none">${product.id}</td>
@@ -757,6 +772,12 @@
             const removeBtn = row.querySelector('.remove-btn');
             const productImage = row.querySelector('.product-image');
             const productName = row.querySelector('.product-name');
+
+
+                    // New Elements
+            const discountType = row.querySelector('.discount-type');
+            const discountAmount = row.querySelector('.discount-amount');
+            const discountedPrice = row.querySelector('.discounted-price');
 
             // Helper function to validate and update quantities
             const validateAndUpdateQuantity = (newQuantity) => {
@@ -806,6 +827,17 @@
                 }
                 updateTotals();
             });
+
+
+                        // Event listener for discount type
+                discountType.addEventListener('change', () => {
+                    updateTotals();
+                });
+
+                // Event listener for discount amount
+                discountAmount.addEventListener('input', () => {
+                    updateTotals();
+                });
 
             // Event listener for the remove button
             removeBtn.addEventListener('click', () => {
@@ -866,20 +898,27 @@
             const billingBody = document.getElementById('billing-body');
             let totalItems = 0;
             let totalAmount = 0;
+            let subTotal = 0;
 
-            // Calculate total items and total amount
             billingBody.querySelectorAll('tr').forEach(row => {
                 const quantity = parseInt(row.querySelector('.quantity-input').value, 10) || 0;
                 const price = parseFloat(row.querySelector('.price-input').value) || 0;
-                const subtotal = quantity * price;
+                const discType = row.querySelector('.discount-type')?.value || 'fixed';
+                const discAmt = parseFloat(row.querySelector('.discount-amount')?.value) || 0;
 
-                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
-                    .toFixed(2));
+                let finalPrice = discType === 'percentage' ? price * (1 - discAmt / 100) : price - discAmt;
+                finalPrice = Math.max(0, finalPrice);
+
+                const subtotal = quantity * finalPrice;
+
+                row.querySelector('.discounted-price').textContent = 'Rs. ' + finalPrice.toFixed(2);
+                row.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal.toFixed(2));
 
                 totalItems += quantity;
-                totalAmount += subtotal;
+                subTotal += subtotal;
             });
 
+            
             const discountElement = document.getElementById('discount');
             const discountTypeElement = document.getElementById('discount-type');
 
@@ -896,24 +935,16 @@
                 totalAmountWithDiscount = totalAmount - discount;
             }
 
-            // Ensure totals are not negative
-            totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
-
             // Update UI
             document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
-            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-            document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
-                .toFixed(2));
-            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
-            document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
-                .toFixed(2));
-            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
+            document.getElementById('total-amount').textContent = formatAmountWithSeparators(subTotal.toFixed(2));
+            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(finalTotal.toFixed(2));
+            document.getElementById('total').textContent = formatAmountWithSeparators(finalTotal.toFixed(2));
+            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(finalTotal.toFixed(2));
         }
 
-        // Attach event listeners for discount input and type dropdown
-        const discountElement = document.getElementById('discount');
+         // Attach event listeners for discount input and type dropdown
+         const discountElement = document.getElementById('discount');
         const discountTypeElement = document.getElementById('discount-type');
 
         if (discountElement) {
@@ -937,6 +968,7 @@
                 updateTotals();
             });
         }
+       
 
         let saleId = null;
 
@@ -1755,12 +1787,12 @@
                         };
                     };
                 } else {
-                    alert('Failed to fetch the receipt. Please try again.');
+                    // alert('Failed to fetch the receipt. Please try again.');
                 }
             })
             .catch(error => {
                 console.error('Error fetching the receipt:', error);
-                alert('An error occurred while fetching the receipt. Please try again.');
+                // alert('An error occurred while fetching the receipt. Please try again.');
             });
     }
 
