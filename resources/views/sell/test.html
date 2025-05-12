@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Select2 Auto Focus Example</title>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js "></script>
+
+  <!-- Select2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/select2 @4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+  <!-- Select2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/select2 @4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <!-- Custom Styles (Optional) -->
+  <style>
+    .select2-container {
+      width: 200px; /* Adjust as needed */
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Select Element -->
+  <select class="form-control selectBox" id="customer-id">
+    <option selected disabled>Please Select</option>
+    <option value="1">Customer A</option>
+    <option value="2">Customer B</option>
+    <option value="3">Customer C</option>
+  </select>
+
+  <!-- JavaScript Initialization -->
+  <script>
+    $(document).ready(function () {
+      // Initialize Select2
+      $('#customer-id').select2({
+        placeholder: 'Please Select',
+        allowClear: true,
+      });
+
+      // Listen for the 'select2:open' event
+      $('#customer-id').on('select2:open', function (e) {
+        // Get the search input within the Select2 dropdown
+        var $search = $('.select2-search__field');
+
+        // Focus on the search input
+        $search.focus();
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -37,7 +37,11 @@
                 },
                 original_price: {
                     required: true
-                }
+                },
+                max_retail_price: {
+                    required: true
+                },
+
             },
             messages: {
                 product_name: {
@@ -66,7 +70,10 @@
                 },
                 original_price: {
                     required: "Cost Price is required"
-                }
+                },
+                max_retail_price: {
+                    required: "Max Retail Price is required"
+                },
             },
             errorElement: 'span',
             errorPlacement: function(error, element) {

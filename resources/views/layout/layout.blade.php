@@ -188,17 +188,32 @@
         });
     </script>
 
-    <script>
-
-         // In your Javascript (external .js resource or <script> tag)
-        $(document).ready(function() {
-            $('.selectBox').select2();
-        });
-
-
-
-    </script>
-
+<script>
+    $(document).ready(function () {
+      $('.selectBox').select2();
+  
+      $('.selectBox').on('select2:open', function () {
+        // Use setTimeout to wait for DOM update
+        setTimeout(() => {
+          // Get all open Select2 dropdowns
+          const allDropdowns = document.querySelectorAll('.select2-container--open');
+  
+          // Get the most recently opened dropdown (last one)
+          const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
+  
+          if (lastOpenedDropdown) {
+            // Find the search input inside this dropdown
+            const searchInput = lastOpenedDropdown.querySelector('.select2-search__field');
+  
+            if (searchInput) {
+              searchInput.focus(); // Focus the search input
+              searchInput.select(); // Optional: select any existing text
+            }
+          }
+        }, 10); // Very short delay to allow DOM render
+      });
+    });
+  </script>
     <script>
             document.addEventListener("DOMContentLoaded", function () {
                 document.querySelectorAll("input").forEach(function (input) {

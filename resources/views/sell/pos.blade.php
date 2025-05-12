@@ -827,7 +827,7 @@
                 document.addEventListener('DOMContentLoaded', function() {
                     const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
                     const percentageDiscountBtn = document.getElementById('percentage-discount-btn');
-                    const discountInput = document.getElementById('discount');
+                    const discountInput = document.getElementById('global-discount');
                     const discountIcon = document.getElementById('discount-icon');
                     const discountTypeInput = document.getElementById('discount-type');
                     const toggleProductListBtn = document.getElementById('toggleProductList');
@@ -843,6 +843,7 @@
                         percentageDiscountBtn.classList.remove('active');
                         discountIcon.textContent = 'Rs';
                         discountTypeInput.value = 'fixed';
+                        discountInput.value = ''; // Reset the discount value
                     });
             
                     percentageDiscountBtn.addEventListener('click', function() {
@@ -850,6 +851,7 @@
                         fixedDiscountBtn.classList.remove('active');
                         discountIcon.textContent = '%';
                         discountTypeInput.value = 'percentage';
+                        discountInput.value = ''; // Reset the discount value
                     });
             
                     // Toggle product list area visibility

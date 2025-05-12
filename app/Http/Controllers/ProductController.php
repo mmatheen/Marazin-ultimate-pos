@@ -58,17 +58,29 @@ class ProductController extends Controller
 
     public function getStockHistory($productId)
     {
+        // Debug: Check if stock history exists
+        $exists = \App\Models\StockHistory::whereHas('locationBatch.batch', function ($query) use ($productId) {
+            $query->where('product_id', $productId);
+        })->exists();
+        if (!$exists) {
+            return response()->json(['error' => 'No stock history found for this product'], 404);
+        }
+    
         $product = Product::with([
-            'stockHistories.locationBatch.batch.purchaseProducts.purchase.supplier',
-            'stockHistories.locationBatch.batch.salesProducts.sale.customer',
-            'stockHistories.locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
-            'stockHistories.locationBatch.batch.saleReturns.salesReturn.customer',
-            'stockHistories.locationBatch.batch.stockAdjustments.stockAdjustment',
-            'stockHistories.locationBatch.batch.stockTransfers.stockTransfer',
+            'stockHistories' => function ($query) {
+                $query->with([
+                    'locationBatch.batch.purchaseProducts.purchase.supplier',
+                    'locationBatch.batch.salesProducts.sale.customer',
+                    'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
+                    'locationBatch.batch.saleReturns.salesReturn.customer',
+                    'locationBatch.batch.stockAdjustments.stockAdjustment',
+                    'locationBatch.batch.stockTransfers.stockTransfer',
+                ]);
+            }
         ])->findOrFail($productId);
-
+    
         $stockHistories = $product->stockHistories;
-
+    
         // Calculate quantities in and out
         $quantitiesIn = $stockHistories->whereIn('stock_type', [
             StockHistory::STOCK_TYPE_PURCHASE,
@@ -77,7 +89,7 @@ class ProductController extends Controller
             StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
             StockHistory::STOCK_TYPE_TRANSFER_IN,
         ])->sum('quantity');
-
+    
         $quantitiesOut = $stockHistories->whereIn('stock_type', [
             StockHistory::STOCK_TYPE_SALE,
             StockHistory::STOCK_TYPE_ADJUSTMENT,
@@ -86,29 +98,21 @@ class ProductController extends Controller
         ])->sum(function ($history) {
             return abs($history->quantity);
         });
-
-        // Calculate sum for each stock type
-        $stockTypeSums = $stockHistories->groupBy('stock_type')->map(function ($histories) {
-            return $histories->sum('quantity');
-        });
-
+    
         $currentStock = $quantitiesIn - $quantitiesOut;
-
+    
         $data = [
             'product' => $product,
             'stock_histories' => $stockHistories,
             'quantities_in' => $quantitiesIn,
             'quantities_out' => $quantitiesOut,
             'current_stock' => $currentStock,
-            'stock_type_sums' => $stockTypeSums
         ];
-
-        // return response()->json($data);
-
+    
         if (request()->ajax()) {
             return response()->json($data);
         }
-
+    
         return view('product.product_stock_history', $data);
     }
 
