@@ -321,94 +321,95 @@
         }
 
         function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
 
-                    // Filter products that:
-                    // 1. Match the search term (product name or SKU)
-                    // 2. Have total_stock > 0
-                    const filteredProducts = allProducts.filter(product =>
-                        ((product.product_name && product.product_name.toLowerCase().startsWith(
-                                searchTerm)) ||
-                            (product.sku && product.sku.toLowerCase().startsWith(searchTerm))
-                        ) &&
-                        product.total_stock > 0 // 👈 Only show products with stock > 0
-                    ).sort((a, b) => {
-                        const nameA = a.product_name?.toLowerCase() || '';
-                        const nameB = b.product_name?.toLowerCase() || '';
-                        return nameA.localeCompare(nameB);
-                    });
+            // Filter products that:
+            // 1. Match the search term (anywhere in product name or SKU)
+            // 2. Have total_stock > 0
+            const filteredProducts = allProducts.filter(product =>
+                (
+                    (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                ) &&
+                product.total_stock > 0 // 👈 Only show products with stock > 0
+            ).sort((a, b) => {
+                // Sort alphabetically by product_name
+                const nameA = a.product_name?.toLowerCase() || '';
+                const nameB = b.product_name?.toLowerCase() || '';
+                return nameA.localeCompare(nameB);
+            });
 
-                    // Map for autocomplete UI
-                    const autoCompleteResults = filteredProducts.length ?
-                        filteredProducts.map(p => ({
-                            label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
-                            value: p.product_name,
-                            product: p
-                        })) : [{
-                            label: "No products found",
-                            value: ""
-                        }];
+            // Map for autocomplete UI
+            const autoCompleteResults = filteredProducts.length ?
+                filteredProducts.map(p => ({
+                    label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
+                    value: p.product_name,
+                    product: p
+                })) : [{
+                    label: "No products found",
+                    value: ""
+                }];
 
-                    response(autoCompleteResults);
+            response(autoCompleteResults);
 
-                    // If exactly one match and search term is long enough, add to table
-                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
-                        addProductToTable(filteredProducts[0]);
-                    }
-                },
-                select: function(event, ui) {
-                    if (!ui.item.product) return false;
-                    $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product);
-                    return false;
-                },
-                focus: function(event, ui) {
-                    $("#productSearchInput").val(ui.item.value);
-                    return false;
-                },
-                minLength: 1,
-                open: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                },
-                close: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                const $li = $("<li>").append(
-                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
-                ).appendTo(ul);
-
-                $li.data("ui-autocomplete-item", item);
-                $li.on("mouseenter", function() {
-                    $(this).addClass("ui-state-focus");
-                }).on("mouseleave", function() {
-                    $(this).removeClass("ui-state-focus");
-                });
-
-                return $li;
-            };
-
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-                if (!this.menu.element.is(":visible")) {
-                    this.search(null, event);
-                    return;
-                }
-                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-                    this.menu.isLastItem() && /^next/.test(direction)) {
-                    this._value(this.term);
-                    this.menu.blur();
-                    return;
-                }
-                this.menu[direction](event);
-                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                this.menu.active.addClass("ui-state-focus");
-            };
+            // If exactly one match and search term is long enough, add to table
+            if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                addProductToTable(filteredProducts[0]);
+            }
+        },
+        select: function(event, ui) {
+            if (!ui.item.product) return false;
+            $("#productSearchInput").val("");
+            addProductToTable(ui.item.product);
+            return false;
+        },
+        focus: function(event, ui) {
+            $("#productSearchInput").val(ui.item.value);
+            return false;
+        },
+        minLength: 1,
+        open: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+        },
+        close: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
         }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        const $li = $("<li>").append(
+            `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+        ).appendTo(ul);
+
+        $li.data("ui-autocomplete-item", item);
+        $li.on("mouseenter", function() {
+            $(this).addClass("ui-state-focus");
+        }).on("mouseleave", function() {
+            $(this).removeClass("ui-state-focus");
+        });
+
+        return $li;
+    };
+
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+        if (!this.menu.element.is(":visible")) {
+            this.search(null, event);
+            return;
+        }
+        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+            this.menu.isLastItem() && /^next/.test(direction)) {
+            this._value(this.term);
+            this.menu.blur();
+            return;
+        }
+        this.menu[direction](event);
+        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+        this.menu.active.addClass("ui-state-focus");
+    };
+}
 
         function displayProducts(products) {
             posProduct.innerHTML = ''; // Clear previous products
