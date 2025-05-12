@@ -566,38 +566,50 @@
         }
 
         function showProductModal(product, stockEntry, row) {
-            const modalBody = document.getElementById('productModalBody');
-            const basePrice = product.retail_price;
-            const discountAmount = product.discount_amount || 0;
-            const finalPrice = product.discount_type === 'percentage' ? basePrice * (1 - discountAmount / 100) :
-                basePrice - discountAmount;
+    const modalBody = document.getElementById('productModalBody');
+    const basePrice = product.retail_price;
+    const discountAmount = product.discount_amount || 0;
+    const finalPrice = product.discount_type === 'percentage' 
+        ? basePrice * (1 - discountAmount / 100) 
+        : basePrice - discountAmount;
 
-            const batchOptions = stockEntry.batches
-                .flatMap(batch => {
-                    return batch.location_batches.map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_no: batch.batch_no,
-                        retail_price: parseFloat(batch.retail_price),
-                        wholesale_price: parseFloat(batch.wholesale_price),
-                        special_price: parseFloat(batch.special_price),
-                        batch_quantity: locationBatch.quantity
-                    }));
-                })
-                .filter(batch => batch.batch_quantity > 0)
-                .map(batch => `
-            <option value="${batch.batch_id}" 
-                data-retail-price="${batch.retail_price}" 
-                data-wholesale-price="${batch.wholesale_price}" 
-                data-special-price="${batch.special_price}" 
-                data-quantity="${batch.batch_quantity}">
-              ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
-            </option>
-        `)
-                .join('');
+    let batchOptions = ''; // Initialize as empty in case no valid batches exist
 
-            const totalQuantity = stockEntry.total_stock;
+    if (stockEntry && Array.isArray(stockEntry.batches)) {
+        // Safely process batches only if it's an array
+        batchOptions = stockEntry.batches
+            .filter(batch => batch.location_batches && Array.isArray(batch.location_batches))
+            .flatMap(batch => {
+                return batch.location_batches.map(locationBatch => ({
+                    batch_id: batch.id,
+                    batch_no: batch.batch_no,
+                    retail_price: parseFloat(batch.retail_price),
+                    wholesale_price: parseFloat(batch.wholesale_price),
+                    special_price: parseFloat(batch.special_price),
+                    batch_quantity: locationBatch.quantity
+                }));
+            })
+            .filter(batch => batch.batch_quantity > 0)
+            .map(batch => `
+                <option value="${batch.batch_id}" 
+                        data-retail-price="${batch.retail_price}" 
+                        data-wholesale-price="${batch.wholesale_price}" 
+                        data-special-price="${batch.special_price}" 
+                        data-quantity="${batch.batch_quantity}">
+                  ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
+                  R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
+                  W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
+                  S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
+                </option>
+            `)
+            .join('');
+    } else {
+        console.warn("No valid batches found for the product.");
+    }
 
-            modalBody.innerHTML = `
+    const totalQuantity = stockEntry?.total_stock ?? 0;
+
+    modalBody.innerHTML = `
         <div class="d-flex align-items-center">
             <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
             <div>
@@ -624,28 +636,36 @@
             ${batchOptions}
         </select>
     `;
-            selectedRow = row;
-            const modal = new bootstrap.Modal(document.getElementById('productModal'));
-            modal.show();
 
-            const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
-            radioButtons.forEach(radio => {
-                radio.addEventListener('change', function() {
-                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
-                        .classList.remove('active'));
-                    this.parentElement.classList.add('active');
-                });
-            });
+    selectedRow = row;
+    const modal = new bootstrap.Modal(document.getElementById('productModal'));
+    modal.show();
 
-            // Attach change handler on dropdown to update max quantity
-            document.getElementById('modalBatchDropdown').addEventListener('change', () => {
-                const selectedOption = document.getElementById('modalBatchDropdown').selectedOptions[0];
-                const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
-                const qtyInput = selectedRow.querySelector('.quantity-input');
+    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn.classList.remove('active'));
+            this.parentElement.classList.add('active');
+        });
+    });
+
+    // Attach change handler on dropdown to update max quantity
+    const batchDropdown = document.getElementById('modalBatchDropdown');
+    if (batchDropdown) {
+        batchDropdown.addEventListener('change', () => {
+            const selectedOption = batchDropdown.selectedOptions[0];
+            if (!selectedOption) return;
+
+            const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+            const qtyInput = selectedRow?.querySelector('.quantity-input');
+
+            if (qtyInput) {
                 qtyInput.setAttribute('max', maxQty);
                 qtyInput.setAttribute('title', `Available: ${maxQty}`);
-            });
-        }
+            }
+        });
+    }
+}
 
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1) {
