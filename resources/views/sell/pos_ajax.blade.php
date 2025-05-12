@@ -738,7 +738,7 @@
                         ${activeDiscount ? `<span class="badge bg-success ms-1">Discount: ${activeDiscount.amount}${activeDiscount.type === 'percentage' ? '%' : ''}</span>` : 
                           (defaultFixedDiscount > 0 ? `` : '')}
                     </div>
-                    <div class="text-muted me-2">${product.sku}
+                    <div class="text-muted me-2 product-sku">${product.sku}
                      
                         <span class="badge bg-secondary ms-1">Stock: ${adjustedBatchQuantity} Pc(s)</span>
                     </div>
@@ -884,9 +884,8 @@
 
         document.getElementById('saveProductChanges').onclick = function() {
             const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
-                .value;
+            .value;
             const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
-
             const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
             const batchId = selectedBatch.value;
             const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
@@ -895,23 +894,39 @@
                 const quantityInput = selectedRow.querySelector('.quantity-input');
                 const priceInput = selectedRow.querySelector('.price-input');
                 const productNameCell = selectedRow.querySelector('.product-name');
+                const productSkuCell = selectedRow.querySelector('.product-sku');
 
                 priceInput.value = price.toFixed(2);
                 priceInput.setAttribute('data-quantity', batchQuantity);
 
+                // Recalculate discount based on new price
+                const mrpElement = productNameCell.querySelector('.badge.bg-info');
+                const mrpText = mrpElement ? mrpElement.textContent.trim() : '';
+                const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
+
+                const discountAmount = mrp - price;
+                const fixedDiscountInput = selectedRow.querySelector(".fixed_discount");
+                const percentDiscountInput = selectedRow.querySelector(".percent_discount");
+
+                // Reset previous discount inputs
+                fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+                percentDiscountInput.value = '';
+
+                // Disable conflicting discounts
+                disableConflictingDiscounts(selectedRow);
+
+                // Update subtotal
                 const subtotal = parseFloat(quantityInput.value) * price;
                 selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
                     .toFixed(2));
 
+                // Update batch ID and show stars
                 selectedRow.querySelector('.batch-id').textContent = batchId;
-
-                // Update product name cell with stars based on selected price type
                 const stars = selectedPriceType === 'retail' ? '<i class="fas fa-star"></i>' :
                     selectedPriceType === 'wholesale' ?
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
-
-                productNameCell.innerHTML = `${productNameCell.textContent.trim()} ${stars}`;
+                    productSkuCell.innerHTML = `${productSkuCell.textContent.trim()} ${stars}`;
 
                 updateTotals();
             }
@@ -1007,7 +1022,8 @@
             // Global discount
             const discountElement = document.getElementById('global-discount');
             const discountTypeElement = document.getElementById('discount-type');
-            const globalDiscount = discountElement && discountElement.value ? parseFloat(discountElement.value) || 0 : 0;
+            const globalDiscount = discountElement && discountElement.value ? parseFloat(discountElement
+                .value) || 0 : 0;
             const globalDiscountType = discountTypeElement ? discountTypeElement.value : 'fixed';
 
             let totalAmountWithDiscount = totalAmount;
@@ -1048,7 +1064,7 @@
                 }
                 updateTotals();
             });
-            globalDiscountInput.addEventListener('input', function () {
+            globalDiscountInput.addEventListener('input', function() {
                 const discountValue = parseFloat(this.value) || 0;
                 if (globalDiscountTypeInput.value === 'percentage') {
                     this.value = Math.min(discountValue, 100);
@@ -1062,7 +1078,7 @@
 
         }
 
-       
+
 
 
 
@@ -2090,31 +2106,32 @@
 </script>
 
 <script>
-    $(document).ready(function () {
-      $('.selectBox').select2();
-  
-      $('.selectBox').on('select2:open', function () {
-        // Use setTimeout to wait for DOM update
-        setTimeout(() => {
-          // Get all open Select2 dropdowns
-          const allDropdowns = document.querySelectorAll('.select2-container--open');
-  
-          // Get the most recently opened dropdown (last one)
-          const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
-  
-          if (lastOpenedDropdown) {
-            // Find the search input inside this dropdown
-            const searchInput = lastOpenedDropdown.querySelector('.select2-search__field');
-  
-            if (searchInput) {
-              searchInput.focus(); // Focus the search input
-              searchInput.select(); // Optional: select any existing text
-            }
-          }
-        }, 10); // Very short delay to allow DOM render
-      });
+    $(document).ready(function() {
+        $('.selectBox').select2();
+
+        $('.selectBox').on('select2:open', function() {
+            // Use setTimeout to wait for DOM update
+            setTimeout(() => {
+                // Get all open Select2 dropdowns
+                const allDropdowns = document.querySelectorAll('.select2-container--open');
+
+                // Get the most recently opened dropdown (last one)
+                const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
+
+                if (lastOpenedDropdown) {
+                    // Find the search input inside this dropdown
+                    const searchInput = lastOpenedDropdown.querySelector(
+                        '.select2-search__field');
+
+                    if (searchInput) {
+                        searchInput.focus(); // Focus the search input
+                        searchInput.select(); // Optional: select any existing text
+                    }
+                }
+            }, 10); // Very short delay to allow DOM render
+        });
     });
-  </script>
+</script>
 
 {{-- Toaster Notifications --}}
 <script>
