@@ -27,27 +27,7 @@
 
         <ul class="nav user-menu">
 
-            <li class="nav-item dropdown noti-dropdown me-4">
-                @if(Auth::check() && Auth::user()->locations->count() > 0)
-                <select class="form-control form-select" id="location_dropdown">
-                    @foreach(Auth::user()->locations as $location)
-                        <option value="{{ $location->id }}" 
-                            @if(session('selectedLocation', Auth::user()->locations->first()->id) == $location->id) selected @endif>
-                            {{ $location->name }}
-                        </option>
-                    @endforeach
-                </select>
-                @endif
-            </li>
-            <li class="nav-item dropdown noti-dropdown me-3 mt-4">
-                <p id="location_text"><b>Location:</b> <span id="location_name">
-                    @if(session('selectedLocation'))
-                        {{ Auth::user()->locations->find(session('selectedLocation'))->name ?? 'No Location' }}
-                    @else
-                        {{ Auth::user()->locations->first()->name ?? 'No Location' }}
-                    @endif
-                </span></p>
-            </li>
+          
 
             @can('pos page')
                 <a href="{{ route('pos-create') }}" class="btn btn-primary me-3" role="button">

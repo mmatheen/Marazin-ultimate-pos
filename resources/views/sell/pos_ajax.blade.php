@@ -737,7 +737,7 @@
                           (defaultFixedDiscount > 0 ? `` : '')}
                     </div>
                     <div class="text-muted me-2">${product.sku}
-                        ${saleId ? `<span class="badge bg-secondary">Sale: ${batchQuantity} Pc(s)</span>` : ''}
+                     
                         <span class="badge bg-secondary ms-1">Stock: ${adjustedBatchQuantity} Pc(s)</span>
                     </div>
                 </div>
@@ -1865,7 +1865,7 @@
 
     // Function to navigate to the edit page
     function navigateToEdit(saleId) {
-        window.location.href = "{{ route('sales.edit', '') }}/" + saleId;
+        window.location.href = "/sales/edit/" + saleId;
     }
 
     // Function to print the receipt for the sale

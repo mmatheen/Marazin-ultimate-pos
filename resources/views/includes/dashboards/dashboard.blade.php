@@ -14,7 +14,23 @@
                 </div>
             </div>
         </div>
-        <div class="row justify-content-end">
+        <div class="row d-flex justify-content-end">
+
+            <div class="col-md-3">
+                <div class="form-group">
+                    @if(Auth::check() && Auth::user()->locations->count() > 0)
+                    <select class="form-control form-select" id="location_dropdown">
+                        @foreach(Auth::user()->locations as $location)
+                            <option value="{{ $location->id }}" 
+                                @if(session('selectedLocation', Auth::user()->locations->first()->id) == $location->id) selected @endif>
+                                {{ $location->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @endif
+                  
+                </div>
+            </div>
             <div class="col-md-3">
                 <div class="form-group">
                     <div id="reportrange"
@@ -24,6 +40,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
 
