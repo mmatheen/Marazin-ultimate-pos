@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Events\StockUpdated;
 use App\Models\Discount;
+use App\Models\ImeiNumber;
 
 class ProductController extends Controller
 {
@@ -65,7 +66,7 @@ class ProductController extends Controller
         if (!$exists) {
             return response()->json(['error' => 'No stock history found for this product'], 404);
         }
-    
+
         $product = Product::with([
             'stockHistories' => function ($query) {
                 $query->with([
@@ -78,9 +79,9 @@ class ProductController extends Controller
                 ]);
             }
         ])->findOrFail($productId);
-    
+
         $stockHistories = $product->stockHistories;
-    
+
         // Calculate quantities in and out
         $quantitiesIn = $stockHistories->whereIn('stock_type', [
             StockHistory::STOCK_TYPE_PURCHASE,
@@ -89,7 +90,7 @@ class ProductController extends Controller
             StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
             StockHistory::STOCK_TYPE_TRANSFER_IN,
         ])->sum('quantity');
-    
+
         $quantitiesOut = $stockHistories->whereIn('stock_type', [
             StockHistory::STOCK_TYPE_SALE,
             StockHistory::STOCK_TYPE_ADJUSTMENT,
@@ -98,9 +99,9 @@ class ProductController extends Controller
         ])->sum(function ($history) {
             return abs($history->quantity);
         });
-    
+
         $currentStock = $quantitiesIn - $quantitiesOut;
-    
+
         $data = [
             'product' => $product,
             'stock_histories' => $stockHistories,
@@ -108,11 +109,11 @@ class ProductController extends Controller
             'quantities_out' => $quantitiesOut,
             'current_stock' => $currentStock,
         ];
-    
+
         if (request()->ajax()) {
             return response()->json($data);
         }
-    
+
         return view('product.product_stock_history', $data);
     }
 
@@ -155,7 +156,7 @@ class ProductController extends Controller
             // Filter products by the user's location
             $locationId = $user->location_id;
 
-            $getValue = Product::whereHas('locations', function($query) use ($locationId) {
+            $getValue = Product::whereHas('locations', function ($query) use ($locationId) {
                 $query->where('locations.id', $locationId);
             })->with('locations')->get();
         } else {
@@ -182,7 +183,7 @@ class ProductController extends Controller
     {
         // Fetch the product details by ID
         $product = Product::with(['locations', 'mainCategory', 'brand']) // Using the correct relationship names
-                          ->find($id);
+            ->find($id);
 
         // Check if the product exists
         if (!$product) {
@@ -203,7 +204,7 @@ class ProductController extends Controller
 
             return response()->json([
                 'status' => 200,
-                'product' =>$product,
+                'product' => $product,
             ]);
         } else {
             return response()->json([
@@ -217,23 +218,21 @@ class ProductController extends Controller
     public function getProductsByCategory($categoryId)
     {
 
-         // Fetch products with the specified category ID
-         $products = Product::where('main_category_id', $categoryId)->get();
+        // Fetch products with the specified category ID
+        $products = Product::where('main_category_id', $categoryId)->get();
 
-         if($products){
+        if ($products) {
 
-             return response()->json([
-                 'status' => 200,
-                 'message' => $products
-             ]);
-         }
-         else{
+            return response()->json([
+                'status' => 200,
+                'message' => $products
+            ]);
+        } else {
             return response()->json([
                 'status' => 500,
                 'message' => 'Error fetching products',
             ]);
-         }
-
+        }
     }
 
 
@@ -435,6 +434,12 @@ class ProductController extends Controller
             }])
             ->get();
 
+        // Fetch existing IMEIs
+        $imeis = ImeiNumber::where('product_id', $productId)
+        ->orderBy('id')
+        ->pluck('imei_number', 'id');
+
+
         $openingStock = [
             'product_id' => $product->id,
             'batches' => $batches->flatMap(function ($batch) {
@@ -457,6 +462,7 @@ class ProductController extends Controller
                     ];
                 });
             })->values(),
+            'imeis' => $imeis,
         ];
 
         if (request()->ajax() || request()->is('api/*')) {
@@ -482,11 +488,7 @@ class ProductController extends Controller
             'locations.*.id' => 'required|integer|exists:locations,id',
             'locations.*.qty' => 'required|numeric|min:1',
             'locations.*.unit_cost' => 'required|numeric|min:0',
-            'locations.*.batch_no' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
+            'locations.*.batch_no' => ['nullable', 'string', 'max:255'],
             'locations.*.expiry_date' => 'nullable|date',
         ]);
 
@@ -500,16 +502,17 @@ class ProductController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($filteredLocations, $product, &$message) {
+            $batchIds = [];
+
+            DB::transaction(function () use ($filteredLocations, $product, &$batchIds, &$message) {
                 $isUpdate = false;
                 $locationIds = array_column($filteredLocations, 'id');
 
-                // Get the existing location batches for the product
+                // Remove obsolete data
                 $existingLocationBatches = LocationBatch::whereHas('batch', function ($query) use ($product) {
                     $query->where('product_id', $product->id);
                 })->get();
 
-                // Remove stock history records, location batches, and batches for locations that are no longer associated
                 foreach ($existingLocationBatches as $locationBatch) {
                     if (!in_array($locationBatch->location_id, $locationIds)) {
                         StockHistory::where('loc_batch_id', $locationBatch->id)
@@ -519,24 +522,18 @@ class ProductController extends Controller
                     }
                 }
 
-                // Remove batches that are no longer associated with any location
-                $batchIds = Batch::where('product_id', $product->id)->pluck('id')->toArray();
-                $usedBatchIds = LocationBatch::whereIn('batch_id', $batchIds)->pluck('batch_id')->toArray();
-                $unusedBatchIds = array_diff($batchIds, $usedBatchIds);
-                Batch::whereIn('id', $unusedBatchIds)->delete();
+                $batchIdsInUse = LocationBatch::whereIn('location_id', $locationIds)
+                    ->whereHas('batch.product', fn($q) => $q->where('id', $product->id))
+                    ->pluck('batch_id')->toArray();
+
+                Batch::where('product_id', $product->id)
+                    ->whereNotIn('id', $batchIdsInUse)
+                    ->delete();
 
                 foreach ($filteredLocations as $locationData) {
                     $formattedExpiryDate = $locationData['expiry_date']
                         ? \Carbon\Carbon::parse($locationData['expiry_date'])->format('Y-m-d')
                         : null;
-
-                    $existingBatch = Batch::where('batch_no', $locationData['batch_no'] ?? '')
-                        ->where('product_id', $product->id)
-                        ->first();
-
-                    if ($existingBatch) {
-                        $isUpdate = true;
-                    }
 
                     $batch = Batch::updateOrCreate(
                         [
@@ -575,16 +572,86 @@ class ProductController extends Controller
                             'quantity' => $locationData['qty'],
                         ]
                     );
+
+                    $batchIds[] = [
+                        'batch_id' => $batch->id,
+                        'location_id' => $locationData['id'],
+                        'qty' => $locationData['qty'],
+                    ];
                 }
 
-                $message = $isUpdate ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
+                $message = count($batchIds) > 0 ? 'Opening Stock updated successfully!' : 'Opening Stock saved successfully!';
             });
 
-            return response()->json(['status' => 200, 'message' => $message]);
+            return response()->json([
+                'status' => 200,
+                'message' => $message,
+                'product' => $product,
+                'batches' => $batchIds,
+            ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 500, 'message' => 'An error occurred: ' . $e->getMessage()]);
         }
     }
+
+    public function saveImei(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
+            'batches' => 'required|array',
+            'batches.*.batch_id' => 'required|exists:batches,id',
+            'batches.*.location_id' => 'required|exists:locations,id',
+            'imeis' => 'required|array',
+            'imeis.*' => 'string|max:255'
+        ]);
+    
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+    
+        try {
+            DB::beginTransaction();
+    
+            $batchInfo = $request->batches[0]; // assuming single batch
+    
+            // Delete old IMEIs
+            ImeiNumber::where('product_id', $request->product_id)->delete();
+    
+            // Insert new IMEIs
+            foreach ($request->imeis as $imei) {
+                ImeiNumber::create([
+                    'product_id' => $request->product_id,
+                    'batch_id' => $batchInfo['batch_id'],
+                    'location_id' => $batchInfo['location_id'],
+                    'imei_number' => $imei
+                ]);
+            }
+    
+            DB::commit();
+    
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI numbers saved successfully'
+            ]);
+    
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getImeis($productId)
+        {
+            $imeis = ImeiNumber::where('product_id', $productId)->get(['id', 'imei_number']);
+            
+            return response()->json([
+                'status' => 200,
+                'imeis' => $imeis
+            ]);
+        }
 
     public function OpeningStockGetAll()
     {
@@ -648,7 +715,7 @@ class ProductController extends Controller
                 'locations',
                 'discounts' => function ($query) use ($now) {
                     $query->where('is_active', true)
-                          ->where('start_date', '<=', $now); // Only filter by start_date
+                        ->where('start_date', '<=', $now); // Only filter by start_date
                 }
             ])->chunk(500, function ($products) use (&$productStocks, $selectedLocationId, $now) {
                 foreach ($products as $product) {
@@ -658,7 +725,8 @@ class ProductController extends Controller
                         }
                         return $batch->locationBatches->isNotEmpty();
                     });
-                    $totalStock = $filteredBatches->sum(fn($batch) =>
+                    $totalStock = $filteredBatches->sum(
+                        fn($batch) =>
                         $batch->locationBatches->sum('qty')
                     );
                     $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) use ($selectedLocationId) {
@@ -832,7 +900,7 @@ class ProductController extends Controller
 
     public function showSubCategoryDetailsUsingByMainCategoryId(string $main_category_id)
     {
-        $subcategoryDetails = SubCategory::where('main_category_id', $main_category_id)->select('id', 'subCategoryname', 'main_category_id','subCategoryCode','description')->orderBy('main_category_id', 'asc')->get();
+        $subcategoryDetails = SubCategory::where('main_category_id', $main_category_id)->select('id', 'subCategoryname', 'main_category_id', 'subCategoryCode', 'description')->orderBy('main_category_id', 'asc')->get();
         if ($subcategoryDetails) {
             return response()->json([
                 'status' => 200,
@@ -858,59 +926,58 @@ class ProductController extends Controller
 
 
     public function destroy(int $id)
-        {
-            DB::beginTransaction();
+    {
+        DB::beginTransaction();
 
-            try {
-                $product = Product::with('batches')->find($id);
-                
-                if (!$product) {
-                    return response()->json([
-                        'status' => 404,
-                        'message' => "No Such Product Found!"
-                    ]);
-                }
+        try {
+            $product = Product::with('batches')->find($id);
 
-                // Delete all related batches and their location batches
-                if ($product->batches->isNotEmpty()) {
-                    $batchIds = $product->batches->pluck('id')->toArray();
-                    
-                    // Delete location batches first
-                    LocationBatch::whereIn('batch_id', $batchIds)->delete();
-                    
-                    // Then delete the batches
-                    Batch::whereIn('id', $batchIds)->delete();
-                }
-
-                // Delete the product
-                $product->delete();
-
-                DB::commit();
-
+            if (!$product) {
                 return response()->json([
-                    'status' => 200,
-                    'message' => "Product and all associated batches deleted successfully!"
-                ]);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Error deleting product: " . $e->getMessage()
+                    'status' => 404,
+                    'message' => "No Such Product Found!"
                 ]);
             }
-        }
 
-        public function exportBlankTemplate()
-        {
-            return Excel::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
+            // Delete all related batches and their location batches
+            if ($product->batches->isNotEmpty()) {
+                $batchIds = $product->batches->pluck('id')->toArray();
+
+                // Delete location batches first
+                LocationBatch::whereIn('batch_id', $batchIds)->delete();
+
+                // Then delete the batches
+                Batch::whereIn('id', $batchIds)->delete();
+            }
+
+            // Delete the product
+            $product->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => "Product and all associated batches deleted successfully!"
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 500,
+                'message' => "Error deleting product: " . $e->getMessage()
+            ]);
         }
-        
-        public function exportProducts()
-        {
-            return Excel::download(new ExportProductTemplate(), 'Products_Export_' . date('Y-m-d') . '.xlsx');
-        }
+    }
+
+    public function exportBlankTemplate()
+    {
+        return Excel::download(new ExportProductTemplate(true), 'Import_Product_Template.xlsx');
+    }
+
+    public function exportProducts()
+    {
+        return Excel::download(new ExportProductTemplate(), 'Products_Export_' . date('Y-m-d') . '.xlsx');
+    }
 
     public function importProductStore(Request $request)
     {
@@ -976,13 +1043,13 @@ class ProductController extends Controller
         $productIds = $request->input('product_ids', []);
         $locationIds = $request->input('location_ids', []);
         $now = now();
-    
+
         if (empty($productIds) || empty($locationIds)) {
             return response()->json(['status' => 'error', 'message' => 'Please select at least one product and one location.'], 400);
         }
-    
+
         DB::beginTransaction();
-    
+
         try {
             foreach ($productIds as $productId) {
                 // 1. Existing locations for the product
@@ -990,13 +1057,13 @@ class ProductController extends Controller
                     ->where('product_id', $productId)
                     ->pluck('location_id')
                     ->toArray();
-    
+
                 // 2. Remove unselected locations from location_product
                 DB::table('location_product')
                     ->where('product_id', $productId)
                     ->whereNotIn('location_id', $locationIds)
                     ->delete();
-    
+
                 // 3. Insert or update selected locations in location_product
                 foreach ($locationIds as $locationId) {
                     DB::table('location_product')->updateOrInsert(
@@ -1011,20 +1078,20 @@ class ProductController extends Controller
                         ]
                     );
                 }
-    
+
                 // 4. Get all batch IDs related to the product
                 $batchIds = DB::table('batches')
                     ->where('product_id', $productId)
                     ->pluck('id')
                     ->toArray();
-    
+
                 foreach ($batchIds as $batchId) {
                     // 5. Fetch existing location_batches records for the batch
                     $existingBatchLocations = DB::table('location_batches')
                         ->where('batch_id', $batchId)
                         ->pluck('location_id', 'id')
                         ->toArray();
-    
+
                     // 6. Update only the location_id in location_batches (Qty should not change)
                     foreach ($existingBatchLocations as $locationBatchId => $existingLocationId) {
                         if (!in_array($existingLocationId, $locationIds)) {
@@ -1039,7 +1106,7 @@ class ProductController extends Controller
                     }
                 }
             }
-    
+
             DB::commit();
             return response()->json(['status' => 'success', 'message' => 'Changes saved successfully.']);
         } catch (\Exception $e) {
@@ -1065,7 +1132,7 @@ class ProductController extends Controller
             'product_ids' => 'required|array',
             'product_ids.*' => 'exists:products,id'
         ]);
-    
+
         try {
             // Create the discount
             $discount = Discount::create([
@@ -1078,15 +1145,14 @@ class ProductController extends Controller
                 'is_active' => (bool)$validated['is_active'],  // Explicit cast to boolean
                 'apply_to_all' => false
             ]);
-    
+
             // Attach products to the discount
             $discount->products()->attach($validated['product_ids']);
-    
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Discount applied successfully to selected products'
             ]);
-    
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
@@ -1094,9 +1160,4 @@ class ProductController extends Controller
             ], 500);
         }
     }
-
-
-    
 }
-    
-

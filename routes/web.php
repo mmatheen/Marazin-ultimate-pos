@@ -156,6 +156,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/opening-stock-store/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
         // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+       
+       //imei number routes
+        Route::post('/save-imei', [ProductController::class, 'saveImei'])->name('saveImei');
+        Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
 
 
           // Role Routes

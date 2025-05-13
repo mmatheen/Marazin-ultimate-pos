@@ -62,6 +62,44 @@
         </form>
     </div>
 </div>
+
+<!-- IMEI Entry Modal -->
+<div class="modal fade" id="imeiModal" tabindex="-1" aria-labelledby="imeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imeiModalLabel">Enter IMEI Numbers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <p>Total required: <strong><span id="totalImeiCount"></span></strong></p>
+
+                <!-- Textarea for Paste -->
+                <textarea id="imeiInput" rows="6" class="form-control mb-2" placeholder="Paste or type one IMEI per line..."></textarea>
+                <button type="button" class="btn btn-sm btn-info float-end" id="autoFillImeis">Auto Fill Rows</button>
+
+                <!-- Table for IMEIs -->
+                <table class="table table-bordered mt-3" id="imeiTable">
+                    <thead>
+                        <tr>
+                            <th>IMEI Number</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+                <!-- Buttons -->
+                <button type="button" class="btn btn-sm btn-success mb-3" id="addImeiRow">+ Add Row</button>
+                <div id="imeiError" class="text-danger mt-2 d-none">Please enter valid IMEIs.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip</button>
+                <button type="button" class="btn btn-primary" id="saveImeiButton">Save IMEIs</button>
+            </div>
+        </div>
+    </div>
+</div>
 @include('product.product_ajax')
 
 @endsection
