@@ -785,6 +785,7 @@
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
+        
     `;
                 billingBody.insertBefore(row, billingBody.firstChild);
                 attachRowEventListeners(row, product, stockEntry);
@@ -799,6 +800,8 @@
                 disableConflictingDiscounts(row);
                 updateTotals();
             }
+
+            
         }
 
         function attachRowEventListeners(row, product, stockEntry) {

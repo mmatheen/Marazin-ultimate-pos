@@ -21,19 +21,19 @@ class StockTransferController extends Controller
         $this->middleware('permission:delete stock-transfer', ['only' => ['destroy']]);
     }
 
-     // Fetch all stock transfers
-     public function index()
-     {
-         // Fetch all stock transfers with related data (e.g., fromLocation, toLocation, products)
-         $stockTransfers = StockTransfer::with(['fromLocation', 'toLocation', 'stockTransferProducts.product'])
-             ->orderBy('created_at', 'desc')
-             ->get();
+    // Fetch all stock transfers
+    public function index()
+    {
+        $stockTransfers = StockTransfer::with(['fromLocation', 'toLocation', 'stockTransferProducts.product'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-         return response()->json([
-             'status' => 200,
-             'stockTransfers' => $stockTransfers,
-         ]);
-     }
+        return response()->json([
+            'status' => 200,
+            'stockTransfers' => $stockTransfers,
+        ]);
+    }
+
     public function stockTransfer()
     {
         return view('stock_transfer.stock_transfer');
@@ -58,7 +58,6 @@ class StockTransferController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
-        // Validate the request
         $request->validate([
             'from_location_id' => 'required|exists:locations,id|different:to_location_id',
             'to_location_id' => 'required|exists:locations,id',
@@ -102,17 +101,13 @@ class StockTransferController extends Controller
 
                 // Iterate through the products and update the quantities
                 foreach ($request->products as $product) {
-                    try {
-                        // Check the quantity of the batch at the source location
-                        $fromLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
-                            ->where('location_id', $request->from_location_id)
-                            ->firstOrFail();
-                    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-                        return response()->json(['message' => 'The source location does not have the product with ID ' . $product['product_id']], 400);
-                    }
+                    // Check the quantity of the batch at the source location
+                    $fromLocationBatch = LocationBatch::where('batch_id', $product['batch_id'])
+                        ->where('location_id', $request->from_location_id)
+                        ->firstOrFail();
 
                     if ($fromLocationBatch->qty < $product['quantity']) {
-                        return response()->json(['message' => 'The selected batch does not have enough quantity at the source location.'], 400);
+                        throw new \Exception('The selected batch does not have enough quantity at the source location.');
                     }
 
                     // Create StockTransferProduct entry
@@ -134,11 +129,6 @@ class StockTransferController extends Controller
                         ['qty' => 0]
                     );
                     $toLocationBatch->increment('qty', $product['quantity']);
-
-                    // Update Batch table
-                    $batch = Batch::find($product['batch_id']);
-                    $batch->decrement('qty', $product['quantity']);
-                    $batch->increment('qty', $product['quantity']);
 
                     // Create StockHistory entries
                     StockHistory::create([
@@ -165,7 +155,6 @@ class StockTransferController extends Controller
     {
         $stockTransfer = StockTransfer::with('stockTransferProducts.product.batches', 'fromLocation', 'toLocation')->findOrFail($id);
 
-
         if (request()->ajax() || request()->is('api/*')) {
             return response()->json([
                 'status' => 200,
@@ -174,24 +163,23 @@ class StockTransferController extends Controller
         }
 
         return view('stock_transfer.add_stock_transfer');
-
     }
 
     public function destroy($id)
-{
-    try {
-        $stockTransfer = StockTransfer::findOrFail($id);
-        $stockTransfer->delete();
+    {
+        try {
+            $stockTransfer = StockTransfer::findOrFail($id);
+            $stockTransfer->delete();
 
-        return response()->json([
-            'status' => 200,
-            'message' => 'Stock transfer deleted successfully.',
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 500,
-            'message' => 'Failed to delete stock transfer.',
-        ]);
+            return response()->json([
+                'status' => 200,
+                'message' => 'Stock transfer deleted successfully.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete stock transfer.',
+            ]);
+        }
     }
-}
 }

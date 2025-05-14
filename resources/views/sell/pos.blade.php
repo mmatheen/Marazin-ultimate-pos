@@ -1307,6 +1307,39 @@
         </div>
     </div>
 
+
+    <!-- IMEI Selection Modal -->
+<div class="modal fade" id="imeiSelectionModal" tabindex="-1" aria-labelledby="imeiSelectionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imeiSelectionModalLabel">Select IMEI Numbers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="selectedProductIdForImei">
+                <table class="table table-bordered" id="imeiSelectionTable">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>IMEI Number</th>
+                            <th>Batch No</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imeiSelectionBody">
+                        <!-- IMEIs will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmImeiSelection">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script>
         // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {

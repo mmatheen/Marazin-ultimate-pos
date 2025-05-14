@@ -502,6 +502,11 @@ function fetchProductData() {
                                 </td>
                                 <td>${imei.location_name}</td>
                                 <td>${imei.batch_no || 'N/A'}</td>
+                                <td>
+                                    ${imei.status === 'available' ? '<span class="badge bg-success">Available</span>' :
+                                        imei.status === 'unavailable' ? '<span class="badge bg-danger">Unavailable</span>' :
+                                        '<span class="badge bg-warning text-dark">Reserved</span>'}
+                                </td>
                             </tr>
                         `);
                     });

@@ -830,7 +830,6 @@ class ProductController extends Controller
             'has_batches' => $filteredBatches->isNotEmpty(),
             'discounts' => $activeDiscounts,
            'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
-                    // Find the batch by batch_id from the product's batches collection
                     $batch = $product->batches->firstWhere('id', $imei->batch_id);
 
                     return [
@@ -840,6 +839,7 @@ class ProductController extends Controller
                         'location_name' => optional($imei->location)->name ?? 'N/A',
                         'batch_id' => $imei->batch_id,
                         'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                        'status' => $imei->status ?? 'available'
                     ];
                 })
         ];

@@ -13,7 +13,8 @@ class ImeiNumber extends Model
         'product_id',
         'location_id',
         'batch_id',
-        'imei_number'
+        'imei_number',
+        'status'
     ];
 
     public function product()
