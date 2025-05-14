@@ -1259,10 +1259,10 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                             return;
                         }
 
-                        response.imeis.forEach((imei, index) => {
+                        imeis.forEach(imei => {
                             $('#imeiTable tbody').append(`
                                 <tr>
-                                    <td><input type="text" class="form-control imei-input" value="${imei.imei_number}" data-id="${imei.id}"></td>
+                                    <td><input type="text" class="form-control imei-input" value="${imei}"></td>
                                     <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                                 </tr>
                             `);
