@@ -507,7 +507,7 @@ function fetchProductData() {
                     });
 
                     // Display product name and total count of IMEI numbers in the modal header
-                    $('#imeiModalTitle').text(`IMEI Numbers for ${product.product.product_name} (Total: ${product.imei_numbers.length})`);
+                    $('#imeiModalTitle').html(`<span class="text-info">${product.product.product_name}</span> (Total: ${product.imei_numbers.length})`);
 
                     $('#imeiModal').modal('show');
                 });
