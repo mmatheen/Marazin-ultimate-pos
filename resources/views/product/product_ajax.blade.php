@@ -199,54 +199,57 @@
         }
 
        // Format product data into table rows
-function formatProductData(product) {
-    let locationName = 'N/A';
-    if (product.batches && product.batches.length > 0) {
-        locationName = product.batches[0]?.location_batches?.[0]?.location_name || 'N/A';
-    } else if (product.locations && product.locations.length > 0) {
-        locationName = product.locations[0]?.location_name || 'N/A';
-    }
+        function formatProductData(product) {
+            let locationName = 'N/A';
+            if (product.batches && product.batches.length > 0) {
+                locationName = product.batches[0]?.location_batches?.[0]?.location_name || 'N/A';
+            } else if (product.locations && product.locations.length > 0) {
+                locationName = product.locations[0]?.location_name || 'N/A';
+            }
 
-    let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
-        '/assets/img/No Product Image Available.png';
-    return `
-    <tr data-product-id="${product.id}">
-    <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
-        <td>
-            <div class="dropdown">
-                <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
-                    Actions
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
-                    @can("show one product details")
-                        <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
-                    @endcan
-                    @can("edit product")
-                        <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                    @endcan
-                    @can("delete product")
-                        <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                    @endcan
-                    @can("Add & Edit Opening Stock product")
-                        <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
-                    @endcan
-                    @can("product Full History")
-                        <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
-                    @endcan
-                </ul>
-            </div>
-        </td>
-        <td class="text-center"><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
-        <td>${product.product_name}</td>
-        <td>${product.sku}</td>
-        <td>${locationName}</td>
-        <td>${product.retail_price}</td>
-        <td>${product.total_stock}</td>
-        <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-        <td>${brandMap[product.brand_id] || 'N/A'}</td>
-        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
-    </tr>`;
-};
+            let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
+                '/assets/img/No Product Image Available.png';
+            return `
+            <tr data-product-id="${product.id}">
+            <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
+                <td>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
+                            Actions
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
+                            @can("show one product details")
+                                <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+                            @endcan
+                            @can("edit product")
+                                <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+                            @endcan
+                            @can("delete product")
+                                <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                            @endcan
+                            @can("Add & Edit Opening Stock product")
+                                <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                            @endcan
+                            @can("product Full History")
+                                <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+                            @endcan
+                            ${product.is_imei_or_serial_no === 1 ? 
+                                `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>` : 
+                                ''}
+                        </ul>
+                    </div>
+                </td>
+                <td class="text-center"><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+                <td>${product.product_name}</td>
+                <td>${product.sku}</td>
+                <td>${locationName}</td>
+                <td>${product.retail_price}</td>
+                <td>${product.total_stock}</td>
+                <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+                <td>${brandMap[product.brand_id] || 'N/A'}</td>
+                <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+            </tr>`;
+        };
 
 
 
@@ -466,31 +469,74 @@ function fetchProductData() {
                 }
             })
 
-            $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
-                event.stopPropagation();
-                event.stopImmediatePropagation();
+
+                    // When clicking on IMEI Entry from dropdown
+        $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
+            event.preventDefault();
+            const productId = $(this).data('product-id');
+            $('#currentProductId').val(productId);
+
+            // Clear previous IMEIs
+            $('#imeiTableBody').empty();
+
+            if (!productId) return;
+
+            // Find the product in `allProducts` by ID
+            const product = allProducts.find(p => p.product.id == productId);
+            if (!product || !product.imei_numbers || product.imei_numbers.length === 0) {
+                $('#imeiTableBody').append('<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>');
+                $('#imeiModal').modal('show');
+                return;
+            }
+
+                    // Fill the table with IMEI numbers
+                    let counter = 1; // Initialize counter for auto-increment
+                    product.imei_numbers.forEach(imei => {
+                        $('#imeiTableBody').append(`
+                            <tr>
+                                <td>${counter++}</td> <!-- Auto-incremented count -->
+                                <td>
+                                    <input type="text" class="form-control imei-input" 
+                                        data-imei-id="${imei.id}" 
+                                        value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
+                                </td>
+                                <td>${imei.location_name}</td>
+                                <td>${imei.batch_no || 'N/A'}</td>
+                            </tr>
+                        `);
+                    });
+
+                    // Display product name and total count of IMEI numbers in the modal header
+                    $('#imeiModalTitle').text(`IMEI Numbers for ${product.product.product_name} (Total: ${product.imei_numbers.length})`);
+
+                    $('#imeiModal').modal('show');
+                });
+
+                    $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
+                        event.stopPropagation();
+                        event.stopImmediatePropagation();
+                    });
+
+                    $('#productTable tbody').on('click', 'tr', function(event) {
+                        if ($(event.target).closest('.product-checkbox, input[type="checkbox"]').length > 0) {
+                            return;
+                        }
+
+                        if ($(event.target).closest('.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
+                            return;
+                        }
+
+                        var productId = $(this).data('product-id');
+                        if (productId) {
+                            fetchProductDetails(productId);
+                            $('#viewProductModal').modal('show');
+                        }
+                    });
+                } else {
+                    console.error('Failed to fetch product data.');
+                }
             });
-
-            $('#productTable tbody').on('click', 'tr', function(event) {
-                if ($(event.target).closest('.product-checkbox, input[type="checkbox"]').length > 0) {
-                    return;
-                }
-
-                if ($(event.target).closest('.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
-                    return;
-                }
-
-                var productId = $(this).data('product-id');
-                if (productId) {
-                    fetchProductDetails(productId);
-                    $('#viewProductModal').modal('show');
-                }
-            });
-        } else {
-            console.error('Failed to fetch product data.');
         }
-    });
-}
 
 
 //Delte product

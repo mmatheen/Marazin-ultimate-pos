@@ -390,6 +390,37 @@
     </div>
 </div>
 
+<!-- IMEI Modal -->
+<div class="modal fade" id="imeiModal" tabindex="-1" aria-labelledby="imeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imeiModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="currentProductId" value="">
+                <table class="table table-bordered" id="imeiTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>IMEI Number</th>
+                            <th>Location</th>
+                            <th>Batch No</th>
+                        </tr>
+                    </thead>
+                    <tbody id="imeiTableBody">
+                        <!-- IMEIs will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @include('product.product_ajax')
 
 @endsection

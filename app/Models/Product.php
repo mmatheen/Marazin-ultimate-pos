@@ -85,4 +85,9 @@ class Product extends Model
     {
         return $this->belongsToMany(Discount::class)->withTimestamps();
     }
+
+    public function imeiNumbers()
+    {
+        return $this->hasMany(ImeiNumber::class);
+    }
 }

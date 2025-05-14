@@ -707,7 +707,9 @@ class ProductController extends Controller
             $productStocks = [];
             $selectedLocationId = $request->input('location_id');
             $now = now();
-            Product::with([
+    
+            // Fetch all products at once
+            $products = Product::with([
                 'batches.locationBatches' => function ($query) use ($selectedLocationId) {
                     if ($selectedLocationId) {
                         $query->where('location_id', $selectedLocationId);
@@ -716,52 +718,56 @@ class ProductController extends Controller
                 'locations',
                 'discounts' => function ($query) use ($now) {
                     $query->where('is_active', true)
-                        ->where('start_date', '<=', $now); // Only filter by start_date
-                }
-            ])->chunk(500, function ($products) use (&$productStocks, $selectedLocationId, $now) {
-                foreach ($products as $product) {
-                    $filteredBatches = $product->batches->filter(function ($batch) use ($selectedLocationId) {
-                        if ($selectedLocationId) {
-                            return $batch->locationBatches->where('location_id', $selectedLocationId)->isNotEmpty();
-                        }
-                        return $batch->locationBatches->isNotEmpty();
-                    });
-                    $totalStock = $filteredBatches->sum(
-                        fn($batch) =>
-                        $batch->locationBatches->sum('qty')
-                    );
-                    $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) use ($selectedLocationId) {
-                        if ($selectedLocationId) {
-                            $batch->locationBatches = $batch->locationBatches->where('location_id', $selectedLocationId);
-                        }
-                        return $batch;
-                    });
-                    $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
-                        return [
-                            'id' => $discount->id,
-                            'name' => $discount->name,
-                            'description' => $discount->description,
-                            'type' => $discount->type, // 'fixed' or 'percentage'
-                            'amount' => $discount->amount,
-                            'start_date' => $discount->start_date->format('Y-m-d H:i:s'),
-                            'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
-                            'is_active' => (bool)$discount->is_active,
-                            'apply_to_all' => (bool)$discount->apply_to_all,
-                            'created_at' => $discount->created_at->format('Y-m-d H:i:s'),
-                            'updated_at' => $discount->updated_at->format('Y-m-d H:i:s'),
-                            'is_expired' => $discount->end_date && $discount->end_date < $now, // New field
-                        ];
-                    });
-                    $productStocks[] = $this->transformProductData(
-                        $product,
-                        $filteredBatchesWithLocation,
-                        $activeDiscounts,
-                        $totalStock,
-                        $selectedLocationId
-                    );
-                }
-            });
+                          ->where('start_date', '<=', $now);
+                },
+                'imeinumbers'
+            ])->get();
+    
+            foreach ($products as $product) {
+                $filteredBatches = $product->batches->filter(function ($batch) use ($selectedLocationId) {
+                    if ($selectedLocationId) {
+                        return $batch->locationBatches->where('location_id', $selectedLocationId)->isNotEmpty();
+                    }
+                    return $batch->locationBatches->isNotEmpty();
+                });
+    
+                $totalStock = $filteredBatches->sum(fn($batch) => $batch->locationBatches->sum('qty'));
+    
+                $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) use ($selectedLocationId) {
+                    if ($selectedLocationId) {
+                        $batch->locationBatches = $batch->locationBatches->where('location_id', $selectedLocationId);
+                    }
+                    return $batch;
+                });
+    
+                $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
+                    return [
+                        'id' => $discount->id,
+                        'name' => $discount->name,
+                        'description' => $discount->description,
+                        'type' => $discount->type,
+                        'amount' => $discount->amount,
+                        'start_date' => $discount->start_date->format('Y-m-d H:i:s'),
+                        'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
+                        'is_active' => (bool)$discount->is_active,
+                        'apply_to_all' => (bool)$discount->apply_to_all,
+                        'created_at' => $discount->created_at->format('Y-m-d H:i:s'),
+                        'updated_at' => $discount->updated_at->format('Y-m-d H:i:s'),
+                        'is_expired' => $discount->end_date && $discount->end_date < $now,
+                    ];
+                });
+    
+                $productStocks[] = $this->transformProductData(
+                    $product,
+                    $filteredBatchesWithLocation,
+                    $activeDiscounts,
+                    $totalStock,
+                    $selectedLocationId
+                );
+            }
+    
             return response()->json(['status' => 200, 'data' => $productStocks]);
+    
         } catch (\Exception $e) {
             Log::error('Error fetching product stocks: ' . $e->getMessage());
             return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
@@ -823,6 +829,19 @@ class ProductController extends Controller
             ]),
             'has_batches' => $filteredBatches->isNotEmpty(),
             'discounts' => $activeDiscounts,
+           'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
+                    // Find the batch by batch_id from the product's batches collection
+                    $batch = $product->batches->firstWhere('id', $imei->batch_id);
+
+                    return [
+                        'id' => $imei->id,
+                        'imei_number' => $imei->imei_number,
+                        'location_id' => $imei->location_id,
+                        'location_name' => optional($imei->location)->name ?? 'N/A',
+                        'batch_id' => $imei->batch_id,
+                        'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                    ];
+                })
         ];
     }
 
