@@ -22,6 +22,7 @@ use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
 use App\Models\ImeiNumber;
@@ -826,6 +827,8 @@ class ProductController extends Controller
     }
 
 
+
+
     public function getNotifications()
     {
         $products = Product::with('batches.locationBatches.location')->get();
@@ -927,41 +930,40 @@ class ProductController extends Controller
 
     public function destroy(int $id)
     {
-        DB::beginTransaction();
-
         try {
-            $product = Product::with('batches')->find($id);
-
-            if (!$product) {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "No Such Product Found!"
-                ]);
-            }
-
-            // Delete all related batches and their location batches
-            if ($product->batches->isNotEmpty()) {
-                $batchIds = $product->batches->pluck('id')->toArray();
-
-                // Delete location batches first
-                LocationBatch::whereIn('batch_id', $batchIds)->delete();
-
-                // Then delete the batches
-                Batch::whereIn('id', $batchIds)->delete();
-            }
-
-            // Delete the product
-            $product->delete();
-
-            DB::commit();
-
-            return response()->json([
-                'status' => 200,
-                'message' => "Product and all associated batches deleted successfully!"
-            ]);
+            $result = DB::transaction(function () use ($id) {
+                $product = Product::with('batches')->find($id);
+    
+                if (!$product) {
+                    return [
+                        'status' => 404,
+                        'message' => "No Such Product Found!"
+                    ];
+                }
+    
+                // Delete all related batches and their location batches
+                if ($product->batches->isNotEmpty()) {
+                    $batchIds = $product->batches->pluck('id')->toArray();
+    
+                    // Delete location batches first
+                    LocationBatch::whereIn('batch_id', $batchIds)->delete();
+    
+                    // Then delete the batches
+                    Batch::whereIn('id', $batchIds)->delete();
+                }
+    
+                // Delete the product
+                $product->delete();
+    
+                return [
+                    'status' => 200,
+                    'message' => "Product and all associated batches deleted successfully!"
+                ];
+            });
+    
+            return response()->json($result);
+    
         } catch (\Exception $e) {
-            DB::rollBack();
-
             return response()->json([
                 'status' => 500,
                 'message' => "Error deleting product: " . $e->getMessage()

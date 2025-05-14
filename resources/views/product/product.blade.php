@@ -118,15 +118,15 @@
                                                     <th><input type="checkbox" id="selectAll" style="width: 16px; height: 16px;"></th> <!-- Select All checkbox -->
                                                     <th>Action</th>
                                                     <th>Product Image</th>
-                                                    <th>Product</th>
+                                                    <th>Product Name</th>
+                                                    <th>SKU</th>
                                                     <th>Business Location</th>
                                                     <th>Selling Price</th>
                                                     <th>Current Stock</th>
-                                                    <th>Product Type</th>
+                                                    {{-- <th>Product Type</th> --}}
                                                     <th>Category</th>
                                                     <th>Brand</th>
-                                                    <th>SKU</th>
-                                                    <th>Discount</th>
+                                                    <th>Imei or Serial</th>
                                                 </tr>
                                             </thead>
                                             <tbody>

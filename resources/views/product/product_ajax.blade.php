@@ -225,7 +225,7 @@ function formatProductData(product) {
                         <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
                     @endcan
                     @can("delete product")
-                        <li><a class="dropdown-item delete-product-btn" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                        <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
                     @endcan
                     @can("Add & Edit Opening Stock product")
                         <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
@@ -236,90 +236,20 @@ function formatProductData(product) {
                 </ul>
             </div>
         </td>
-        <td><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+        <td class="text-center"><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
         <td>${product.product_name}</td>
+        <td>${product.sku}</td>
         <td>${locationName}</td>
         <td>${product.retail_price}</td>
         <td>${product.total_stock}</td>
-        <td>${product.product_type}</td>
         <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
         <td>${brandMap[product.brand_id] || 'N/A'}</td>
-        <td>${product.sku}</td>
-        <td>${product.discounts ? product.discounts.map(d => d.name).join(', ') : 'None'}</td>
+        <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
     </tr>`;
-}
+};
 
 
-        // Delete product functionality
-        $(document).on('click', '.delete-product-btn', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const productId = $(this).data('product-id');
-            const productName = $(this).closest('tr').find('td:nth-child(4)').text().trim();
-            
-            // Show confirmation modal
-            Swal.fire({
-                title: 'Are you sure?',
-                html: `You are about to delete <strong>${productName}</strong> and all its associated batches.<br>This action cannot be undone!`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading indicator
-                    Swal.fire({
-                        title: 'Deleting...',
-                        html: 'Please wait while we delete the product',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
 
-                    // Make AJAX request
-                    $.ajax({
-                        url: `/products/${productId}`,
-                        type: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        success: function(response) {
-                            Swal.close();
-                            if (response.status === 200) {
-                                Swal.fire(
-                                    'Deleted!',
-                                    response.message,
-                                    'success'
-                                );
-                                // Refresh the product table
-                                fetchProductData();
-                            } else {
-                                Swal.fire(
-                                    'Error!',
-                                    response.message || 'Failed to delete product',
-                                    'error'
-                                );
-                            }
-                        },
-                        error: function(xhr) {
-                            Swal.close();
-                            let errorMessage = 'An error occurred while deleting the product';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            }
-                            Swal.fire(
-                                'Error!',
-                                errorMessage,
-                                'error'
-                            );
-                        }
-                    });
-                }
-            });
-        });
 
 
 // Collect selected product IDs
@@ -527,6 +457,15 @@ function fetchProductData() {
                 }
             });
 
+            // Handle delete product action
+            $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
+                event.preventDefault();
+                var productId = $(this).data('product-id');
+                if (productId) {
+                    deleteProduct(productId);
+                }
+            })
+
             $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
                 event.stopPropagation();
                 event.stopImmediatePropagation();
@@ -552,6 +491,41 @@ function fetchProductData() {
         }
     });
 }
+
+
+//Delte product
+
+function deleteProduct(productId) {
+    if (swal({
+            title: "Are you sure?",
+            text: "You will not be able to recover this imaginary file!",
+            icon: "warning",
+            buttons: true,
+            dangerMode: true,
+        })) {
+        $.ajax({
+            url: '/delete-product/' + productId,
+            type: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success(response.message, 'Deleted');
+                    fetchProductData();
+                } else {
+                    toastr.error(response.message || 'Failed to delete product', 'Error');
+                }
+            },
+            error: function(xhr) {
+                toastr.error('An error occurred while deleting the product', 'Error');
+            }
+        });
+    }
+}
+
+
+
 
 // Populate product filter dropdowns
 function populateProductFilter() {
@@ -1376,15 +1350,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         }
     });
 }
-    // function validateBatchNumbers(locations) {
-    //     let isValid = true;
-    //     locations.forEach(location => {
-    //         if (location.batch_no && !/^BATCH[0-9]{3,}$/.test(location.batch_no)) {
-    //             isValid = false;
-    //         }
-    //     });
-    //     return isValid;
-    // }
+
 });
         // Extract the product ID from the URL and fetch data if valid
         $(document).ready(function() {
@@ -1431,108 +1397,13 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             }
         });
 
-        $('#productTable').on('click', '.view_btn, .edit-product, .delete-product-btn', function(e) {
+        $('#productTable').on('click', '.view_btn, .edit-product, .btn-delete-product', function(e) {
             e.stopPropagation();
         });
 
-        // $(document).on('click', '.delete-product-btn', function() {
-        //     var id = $(this).data('id');
-        //     $('#deleteModal').modal('show');
-        //     $('#deleting_id').val(id);
-        //     $('#deleteName').text('Delete Product');
-        // });
-
-        // $(document).on('click', '.confirm_delete_btn', function() {
-        //     var id = $('#deleting_id').val();
-        //     $.ajax({
-        //         url: '/delete-product/' + id,
-        //         type: 'DELETE',
-        //         headers: {
-        //             'X-CSRF-TOKEN': csrfToken
-        //         },
-        //         success: function(response) {
-        //             if (response.status == 404) {
-        //                 toastr.error(response.message, 'Error');
-        //             } else {
-        //                 $('#deleteModal').modal('hide');
-        //                 fetchProductData();
-        //                 document.getElementsByClassName('successSound')[0].play();
-        //                 toastr.success(response.message, 'Deleted');
-        //             }
-        //         }
-        //     });
-        // });
-
+      
         
-        // $(document).on('click', '.delete-product', function(e) {
-        //     e.preventDefault();
-        //     e.stopPropagation();
-            
-        //     const productId = $(this).data('product-id');
-        //     const productName = $(this).closest('tr').find('td:nth-child(4)').text(); // Get product name from table
-            
-        //     // Show confirmation modal
-        //     Swal.fire({
-        //         title: 'Are you sure?',
-        //         html: `You are about to delete <strong>${productName}</strong> and all its associated batches.<br>This action cannot be undone!`,
-        //         icon: 'warning',
-        //         showCancelButton: true,
-        //         confirmButtonColor: '#d33',
-        //         cancelButtonColor: '#3085d6',
-        //         confirmButtonText: 'Yes, delete it!'
-        //     }).then((result) => {
-        //         if (result.isConfirmed) {
-        //             // Show loading indicator
-        //             Swal.fire({
-        //                 title: 'Deleting...',
-        //                 html: 'Please wait while we delete the product',
-        //                 allowOutsideClick: false,
-        //                 didOpen: () => {
-        //                     Swal.showLoading();
-        //                 }
-        //             });
-
-        //             // Make AJAX request
-        //             $.ajax({
-        //                 url: `/delete-product/${productId}`,
-        //                 type: 'DELETE',
-        //                 headers: {
-        //                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        //                 },
-        //                 success: function(response) {
-        //                     Swal.close();
-        //                     if (response.status === 200) {
-        //                         Swal.fire(
-        //                             'Deleted!',
-        //                             response.message,
-        //                             'success'
-        //                         );
-        //                         // Refresh the product table
-        //                         fetchProductData();
-        //                     } else {
-        //                         Swal.fire(
-        //                             'Error!',
-        //                             response.message || 'Failed to delete product',
-        //                             'error'
-        //                         );
-        //                     }
-        //                 },
-        //                 error: function(xhr) {
-        //                     Swal.close();
-        //                     let errorMessage = 'An error occurred while deleting the product';
-        //                     if (xhr.responseJSON && xhr.responseJSON.message) {
-        //                         errorMessage = xhr.responseJSON.message;
-        //                     }
-        //                     Swal.fire(
-        //                         'Error!',
-        //                         errorMessage,
-        //                         'error'
-        //                     );
-        //                 }
-        //             });
-        //         }
-        //     });
-        // });
+    
 
 
 
@@ -1585,6 +1456,10 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                     <th scope="row">Price</th>
                                     <td>Rs. ${(Number(product.retail_price) || 0).toFixed(2)}</td>
                                 </tr>
+                                <tr>
+                                    <th scope="row">Imei is Checked</th>
+                                    <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+                                </tr>
     
                             </tbody>
                         </table>
@@ -1600,11 +1475,6 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 }
             });
         }
-
-                // Initialize the product data fetching
-                $(document).ready(function() {
-                    fetchProductData();
-                });
 
     });
 </script>

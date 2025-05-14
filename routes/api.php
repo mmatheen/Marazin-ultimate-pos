@@ -197,6 +197,8 @@ Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('up
 Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
 Route::get('/product-get-all', [ProductController::class, 'index']);
 Route::post('/product-store', [ProductController::class, 'store']);
+Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+
 //stop product route
 
   //start unit route
