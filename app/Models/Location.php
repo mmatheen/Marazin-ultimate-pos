@@ -51,16 +51,13 @@ class Location extends Model
     // Initialize the prefix
     $prefix = '';
 
-    // Handle single-word names (e.g., "Sammanthurai")
     if (count($words) === 1) {
         $prefix = strtoupper(substr($words[0], 0, 3)); // Take first 3 letters
     } else {
-        // Handle multi-word names (e.g., "ARB Fashion")
+        // Handle multi-word names (e.g., "ARB FASHION")
         foreach ($words as $word) {
             if (strlen($prefix) < 3 && !empty($word)) {
-                // Take up to 2 letters from the first word and 1 letter from the second word
-                $lettersToTake = (strlen($prefix) === 0) ? 2 : 1; // First word: 2 letters, others: 1 letter
-                $prefix .= strtoupper(substr($word, 0, $lettersToTake));
+                $prefix .= strtoupper(substr($word, 0, 1)); // Take first letter of each word
             }
         }
     }
