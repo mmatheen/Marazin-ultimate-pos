@@ -63,6 +63,6 @@ class Location extends Model
         }
     }
 
-    return $prefix ?: 'LOC'; // Fallback to 'LOC' if no valid prefix is generated
+    return $prefix ?: 'LOC'; 
 }
 }

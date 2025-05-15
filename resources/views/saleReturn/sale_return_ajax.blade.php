@@ -1,6 +1,32 @@
     <script>
     $(document).ready(function () {
         let productToRemove;
+        let productList = []; // Global variable to store all products
+
+        // Load all products once at start
+        loadAllProducts();
+
+        function loadAllProducts() {
+            $.ajax({
+                url: "/products/stocks",
+                method: 'GET',
+                success: function (data) {
+                    productList = data.data.map(product => ({
+                        label: product.product.product_name,
+                        value: product.product.id,
+                        sku: product.product.sku,
+                        retail_price: product.product.retail_price,
+                        total_stock: product.total_stock,
+                    }));
+
+                    initProductAutocomplete();
+                },
+                error: function (error) {
+                    console.error('Error fetching products:', error);
+                }
+            });
+        }
+
 
         // Fetch and populate locations
         fetchLocations();
@@ -21,24 +47,24 @@
             });
         }
 
-        // Fetch and populate customers
-        fetchCustomers();
+            // Fetch and populate customers
+            fetchCustomers();
 
-        function fetchCustomers() {
-            $.ajax({
-                url: '/customer-get-all',
-                method: 'GET',
-                success: function (data) {
-                    const customerSelect = $("#customerId");
-                    data.message.forEach(customer => {
-                        customerSelect.append(new Option(`${customer.first_name} ${customer.last_name}`, customer.id));
-                    });
-                },
-                error: function (error) {
-                    console.error('Error fetching customers:', error);
-                }
-            });
-        }
+            function fetchCustomers() {
+                $.ajax({
+                    url: '/customer-get-all',
+                    method: 'GET',
+                    success: function (data) {
+                        const customerSelect = $("#customerId");
+                        data.message.forEach(customer => {
+                            customerSelect.append(new Option(`${customer.first_name} ${customer.last_name}`, customer.id));
+                        });
+                    },
+                    error: function (error) {
+                        console.error('Error fetching customers:', error);
+                    }
+                });
+            }
 
                 // Function to get query parameters
             function getQueryParam(param) {
@@ -244,45 +270,34 @@
             $("#invoiceNo").prop('disabled', false);
         }
 
-        // Fetch Products
-        function fetchProducts(callback) {
-            $.ajax({
-            url: "/products/stocks",
-            method: 'GET',
-            success: function (data) {
-                const products = data.data.map(product => ({
-                label: product.product.product_name,
-                value: product.product.id,
-                sku: product.product.sku,
-                retail_price: product.product.retail_price,
-                total_stock: product.total_stock,
-                }));
-                callback(products);
-            },
-            error: function (error) {
-                console.error('Error fetching products:', error);
-            }
-            });
-        }
-
-        // Initialize Autocomplete for Product Search
+        
+            // Initialize Autocomplete for Product Search
         function initProductAutocomplete() {
             $("#productSearch").autocomplete({
-            source: function (request, response) {
-                fetchProducts(function (products) {
-                response(products);
-                });
-            },
-            minLength: 2,
-            select: function (event, ui) {
-                disableInvoiceSearch();
-                addProductToTable(ui.item);
-            }
-            });
+                source: function (request, response) {
+                    const term = request.term.toLowerCase();
+                    const filtered = productList.filter(p =>
+                        p.label.toLowerCase().includes(term) ||
+                        p.sku.toLowerCase().includes(term)
+                    );
+                    response(filtered);
+                },
+                minLength: 1,
+                select: function (event, ui) {
+                    disableInvoiceSearch();
+                    addProductToTable(ui.item);
+                    return false; // Prevent default behavior
+                }
+            }).autocomplete("instance")._renderItem = function (ul, item) {
+                return $("<li>")
+                    .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
+                    .appendTo(ul);
+            };
         }
 
-        // Call the function to initialize autocomplete
-        initProductAutocomplete();    function addProductToTable(product) {
+         initProductAutocomplete(); // Initialize autocomplete after loading products
+   
+        function addProductToTable(product) {
             const newRow = `
                 <tr>
                     <td></td>
