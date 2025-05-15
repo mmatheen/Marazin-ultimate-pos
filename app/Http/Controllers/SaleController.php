@@ -287,12 +287,7 @@ class SaleController extends Controller
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-                $invoiceNo = $isUpdate ? $sale->invoice_no : null;
-                if (!$invoiceNo) {
-                    do {
-                        $invoiceNo = Sale::generateInvoiceNo();
-                    } while (Sale::where('invoice_no', $invoiceNo)->exists());
-                }
+                $invoiceNo = $isUpdate ? $sale->invoice_no : Sale::generateInvoiceNo($request->location_id);
 
                 // Calculate amounts
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);

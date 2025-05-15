@@ -1,4 +1,4 @@
-<script>
+    <script>
     $(document).ready(function () {
         let productToRemove;
 
@@ -244,22 +244,33 @@
             $("#invoiceNo").prop('disabled', false);
         }
 
-        // Autocomplete Product Search
-        $("#productSearch").autocomplete({
+        // Fetch Products
+        function fetchProducts(callback) {
+            $.ajax({
+            url: "/products/stocks",
+            method: 'GET',
+            success: function (data) {
+                const products = data.data.map(product => ({
+                label: product.product.product_name,
+                value: product.product.id,
+                sku: product.product.sku,
+                retail_price: product.product.retail_price,
+                total_stock: product.total_stock,
+                }));
+                callback(products);
+            },
+            error: function (error) {
+                console.error('Error fetching products:', error);
+            }
+            });
+        }
+
+        // Initialize Autocomplete for Product Search
+        function initProductAutocomplete() {
+            $("#productSearch").autocomplete({
             source: function (request, response) {
-                $.ajax({
-                    url: "/products/stocks",
-                    method: 'GET',
-                    success: function (data) {
-                        const products = data.data.map(product => ({
-                            label: product.product.product_name,
-                            value: product.product.id,
-                            sku: product.product.sku,
-                            retail_price: product.product.retail_price,
-                            total_stock: product.total_stock,
-                        }));
-                        response(products);
-                    }
+                fetchProducts(function (products) {
+                response(products);
                 });
             },
             minLength: 2,
@@ -267,9 +278,11 @@
                 disableInvoiceSearch();
                 addProductToTable(ui.item);
             }
-        });
+            });
+        }
 
-        function addProductToTable(product) {
+        // Call the function to initialize autocomplete
+        initProductAutocomplete();    function addProductToTable(product) {
             const newRow = `
                 <tr>
                     <td></td>
