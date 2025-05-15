@@ -51,6 +51,7 @@ class Location extends Model
     // Initialize the prefix
     $prefix = '';
 
+    // Handle single-word names (e.g., "Sammanthurai")
     if (count($words) === 1) {
         $prefix = strtoupper(substr($words[0], 0, 3)); // Take first 3 letters
     } else {

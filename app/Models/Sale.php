@@ -115,7 +115,6 @@ class Sale extends Model
         return DB::transaction(function () use ($locationId) {
             $location = Location::findOrFail($locationId);
     
-            // ✅ Use the attribute instead of duplicating logic
             $prefix = $location->invoice_prefix;
     
             // Lock latest sale for this location
