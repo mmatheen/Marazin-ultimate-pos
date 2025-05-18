@@ -1886,40 +1886,38 @@
         });
     }
 
-    // Function to load the sales data into the DataTable
-    function loadTableData(status) {
-        const table = $('#transactionTable').DataTable();
-        table.clear().draw(); // Clear existing data
+function loadTableData(status) {
+    const table = $('#transactionTable').DataTable();
+    table.clear().draw(); // Clear existing data
 
-        function parseDate(dateString) {
-            const [day, month, year] = dateString.split('/');
-            return new Date(year, month - 1, day);
-        }
+    // Filter by status
+    const filteredSales = sales.filter(sale => sale.status === status);
 
-        const filteredSales = sales
-            .filter(sale => sale.status === status)
-            .sort((a, b) => parseDate(b.sales_date) - parseDate(a.sales_date));
+    if (filteredSales.length === 0) {
+        table.row.add([
+            '', 'No records found', '', '', '', '', ''
+        ]).draw(false);
+    } else {
+        // Sort by id descending (latest ID first)
+        const sortedSales = filteredSales.sort((a, b) => b.id - a.id);
 
-         if (filteredSales.length === 0) {
+        // Add each row in sorted order
+        sortedSales.forEach((sale, index) => {
             table.row.add([
-                '', 'No records found', '', '', '',
-                '' // Ensure the number of columns matches the DataTable definition
-            ]).draw();
-        } else {
-            filteredSales.forEach((sale, index) => {
-                table.row.add([
-                    index + 1,
-                    sale.invoice_no,
-                    `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
-                    sale.sales_date,
-                    sale.final_total,
-                    `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                     <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
-                    '' // Add an empty column to match the DataTable definition
-                ]).draw();
-            });
-        }
+                index + 1,
+                sale.invoice_no,
+                `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                sale.sales_date,
+                sale.final_total,
+                `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
+                '' // Extra column if needed
+            ]);
+        });
+
+        table.draw(); // Draw all rows at once for performance
     }
+}
 
     // Function to navigate to the edit page
     function navigateToEdit(saleId) {
