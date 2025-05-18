@@ -1886,37 +1886,40 @@
         });
     }
 
-function loadTableData(status) {
-    const table = $('#transactionTable').DataTable();
-    table.clear().draw(); // Clear existing data
+    // Function to load the sales data into the DataTable
+    function loadTableData(status) {
+        const table = $('#transactionTable').DataTable();
+        table.clear().draw(); // Clear existing data
 
-    // Find the latest sale based on id
-    const filteredSales = sales
-        .filter(sale => sale.status === status);
+        function parseDate(dateString) {
+            const [day, month, year] = dateString.split('/');
+            return new Date(year, month - 1, day);
+        }
 
-    if (filteredSales.length === 0) {
-        table.row.add([
-            '', 'No records found', '', '', '', '', ''
-        ]).draw(false);
-    } else {
-        // Find the sale with the highest ID
-        const latestSale = filteredSales.reduce((latest, current) => {
-            return (latest.id > current.id) ? latest : current;
-        });
+        const filteredSales = sales
+            .filter(sale => sale.status === status)
+            .sort((a, b) => parseDate(b.sales_date) - parseDate(a.sales_date));
 
-        // Add only the latest sale to the table
-        table.row.add([
-            1,
-            latestSale.invoice_no,
-            `${latestSale.customer.prefix} ${latestSale.customer.first_name} ${latestSale.customer.last_name}`,
-            latestSale.sales_date,
-            latestSale.final_total,
-            `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${latestSale.id})">Print</button>
-             <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${latestSale.id})">Edit</button>`,
-            '' // Extra column if needed
-        ]).draw();
+         if (filteredSales.length === 0) {
+            table.row.add([
+                '', 'No records found', '', '', '',
+                '' // Ensure the number of columns matches the DataTable definition
+            ]).draw();
+        } else {
+            filteredSales.forEach((sale, index) => {
+                table.row.add([
+                    index + 1,
+                    sale.invoice_no,
+                    `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                    sale.sales_date,
+                    sale.final_total,
+                    `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                     <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
+                    '' // Add an empty column to match the DataTable definition
+                ]).draw();
+            });
+        }
     }
-}
 
     // Function to navigate to the edit page
     function navigateToEdit(saleId) {
