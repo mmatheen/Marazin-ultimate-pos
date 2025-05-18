@@ -1891,11 +1891,16 @@
         const table = $('#transactionTable').DataTable();
         table.clear().draw(); // Clear existing data
 
+        function parseDate(dateString) {
+            const [day, month, year] = dateString.split('/');
+            return new Date(year, month - 1, day);
+        }
+
         const filteredSales = sales
             .filter(sale => sale.status === status)
-            .sort((a, b) => parseInt(b.invoice_no.split('-')[1]) - parseInt(a.invoice_no.split('-')[1]));
+            .sort((a, b) => parseDate(b.sales_date) - parseDate(a.sales_date));
 
-        if (filteredSales.length === 0) {
+         if (filteredSales.length === 0) {
             table.row.add([
                 '', 'No records found', '', '', '',
                 '' // Ensure the number of columns matches the DataTable definition

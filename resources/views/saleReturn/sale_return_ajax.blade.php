@@ -288,7 +288,10 @@
                     addProductToTable(ui.item);
                     return false; // Prevent default behavior
                 }
-            }).autocomplete("instance")._renderItem = function (ul, item) {
+            });
+
+            // Now safely override _renderItem after initialization
+            $("#productSearch").autocomplete("instance")._renderItem = function (ul, item) {
                 return $("<li>")
                     .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
                     .appendTo(ul);
