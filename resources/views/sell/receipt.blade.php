@@ -150,41 +150,55 @@
                         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
                     </th>
                 </tr>
-                @foreach ($products as $index => $product)
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td colspan="4" valign="top">
-                            {{ $product->product->product_name }}
-                            @if ($product->price_type == 'retail')
-                                <span style="font-weight: bold;">*</span>
-                            @elseif($product->price_type == 'wholesale')
-                                <span style="font-weight: bold;">**</span>
-                            @elseif($product->price_type == 'special')
-                                <span style="font-weight: bold;">***</span>
-                            @endif
-                        </td>
-                    </tr>
 
-                    <tr>
-                        <td valign="top">&nbsp;</td>
-                        <td valign="top">
-                            <span style="text-decoration: line-through">
-                                {{ number_format($product->product->max_retail_price, 0, '.', ',') }}
-                            </span>
-                            ({{ number_format($product->product->max_retail_price - $product->price, 0, '.', ',') }})
-                        </td>
-                        <td align="left" valign="top">
-                            <span>{{ number_format($product->price, 0, '.', ',') }}</span>
-                        </td>
-                        <td align="left" valign="top" class="quantity-with-pcs">
-                            <span>&times; {{ $product->quantity }} pcs</span>
-                        </td>
-                        <td valign="top" align="right">
-                            <span
-                                style="font-weight: bold;">{{ number_format($product->price * $product->quantity, 0, '.', ',') }}</span>
-                        </td>
-                    </tr>
-                @endforeach
+
+               {{-- Group products by product_id --}}
+@foreach ($products->groupBy('product_id') as $productId => $group)
+    @php
+        // Get the first item in the group to access common fields
+        $firstProduct = $group->first();
+        // Sum total quantity for this product
+        $totalQuantity = $group->sum('quantity');
+        // Calculate total amount for this product
+        $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
+    @endphp
+
+    <tr>
+        <td>{{ $loop->iteration }}</td>
+        <td colspan="4" valign="top">
+            {{ $firstProduct->product->product_name }}
+            @if ($firstProduct->price_type == 'retail')
+                <span style="font-weight: bold;">*</span>
+            @elseif($firstProduct->price_type == 'wholesale')
+                <span style="font-weight: bold;">**</span>
+            @elseif($firstProduct->price_type == 'special')
+                <span style="font-weight: bold;">***</span>
+            @endif
+        </td>
+    </tr>
+
+    <tr>
+        <td valign="top">&nbsp;</td>
+        <td valign="top">
+            <span style="text-decoration: line-through">
+                {{ number_format($firstProduct->product->max_retail_price, 0, '.', ',') }}
+            </span>
+            ({{ number_format($firstProduct->product->max_retail_price - $firstProduct->price, 0, '.', ',') }})
+        </td>
+        <td align="left" valign="top">
+            <span>{{ number_format($firstProduct->price, 0, '.', ',') }}</span>
+        </td>
+        <td align="left" valign="top" class="quantity-with-pcs">
+            <span>&times; {{ $totalQuantity }} pcs</span>
+        </td>
+        <td valign="top" align="right">
+            <span style="font-weight: bold;">
+                {{ number_format($totalAmount, 0, '.', ',') }}
+            </span>
+        </td>
+    </tr>
+@endforeach
+
             </tbody>
         </table>
 

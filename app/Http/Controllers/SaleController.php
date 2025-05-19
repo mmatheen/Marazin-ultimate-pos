@@ -483,14 +483,13 @@ class SaleController extends Controller
         $sale->save();
     }
 
-    private function processProductSale($productData, $saleId, $locationId, $stockType)
+private function processProductSale($productData, $saleId, $locationId, $stockType)
 {
-    $quantityToDeduct = $productData['quantity'];
-    $remainingQuantity = $quantityToDeduct;
-    $batchIds = [];
-    $totalDeductedQuantity = 0; // Variable to keep track of the total deducted quantity
+    $totalQuantity = $productData['quantity'];
+    $remainingQuantity = $totalQuantity;
 
-   
+    // We'll store info about each batch deduction
+    $batchDeductions = [];
 
     if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
         // Specific batch selected
@@ -499,66 +498,60 @@ class SaleController extends Controller
             ->where('location_id', $locationId)
             ->firstOrFail();
 
-        if ($locationBatch->qty < $quantityToDeduct) {
+        if ($locationBatch->qty < $remainingQuantity) {
             throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
         }
 
-        $this->deductBatchStock($productData['batch_id'], $locationId, $quantityToDeduct, $stockType);
-        $batchIds[] = $batch->id;
+        $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
+        $batchDeductions[] = [
+            'batch_id' => $batch->id,
+            'quantity' => $remainingQuantity
+        ];
     } else {
-        // All batches selected
-        // Calculate total available quantity across all locations and batches
-        $totalAvailableQty = DB::table('location_batches')
-            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-            ->where('batches.product_id', $productData['product_id'])
-            ->where('location_batches.qty', '>', 0)
-            ->sum('location_batches.qty');
-
-        // dump('Total available quantity: ' . $totalAvailableQty);
-
-        if ($totalAvailableQty < $quantityToDeduct) {
-            throw new \Exception('Insufficient stock to complete the sale.');
-        }
-
-        // Deduct from batches using FIFO method across the specified location
+        // All batches selected — apply FIFO
         $batches = DB::table('location_batches')
             ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
             ->where('batches.product_id', $productData['product_id'])
+            ->where('location_batches.location_id', $locationId)
             ->where('location_batches.qty', '>', 0)
             ->orderBy('batches.created_at')
-            ->select('location_batches.batch_id', 'location_batches.qty', 'location_batches.location_id')
+            ->select('location_batches.batch_id', 'location_batches.qty')
             ->get();
 
         foreach ($batches as $batch) {
-            if ($remainingQuantity <= 0) {
-                break;
-            }
+            if ($remainingQuantity <= 0) break;
 
-            if ($batch->location_id == $locationId || $locationId == $productData['location_id']) {
-                $deductQuantity = min($remainingQuantity, $batch->qty);
-                $this->deductBatchStock($batch->batch_id, $batch->location_id, $deductQuantity, $stockType);
-                $batchIds[] = $batch->batch_id;
-                $remainingQuantity -= $deductQuantity;
-                $totalDeductedQuantity += $deductQuantity; // Accumulate the total deducted quantity
-            }
+            $deductQuantity = min($batch->qty, $remainingQuantity);
+
+            $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
+            $batchDeductions[] = [
+                'batch_id' => $batch->batch_id,
+                'quantity' => $deductQuantity
+            ];
+
+            $remainingQuantity -= $deductQuantity;
+        }
+
+        if ($remainingQuantity > 0) {
+            throw new \Exception("Not enough stock across all batches to fulfill the sale.");
         }
     }
 
-    // Record the sales product using the total deducted quantity
-    foreach ($batchIds as $batchId) {
+    // Now insert into sales_products — one record per batch
+    foreach ($batchDeductions as $deduction) {
         SalesProduct::create([
             'sale_id' => $saleId,
             'product_id' => $productData['product_id'],
-            'quantity' => $quantityToDeduct, // Use the original quantity to be deducted
+            'quantity' => $deduction['quantity'],
             'price' => $productData['unit_price'],
             'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'],
-            'batch_id' => $batchId,
+            'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
+            'batch_id' => $deduction['batch_id'],
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
-            'discount_amount' => $productData['discount_amount'],
-            'discount_type' => $productData['discount_type'],
-            'tax' => $productData['tax'],
+            'discount_amount' => $productData['discount_amount'] ?? 0,
+            'discount_type' => $productData['discount_type'] ?? 'fixed',
+            'tax' => $productData['tax'] ?? 0,
         ]);
     }
 }
