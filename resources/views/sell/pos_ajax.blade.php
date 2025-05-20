@@ -527,70 +527,236 @@
 
         function addProductToTable(product) {
             console.log("Product to be added:", product);
+
             if (!stockData || stockData.length === 0) {
                 console.error('stockData is not defined or empty');
                 toastr.error('Stock data is not available', 'Error');
                 return;
             }
+
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
+
             if (!stockEntry) {
                 toastr.error('Stock entry not found for the product', 'Error');
                 return;
             }
+
             const totalQuantity = stockEntry.total_stock;
+
+            // Check if product requires IMEI
+            if (product.is_imei_or_serial_no === 1) {
+                const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
+                [];
+
+                console.log("Available IMEIs:", availableImeis);
+                if (availableImeis.length === 0) {
+                    toastr.warning("No available IMEIs for this product.");
+                    return;
+                }
+
+                // Check if this product already exists in billing
+                const billingBody = document.getElementById('billing-body');
+                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
+                    return row.querySelector('.product-id').textContent == product.id;
+                });
+
+                if (existingRows.length > 0) {
+                    // Product exists - show modal with current selections
+                    showImeiSelectionModal(product, stockEntry, availableImeis);
+                    return;
+                }
+
+                // Product doesn't exist - show modal to select IMEIs
+                showImeiSelectionModal(product, stockEntry, availableImeis);
+                return;
+            }
+
+            // If no IMEI required, proceed normally
             if (totalQuantity === 0 && product.stock_alert !== 0) {
                 toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
                 return;
             }
+
             if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-                if (product.stock_alert === 0) {
-                    locationId = product.location_id || 1;
-                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", Infinity,
-                        'retail');
-                } else {
-                    locationId = product.location_id || 1;
-                    addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity,
-                        'retail');
-                }
+                locationId = product.location_id || 1;
+                const price = product.retail_price;
+                const qty = product.stock_alert === 0 ? Infinity : totalQuantity;
+                addProductToBillingBody(product, stockEntry, price, "all", qty, 'retail');
                 return;
             }
+
             const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches).filter(lb => lb
                 .quantity > 0);
             if (locationBatches.length === 0) {
                 toastr.error('No batches with available quantity found', 'Error');
                 return;
             }
-            locationId = locationBatches[0].location_id; // Set from first available batch
+
+            locationId = locationBatches[0].location_id;
             addProductToBillingBody(product, stockEntry, product.retail_price, "all", totalQuantity, 'retail');
         }
 
+        // Global variables to track IMEI selections
+        let currentImeiProduct = null;
+        let currentImeiStockEntry = null;
+        let selectedImeisInBilling = [];
+
+        function showImeiSelectionModal(product, stockEntry, imeis) {
+            currentImeiProduct = product;
+            currentImeiStockEntry = stockEntry;
+
+            // Existing logic...
+            selectedImeisInBilling = [];
+            const billingBody = document.getElementById('billing-body');
+            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
+                return row.querySelector('.product-id').textContent == product.id;
+            });
+
+            existingRows.forEach(row => {
+                const imei = row.querySelector('.imei-data').textContent;
+                if (imei) selectedImeisInBilling.push(imei);
+            });
+
+            const tbody = document.getElementById('imei-table-body');
+            tbody.innerHTML = '';
+
+            const availableImeis = imeis.filter(imei => imei.status === "available");
+
+            if (availableImeis.length === 0) {
+                toastr.warning("No available IMEIs for this product.");
+                return;
+            }
+
+            // Store all created rows for filtering later
+            const imeiRows = [];
+
+            availableImeis.forEach((imei, index) => {
+                const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+                const row = document.createElement('tr');
+                row.dataset.imei = imei.imei_number;
+                row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" 
+                ${isChecked ? 'checked' : ''} data-status="${imei.status}" /></td>
+            <td>${imei.imei_number}</td>
+            <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
+        `;
+
+                row.classList.add('clickable-row');
+
+                row.addEventListener('click', function(event) {
+                    if (event.target.type !== 'checkbox') {
+                        const checkbox = row.querySelector('.imei-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                    }
+                });
+
+                tbody.appendChild(row);
+                imeiRows.push(row); // Save reference
+            });
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('imeiModal'));
+            modal.show();
+
+            // Attach event listeners for filtering
+            const searchInput = document.getElementById('imeiSearch');
+            const filterSelect = document.getElementById('checkboxFilter');
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const filterType = filterSelect.value;
+
+                imeiRows.forEach(row => {
+                    const imeiNumber = row.dataset.imei.toLowerCase();
+                    const checkbox = row.querySelector('.imei-checkbox');
+                    const isChecked = checkbox.checked;
+
+                    const matchesSearch = imeiNumber.includes(searchTerm);
+
+                    let matchesFilter = true;
+                    if (filterType === 'checked') {
+                        matchesFilter = isChecked;
+                    } else if (filterType === 'unchecked') {
+                        matchesFilter = !isChecked;
+                    }
+
+                    row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+                });
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            filterSelect.addEventListener('change', applyFilters);
+
+            // Clear previous click handler
+            document.getElementById('confirmImeiSelection').onclick = null;
+
+            document.getElementById('confirmImeiSelection').onclick = function() {
+                const checkboxes = document.querySelectorAll('.imei-checkbox');
+                const selectedImeis = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
+                modal.hide();
+
+                const batchId = stockEntry.batches.length > 0 ? stockEntry.batches[0].id : "all";
+                const price = product.retail_price;
+
+                existingRows.forEach(row => row.remove());
+
+                selectedImeis.forEach(imei => {
+                    addProductToBillingBody(
+                        currentImeiProduct,
+                        currentImeiStockEntry,
+                        price,
+                        batchId,
+                        1,
+                        'retail',
+                        1,
+                        [imei]
+                    );
+                });
+
+                tbody.innerHTML = '';
+                updateTotals();
+            };
+        }
+
+        // Then use it
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('imeiSearch').value = '';
+        document.getElementById('checkboxFilter').value = 'all';
+        applyFilters(); // Trigger initial display
+});
+       
+
         function showProductModal(product, stockEntry, row) {
-    const modalBody = document.getElementById('productModalBody');
-    const basePrice = product.retail_price;
-    const discountAmount = product.discount_amount || 0;
-    const finalPrice = product.discount_type === 'percentage' 
-        ? basePrice * (1 - discountAmount / 100) 
-        : basePrice - discountAmount;
+            const modalBody = document.getElementById('productModalBody');
+            const basePrice = product.retail_price;
+            const discountAmount = product.discount_amount || 0;
+            const finalPrice = product.discount_type === 'percentage' ?
+                basePrice * (1 - discountAmount / 100) :
+                basePrice - discountAmount;
 
-    let batchOptions = ''; // Initialize as empty in case no valid batches exist
+            let batchOptions = ''; // Initialize as empty in case no valid batches exist
 
-    if (stockEntry && Array.isArray(stockEntry.batches)) {
-        // Safely process batches only if it's an array
-        batchOptions = stockEntry.batches
-            .filter(batch => batch.location_batches && Array.isArray(batch.location_batches))
-            .flatMap(batch => {
-                return batch.location_batches.map(locationBatch => ({
-                    batch_id: batch.id,
-                    batch_no: batch.batch_no,
-                    retail_price: parseFloat(batch.retail_price),
-                    wholesale_price: parseFloat(batch.wholesale_price),
-                    special_price: parseFloat(batch.special_price),
-                    batch_quantity: locationBatch.quantity
-                }));
-            })
-            .filter(batch => batch.batch_quantity > 0)
-            .map(batch => `
+            if (stockEntry && Array.isArray(stockEntry.batches)) {
+                // Safely process batches only if it's an array
+                batchOptions = stockEntry.batches
+                    .filter(batch => batch.location_batches && Array.isArray(batch.location_batches))
+                    .flatMap(batch => {
+                        return batch.location_batches.map(locationBatch => ({
+                            batch_id: batch.id,
+                            batch_no: batch.batch_no,
+                            retail_price: parseFloat(batch.retail_price),
+                            wholesale_price: parseFloat(batch.wholesale_price),
+                            special_price: parseFloat(batch.special_price),
+                            batch_quantity: locationBatch.quantity
+                        }));
+                    })
+                    .filter(batch => batch.batch_quantity > 0)
+                    .map(batch => `
                 <option value="${batch.batch_id}" 
                         data-retail-price="${batch.retail_price}" 
                         data-wholesale-price="${batch.wholesale_price}" 
@@ -602,14 +768,14 @@
                   S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
                 </option>
             `)
-            .join('');
-    } else {
-        console.warn("No valid batches found for the product.");
-    }
+                    .join('');
+            } else {
+                console.warn("No valid batches found for the product.");
+            }
 
-    const totalQuantity = stockEntry?.total_stock ?? 0;
+            const totalQuantity = stockEntry?.total_stock ?? 0;
 
-    modalBody.innerHTML = `
+            modalBody.innerHTML = `
         <div class="d-flex align-items-center">
             <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
             <div>
@@ -637,58 +803,64 @@
         </select>
     `;
 
-    selectedRow = row;
-    const modal = new bootstrap.Modal(document.getElementById('productModal'));
-    modal.show();
+            selectedRow = row;
+            const modal = new bootstrap.Modal(document.getElementById('productModal'));
+            modal.show();
 
-    const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
-    radioButtons.forEach(radio => {
-        radio.addEventListener('change', function() {
-            document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn.classList.remove('active'));
-            this.parentElement.classList.add('active');
-        });
-    });
+            const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
+                        .classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                });
+            });
 
-    // Attach change handler on dropdown to update max quantity
-    const batchDropdown = document.getElementById('modalBatchDropdown');
-    if (batchDropdown) {
-        batchDropdown.addEventListener('change', () => {
-            const selectedOption = batchDropdown.selectedOptions[0];
-            if (!selectedOption) return;
+            // Attach change handler on dropdown to update max quantity
+            const batchDropdown = document.getElementById('modalBatchDropdown');
+            if (batchDropdown) {
+                batchDropdown.addEventListener('change', () => {
+                    const selectedOption = batchDropdown.selectedOptions[0];
+                    if (!selectedOption) return;
 
-            const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
-            const qtyInput = selectedRow?.querySelector('.quantity-input');
+                    const maxQty = parseInt(selectedOption.getAttribute('data-quantity'), 10);
+                    const qtyInput = selectedRow?.querySelector('.quantity-input');
 
-            if (qtyInput) {
-                qtyInput.setAttribute('max', maxQty);
-                qtyInput.setAttribute('title', `Available: ${maxQty}`);
+                    if (qtyInput) {
+                        qtyInput.setAttribute('max', maxQty);
+                        qtyInput.setAttribute('title', `Available: ${maxQty}`);
+                    }
+                });
             }
-        });
-    }
-}
+        }
 
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1) {
+            saleQuantity = 1, imeis = []) {
+            // Parse and validate price
             price = parseFloat(price);
             if (isNaN(price)) {
                 console.error('Invalid price for product:', product.product_name);
                 toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
                 price = 0;
             }
+
             const billingBody = document.getElementById('billing-body');
-            // Check if product has active discounts
+
+            // Check for active discounts
             const activeDiscount = stockEntry.discounts && stockEntry.discounts.length > 0 ?
                 stockEntry.discounts.find(d => d.is_active && !d.is_expired) : null;
+
             // Calculate default fixed discount (MRP - Retail Price)
             const defaultFixedDiscount = product.max_retail_price - product.retail_price;
+
             // Calculate final price and discount values
             let finalPrice = price;
             let discountFixed = 0;
             let discountPercent = 0;
+
             if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {
                     discountPercent = activeDiscount.amount;
-                    // Calculate discounted price based on MRP, not current price
                     finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
                 } else if (activeDiscount.type === 'fixed') {
                     discountFixed = activeDiscount.amount;
@@ -696,18 +868,17 @@
                     if (finalPrice < 0) finalPrice = 0;
                 }
             } else {
-                // Apply default discount (MRP - Retail Price) when no active discount
+                // Apply default discount when no active discount
                 discountFixed = defaultFixedDiscount;
-                finalPrice = product.retail_price; // Use retail price as base
-                discountPercent = (discountFixed / product.max_retail_price) *
-                    100; // Calculate percentage equivalent
+                finalPrice = product.retail_price;
+                discountPercent = (discountFixed / product.max_retail_price) * 100;
             }
-            // If batchId is "all", get the total stock
+
+            // Adjust batch quantity
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
                 adjustedBatchQuantity = stockEntry.total_stock;
             } else {
-                // Find the specific batch's available quantity
                 const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
                 if (selectedBatch) {
                     const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ===
@@ -717,92 +888,172 @@
                     }
                 }
             }
-            // Check if the product already exists in the billing body
-            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                const rowProductId = row.querySelector('.product-id').textContent;
-                const rowBatchId = row.querySelector('.batch-id').textContent;
-                return rowProductId == product.id && rowBatchId == batchId;
-            });
-            if (existingRow) {
-                // Product already exists, update the quantity
-                const quantityInput = existingRow.querySelector('.quantity-input');
-                let currentQty = parseInt(quantityInput.value, 10);
-                let newQuantity = currentQty + saleQuantity;
-                // Validate against adjustedBatchQuantity
-                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
-                    toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
-                        'Warning');
+
+            // Check if product exists (only for non-IMEI products)
+            if (imeis.length === 0) {
+                const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                    const rowProductId = row.querySelector('.product-id').textContent;
+                    const rowBatchId = row.querySelector('.batch-id').textContent;
+                    return rowProductId == product.id && rowBatchId == batchId;
+                });
+
+                if (existingRow) {
+                    // Update existing row
+                    const quantityInput = existingRow.querySelector('.quantity-input');
+                    let currentQty = parseInt(quantityInput.value, 10);
+                    let newQuantity = currentQty + saleQuantity;
+
+                    if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                        toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
+                            'Warning');
+                        return;
+                    }
+
+                    quantityInput.value = newQuantity;
+                    const subtotalElement = existingRow.querySelector('.subtotal');
+                    const updatedSubtotal = newQuantity * finalPrice;
+                    subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+                    const quantityDisplay = existingRow.querySelector('.quantity-display');
+                    if (quantityDisplay) {
+                        quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
+                    }
+
+                    quantityInput.focus();
+                    quantityInput.select();
+                    updateTotals();
                     return;
                 }
-                quantityInput.value = newQuantity;
-                const subtotalElement = existingRow.querySelector('.subtotal');
-                const updatedSubtotal = newQuantity * finalPrice;
-                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
-                const quantityDisplay = existingRow.querySelector('.quantity-display');
-                if (quantityDisplay) {
-                    quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
-                }
-                quantityInput.focus();
-                quantityInput.select();
-                updateTotals();
-            } else {
-                // Product does not exist, add a new row
-                const row = document.createElement('tr');
-                row.innerHTML = `
+            }
+
+            // Create new row for IMEI products or new non-IMEI products
+            const row = document.createElement('tr');
+
+            // IMEI display logic
+            let imeiDisplay = '';
+            if (imeis.length > 0) {
+                imeiDisplay = `
+            <div class="imei-display">
+                <span class="badge bg-info">IMEI: ${imeis[0]}</span>
+            </div>
+        `;
+            }
+
+            row.innerHTML = `
         <td>
             <div class="d-flex align-items-center">
                 <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
                 <div class="product-info">
                     <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px;">
-                        ${product.product_name} <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
-                        ${activeDiscount ? `<span class="badge bg-success ms-1">Discount: ${activeDiscount.amount}${activeDiscount.type === 'percentage' ? '%' : ''}</span>` : 
-                          (defaultFixedDiscount > 0 ? `` : '')}
+                        ${product.product_name} 
+                        <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
+                        ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
                     </div>
                     <div class="text-muted me-2 product-sku">${product.sku}
-                     
-                        <span class="badge bg-secondary ms-1">Stock: ${adjustedBatchQuantity} Pc(s)</span>
+                        ${imeis.length > 0 ? `<i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View IMEI"></i>` : ''}
+                        <span class="quantity-display ms-2">${saleQuantity} of ${adjustedBatchQuantity} PC(s)</span>
                     </div>
+                    ${imeiDisplay}
                 </div>
             </div>
         </td>
         <td>
             <div class="d-flex justify-content-center">
                 <button class="btn btn-danger quantity-minus btn">-</button>
-                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}">
+                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''}>
                 <button class="btn btn-success quantity-plus btn">+</button>
             </div>
         </td>
         <td>
-            <input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}" ${activeDiscount?.type === 'percentage' ? 'disabled' : ''}>
+            <input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}">
         </td>
         <td>
-            <input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}" ${activeDiscount?.type === 'fixed' ? 'disabled' : ''}>
+            <input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}">
         </td>
-        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0"></td>
+        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0" ${imeis.length > 0 ? 'readonly' : ''}></td>
         <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * finalPrice).toFixed(2))}</td>
         <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
-        
+        <td class="d-none imei-data">${imeis.length > 0 ? imeis.join(',') : ''}</td>
     `;
-                billingBody.insertBefore(row, billingBody.firstChild);
-                attachRowEventListeners(row, product, stockEntry);
-                const quantityInput = row.querySelector('.quantity-input');
-                quantityInput.focus();
-                quantityInput.select();
-                quantityInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        document.getElementById('productSearchInput').focus();
-                    }
-                });
-                disableConflictingDiscounts(row);
-                updateTotals();
+
+            // Update quantity display for IMEI products
+            const qtyDisplayCell = row.querySelector('.quantity-display');
+            if (imeis.length > 0) {
+                qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} PC(s)`;
             }
 
-            
+
+        // With this:
+            if (imeis.length > 0) {
+                const quantityInput = row.querySelector('.quantity-input');
+                const plusBtn = row.querySelector('.quantity-plus');
+                const minusBtn = row.querySelector('.quantity-minus');
+
+                if (quantityInput) quantityInput.readOnly = true;
+                if (plusBtn) plusBtn.disabled = true;
+                if (minusBtn) minusBtn.disabled = true;
+            } else {
+                // Ensure inputs and buttons are enabled for non-IMEI products
+                const quantityInput = row.querySelector('.quantity-input');
+                const plusBtn = row.querySelector('.quantity-plus');
+                const minusBtn = row.querySelector('.quantity-minus');
+
+                if (quantityInput) quantityInput.readOnly = false;
+                if (plusBtn) plusBtn.disabled = false;
+                if (minusBtn) minusBtn.disabled = false;
+            }
+
+           
+            // Add row to billing body
+            billingBody.insertBefore(row, billingBody.firstChild);
+
+            // Attach event listeners
+            attachRowEventListeners(row, product, stockEntry);
+
+            // Focus on quantity input
+            const quantityInput = row.querySelector('.quantity-input');
+            quantityInput.focus();
+            quantityInput.select();
+
+            // Handle Enter key to focus search input
+            quantityInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    document.getElementById('productSearchInput').focus();
+                }
+            });
+
+            // Update UI
+            disableConflictingDiscounts(row);
+            updateTotals();
         }
+
+                // Global flag to throttle error display
+        let isErrorShown = false;
+
+        // Throttled function to show error only once within a time window
+        function showQuantityLimitError(maxQuantity) {
+            if (!isErrorShown) {
+                const errorSound = document.getElementsByClassName('errorSound')[0];
+                if (errorSound) {
+                    errorSound.play(); // Play sound only once
+                }
+
+                toastr.error(`You cannot add more than ${maxQuantity} units of this product.`, 'Error');
+
+                isErrorShown = true;
+
+                // Allow error to be shown again after 2 seconds
+                setTimeout(() => {
+                    isErrorShown = false;
+                }, 2000); // Adjust this duration as needed
+            }
+        }
+
+
 
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');
@@ -829,6 +1080,8 @@
                 });
             }
 
+            
+
             // Price input change → Recalculate discount
             priceInput.addEventListener('input', () => {
                 const mrpElement = row.querySelector('.product-name .badge.bg-info');
@@ -846,23 +1099,21 @@
                 updateTotals();
             });
 
-            // Helper function to validate and update quantities
-            const validateAndUpdateQuantity = (newQuantity) => {
+           const validateAndUpdateQuantity = (newQuantity) => {
+                const priceInput = row.querySelector('.price-input');
                 const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+
                 if (newQuantity > maxQuantity && product.stock_alert !== 0) {
-                    document.getElementsByClassName('errorSound')[0]?.play();
-                    toastr.error(
-                        `You cannot add more than ${maxQuantity} units of this product.`,
-                        'Error'
-                    );
+                    showQuantityLimitError(maxQuantity);
                     return false;
                 }
+
                 quantityInput.value = newQuantity;
                 updateTotals();
                 return true;
             };
 
-            // Event listener for the minus button
+           // Minus button
             quantityMinus.addEventListener('click', () => {
                 const currentQuantity = parseInt(quantityInput.value, 10);
                 if (currentQuantity > 1) {
@@ -870,18 +1121,18 @@
                 }
             });
 
-            // Event listener for the plus button
+            // Plus button
             quantityPlus.addEventListener('click', () => {
                 const currentQuantity = parseInt(quantityInput.value, 10);
                 validateAndUpdateQuantity(currentQuantity + 1);
             });
 
-            // Event listener for direct input in the quantity field
+            // Input change
             quantityInput.addEventListener('input', () => {
                 let quantityValue = parseInt(quantityInput.value, 10);
-                if (isNaN(quantityValue) || quantityValue < 1) {
-                    quantityValue = 1; // Default to 1 if invalid input
-                }
+                if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
+                const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute('data-quantity'), 10);
+                quantityValue = Math.min(quantityValue, maxQuantity); // Clamp
                 validateAndUpdateQuantity(quantityValue);
             });
 
@@ -907,7 +1158,7 @@
 
         document.getElementById('saveProductChanges').onclick = function() {
             const selectedPriceType = document.querySelector('input[name="modal-price-type"]:checked')
-            .value;
+                .value;
             const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
             const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
             const batchId = selectedBatch.value;
@@ -949,7 +1200,7 @@
                     selectedPriceType === 'wholesale' ?
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
-                    productSkuCell.innerHTML = `${productSkuCell.textContent.trim()} ${stars}`;
+                productSkuCell.innerHTML = `${productSkuCell.textContent.trim()} ${stars}`;
 
                 updateTotals();
             }
@@ -1291,92 +1542,93 @@
 
         $(document).ready(function() {
 
-            function gatherSaleData(status) {
-                const uniqueNumber = new Date().getTime() % 10000;
-                const customerId = $('#customer-id').val();
-                const salesDate = new Date().toISOString().slice(0, 10);
+           function gatherSaleData(status) {
+    const uniqueNumber = new Date().getTime() % 10000;
+    const customerId = $('#customer-id').val();
+    const salesDate = new Date().toISOString().slice(0, 10);
 
-                if (!locationId) {
-                    toastr.error('Location ID is required.');
-                    return null;
-                }
+    if (!locationId) {
+        toastr.error('Location ID is required.');
+        return null;
+    }
 
-                // Get discount values - default to 'fixed' and 0 if not set
-                const discountType = $('#discount-type').val() || 'fixed';
-                const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
+    // Get discount values
+    const discountType = $('#discount-type').val() || 'fixed';
+    const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
 
-                // Calculate total amount and final amount
-                const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
-                let finalAmount = totalAmount;
+    // Calculate total amount and final amount
+    const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
+    let finalAmount = totalAmount;
 
-                // Apply discount
-                if (discountType === 'percentage') {
-                    finalAmount -= totalAmount * (discountAmount / 100);
-                } else {
-                    finalAmount -= discountAmount;
-                }
+    // Apply discount
+    if (discountType === 'percentage') {
+        finalAmount -= totalAmount * (discountAmount / 100);
+    } else {
+        finalAmount -= discountAmount;
+    }
 
-                // Ensure final amount doesn't go negative
-                finalAmount = Math.max(0, finalAmount);
+    // Ensure final amount doesn't go negative
+    finalAmount = Math.max(0, finalAmount);
 
-                const saleData = {
-                    customer_id: customerId,
-                    sales_date: salesDate,
-                    location_id: locationId,
-                    status: status,
-                    sale_type: "POS",
-                    products: [],
-                    discount_type: discountType, // Always include discount_type
-                    discount_amount: discountAmount,
-                    total_amount: totalAmount,
-                    final_total: finalAmount, // Add final_total field
-                };
+    const saleData = {
+        customer_id: customerId,
+        sales_date: salesDate,
+        location_id: locationId,
+        status: status,
+        sale_type: "POS",
+        products: [],
+        discount_type: discountType,
+        discount_amount: discountAmount,
+        total_amount: totalAmount,
+        final_total: finalAmount,
+    };
 
-                const productRows = $('#billing-body tr');
-                if (productRows.length === 0) {
-                    toastr.error('At least one product is required.');
-                    return null;
-                }
+    const productRows = $('#billing-body tr');
+    if (productRows.length === 0) {
+        toastr.error('At least one product is required.');
+        return null;
+    }
 
-                productRows.each(function() {
-                    const productRow = $(this);
-                    const batchId = productRow.find('.batch-id').text().trim();
-                    const locationId = productRow.find('.location-id').text().trim();
-                    const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
-                        .trim()) || 0;
-                    const discountPercent = parseFloat(productRow.find('.percent_discount')
-                        .val().trim()) || 0;
+    productRows.each(function() {
+        const productRow = $(this);
+        const batchId = productRow.find('.batch-id').text().trim();
+        const locationId = productRow.find('.location-id').text().trim();
+        const discountFixed = parseFloat(productRow.find('.fixed_discount').val().trim()) || 0;
+        const discountPercent = parseFloat(productRow.find('.percent_discount').val().trim()) || 0;
+        const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
 
-                    // Determine which discount is active
-                    const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
-                    const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
+        // Determine which discount is active
+        const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
+        const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
 
-                    if (!locationId) {
-                        toastr.error('Location ID is missing for a product.');
-                        return;
-                    }
+        // Get IMEI numbers if any
+        const imeiData = productRow.find('.imei-data').text().trim();
+        const imeis = imeiData ? [imeiData] : []; // Create array with single IMEI
 
-                    const productData = {
-                        product_id: parseInt(productRow.find('.product-id').text().trim(),
-                            10),
-                        location_id: parseInt(locationId, 10),
-                        quantity: parseInt(productRow.find('.quantity-input').val().trim(),
-                            10),
-                        price_type: priceType,
-                        unit_price: parseFormattedAmount(productRow.find('.price-input')
-                            .val().trim()),
-                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
-                            .trim()),
-                        discount_amount: discountAmount,
-                        discount_type: discountType,
-                        tax: 0,
-                        batch_id: batchId === "all" ? "all" : batchId,
-                    };
-                    saleData.products.push(productData);
-                });
+        if (!locationId) {
+            toastr.error('Location ID is missing for a product.');
+            return;
+        }
 
-                return saleData;
-            }
+        const productData = {
+            product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
+            location_id: parseInt(locationId, 10),
+            quantity: isImeiProduct ? 1 : parseInt(productRow.find('.quantity-input').val().trim(), 10),
+            price_type: priceType,
+            unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
+            subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
+            discount_amount: discountAmount,
+            discount_type: discountType,
+            tax: 0,
+            batch_id: batchId === "all" ? "all" : batchId,
+            imei_numbers: imeis,
+        };
+        
+        saleData.products.push(productData);
+    });
+
+    return saleData;
+}
 
 
             function sendSaleData(saleData, saleId = null) {
@@ -1722,17 +1974,17 @@
                 sales.forEach(sale => {
                     const finalTotal = parseFormattedAmount(sale.final_total);
                     const saleRow = `
-            <tr>
-                <td>${sale.invoice_no}</td>
-                <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
-                <td>${sale.customer ? sale.customer.name : 'Walk-In Customer'}</td>
-                <td>${sale.products.length}</td>
-                <td>$${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
-                <td>
-                    <a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
-                    <button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>
-                </td>
-            </tr>`;
+                <tr>
+                    <td>${sale.invoice_no}</td>
+                    <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
+                    <td>${sale.customer ? sale.customer.name : 'Walk-In Customer'}</td>
+                    <td>${sale.products.length}</td>
+                    <td>$${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
+                    <td>
+                        <a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
+                        <button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>
+                    </td>
+                </tr>`;
                     suspendedSalesContainer.append(saleRow);
                 });
 
@@ -1886,38 +2138,38 @@
         });
     }
 
-function loadTableData(status) {
-    const table = $('#transactionTable').DataTable();
-    table.clear().draw(); // Clear existing data
+    function loadTableData(status) {
+        const table = $('#transactionTable').DataTable();
+        table.clear().draw(); // Clear existing data
 
-    // Filter by status
-    const filteredSales = sales.filter(sale => sale.status === status);
+        // Filter by status
+        const filteredSales = sales.filter(sale => sale.status === status);
 
-    if (filteredSales.length === 0) {
-        table.row.add([
-            '', 'No records found', '', '', '', '', ''
-        ]).draw(false);
-    } else {
-        // Sort by id descending (latest ID first)
-        const sortedSales = filteredSales.sort((a, b) => b.id - a.id);
-
-        // Add each row in sorted order
-        sortedSales.forEach((sale, index) => {
+        if (filteredSales.length === 0) {
             table.row.add([
-                index + 1,
-                sale.invoice_no,
-                `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
-                sale.sales_date,
-                sale.final_total,
-                `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
-                '' // Extra column if needed
-            ]);
-        });
+                '', 'No records found', '', '', '', '', ''
+            ]).draw(false);
+        } else {
+            // Sort by id descending (latest ID first)
+            const sortedSales = filteredSales.sort((a, b) => b.id - a.id);
 
-        table.draw(); // Draw all rows at once for performance
+            // Add each row in sorted order
+            sortedSales.forEach((sale, index) => {
+                table.row.add([
+                    index + 1,
+                    sale.invoice_no,
+                    `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                    sale.sales_date,
+                    sale.final_total,
+                    `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
+                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
+                    '' // Extra column if needed
+                ]);
+            });
+
+            table.draw(); // Draw all rows at once for performance
+        }
     }
-}
 
     // Function to navigate to the edit page
     function navigateToEdit(saleId) {
@@ -1957,67 +2209,7 @@ function loadTableData(status) {
             });
     }
 
-    // function deleteSale(saleId) {
-    //     swal({
-    //         title: "Are you sure?",
-    //         text: "Do you really want to delete this sale? This action cannot be undone.",
-    //         type: "warning",
-    //         showCancelButton: true,
-    //         confirmButtonColor: "#d33",
-    //         cancelButtonColor: "#3085d6",
-    //         confirmButtonText: "Yes, delete it!",
-    //         cancelButtonText: "Cancel",
-    //         closeOnConfirm: false
-    //     }, function(isConfirm) {
-    //         if (isConfirm) {
-    //             $.ajax({
-    //                 url: `/sales/delete/${saleId}`,
-    //                 method: 'DELETE',
-    //                 headers: {
-    //                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-    //                 },
-    //                 success: function(response) {
-    //                     if (response.status === 200) {
-    //                         // First close the swal
-    //                         swal.close();
-
-    //                         // Use setTimeout to ensure swal is fully closed before proceeding
-    //                         setTimeout(function() {
-    //                             toastr.success(response.message ||
-    //                                 "Sale deleted successfully!");
-    //                             const successSound = document.querySelector(
-    //                                 '.successSound');
-    //                             if (successSound) {
-    //                                 successSound.play();
-    //                             }
-    //                             // Refresh the sales data
-    //                             loadTableData('final');
-    //                             fetchSalesData();
-    //                         }, 100); // small delay to allow swal to visually close
-    //                     } else {
-    //                         swal("Error!", response.message ||
-    //                             "An error occurred while deleting the sale.", "error");
-    //                     }
-    //                 },
-    //                 error: function(xhr, status, error) {
-    //                     let errorMessage = "Unable to delete the sale. Please try again later.";
-    //                     if (xhr.responseJSON && xhr.responseJSON.message) {
-    //                         errorMessage = xhr.responseJSON.message;
-    //                     }
-    //                     swal("Error!", errorMessage, "error");
-    //                     console.error('Delete error:', error);
-    //                 }
-    //             });
-    //         }
-    //     });
-    // }
-
-    // // Event listener to load sales data when the page is loaded
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     fetchSalesData();
-
-
-    // });
+   
 </script>
 
 
@@ -2083,7 +2275,6 @@ function loadTableData(status) {
         // Initial focus on the first quantity input if available
         focusQuantityInput();
     });
-</script>
 </script>
 
 <!-- Include cleave.js -->
@@ -2182,35 +2373,5 @@ function loadTableData(status) {
         @if (Session::has('toastr-info'))
             toastr.info("{{ Session::get('toastr-info') }}");
         @endif
-    });
-</script>
-
-{{-- Prevent Inspect Element --}}
-<script>
-    document.addEventListener('keydown', function(event) {
-        // Prevent F12 (which opens the developer tools)
-        if (event.keyCode === 123) {
-            event.preventDefault();
-        }
-
-        // Prevent Ctrl+Shift+I (or Cmd+Shift+I on macOS)
-        if (event.ctrlKey && event.shiftKey && event.keyCode === 73) {
-            event.preventDefault();
-        }
-
-        // Prevent Ctrl+Shift+J (or Cmd+Shift+J on macOS)
-        if (event.ctrlKey && event.shiftKey && event.keyCode === 74) {
-            event.preventDefault();
-        }
-
-        // Prevent Ctrl+U (or Cmd+U on macOS) which opens the source code viewer
-        if (event.ctrlKey && event.keyCode === 85) {
-            event.preventDefault();
-        }
-
-        // Prevent Ctrl+Shift+C (or Cmd+Shift+C on macOS) which opens the inspect element tool
-        if (event.ctrlKey && event.shiftKey && event.keyCode === 67) {
-            event.preventDefault();
-        }
     });
 </script>

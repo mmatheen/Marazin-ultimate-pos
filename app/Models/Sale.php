@@ -180,4 +180,9 @@ class Sale extends Model
             return $this->subtotal - $this->discount_amount;
         }
     }
+
+        public function imeis()
+        {
+            return $this->hasMany(SaleImei::class);
+        }
 }

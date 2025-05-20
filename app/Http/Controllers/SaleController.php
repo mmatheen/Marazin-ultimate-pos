@@ -15,6 +15,8 @@ use App\Models\SalesPayment;
 use App\Models\SalesReturn;
 use App\Models\StockHistory;
 use App\Models\Transaction;
+use App\Models\SaleImei;
+use App\Models\ImeiNumber;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -261,6 +263,8 @@ class SaleController extends Controller
             'products.*.price_type' => 'required|string|in:retail,wholesale,special',
             'products.*.discount' => 'nullable|numeric|min:0',
             'products.*.tax' => 'nullable|numeric|min:0',
+            'products.*.imei_numbers' => 'nullable|array', // Allow IMEI array
+            'products.*.imei_numbers.*' => 'string|max:255',
             'payments' => 'nullable|array',
             'payments.*.payment_method' => 'required_with:payments|string',
             'payments.*.payment_date' => 'required_with:payments|date',
@@ -537,23 +541,54 @@ private function processProductSale($productData, $saleId, $locationId, $stockTy
         }
     }
 
-    // Now insert into sales_products — one record per batch
-    foreach ($batchDeductions as $deduction) {
-        SalesProduct::create([
-            'sale_id' => $saleId,
-            'product_id' => $productData['product_id'],
-            'quantity' => $deduction['quantity'],
-            'price' => $productData['unit_price'],
-            'unit_price' => $productData['unit_price'],
-            'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
-            'batch_id' => $deduction['batch_id'],
-            'location_id' => $locationId,
-            'price_type' => $productData['price_type'],
-            'discount_amount' => $productData['discount_amount'] ?? 0,
-            'discount_type' => $productData['discount_type'] ?? 'fixed',
-            'tax' => $productData['tax'] ?? 0,
-        ]);
+  // Loop through batch deductions
+foreach ($batchDeductions as $deduction) {
+    // Create sales_product record for this batch
+    $saleProduct = SalesProduct::create([
+        'sale_id' => $saleId,
+        'product_id' => $productData['product_id'],
+        'quantity' => $deduction['quantity'],
+        'price' => $productData['unit_price'],
+        'unit_price' => $productData['unit_price'],
+        'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
+        'batch_id' => $deduction['batch_id'],
+        'location_id' => $locationId,
+        'price_type' => $productData['price_type'],
+        'discount_amount' => $productData['discount_amount'] ?? 0,
+        'discount_type' => $productData['discount_type'] ?? 'fixed',
+        'tax' => $productData['tax'] ?? 0,
+    ]);
+
+    // Handle IMEI insertion if available
+    if (!empty($productData['imei_numbers']) && is_array($productData['imei_numbers'])) {
+
+        // Counter to limit IMEIs to current batch deduction quantity
+        $count = 0;
+
+        foreach ($productData['imei_numbers'] as $imei) {
+            if ($count >= $deduction['quantity']) break;
+
+            // Update IMEI status to 'sold'
+            ImeiNumber::where('imei_number', $imei)
+                ->where('product_id', $productData['product_id'])
+                ->where('batch_id', $deduction['batch_id']) // Use same batch ID as deduction
+                ->where('location_id', $locationId)
+                ->update(['status' => 'sold']);
+
+            // Record IMEI in sale_imeis table
+            SaleImei::create([
+                'sale_id' => $saleId,
+                'sale_product_id' => $saleProduct->id,
+                'product_id' => $productData['product_id'],
+                'batch_id' => $deduction['batch_id'],
+                'location_id' => $locationId,
+                'imei_number' => $imei,
+            ]);
+
+            $count++;
+        }
     }
+}
 }
     private function deductBatchStock($batchId, $locationId, $quantity, $stockType)
     {

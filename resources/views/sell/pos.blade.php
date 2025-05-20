@@ -43,6 +43,15 @@
             .is-validGreen {
                 border-color: rgb(3, 105, 54) !important;
             }
+
+                .toast-error {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                    }
         
             /* Hide number input arrows in Chrome, Safari, Edge, and Opera */
             .quantity-input::-webkit-outer-spin-button,
@@ -1309,35 +1318,50 @@
 
 
     <!-- IMEI Selection Modal -->
-<div class="modal fade" id="imeiSelectionModal" tabindex="-1" aria-labelledby="imeiSelectionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="imeiSelectionModalLabel">Select IMEI Numbers</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- IMEI Selection Modal -->
+<div class="modal fade" id="imeiModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Select IMEIs</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+            <div class="p-3">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <input type="text" id="imeiSearch" class="form-control" placeholder="Search IMEI..." />
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <select id="checkboxFilter" class="form-select">
+                            <option value="all">Show All</option>
+                            <option value="checked">Only Checked</option>
+                            <option value="unchecked">Only Unchecked</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="selectedProductIdForImei">
-                <table class="table table-bordered" id="imeiSelectionTable">
-                    <thead>
-                        <tr>
-                            <th>Select</th>
-                            <th>IMEI Number</th>
-                            <th>Batch No</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="imeiSelectionBody">
-                        <!-- IMEIs will be populated here -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmImeiSelection">Confirm</button>
-            </div>
+          <table class="table table-bordered table-hover">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Select</th>
+                <th>IMEI</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="imei-table-body">
+              <!-- Rows go here -->
+            </tbody>
+          </table>
         </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="confirmImeiSelection">Confirm</button>
+      </div>
     </div>
+  </div>
 </div>
 
     <script>
