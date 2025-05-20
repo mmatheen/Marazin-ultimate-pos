@@ -320,98 +320,128 @@
                 });
         }
 
-        function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
+     function initAutocomplete() {
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            const searchTerm = request.term.toLowerCase();
 
-                    // Filter products that:
-                    // 1. Match the search term (anywhere in product name or SKU)
-                    // 2. Have total_stock > 0
-                    const filteredProducts = allProducts.filter(product =>
-                        (
-                            (product.product_name && product.product_name.toLowerCase()
-                                .includes(searchTerm)) ||
-                            (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                        ) &&
-                        product.total_stock > 0 // 👈 Only show products with stock > 0
-                    ).sort((a, b) => {
-                        // Sort alphabetically by product_name
-                        const nameA = a.product_name?.toLowerCase() || '';
-                        const nameB = b.product_name?.toLowerCase() || '';
-                        return nameA.localeCompare(nameB);
-                    });
+            // Filter products by:
+            // - product name or SKU or IMEI number (partial match)
+            // - total_stock > 0
+            const filteredProducts = allProducts.filter(product => {
+                const matchesNameOrSku = (
+                    (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
+                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                );
 
-                    // Map for autocomplete UI
-                    const autoCompleteResults = filteredProducts.length ?
-                        filteredProducts.map(p => ({
-                            label: `${p.product_name} (${p.sku || 'No SKU'}) [Total Stock: ${p.total_stock || 0}]`,
-                            value: p.product_name,
-                            product: p
-                        })) : [{
-                            label: "No products found",
-                            value: ""
-                        }];
+                // Search through all IMEIs across batches and location_batches
+                const imeiMatch = product.batches?.some(batch =>
+                    batch.imei_numbers?.some(imeiObj =>
+                        imeiObj.imei_number?.toLowerCase().includes(searchTerm)
+                    )
+                );
 
-                    response(autoCompleteResults);
+                return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
+            });
 
-                    // If exactly one match and search term is long enough, add to table
-                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
-                        addProductToTable(filteredProducts[0]);
+            // Sort alphabetically by product name
+            filteredProducts.sort((a, b) => {
+                const nameA = a.product_name?.toLowerCase() || '';
+                const nameB = b.product_name?.toLowerCase() || '';
+                return nameA.localeCompare(nameB);
+            });
+
+            // Map results for UI
+            const autoCompleteResults = filteredProducts.length
+                ? filteredProducts.map(p => {
+                    // Find matching IMEI if any
+                    let matchedImei = null;
+
+                    for (const batch of p.batches || []) {
+                        for (const imei of batch.imei_numbers || []) {
+                            if (imei.imei_number?.toLowerCase().includes(searchTerm)) {
+                                matchedImei = imei.imei_number;
+                                break;
+                            }
+                        }
+                        if (matchedImei) break;
                     }
-                },
-                select: function(event, ui) {
-                    if (!ui.item.product) return false;
-                    $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product);
-                    return false;
-                },
-                focus: function(event, ui) {
-                    $("#productSearchInput").val(ui.item.value);
-                    return false;
-                },
-                minLength: 1,
-                open: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                },
-                close: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-                }
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                const $li = $("<li>").append(
-                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
-                ).appendTo(ul);
 
-                $li.data("ui-autocomplete-item", item);
-                $li.on("mouseenter", function() {
-                    $(this).addClass("ui-state-focus");
-                }).on("mouseleave", function() {
-                    $(this).removeClass("ui-state-focus");
-                });
+                    const label = matchedImei
+                        ? `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]`
+                        : `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`;
 
-                return $li;
-            };
+                    return {
+                        label: label,
+                        value: p.product_name,
+                        product: p,
+                        imei: matchedImei
+                    };
+                })
+                : [{
+                    label: "No products found",
+                    value: ""
+                }];
 
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+            response(autoCompleteResults);
 
-            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-                if (!this.menu.element.is(":visible")) {
-                    this.search(null, event);
-                    return;
-                }
-                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-                    this.menu.isLastItem() && /^next/.test(direction)) {
-                    this._value(this.term);
-                    this.menu.blur();
-                    return;
-                }
-                this.menu[direction](event);
-                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                this.menu.active.addClass("ui-state-focus");
-            };
+            // Auto-add product if exactly one match and term is long enough
+            if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                addProductToTable(filteredProducts[0]);
+            }
+        },
+        select: function(event, ui) {
+            if (!ui.item.product) return false;
+
+            $("#productSearchInput").val("");
+            addProductToTable(ui.item.product);
+            return false;
+        },
+        focus: function(event, ui) {
+            $("#productSearchInput").val(ui.item.value);
+            return false;
+        },
+        minLength: 1,
+        open: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+        },
+        close: function() {
+            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
         }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        const $li = $("<li>").append(
+            `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+        ).appendTo(ul);
 
+        $li.data("ui-autocomplete-item", item);
+        $li.on("mouseenter", function() {
+            $(this).addClass("ui-state-focus");
+        }).on("mouseleave", function() {
+            $(this).removeClass("ui-state-focus");
+        });
+
+        return $li;
+    };
+
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+        if (!this.menu.element.is(":visible")) {
+            this.search(null, event);
+            return;
+        }
+        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+            this.menu.isLastItem() && /^next/.test(direction)) {
+            this._value(this.term);
+            this.menu.blur();
+            return;
+        }
+        this.menu[direction](event);
+        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+        this.menu.active.addClass("ui-state-focus");
+    };
+}
         function displayProducts(products) {
             posProduct.innerHTML = ''; // Clear previous products
 
