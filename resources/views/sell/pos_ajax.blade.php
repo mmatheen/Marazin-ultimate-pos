@@ -320,128 +320,131 @@
                 });
         }
 
-     function initAutocomplete() {
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
+        function initAutocomplete() {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
 
-            // Filter products by:
-            // - product name or SKU or IMEI number (partial match)
-            // - total_stock > 0
-            const filteredProducts = allProducts.filter(product => {
-                const matchesNameOrSku = (
-                    (product.product_name && product.product_name.toLowerCase().includes(searchTerm)) ||
-                    (product.sku && product.sku.toLowerCase().includes(searchTerm))
-                );
+                    // Filter products by:
+                    // - product name or SKU or IMEI number (partial match)
+                    // - total_stock > 0
+                    const filteredProducts = allProducts.filter(product => {
+                        const matchesNameOrSku = (
+                            (product.product_name && product.product_name.toLowerCase()
+                                .includes(searchTerm)) ||
+                            (product.sku && product.sku.toLowerCase().includes(
+                                searchTerm))
+                        );
 
-                // Search through all IMEIs across batches and location_batches
-                const imeiMatch = product.batches?.some(batch =>
-                    batch.imei_numbers?.some(imeiObj =>
-                        imeiObj.imei_number?.toLowerCase().includes(searchTerm)
-                    )
-                );
+                        // Search through all IMEIs across batches and location_batches
+                        const imeiMatch = product.batches?.some(batch =>
+                            batch.imei_numbers?.some(imeiObj =>
+                                imeiObj.imei_number?.toLowerCase().includes(searchTerm)
+                            )
+                        );
 
-                return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
-            });
+                        return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
+                    });
 
-            // Sort alphabetically by product name
-            filteredProducts.sort((a, b) => {
-                const nameA = a.product_name?.toLowerCase() || '';
-                const nameB = b.product_name?.toLowerCase() || '';
-                return nameA.localeCompare(nameB);
-            });
+                    // Sort alphabetically by product name
+                    filteredProducts.sort((a, b) => {
+                        const nameA = a.product_name?.toLowerCase() || '';
+                        const nameB = b.product_name?.toLowerCase() || '';
+                        return nameA.localeCompare(nameB);
+                    });
 
-            // Map results for UI
-            const autoCompleteResults = filteredProducts.length
-                ? filteredProducts.map(p => {
-                    // Find matching IMEI if any
-                    let matchedImei = null;
+                    // Map results for UI
+                    const autoCompleteResults = filteredProducts.length ?
+                        filteredProducts.map(p => {
+                            // Find matching IMEI if any
+                            let matchedImei = null;
 
-                    for (const batch of p.batches || []) {
-                        for (const imei of batch.imei_numbers || []) {
-                            if (imei.imei_number?.toLowerCase().includes(searchTerm)) {
-                                matchedImei = imei.imei_number;
-                                break;
+                            for (const batch of p.batches || []) {
+                                for (const imei of batch.imei_numbers || []) {
+                                    if (imei.imei_number?.toLowerCase().includes(searchTerm)) {
+                                        matchedImei = imei.imei_number;
+                                        break;
+                                    }
+                                }
+                                if (matchedImei) break;
                             }
-                        }
-                        if (matchedImei) break;
+
+                            const label = matchedImei ?
+                                `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]` :
+                                `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`;
+
+                            return {
+                                label: label,
+                                value: p.product_name,
+                                product: p,
+                                imei: matchedImei
+                            };
+                        }) :
+                        [{
+                            label: "No products found",
+                            value: ""
+                        }];
+
+                    response(autoCompleteResults);
+
+                    // Auto-add product if exactly one match and term is long enough
+                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                        addProductToTable(filteredProducts[0]);
                     }
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product) return false;
 
-                    const label = matchedImei
-                        ? `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]`
-                        : `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`;
+                    $("#productSearchInput").val("");
+                    addProductToTable(ui.item.product);
+                    return false;
+                },
+                focus: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    return false;
+                },
+                minLength: 1,
+                open: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                },
+                close: function() {
+                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                const $li = $("<li>").append(
+                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+                ).appendTo(ul);
 
-                    return {
-                        label: label,
-                        value: p.product_name,
-                        product: p,
-                        imei: matchedImei
-                    };
-                })
-                : [{
-                    label: "No products found",
-                    value: ""
-                }];
+                $li.data("ui-autocomplete-item", item);
+                $li.on("mouseenter", function() {
+                    $(this).addClass("ui-state-focus");
+                }).on("mouseleave", function() {
+                    $(this).removeClass("ui-state-focus");
+                });
 
-            response(autoCompleteResults);
+                return $li;
+            };
 
-            // Auto-add product if exactly one match and term is long enough
-            if (filteredProducts.length === 1 && searchTerm.length >= 2) {
-                addProductToTable(filteredProducts[0]);
-            }
-        },
-        select: function(event, ui) {
-            if (!ui.item.product) return false;
+            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
 
-            $("#productSearchInput").val("");
-            addProductToTable(ui.item.product);
-            return false;
-        },
-        focus: function(event, ui) {
-            $("#productSearchInput").val(ui.item.value);
-            return false;
-        },
-        minLength: 1,
-        open: function() {
-            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
-        },
-        close: function() {
-            $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+                if (!this.menu.element.is(":visible")) {
+                    this.search(null, event);
+                    return;
+                }
+                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
+                    this.menu.isLastItem() && /^next/.test(direction)) {
+                    this._value(this.term);
+                    this.menu.blur();
+                    return;
+                }
+                this.menu[direction](event);
+                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                this.menu.active.addClass("ui-state-focus");
+            };
         }
-    }).autocomplete("instance")._renderItem = function(ul, item) {
-        const $li = $("<li>").append(
-            `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
-        ).appendTo(ul);
 
-        $li.data("ui-autocomplete-item", item);
-        $li.on("mouseenter", function() {
-            $(this).addClass("ui-state-focus");
-        }).on("mouseleave", function() {
-            $(this).removeClass("ui-state-focus");
-        });
-
-        return $li;
-    };
-
-    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-        if (!this.menu.element.is(":visible")) {
-            this.search(null, event);
-            return;
-        }
-        if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-            this.menu.isLastItem() && /^next/.test(direction)) {
-            this._value(this.term);
-            this.menu.blur();
-            return;
-        }
-        this.menu[direction](event);
-        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-        this.menu.active.addClass("ui-state-focus");
-    };
-}
         function displayProducts(products) {
             posProduct.innerHTML = ''; // Clear previous products
 
@@ -733,6 +736,15 @@
                 const batchId = stockEntry.batches.length > 0 ? stockEntry.batches[0].id : "all";
                 const price = product.retail_price;
 
+                // Get the correct locationId for the IMEI/batch
+                let imeiLocationId = stockEntry.batches.length > 0 ?
+                    stockEntry.batches[0].location_batches.length > 0 ?
+                    stockEntry.batches[0].location_batches[0].location_id :
+                    1 :
+                    1;
+
+                locationId = imeiLocationId; // set global if function uses it
+
                 existingRows.forEach(row => row.remove());
 
                 selectedImeis.forEach(imei => {
@@ -754,12 +766,12 @@
         }
 
         // Then use it
-document.addEventListener('DOMContentLoaded', function () {
-  document.getElementById('imeiSearch').value = '';
-        document.getElementById('checkboxFilter').value = 'all';
-        applyFilters(); // Trigger initial display
-});
-       
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('imeiSearch').value = '';
+            document.getElementById('checkboxFilter').value = 'all';
+            applyFilters(); // Trigger initial display
+        });
+
 
         function showProductModal(product, stockEntry, row) {
             const modalBody = document.getElementById('productModalBody');
@@ -1017,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
 
-        // With this:
+            // With this:
             if (imeis.length > 0) {
                 const quantityInput = row.querySelector('.quantity-input');
                 const plusBtn = row.querySelector('.quantity-plus');
@@ -1037,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (minusBtn) minusBtn.disabled = false;
             }
 
-           
+
             // Add row to billing body
             billingBody.insertBefore(row, billingBody.firstChild);
 
@@ -1061,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateTotals();
         }
 
-                // Global flag to throttle error display
+        // Global flag to throttle error display
         let isErrorShown = false;
 
         // Throttled function to show error only once within a time window
@@ -1110,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            
+
 
             // Price input change → Recalculate discount
             priceInput.addEventListener('input', () => {
@@ -1129,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateTotals();
             });
 
-           const validateAndUpdateQuantity = (newQuantity) => {
+            const validateAndUpdateQuantity = (newQuantity) => {
                 const priceInput = row.querySelector('.price-input');
                 const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
 
@@ -1143,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return true;
             };
 
-           // Minus button
+            // Minus button
             quantityMinus.addEventListener('click', () => {
                 const currentQuantity = parseInt(quantityInput.value, 10);
                 if (currentQuantity > 1) {
@@ -1161,7 +1173,8 @@ document.addEventListener('DOMContentLoaded', function () {
             quantityInput.addEventListener('input', () => {
                 let quantityValue = parseInt(quantityInput.value, 10);
                 if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
-                const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute('data-quantity'), 10);
+                const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute(
+                    'data-quantity'), 10);
                 quantityValue = Math.min(quantityValue, maxQuantity); // Clamp
                 validateAndUpdateQuantity(quantityValue);
             });
@@ -1572,93 +1585,99 @@ document.addEventListener('DOMContentLoaded', function () {
 
         $(document).ready(function() {
 
-           function gatherSaleData(status) {
-    const uniqueNumber = new Date().getTime() % 10000;
-    const customerId = $('#customer-id').val();
-    const salesDate = new Date().toISOString().slice(0, 10);
+            function gatherSaleData(status) {
+                const uniqueNumber = new Date().getTime() % 10000;
+                const customerId = $('#customer-id').val();
+                const salesDate = new Date().toISOString().slice(0, 10);
 
-    if (!locationId) {
-        toastr.error('Location ID is required.');
-        return null;
-    }
+                if (!locationId) {
+                    toastr.error('Location ID is required.');
+                    return null;
+                }
 
-    // Get discount values
-    const discountType = $('#discount-type').val() || 'fixed';
-    const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
+                // Get discount values
+                const discountType = $('#discount-type').val() || 'fixed';
+                const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
 
-    // Calculate total amount and final amount
-    const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
-    let finalAmount = totalAmount;
+                // Calculate total amount and final amount
+                const totalAmount = parseFormattedAmount($('#total-amount').text()) || 0;
+                let finalAmount = totalAmount;
 
-    // Apply discount
-    if (discountType === 'percentage') {
-        finalAmount -= totalAmount * (discountAmount / 100);
-    } else {
-        finalAmount -= discountAmount;
-    }
+                // Apply discount
+                if (discountType === 'percentage') {
+                    finalAmount -= totalAmount * (discountAmount / 100);
+                } else {
+                    finalAmount -= discountAmount;
+                }
 
-    // Ensure final amount doesn't go negative
-    finalAmount = Math.max(0, finalAmount);
+                // Ensure final amount doesn't go negative
+                finalAmount = Math.max(0, finalAmount);
 
-    const saleData = {
-        customer_id: customerId,
-        sales_date: salesDate,
-        location_id: locationId,
-        status: status,
-        sale_type: "POS",
-        products: [],
-        discount_type: discountType,
-        discount_amount: discountAmount,
-        total_amount: totalAmount,
-        final_total: finalAmount,
-    };
+                const saleData = {
+                    customer_id: customerId,
+                    sales_date: salesDate,
+                    location_id: locationId,
+                    status: status,
+                    sale_type: "POS",
+                    products: [],
+                    discount_type: discountType,
+                    discount_amount: discountAmount,
+                    total_amount: totalAmount,
+                    final_total: finalAmount,
+                };
 
-    const productRows = $('#billing-body tr');
-    if (productRows.length === 0) {
-        toastr.error('At least one product is required.');
-        return null;
-    }
+                const productRows = $('#billing-body tr');
+                if (productRows.length === 0) {
+                    toastr.error('At least one product is required.');
+                    return null;
+                }
 
-    productRows.each(function() {
-        const productRow = $(this);
-        const batchId = productRow.find('.batch-id').text().trim();
-        const locationId = productRow.find('.location-id').text().trim();
-        const discountFixed = parseFloat(productRow.find('.fixed_discount').val().trim()) || 0;
-        const discountPercent = parseFloat(productRow.find('.percent_discount').val().trim()) || 0;
-        const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
+                productRows.each(function() {
+                    const productRow = $(this);
+                    const batchId = productRow.find('.batch-id').text().trim();
+                    const locationId = productRow.find('.location-id').text().trim();
+                    const discountFixed = parseFloat(productRow.find('.fixed_discount').val()
+                        .trim()) || 0;
+                    const discountPercent = parseFloat(productRow.find('.percent_discount')
+                    .val().trim()) || 0;
+                    const isImeiProduct = productRow.find('.imei-data').text().trim() !== '';
 
-        // Determine which discount is active
-        const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
-        const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
+                    // Determine which discount is active
+                    const discountType = discountFixed > 0 ? 'fixed' : 'percentage';
+                    const discountAmount = discountFixed > 0 ? discountFixed : discountPercent;
 
-        // Get IMEI numbers if any
-        const imeiData = productRow.find('.imei-data').text().trim();
-        const imeis = imeiData ? [imeiData] : []; // Create array with single IMEI
+                    // Get IMEI numbers if any
+                    const imeiData = productRow.find('.imei-data').text().trim();
+                    const imeis = imeiData ? [imeiData] : []; // Create array with single IMEI
 
-        if (!locationId) {
-            toastr.error('Location ID is missing for a product.');
-            return;
-        }
+                    if (!locationId) {
+                        toastr.error('Location ID is missing for a product.');
+                        return;
+                    }
 
-        const productData = {
-            product_id: parseInt(productRow.find('.product-id').text().trim(), 10),
-            location_id: parseInt(locationId, 10),
-            quantity: isImeiProduct ? 1 : parseInt(productRow.find('.quantity-input').val().trim(), 10),
-            price_type: priceType,
-            unit_price: parseFormattedAmount(productRow.find('.price-input').val().trim()),
-            subtotal: parseFormattedAmount(productRow.find('.subtotal').text().trim()),
-            discount_amount: discountAmount,
-            discount_type: discountType,
-            tax: 0,
-            batch_id: batchId === "all" ? "all" : batchId,
-            imei_numbers: imeis,
-        };
-        
-        saleData.products.push(productData);
-    });
+                    const productData = {
+                        product_id: parseInt(productRow.find('.product-id').text().trim(),
+                            10),
+                        location_id: parseInt(locationId, 10),
+                        quantity: isImeiProduct ? 1 : parseInt(productRow.find(
+                            '.quantity-input').val().trim(), 10),
+                        price_type: priceType,
+                        unit_price: parseFormattedAmount(productRow.find('.price-input')
+                            .val().trim()),
+                        subtotal: parseFormattedAmount(productRow.find('.subtotal').text()
+                            .trim()),
+                        discount_amount: discountAmount,
+                        discount_type: discountType,
+                        tax: 0,
+                        batch_id: batchId === "all" ? "all" : batchId,
+                        imei_numbers: imeis,
+                    };
 
-    return saleData;
-}
+                    saleData.products.push(productData);
+                });
+
+                return saleData;
+            }
 
 
             function sendSaleData(saleData, saleId = null) {
@@ -2238,8 +2257,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 // alert('An error occurred while fetching the receipt. Please try again.');
             });
     }
-
-   
 </script>
 
 
