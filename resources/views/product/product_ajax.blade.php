@@ -1279,24 +1279,23 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         const imeis = imeiText.split(/\r?\n/).filter(Boolean);
                         $('#imeiTable tbody').empty();
 
-                        if (imeis.length === 0) {
+                        if (imeiis.length === 0) {
                             toastr.warning("No IMEIs found to fill.");
                             return;
                         }
 
-                        imeis.forEach(imei => {
+                        imeis.forEach((imei, idx) => {
                             $('#imeiTable tbody').append(`
                                 <tr>
+                                    <td>${idx + 1}</td>
                                     <td><input type="text" class="form-control imei-input" value="${imei}"></td>
-                                    <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
+                                    <td><button class="btn btn-sm btn-danger removeImei"><i class="fas fa-trash"></i></button></td>
                                 </tr>
                             `);
                         });
 
                         toastr.success(`Filled ${imeis.length} rows from pasted IMEIs`);
                     });
-
-                    
 
                     // Load existing IMEIs if editing
                     if (isEditMode) {
@@ -1305,14 +1304,17 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                             method: 'GET',
                             success: function(res) {
                                 if (res.status === 200) {
+                                    $('#imeiTable tbody').empty();
                                     res.imeis.forEach((imei, index) => {
                                         $('#imeiTable tbody').append(`
                                             <tr>
+                                                <td>${index + 1}</td>
                                                 <td><input type="text" class="form-control imei-input" value="${imei.imei_number}" data-id="${imei.id}"></td>
                                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                                             </tr>
                                         `);
                                     });
+                                    $('#totalImeiCount').text(res.imeis.length);
                                 }
                             },
                             error: function() {
@@ -1321,19 +1323,30 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         });
                     }
 
-                    // Add Row Button
+                    // Add Row Button with qty check
                     $('#addImeiRow').off().on('click', function () {
+                        const currentCount = $('#imeiTable tbody tr').length;
+                        const allowedQty = totalQty;
+                        if (currentCount + 1 > allowedQty) {
+                            toastr.warning(`You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`);
+                            return;
+                        }
                         $('#imeiTable tbody').append(`
                             <tr>
+                                <td>${currentCount + 1}</td>
                                 <td><input type="text" class="form-control imei-input" placeholder="Enter IMEI"></td>
                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                             </tr>
                         `);
                     });
 
-                    // Remove Row on Click
+                    // Remove Row on Click (and update count)
                     $(document).on('click', '.removeImei', function () {
                         $(this).closest('tr').remove();
+                        // Re-number the rows after removal
+                        $('#imeiTable tbody tr').each(function(idx) {
+                            $(this).find('td:first').text(idx + 1);
+                        });
                     });
 
                     // Save Button Logic
@@ -1347,10 +1360,6 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                             imeis.push(val);
                         });
 
-                        if (hasEmpty || imeis.length !== totalQty) {
-                            $('#imeiError').removeClass('d-none').text(`Please enter exactly ${totalQty} valid IMEIs.`);
-                            return;
-                        }
 
                         $.ajax({
                             url: '/save-imei',
@@ -1370,13 +1379,29 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                     $('#imeiModal').modal('hide');
                                     window.location.href = '/list-product';
                                 } else {
-                                    toastr.error(imeiRes.message, 'Error');
+                                    if (imeiRes.message && imeiRes.message.toLowerCase().includes('duplicate')) {
+                                        toastr.error('Duplicate IMEI numbers found. Please check your entries.', 'Error');
+                                    } else {
+                                        toastr.error(imeiRes.message, 'Error');
+                                    }
                                 }
                             },
                             error: function () {
                                 toastr.error("Failed to save IMEIs", 'Error');
                             }
                         });
+                    });
+
+                    $('#imeiModal').on('click', '[data-bs-dismiss="modal"]', function (e) {
+                        if (!confirm("Are you sure you want to skip entering IMEIs?")) {
+                            e.preventDefault();
+                            return;
+                        }
+
+                        $('#imeiTable tbody').empty();
+                        $('#imeiInput').val('');
+                        $('#imeiModal').modal('hide');
+                        window.location.href = '/list-product';
                     });
                 } 
                 else {

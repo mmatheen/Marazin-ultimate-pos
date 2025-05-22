@@ -76,12 +76,13 @@
 
                 <!-- Textarea for Paste -->
                 <textarea id="imeiInput" rows="6" class="form-control mb-2" placeholder="Paste or type one IMEI per line..."></textarea>
-                <button type="button" class="btn btn-sm btn-info float-end" id="autoFillImeis">Auto Fill Rows</button>
+                <button type="button" class="btn btn-sm btn-info float-end text-white" id="autoFillImeis">Auto Fill Rows</button>
 
                 <!-- Table for IMEIs -->
                 <table class="table table-bordered mt-3" id="imeiTable">
                     <thead>
                         <tr>
+                            <th>#</th>
                             <th>IMEI Number</th>
                             <th>Action</th>
                         </tr>
@@ -91,7 +92,11 @@
 
                 <!-- Buttons -->
                 <button type="button" class="btn btn-sm btn-success mb-3" id="addImeiRow">+ Add Row</button>
-                <div id="imeiError" class="text-danger mt-2 d-none">Please enter valid IMEIs.</div>
+                {{-- <div id="imeiError" class="text-danger mt-2 d-none">Please enter valid IMEIs.</div> --}}
+                <span id="totalImeiCount"></span>
+                <span id="imeiCountDisplay" class="ms-2 text-info"></span>
+                <div id="imeiError" class="text-danger mt-2 d-none"></div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Skip</button>

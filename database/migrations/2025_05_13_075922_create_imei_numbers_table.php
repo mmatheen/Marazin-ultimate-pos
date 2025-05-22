@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->foreignId('location_id')->constrained()->onDelete('cascade');
             $table->foreignId('batch_id')->constrained()->onDelete('cascade');
-            $table->string('imei_number')->unique();
+            $table->string('imei_number')->unique()->nullable();
             $table->timestamps();
         });
     }

@@ -635,135 +635,133 @@
         let currentImeiStockEntry = null;
         let selectedImeisInBilling = [];
 
-        function showImeiSelectionModal(product, stockEntry, imeis) {
-            currentImeiProduct = product;
-            currentImeiStockEntry = stockEntry;
+      function showImeiSelectionModal(product, stockEntry, imeis) {
+    currentImeiProduct = product;
+    currentImeiStockEntry = stockEntry;
 
-            // Existing logic...
-            selectedImeisInBilling = [];
-            const billingBody = document.getElementById('billing-body');
-            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
-                return row.querySelector('.product-id').textContent == product.id;
-            });
+    // Filter IMEIs by selected location
+    const availableImeis = (stockEntry.imei_numbers || []).filter(imei =>
+        imei.status === "available" && imei.location_id == selectedLocationId
+    );
 
-            existingRows.forEach(row => {
-                const imei = row.querySelector('.imei-data').textContent;
-                if (imei) selectedImeisInBilling.push(imei);
-            });
+    if (availableImeis.length === 0) {
+        toastr.warning("No available IMEIs for this product at the selected location.");
+        return;
+    }
 
-            const tbody = document.getElementById('imei-table-body');
-            tbody.innerHTML = '';
+    selectedImeisInBilling = [];
 
-            const availableImeis = imeis.filter(imei => imei.status === "available");
+    const billingBody = document.getElementById('billing-body');
+    const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
+        return row.querySelector('.product-id').textContent == product.id;
+    });
 
-            if (availableImeis.length === 0) {
-                toastr.warning("No available IMEIs for this product.");
-                return;
-            }
+    existingRows.forEach(row => {
+        const imei = row.querySelector('.imei-data').textContent;
+        if (imei) selectedImeisInBilling.push(imei);
+    });
 
-            // Store all created rows for filtering later
-            const imeiRows = [];
+    const tbody = document.getElementById('imei-table-body');
+    tbody.innerHTML = '';
 
-            availableImeis.forEach((imei, index) => {
-                const isChecked = selectedImeisInBilling.includes(imei.imei_number);
-                const row = document.createElement('tr');
-                row.dataset.imei = imei.imei_number;
-                row.innerHTML = `
+    const imeiRows = [];
+
+    availableImeis.forEach((imei, index) => {
+        const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+
+        const row = document.createElement('tr');
+        row.dataset.imei = imei.imei_number;
+        row.innerHTML = `
             <td>${index + 1}</td>
-            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" 
-                ${isChecked ? 'checked' : ''} data-status="${imei.status}" /></td>
+            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked ? 'checked' : ''} data-status="${imei.status}" /></td>
             <td>${imei.imei_number}</td>
             <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
         `;
+        row.classList.add('clickable-row');
 
-                row.classList.add('clickable-row');
+        row.addEventListener('click', function(event) {
+            if (event.target.type !== 'checkbox') {
+                const checkbox = row.querySelector('.imei-checkbox');
+                checkbox.checked = !checkbox.checked;
+            }
+        });
 
-                row.addEventListener('click', function(event) {
-                    if (event.target.type !== 'checkbox') {
-                        const checkbox = row.querySelector('.imei-checkbox');
-                        checkbox.checked = !checkbox.checked;
-                    }
-                });
+        tbody.appendChild(row);
+        imeiRows.push(row);
+    });
 
-                tbody.appendChild(row);
-                imeiRows.push(row); // Save reference
-            });
+    const modal = new bootstrap.Modal(document.getElementById('imeiModal'));
+    modal.show();
 
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('imeiModal'));
-            modal.show();
+    const searchInput = document.getElementById('imeiSearch');
+    const filterSelect = document.getElementById('checkboxFilter');
 
-            // Attach event listeners for filtering
-            const searchInput = document.getElementById('imeiSearch');
-            const filterSelect = document.getElementById('checkboxFilter');
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const filterType = filterSelect.value;
 
-            function applyFilters() {
-                const searchTerm = searchInput.value.toLowerCase();
-                const filterType = filterSelect.value;
+        imeiRows.forEach(row => {
+            const imeiNumber = row.dataset.imei.toLowerCase();
+            const checkbox = row.querySelector('.imei-checkbox');
+            const isChecked = checkbox.checked;
 
-                imeiRows.forEach(row => {
-                    const imeiNumber = row.dataset.imei.toLowerCase();
-                    const checkbox = row.querySelector('.imei-checkbox');
-                    const isChecked = checkbox.checked;
+            let matchesSearch = imeiNumber.includes(searchTerm);
+            let matchesFilter = true;
 
-                    const matchesSearch = imeiNumber.includes(searchTerm);
-
-                    let matchesFilter = true;
-                    if (filterType === 'checked') {
-                        matchesFilter = isChecked;
-                    } else if (filterType === 'unchecked') {
-                        matchesFilter = !isChecked;
-                    }
-
-                    row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
-                });
+            if (filterType === 'checked') {
+                matchesFilter = isChecked;
+            } else if (filterType === 'unchecked') {
+                matchesFilter = !isChecked;
             }
 
-            searchInput.addEventListener('input', applyFilters);
-            filterSelect.addEventListener('change', applyFilters);
+            row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+        });
+    }
 
-            // Clear previous click handler
-            document.getElementById('confirmImeiSelection').onclick = null;
+    searchInput.addEventListener('input', applyFilters);
+    filterSelect.addEventListener('change', applyFilters);
 
-            document.getElementById('confirmImeiSelection').onclick = function() {
-                const checkboxes = document.querySelectorAll('.imei-checkbox');
-                const selectedImeis = Array.from(checkboxes)
-                    .filter(cb => cb.checked)
-                    .map(cb => cb.value);
+    document.getElementById('confirmImeiSelection').onclick = function () {
+        const checkboxes = document.querySelectorAll('.imei-checkbox');
+        const selectedImeis = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
 
-                modal.hide();
-
-                const batchId = stockEntry.batches.length > 0 ? stockEntry.batches[0].id : "all";
-                const price = product.retail_price;
-
-                // Get the correct locationId for the IMEI/batch
-                let imeiLocationId = stockEntry.batches.length > 0 ?
-                    stockEntry.batches[0].location_batches.length > 0 ?
-                    stockEntry.batches[0].location_batches[0].location_id :
-                    1 :
-                    1;
-
-                locationId = imeiLocationId; // set global if function uses it
-
-                existingRows.forEach(row => row.remove());
-
-                selectedImeis.forEach(imei => {
-                    addProductToBillingBody(
-                        currentImeiProduct,
-                        currentImeiStockEntry,
-                        price,
-                        batchId,
-                        1,
-                        'retail',
-                        1,
-                        [imei]
-                    );
-                });
-
-                tbody.innerHTML = '';
-                updateTotals();
-            };
+        if (selectedImeis.length === 0) {
+            toastr.warning("Please select at least one IMEI.");
+            return;
         }
+
+        modal.hide();
+
+        const batchId = stockEntry.batches.length > 0 ? stockEntry.batches[0].id : "all";
+        const price = product.retail_price;
+
+        let imeiLocationId = stockEntry.batches.length > 0 &&
+                             stockEntry.batches[0].location_batches.length > 0 ?
+                             stockEntry.batches[0].location_batches[0].location_id : 1;
+
+        locationId = imeiLocationId;
+
+        existingRows.forEach(row => row.remove());
+
+        selectedImeis.forEach(imei => {
+            addProductToBillingBody(
+                currentImeiProduct,
+                currentImeiStockEntry,
+                price,
+                batchId,
+                1,
+                'retail',
+                1,
+                [imei]
+            );
+        });
+
+        tbody.innerHTML = '';
+        updateTotals();
+    };
+}
 
         // Then use it
         document.addEventListener('DOMContentLoaded', function() {

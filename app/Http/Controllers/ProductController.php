@@ -595,54 +595,71 @@ class ProductController extends Controller
         }
     }
 
-    public function saveImei(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'product_id' => 'required|exists:products,id',
-            'batches' => 'required|array',
-            'batches.*.batch_id' => 'required|exists:batches,id',
-            'batches.*.location_id' => 'required|exists:locations,id',
-            'imeis' => 'required|array',
-            'imeis.*' => 'string|max:255'
-        ]);
-    
-        if ($validator->fails()) {
-            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-        }
-    
-        try {
-            DB::beginTransaction();
-    
-            $batchInfo = $request->batches[0]; // assuming single batch
-    
-            // Delete old IMEIs
-            ImeiNumber::where('product_id', $request->product_id)->delete();
-    
-            // Insert new IMEIs
-            foreach ($request->imeis as $imei) {
-                ImeiNumber::create([
-                    'product_id' => $request->product_id,
-                    'batch_id' => $batchInfo['batch_id'],
-                    'location_id' => $batchInfo['location_id'],
-                    'imei_number' => $imei
-                ]);
-            }
-    
-            DB::commit();
-    
-            return response()->json([
-                'status' => 200,
-                'message' => 'IMEI numbers saved successfully'
-            ]);
-    
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'status' => 500,
-                'message' => 'Failed to save IMEIs: ' . $e->getMessage()
-            ]);
-        }
+public function saveImei(Request $request)
+{
+    // dd($request->all());
+    $validator = Validator::make($request->all(), [
+        'product_id' => 'required|exists:products,id',
+        'batches' => 'required|array',
+        'batches.*.batch_id' => 'required|exists:batches,id',
+        'batches.*.location_id' => 'required|exists:locations,id',
+        'imeis' => 'nullable|array',
+        'imeis.*' => 'nullable|string|max:255'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['status' => 400, 'errors' => $validator->messages()]);
     }
+
+    try {
+        DB::transaction(function () use ($request) {
+            // Filter out empty or null IMEIs
+            $validImeis = collect($request->imeis)
+                ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+                ->values();
+
+            foreach ($request->batches as $batchInfo) {
+                $batchQty = (int)$batchInfo['qty'];
+                
+                // Delete existing IMEIs for product + batch + location
+                ImeiNumber::where('product_id', $request->product_id)
+                    ->where('batch_id', $batchInfo['batch_id'])
+                    ->where('location_id', $batchInfo['location_id'])
+                    ->delete();
+
+                // Take up to $batchQty IMEIs from the list
+                $assignedImeis = $validImeis->take($batchQty);
+                
+                // Remove assigned IMEIs from the list
+                $validImeis = $validImeis->slice($assignedImeis->count());
+
+                // Insert IMEIs
+                foreach ($assignedImeis as $imei) {
+                    ImeiNumber::create([
+                        'product_id' => $request->product_id,
+                        'batch_id' => $batchInfo['batch_id'],
+                        'location_id' => $batchInfo['location_id'],
+                        'imei_number' => $imei
+                    ]);
+                }
+            }
+
+            // Optional: Handle leftover IMEIs if needed (not assigned to any batch)
+            // You could log them or throw an error depending on your business logic.
+        });
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'IMEI numbers saved successfully.'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 500,
+            'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+        ]);
+    }
+}
+
 
     public function getImeis($productId)
         {
