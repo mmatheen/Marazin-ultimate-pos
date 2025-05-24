@@ -407,6 +407,8 @@
                             <th>IMEI Number</th>
                             <th>Location</th>
                             <th>Batch No</th>
+                            <th>Status</th>
+                        
                         </tr>
                     </thead>
                     <tbody id="imeiTableBody">

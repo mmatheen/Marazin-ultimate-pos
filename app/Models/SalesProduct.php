@@ -36,4 +36,9 @@ class SalesProduct extends Model
     {
         return $this->belongsTo(Batch::class);
     }
+
+    public function imeis()
+{
+    return $this->hasMany(SaleImei::class, 'sale_product_id');
+}
 }

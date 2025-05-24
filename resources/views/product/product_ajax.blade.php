@@ -505,7 +505,7 @@ function fetchProductData() {
                                 <td>
                                     ${imei.status === 'available' ? '<span class="badge bg-success">Available</span>' :
                                         imei.status === 'unavailable' ? '<span class="badge bg-danger">Unavailable</span>' :
-                                        '<span class="badge bg-warning text-dark">Reserved</span>'}
+                                        '<span class="badge bg-warning text-dark">Sold</span>'}
                                 </td>
                             </tr>
                         `);
@@ -1279,7 +1279,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         const imeis = imeiText.split(/\r?\n/).filter(Boolean);
                         $('#imeiTable tbody').empty();
 
-                        if (imeiis.length === 0) {
+                        if (imeis.length === 0) {
                             toastr.warning("No IMEIs found to fill.");
                             return;
                         }

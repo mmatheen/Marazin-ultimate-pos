@@ -110,36 +110,36 @@ class Sale extends Model
     
         return $availableStock + $soldQuantity;
     }
-    public static function generateInvoiceNo($locationId)
-    {
-        return DB::transaction(function () use ($locationId) {
-            $location = Location::findOrFail($locationId);
-    
-            $prefix = $location->invoice_prefix;
-    
-            // Lock latest sale for this location
-            $lastSale = self::where('location_id', $locationId)
-                ->orderByDesc('id')
-                ->lockForUpdate()
-                ->first();
-    
-            if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
-                $nextNumber = (int)$matches[1] + 1;
-            } else {
-                $nextNumber = 1;
-            }
-    
+   public static function generateInvoiceNo($locationId)
+{
+    return DB::transaction(function () use ($locationId) {
+        $location = Location::findOrFail($locationId);
+
+        $prefix = $location->invoice_prefix;
+
+        // Lock the sales table for this location
+        $lastSale = self::where('location_id', $locationId)
+            ->lockForUpdate()
+            ->orderByDesc('id')
+            ->first();
+
+        $nextNumber = 1;
+
+        if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
+            $nextNumber = (int)$matches[1] + 1;
+        }
+
+        $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+        // Ensure the invoice number is unique
+        while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
+            $nextNumber++;
             $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-    
-            // Double-check uniqueness just in case
-            while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
-                $nextNumber++;
-                $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-            }
-    
-            return $invoiceNo;
-        });
-    }
+        }
+
+        return $invoiceNo;
+    });
+}
     public function payments()
     {
         return $this->hasMany(Payment::class, 'reference_id', 'id')->where('payment_type', 'sale');

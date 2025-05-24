@@ -1106,6 +1106,7 @@
                         </tbody>
                     </table>
                 </div>
+                
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
@@ -1317,7 +1318,6 @@
     </div>
 
 
-    <!-- IMEI Selection Modal -->
 <!-- IMEI Selection Modal -->
 <div class="modal fade" id="imeiModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -1328,20 +1328,20 @@
       </div>
       <div class="modal-body">
         <div class="table-responsive">
-            <div class="p-3">
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <input type="text" id="imeiSearch" class="form-control" placeholder="Search IMEI..." />
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <select id="checkboxFilter" class="form-select">
-                            <option value="all">Show All</option>
-                            <option value="checked">Only Checked</option>
-                            <option value="unchecked">Only Unchecked</option>
-                        </select>
-                    </div>
-                </div>
+          <div class="p-3">
+            <div class="row">
+              <div class="col-md-6 mb-2">
+                <input type="text" id="imeiSearch" class="form-control" placeholder="Search IMEI..." />
+              </div>
+              <div class="col-md-6 mb-2">
+                <select id="checkboxFilter" class="form-select">
+                  <option value="all">Show All</option>
+                  <option value="checked">Only Checked</option>
+                  <option value="unchecked">Only Unchecked</option>
+                </select>
+              </div>
             </div>
+          </div>
           <table class="table table-bordered table-hover">
             <thead>
               <tr>
@@ -1357,7 +1357,7 @@
           </table>
         </div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" id="imeiModalFooter">
         <button class="btn btn-primary" id="confirmImeiSelection">Confirm</button>
       </div>
     </div>

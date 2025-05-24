@@ -748,6 +748,8 @@ foreach ($batchDeductions as $deduction) {
                 ]),
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
                     // Handle unlimited stock products
+                    // IMEI Numbers from SaleImei model
+                    $imeiNumbers = $product->imeis->pluck('imei_number')->toArray();
                     if ($product->product->stock_alert === 0) {
                         return [
                             'id' => $product->id,
@@ -758,7 +760,7 @@ foreach ($batchDeductions as $deduction) {
                             'quantity' => $product->quantity,
                             'price_type' => $product->price_type,
                             'price' => $product->price,
-                            'dicount_type' => $product->discount_type,
+                            'discount_type' => $product->discount_type,
                             'discount_amount' => $product->discount_amount,
                             'tax' => $product->tax,
                             'created_at' => $product->created_at,
@@ -772,6 +774,7 @@ foreach ($batchDeductions as $deduction) {
                                 'whole_sale_price', 'special_price', 'max_retail_price'
                             ]),
                             'batch' => null, // No batch data for unlimited stock
+                            'imei_numbers' => $imeiNumbers, //IMEI NUMBERS ADDED HERE
                         ];
                     }
                     // Handle regular products
@@ -799,7 +802,7 @@ foreach ($batchDeductions as $deduction) {
                         'quantity' => $product->quantity,
                         'price_type' => $product->price_type,
                         'price' => $product->price,
-                       'dicount_type' => $product->discount_type,
+                       'discount_type' => $product->discount_type,
                         'discount_amount' => $product->discount_amount,
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
@@ -815,7 +818,8 @@ foreach ($batchDeductions as $deduction) {
                         'batch' => optional($product->batch)->only([
                             'id', 'batch_no', 'product_id', 'qty', 'unit_cost', 'wholesale_price', 'special_price',
                             'retail_price', 'max_retail_price', 'expiry_date'
-                        ])
+                        ]),
+                           'imei_numbers' => $imeiNumbers,
                     ];
                 }),
                 'customer' => optional($sale->customer)->only([

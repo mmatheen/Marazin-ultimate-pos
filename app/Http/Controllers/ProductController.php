@@ -597,7 +597,6 @@ class ProductController extends Controller
 
 public function saveImei(Request $request)
 {
-    // dd($request->all());
     $validator = Validator::make($request->all(), [
         'product_id' => 'required|exists:products,id',
         'batches' => 'required|array',
@@ -620,32 +619,32 @@ public function saveImei(Request $request)
 
             foreach ($request->batches as $batchInfo) {
                 $batchQty = (int)$batchInfo['qty'];
-                
-                // Delete existing IMEIs for product + batch + location
-                ImeiNumber::where('product_id', $request->product_id)
-                    ->where('batch_id', $batchInfo['batch_id'])
-                    ->where('location_id', $batchInfo['location_id'])
-                    ->delete();
+
+                // Skip saving if no IMEIs provided
+                if ($batchQty === 0 || $validImeis->isEmpty()) continue;
 
                 // Take up to $batchQty IMEIs from the list
                 $assignedImeis = $validImeis->take($batchQty);
-                
+
                 // Remove assigned IMEIs from the list
                 $validImeis = $validImeis->slice($assignedImeis->count());
 
-                // Insert IMEIs
+                // Insert only unique IMEIs that don't already exist
                 foreach ($assignedImeis as $imei) {
-                    ImeiNumber::create([
-                        'product_id' => $request->product_id,
-                        'batch_id' => $batchInfo['batch_id'],
-                        'location_id' => $batchInfo['location_id'],
-                        'imei_number' => $imei
-                    ]);
+                    ImeiNumber::firstOrCreate(
+                        [
+                            'product_id' => $request->product_id,
+                            'batch_id' => $batchInfo['batch_id'],
+                            'location_id' => $batchInfo['location_id'],
+                            'imei_number' => $imei
+                        ],
+                        [
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]
+                    );
                 }
             }
-
-            // Optional: Handle leftover IMEIs if needed (not assigned to any batch)
-            // You could log them or throw an error depending on your business logic.
         });
 
         return response()->json([
@@ -659,7 +658,76 @@ public function saveImei(Request $request)
         ]);
     }
 }
+// public function saveImei(Request $request)
+// {
+//     // Validate request data
+//     $validator = Validator::make($request->all(), [
+//         'product_id' => 'required|exists:products,id',
+//         'batches' => 'required|array',
+//         'batches.*.batch_id' => 'required|exists:batches,id',
+//         'batches.*.location_id' => 'required|exists:locations,id',
+//         'imeis' => 'nullable|array',
+//         'imeis.*' => 'nullable|string|max:255'
+//     ]);
 
+//     if ($validator->fails()) {
+//         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+//     }
+
+//     try {
+//         DB::transaction(function () use ($request) {
+//             // Filter and deduplicate valid IMEIs
+//             $validImeis = collect($request->imeis)
+//                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+//                 ->unique()
+//                 ->values();
+
+//             foreach ($request->batches as $batchInfo) {
+//                 $productId = $request->product_id;
+//                 $batchId = $batchInfo['batch_id'];
+//                 $locationId = $batchInfo['location_id'];
+
+//                 // Get all existing IMEIs for this product/batch/location
+//                 $existingImeis = ImeiNumber::where('product_id', $productId)
+//                     ->where('batch_id', $batchId)
+//                     ->where('location_id', $locationId)
+//                     ->pluck('imei_number')
+//                     ->toArray();
+
+//                 // Separate already existing IMEIs and newly added ones
+//                 $oldImeis = array_intersect($validImeis->toArray(), $existingImeis);
+//                 $newImeis = array_diff($validImeis->toArray(), $existingImeis);
+
+//                 // Only insert new IMEIs
+//                 foreach ($newImeis as $imei) {
+//                     // Optional: Check globally across all batches/locations to avoid duplicates
+//                     $duplicateExists = ImeiNumber::where('imei_number', $imei)->exists();
+//                     if (!$duplicateExists) {
+//                         ImeiNumber::create([
+//                             'product_id' => $productId,
+//                             'batch_id' => $batchId,
+//                             'location_id' => $locationId,
+//                             'imei_number' => $imei,
+//                             'status' => 'available'
+//                         ]);
+//                     }
+//                 }
+
+//                 // No deletion — keep all old IMEIs intact
+//             }
+//         });
+
+//         return response()->json([
+//             'status' => 200,
+//             'message' => 'IMEI numbers saved successfully.'
+//         ]);
+//     } catch (\Exception $e) {
+//         return response()->json([
+//             'status' => 500,
+//             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+//         ]);
+//     }
+// }
 
     public function getImeis($productId)
         {
@@ -716,47 +784,35 @@ public function saveImei(Request $request)
 
         return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
     }
-
-
-    public function getAllProductStocks(Request $request)
+    
+        public function getAllProductStocks(Request $request)
     {
         try {
             $productStocks = [];
-            $selectedLocationId = $request->input('location_id');
             $now = now();
-    
-            // Fetch all products at once
+
+            // Use cursor() for memory-efficient iteration
             $products = Product::with([
-                'batches.locationBatches' => function ($query) use ($selectedLocationId) {
-                    if ($selectedLocationId) {
-                        $query->where('location_id', $selectedLocationId);
-                    }
-                },
+                'batches.locationBatches',
                 'locations',
                 'discounts' => function ($query) use ($now) {
                     $query->where('is_active', true)
                           ->where('start_date', '<=', $now);
                 },
                 'imeinumbers'
-            ])->get();
-    
+            ])->cursor();
+
             foreach ($products as $product) {
-                $filteredBatches = $product->batches->filter(function ($batch) use ($selectedLocationId) {
-                    if ($selectedLocationId) {
-                        return $batch->locationBatches->where('location_id', $selectedLocationId)->isNotEmpty();
-                    }
+                $filteredBatches = $product->batches->filter(function ($batch) {
                     return $batch->locationBatches->isNotEmpty();
                 });
-    
+
                 $totalStock = $filteredBatches->sum(fn($batch) => $batch->locationBatches->sum('qty'));
-    
-                $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) use ($selectedLocationId) {
-                    if ($selectedLocationId) {
-                        $batch->locationBatches = $batch->locationBatches->where('location_id', $selectedLocationId);
-                    }
+
+                $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) {
                     return $batch;
                 });
-    
+
                 $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
                     return [
                         'id' => $discount->id,
@@ -768,23 +824,21 @@ public function saveImei(Request $request)
                         'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
                         'is_active' => (bool)$discount->is_active,
                         'apply_to_all' => (bool)$discount->apply_to_all,
-                        'created_at' => $discount->created_at->format('Y-m-d H:i:s'),
-                        'updated_at' => $discount->updated_at->format('Y-m-d H:i:s'),
                         'is_expired' => $discount->end_date && $discount->end_date < $now,
                     ];
                 });
-    
+
                 $productStocks[] = $this->transformProductData(
                     $product,
                     $filteredBatchesWithLocation,
                     $activeDiscounts,
                     $totalStock,
-                    $selectedLocationId
+                    null
                 );
             }
-    
+
             return response()->json(['status' => 200, 'data' => $productStocks]);
-    
+
         } catch (\Exception $e) {
             Log::error('Error fetching product stocks: ' . $e->getMessage());
             return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
