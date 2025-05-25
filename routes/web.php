@@ -156,30 +156,33 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/opening-stock-store/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
         // Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
         Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
-       
-       //imei number routes
-        Route::post('/save-imei', [ProductController::class, 'saveImei'])->name('saveImei');
+
+        //imei number routes
+        // Route::post('/save-imei', [ProductController::class, 'saveImei'])->name('saveImei');
+        Route::post('/save-or-update-imei', [ProductController::class, 'saveOrUpdateImei']);
+        Route::post('/update-imei', [ProductController::class, 'updateSingleImei']);
+        Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
         Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
 
 
-          // Role Routes
-          Route::get('/role', [RoleController::class, 'role'])->name('role');
-          Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
-          Route::get('/role-get-all', [RoleController::class, 'index']);
-          Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
-          Route::post('/role-update/{id}', [RoleController::class, 'update']);
-          Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
-          Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
+        // Role Routes
+        Route::get('/role', [RoleController::class, 'role'])->name('role');
+        Route::get('/role-edit/{id}', [RoleController::class, 'edit']);
+        Route::get('/role-get-all', [RoleController::class, 'index']);
+        Route::post('/role-store', [RoleController::class, 'store'])->name('role-store');
+        Route::post('/role-update/{id}', [RoleController::class, 'update']);
+        Route::delete('/role-delete/{id}', [RoleController::class, 'destroy']);
+        Route::get('/user-select-box-dropdown', [RoleController::class, 'SelectRoleNameDropdown'])->name('role.dropdown');
 
 
-          Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
-          Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
-          Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
-          Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
-          Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
-          Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
-          Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
-          //stop role route
+        Route::get('/group-role-and-permission-view', [RoleAndPermissionController::class, 'groupRoleAndPermissionView'])->name('group-role-and-permission-view');
+        Route::get('/group-role-and-permission', [RoleAndPermissionController::class, 'groupRoleAndPermission'])->name('group-role-and-permission');
+        Route::get('/role-and-permission-edit/{role_id}', [RoleAndPermissionController::class, 'edit']);
+        Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
+        Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
+        Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
+        Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
+        //stop role route
 
         // Dropdown Routes
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
@@ -279,13 +282,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Route::post('/sales-returns/store', [SaleReturnController::class, 'store']);
         // Route::get('/sales-returns', [SaleReturnController::class, 'addSaleReturn'])->name('sales-returns');
 
-            Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
-            Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
-            Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
-            Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
-            Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
-            Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
-            Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
+        Route::get('/sale-returns', [SaleReturnController::class, 'getAllSaleReturns']);
+        Route::get('/sale-return-get/{id}', [SaleReturnController::class, 'getSaleReturnById']);
+        Route::get('/sale-return/add', [SaleReturnController::class, 'addSaleReturn'])->name('sale-return/add');
+        Route::get('/sale-return/list', [SaleReturnController::class, 'listSaleReturn'])->name('sale-return/list');
+        Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
+        Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
+        Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
         // Stock Transfer Routes
         Route::get('/stock-transfers', [StockTransferController::class, 'index']);
@@ -316,7 +319,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         //route fetch All daily report sales
         Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
 
-                // Route to fetch all suspended sales
+        // Route to fetch all suspended sales
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
 
         // Route to resume a suspended sale
@@ -392,7 +395,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::put('payments/{payment}', [PaymentController::class, 'storeOrUpdate']);
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy']);
 
-                // web.php (Routes)
+        // web.php (Routes)
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
 
         //bulk payments pages
@@ -404,7 +407,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
 
 
-            // Discount Routes
+        // Discount Routes
         Route::get('/discounts', [DiscountController::class, 'index'])->name('discounts.index');
         Route::get('/discounts/data', [DiscountController::class, 'getDiscountsData'])->name('discounts.data');
         Route::post('/discounts', [DiscountController::class, 'store'])->name('discounts.store');
@@ -414,10 +417,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/discounts/{discount}/toggle-status', [DiscountController::class, 'toggleStatus'])->name('discounts.toggle-status');
         Route::get('/discounts/export', [DiscountController::class, 'export'])->name('discounts.export');
         Route::get('/discounts/{discount}/products', [DiscountController::class, 'getProducts'])->name('discounts.products');
-    
-    
+
+
         //report routes
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
-    
     });
 });

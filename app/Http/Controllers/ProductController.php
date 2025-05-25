@@ -437,8 +437,8 @@ class ProductController extends Controller
 
         // Fetch existing IMEIs
         $imeis = ImeiNumber::where('product_id', $productId)
-        ->orderBy('id')
-        ->pluck('imei_number', 'id');
+            ->orderBy('id')
+            ->pluck('imei_number', 'id');
 
 
         $openingStock = [
@@ -595,149 +595,262 @@ class ProductController extends Controller
         }
     }
 
-public function saveImei(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'product_id' => 'required|exists:products,id',
-        'batches' => 'required|array',
-        'batches.*.batch_id' => 'required|exists:batches,id',
-        'batches.*.location_id' => 'required|exists:locations,id',
-        'imeis' => 'nullable|array',
-        'imeis.*' => 'nullable|string|max:255'
-    ]);
+    // public function saveImei(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'product_id' => 'required|exists:products,id',
+    //         'batches' => 'required|array',
+    //         'batches.*.batch_id' => 'required|exists:batches,id',
+    //         'batches.*.location_id' => 'required|exists:locations,id',
+    //         'imeis' => 'nullable|array',
+    //         'imeis.*' => 'nullable|string|max:255'
+    //     ]);
 
-    if ($validator->fails()) {
-        return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+    //     if ($validator->fails()) {
+    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+    //     }
+
+    //     try {
+    //         DB::transaction(function () use ($request) {
+    //             // Filter out empty or null IMEIs
+    //             $validImeis = collect($request->imeis)
+    //                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+    //                 ->values();
+
+    //             foreach ($request->batches as $batchInfo) {
+    //                 $batchQty = (int)$batchInfo['qty'];
+
+    //                 // Skip saving if no IMEIs provided
+    //                 if ($batchQty === 0 || $validImeis->isEmpty()) continue;
+
+    //                 // Take up to $batchQty IMEIs from the list
+    //                 $assignedImeis = $validImeis->take($batchQty);
+
+    //                 // Remove assigned IMEIs from the list
+    //                 $validImeis = $validImeis->slice($assignedImeis->count());
+
+    //                 // Insert only unique IMEIs that don't already exist
+    //                 foreach ($assignedImeis as $imei) {
+    //                     ImeiNumber::firstOrCreate(
+    //                         [
+    //                             'product_id' => $request->product_id,
+    //                             'batch_id' => $batchInfo['batch_id'],
+    //                             'location_id' => $batchInfo['location_id'],
+    //                             'imei_number' => $imei
+    //                         ],
+    //                         [
+    //                             'created_at' => now(),
+    //                             'updated_at' => now()
+    //                         ]
+    //                     );
+    //                 }
+    //             }
+    //         });
+
+    //         return response()->json([
+    //             'status' => 200,
+    //             'message' => 'IMEI numbers saved successfully.'
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => 500,
+    //             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+    //         ]);
+    //     }
+    // }
+    // public function saveImei(Request $request)
+    // {
+    //     // Validate request data
+    //     $validator = Validator::make($request->all(), [
+    //         'product_id' => 'required|exists:products,id',
+    //         'batches' => 'required|array',
+    //         'batches.*.batch_id' => 'required|exists:batches,id',
+    //         'batches.*.location_id' => 'required|exists:locations,id',
+    //         'imeis' => 'nullable|array',
+    //         'imeis.*' => 'nullable|string|max:255'
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+    //     }
+
+    //     try {
+    //         DB::transaction(function () use ($request) {
+    //             // Filter and deduplicate valid IMEIs
+    //             $validImeis = collect($request->imeis)
+    //                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+    //                 ->unique()
+    //                 ->values();
+
+    //             foreach ($request->batches as $batchInfo) {
+    //                 $productId = $request->product_id;
+    //                 $batchId = $batchInfo['batch_id'];
+    //                 $locationId = $batchInfo['location_id'];
+
+    //                 // Get all existing IMEIs for this product/batch/location
+    //                 $existingImeis = ImeiNumber::where('product_id', $productId)
+    //                     ->where('batch_id', $batchId)
+    //                     ->where('location_id', $locationId)
+    //                     ->pluck('imei_number')
+    //                     ->toArray();
+
+    //                 // Separate already existing IMEIs and newly added ones
+    //                 $oldImeis = array_intersect($validImeis->toArray(), $existingImeis);
+    //                 $newImeis = array_diff($validImeis->toArray(), $existingImeis);
+
+    //                 // Only insert new IMEIs
+    //                 foreach ($newImeis as $imei) {
+    //                     // Optional: Check globally across all batches/locations to avoid duplicates
+    //                     $duplicateExists = ImeiNumber::where('imei_number', $imei)->exists();
+    //                     if (!$duplicateExists) {
+    //                         ImeiNumber::create([
+    //                             'product_id' => $productId,
+    //                             'batch_id' => $batchId,
+    //                             'location_id' => $locationId,
+    //                             'imei_number' => $imei,
+    //                             'status' => 'available'
+    //                         ]);
+    //                     }
+    //                 }
+
+    //                 // No deletion — keep all old IMEIs intact
+    //             }
+    //         });
+
+    //         return response()->json([
+    //             'status' => 200,
+    //             'message' => 'IMEI numbers saved successfully.'
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => 500,
+    //             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+    //         ]);
+    //     }
+    // }
+
+    public function saveOrUpdateImei(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
+            'batches' => 'required|array',
+            'batches.*.batch_id' => 'required|exists:batches,id',
+            'batches.*.location_id' => 'required|exists:locations,id',
+            'imeis' => 'nullable|array',
+            'imeis.*' => 'nullable|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $validImeis = collect($request->imeis)
+                    ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+                    ->values();
+
+                foreach ($request->batches as $batchInfo) {
+                    $batchQty = (int)($batchInfo['qty'] ?? 0);
+
+                    if ($batchQty === 0 || $validImeis->isEmpty()) continue;
+
+                    $assignedImeis = $validImeis->take($batchQty);
+
+                    // Remove assigned IMEIs from the list
+                    $validImeis = $validImeis->slice($assignedImeis->count());
+
+                    foreach ($assignedImeis as $imei) {
+                        ImeiNumber::updateOrCreate(
+                            [
+                                'product_id' => $request->product_id,
+                                'batch_id' => $batchInfo['batch_id'],
+                                'location_id' => $batchInfo['location_id'],
+                                'imei_number' => $imei
+                            ],
+                            [
+                                'updated_at' => now(), // Add more fields here if you want to update them
+                            ]
+                        );
+                    }
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI numbers saved or updated successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to save or update IMEIs: ' . $e->getMessage()
+            ]);
+        }
+    }
+    public function updateSingleImei(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|exists:imei_numbers,id', // Pass the primary key 'id'
+            'new_imei' => 'required|string|max:255|unique:imei_numbers,imei_number,' . $request->id,
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $imeiNumber = ImeiNumber::findOrFail($request->id);
+            $imeiNumber->imei_number = $request->new_imei;
+            $imeiNumber->save();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI updated successfully.',
+                'updated_imei' => $request->new_imei
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update IMEI: ' . $e->getMessage()
+            ]);
+        }
     }
 
-    try {
-        DB::transaction(function () use ($request) {
-            // Filter out empty or null IMEIs
-            $validImeis = collect($request->imeis)
-                ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
-                ->values();
+    public function deleteImei(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|exists:imei_numbers,id',
+        ]);
 
-            foreach ($request->batches as $batchInfo) {
-                $batchQty = (int)$batchInfo['qty'];
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
 
-                // Skip saving if no IMEIs provided
-                if ($batchQty === 0 || $validImeis->isEmpty()) continue;
+        try {
+            $imei = ImeiNumber::findOrFail($request->id);
+            $imei->delete();
 
-                // Take up to $batchQty IMEIs from the list
-                $assignedImeis = $validImeis->take($batchQty);
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete IMEI: ' . $e->getMessage()
+            ]);
+        }
+    }
 
-                // Remove assigned IMEIs from the list
-                $validImeis = $validImeis->slice($assignedImeis->count());
-
-                // Insert only unique IMEIs that don't already exist
-                foreach ($assignedImeis as $imei) {
-                    ImeiNumber::firstOrCreate(
-                        [
-                            'product_id' => $request->product_id,
-                            'batch_id' => $batchInfo['batch_id'],
-                            'location_id' => $batchInfo['location_id'],
-                            'imei_number' => $imei
-                        ],
-                        [
-                            'created_at' => now(),
-                            'updated_at' => now()
-                        ]
-                    );
-                }
-            }
-        });
+    public function getImeis($productId)
+    {
+        $imeis = ImeiNumber::where('product_id', $productId)->get(['id', 'imei_number']);
 
         return response()->json([
             'status' => 200,
-            'message' => 'IMEI numbers saved successfully.'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 500,
-            'message' => 'Failed to save IMEIs: ' . $e->getMessage()
+            'imeis' => $imeis
         ]);
     }
-}
-// public function saveImei(Request $request)
-// {
-//     // Validate request data
-//     $validator = Validator::make($request->all(), [
-//         'product_id' => 'required|exists:products,id',
-//         'batches' => 'required|array',
-//         'batches.*.batch_id' => 'required|exists:batches,id',
-//         'batches.*.location_id' => 'required|exists:locations,id',
-//         'imeis' => 'nullable|array',
-//         'imeis.*' => 'nullable|string|max:255'
-//     ]);
-
-//     if ($validator->fails()) {
-//         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-//     }
-
-//     try {
-//         DB::transaction(function () use ($request) {
-//             // Filter and deduplicate valid IMEIs
-//             $validImeis = collect($request->imeis)
-//                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
-//                 ->unique()
-//                 ->values();
-
-//             foreach ($request->batches as $batchInfo) {
-//                 $productId = $request->product_id;
-//                 $batchId = $batchInfo['batch_id'];
-//                 $locationId = $batchInfo['location_id'];
-
-//                 // Get all existing IMEIs for this product/batch/location
-//                 $existingImeis = ImeiNumber::where('product_id', $productId)
-//                     ->where('batch_id', $batchId)
-//                     ->where('location_id', $locationId)
-//                     ->pluck('imei_number')
-//                     ->toArray();
-
-//                 // Separate already existing IMEIs and newly added ones
-//                 $oldImeis = array_intersect($validImeis->toArray(), $existingImeis);
-//                 $newImeis = array_diff($validImeis->toArray(), $existingImeis);
-
-//                 // Only insert new IMEIs
-//                 foreach ($newImeis as $imei) {
-//                     // Optional: Check globally across all batches/locations to avoid duplicates
-//                     $duplicateExists = ImeiNumber::where('imei_number', $imei)->exists();
-//                     if (!$duplicateExists) {
-//                         ImeiNumber::create([
-//                             'product_id' => $productId,
-//                             'batch_id' => $batchId,
-//                             'location_id' => $locationId,
-//                             'imei_number' => $imei,
-//                             'status' => 'available'
-//                         ]);
-//                     }
-//                 }
-
-//                 // No deletion — keep all old IMEIs intact
-//             }
-//         });
-
-//         return response()->json([
-//             'status' => 200,
-//             'message' => 'IMEI numbers saved successfully.'
-//         ]);
-//     } catch (\Exception $e) {
-//         return response()->json([
-//             'status' => 500,
-//             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
-//         ]);
-//     }
-// }
-
-    public function getImeis($productId)
-        {
-            $imeis = ImeiNumber::where('product_id', $productId)->get(['id', 'imei_number']);
-            
-            return response()->json([
-                'status' => 200,
-                'imeis' => $imeis
-            ]);
-        }
 
     public function OpeningStockGetAll()
     {
@@ -784,8 +897,8 @@ public function saveImei(Request $request)
 
         return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
     }
-    
-        public function getAllProductStocks(Request $request)
+
+    public function getAllProductStocks(Request $request)
     {
         try {
             $productStocks = [];
@@ -797,7 +910,7 @@ public function saveImei(Request $request)
                 'locations',
                 'discounts' => function ($query) use ($now) {
                     $query->where('is_active', true)
-                          ->where('start_date', '<=', $now);
+                        ->where('start_date', '<=', $now);
                 },
                 'imeinumbers'
             ])->cursor();
@@ -838,7 +951,6 @@ public function saveImei(Request $request)
             }
 
             return response()->json(['status' => 200, 'data' => $productStocks]);
-
         } catch (\Exception $e) {
             Log::error('Error fetching product stocks: ' . $e->getMessage());
             return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
@@ -900,19 +1012,19 @@ public function saveImei(Request $request)
             ]),
             'has_batches' => $filteredBatches->isNotEmpty(),
             'discounts' => $activeDiscounts,
-           'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
-                    $batch = $product->batches->firstWhere('id', $imei->batch_id);
+            'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
+                $batch = $product->batches->firstWhere('id', $imei->batch_id);
 
-                    return [
-                        'id' => $imei->id,
-                        'imei_number' => $imei->imei_number,
-                        'location_id' => $imei->location_id,
-                        'location_name' => optional($imei->location)->name ?? 'N/A',
-                        'batch_id' => $imei->batch_id,
-                        'batch_no' => optional($batch)->batch_no ?? 'N/A',
-                        'status' => $imei->status ?? 'available'
-                    ];
-                })
+                return [
+                    'id' => $imei->id,
+                    'imei_number' => $imei->imei_number,
+                    'location_id' => $imei->location_id,
+                    'location_name' => optional($imei->location)->name ?? 'N/A',
+                    'batch_id' => $imei->batch_id,
+                    'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                    'status' => $imei->status ?? 'available'
+                ];
+            })
         ];
     }
 
@@ -1023,36 +1135,35 @@ public function saveImei(Request $request)
         try {
             $result = DB::transaction(function () use ($id) {
                 $product = Product::with('batches')->find($id);
-    
+
                 if (!$product) {
                     return [
                         'status' => 404,
                         'message' => "No Such Product Found!"
                     ];
                 }
-    
+
                 // Delete all related batches and their location batches
                 if ($product->batches->isNotEmpty()) {
                     $batchIds = $product->batches->pluck('id')->toArray();
-    
+
                     // Delete location batches first
                     LocationBatch::whereIn('batch_id', $batchIds)->delete();
-    
+
                     // Then delete the batches
                     Batch::whereIn('id', $batchIds)->delete();
                 }
-    
+
                 // Delete the product
                 $product->delete();
-    
+
                 return [
                     'status' => 200,
                     'message' => "Product and all associated batches deleted successfully!"
                 ];
             });
-    
+
             return response()->json($result);
-    
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 500,

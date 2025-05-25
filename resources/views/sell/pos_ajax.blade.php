@@ -2,24 +2,22 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-
-
         let selectedLocationId = null;
         // Global arrays to store products
         let allProducts = [];
         let stockData = [];
 
+
+        fetchAllLocations();
+        $('#locationSelect').on('change', handleLocationChange);
+
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
         const discountInput = document.getElementById('discount');
-        // const taxInput = document.getElementById('order-tax');
-        // const shippingInput = document.getElementById('shipping');
         const finalValue = document.getElementById('total');
         const categoryBtn = document.getElementById('category-btn');
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
-
-
 
         // Utility: Show Loader
         function showLoader() {
@@ -42,6 +40,8 @@
         allProductsBtn.onclick = function() {
             fetchAllProducts();
         };
+
+
 
         // Fetch and display all products initially
         fetchAllProducts();
@@ -198,22 +198,7 @@
 
         let isEditing = false;
 
-        $(document).ready(function() {
 
-            fetchAllLocations();
-            $('#locationSelect').on('change', handleLocationChange);
-
-            // Detect if we're in edit mode
-            const pathSegments = window.location.pathname.split('/');
-            const saleId = pathSegments[pathSegments.length - 1];
-
-            if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
-                isEditing = true;
-                fetchEditSale(saleId);
-            } else {
-                console.warn('Invalid or missing saleId:', saleId);
-            }
-        });
 
         // Fetch all locations via AJAX
         function fetchAllLocations() {
@@ -269,58 +254,6 @@
             }
         }
 
-
-        // // Fetch all products from the server based on selected location
-        // function fetchAllProducts() {
-        //     console.log("Fetching products for Location ID:", selectedLocationId); // DEBUG
-
-        //     showLoader();
-
-        //     let url = '/products/stocks';
-
-        //     if (selectedLocationId) {
-        //         url += `?location_id=${selectedLocationId}`;
-        //     }
-
-        //     console.log('Final URL:', url); // DEBUG
-
-        //     fetch(url)
-        //         .then(response => {
-        //             if (!response.ok) throw new Error('Network response was not ok');
-        //             return response.json();
-        //         })
-        //         .then(data => {
-        //             hideLoader();
-
-        //             if (data.status === 200 && Array.isArray(data.data)) {
-        //                 stockData = data.data;
-
-        //                 allProducts = stockData.map(stock => {
-        //                     const firstLocationBatch = stock.batches?.[0]?.location_batches?.[0] ||
-        //                         null;
-
-        //                     return {
-        //                         ...stock.product,
-        //                         total_stock: stock.total_stock,
-        //                         location_id: firstLocationBatch ? firstLocationBatch.location_id :
-        //                             null
-        //                     };
-        //                 });
-
-        //                 displayProducts(stockData);
-        //                 initAutocomplete();
-        //             } else {
-        //                 console.error('Invalid data:', data);
-        //                 // alert('Failed to load product data.');
-        //             }
-        //         })
-        //         .catch(error => {
-        //             hideLoader();
-        //             console.error('Error fetching data:', error);
-        //             // alert('An error occurred while fetching product data.');
-        //         });
-        // }
-
         function fetchAllProducts() {
             console.log("Fetching all products for all locations"); // DEBUG
             showLoader();
@@ -347,12 +280,10 @@
                     initAutocomplete();
                 } else {
                     console.error('Invalid data:', data);
-                    // alert('Failed to load product data.');
                 }
             }).catch(error => {
                 hideLoader();
                 console.error('Error fetching data:', error);
-                // alert('An error occurred while fetching product data.');
             });
         }
 
@@ -696,254 +627,376 @@
                 'retail'
             );
         }
-// Global variables to track IMEI selections
-let currentImeiProduct = null;
-let currentImeiStockEntry = null;
-let selectedImeisInBilling = [];
 
-function showImeiSelectionModal(product, stockEntry, imeis) {
-    currentImeiProduct = product;
-    currentImeiStockEntry = stockEntry;
 
-    // const selectedLocationId = getCurrentSelectedLocation(); // Replace with actual logic
 
-    const availableImeis = (stockEntry.imei_numbers || []).filter(imei =>
-        imei.status === "available" && imei.location_id == selectedLocationId
-    );
+        let selectedImeisInBilling = [];
+        let currentImeiProduct = null;
+        let currentImeiStockEntry = null;
 
-    const selectedBatch = stockEntry.batches.find(b =>
-        b.location_batches.some(lb => lb.location_id == selectedLocationId)
-    );
+        function showImeiSelectionModal(product, stockEntry, imeis) {
+            currentImeiProduct = product;
+            currentImeiStockEntry = stockEntry;
 
-    const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
-    let missingImeiCount = batchQty - availableImeis.length;
+            const availableImeis = (stockEntry.imei_numbers || []).filter(imei =>
+                imei.status === "available" && imei.location_id == selectedLocationId
+            );
 
-    // Collect already selected IMEIs in billing
-    selectedImeisInBilling = [];
-    const billingBody = document.getElementById('billing-body');
-    const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
-        return row.querySelector('.product-id')?.textContent == product.id;
-    });
-    existingRows.forEach(row => {
-        const imei = row.querySelector('.imei-data')?.textContent.trim();
-        if (imei) selectedImeisInBilling.push(imei);
-    });
+            const selectedBatch = stockEntry.batches.find(b =>
+                b.location_batches.some(lb => lb.location_id == selectedLocationId)
+            );
+            const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
+            let missingImeiCount = batchQty - availableImeis.length;
 
-    // Prepare modal table body
-    const tbody = document.getElementById('imei-table-body');
-    if (!tbody) {
-        toastr.error("IMEI table body not found");
-        return;
-    }
-    tbody.innerHTML = '';
-    const imeiRows = [];
+            // Collect already selected IMEIs in billing
+            selectedImeisInBilling = [];
+            const billingBody = document.getElementById('billing-body');
+            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
+                return row.querySelector('.product-id')?.textContent == product.id;
+            });
+            existingRows.forEach(row => {
+                const imei = row.querySelector('.imei-data')?.textContent.trim();
+                if (imei) selectedImeisInBilling.push(imei);
+            });
 
-    // Populate existing IMEIs
-    availableImeis.forEach((imei, index) => {
-        const isChecked = selectedImeisInBilling.includes(imei.imei_number);
-        const row = document.createElement('tr');
-        row.dataset.imei = imei.imei_number;
-        row.innerHTML = `
+            const tbody = document.getElementById('imei-table-body');
+            if (!tbody) {
+                toastr.error("IMEI table body not found");
+                return;
+            }
+            tbody.innerHTML = '';
+            const imeiRows = [];
+
+            // Populate existing IMEIs
+            availableImeis.forEach((imei, index) => {
+                const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+                const row = document.createElement('tr');
+                row.dataset.imei = imei.imei_number;
+                row.dataset.imeiId = imei.id; // <-- Store primary key for edit
+                row.innerHTML = `
             <td>${index + 1}</td>
             <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked ? 'checked' : ''} data-status="${imei.status}" /></td>
-            <td>${imei.imei_number}</td>
+            <td class="imei-display">${imei.imei_number}</td>
             <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
+            <td>
+                <button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>
+                <button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>
+            </td>
         `;
-        row.classList.add('clickable-row');
-        row.addEventListener('click', function(event) {
-            if (event.target.type !== 'checkbox') {
-                const checkbox = row.querySelector('.imei-checkbox');
-                checkbox.checked = !checkbox.checked;
+                row.classList.add('clickable-row');
+                row.addEventListener('click', function(event) {
+                    if (event.target.type !== 'checkbox') {
+                        const checkbox = row.querySelector('.imei-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                    }
+                });
+                tbody.appendChild(row);
+                imeiRows.push(row);
+            });
+
+            // Add initial manual IMEI row
+            if (missingImeiCount > 0) {
+                addNewImeiRow(missingImeiCount);
             }
-        });
-        tbody.appendChild(row);
-        imeiRows.push(row);
-    });
 
-    // Add initial manual IMEI row
-    if (missingImeiCount > 0) {
-        addNewImeiRow(missingImeiCount);
-    }
-
-    // Show modal
-    const modalElement = document.getElementById('imeiModal');
-    if (!modalElement) {
-        toastr.error("IMEI modal not found");
-        return;
-    }
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-
-    // Setup search & filter
-    const searchInput = document.getElementById('imeiSearch');
-    const filterSelect = document.getElementById('checkboxFilter');
-
-    function applyFilters() {
-        const searchTerm = (searchInput?.value || '').toLowerCase();
-        const filterType = filterSelect?.value || 'all';
-        imeiRows.forEach(row => {
-            const isManual = !row.dataset.imei;
-            const imeiNumber = isManual
-                ? (row.querySelector('.new-imei-input')?.value || '').toLowerCase()
-                : row.dataset.imei.toLowerCase();
-            const checkbox = row.querySelector('.imei-checkbox');
-            const isChecked = checkbox?.checked || false;
-            let matchesSearch = imeiNumber.includes(searchTerm);
-            let matchesFilter = true;
-            if (filterType === 'checked') {
-                matchesFilter = isChecked;
-            } else if (filterType === 'unchecked') {
-                matchesFilter = !isChecked;
+            // Show modal
+            const modalElement = document.getElementById('imeiModal');
+            if (!modalElement) {
+                toastr.error("IMEI modal not found");
+                return;
             }
-            row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
-        });
-    }
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
 
-    searchInput?.addEventListener('input', applyFilters);
-    filterSelect?.addEventListener('change', applyFilters);
+            // Setup search & filter
+            const searchInput = document.getElementById('imeiSearch');
+            const filterSelect = document.getElementById('checkboxFilter');
 
-    // Confirm selection
-    document.getElementById('confirmImeiSelection').onclick = function () {
-        const checkboxes = document.querySelectorAll('.imei-checkbox:not(.manual-checkbox)');
-        const manualInputs = document.querySelectorAll('.new-imei-input');
-        const selectedImeis = Array.from(checkboxes)
-            .filter(cb => cb.checked)
-            .map(cb => cb.value);
-        const newImeis = Array.from(manualInputs)
-            .map(input => input.value.trim())
-            .filter(val => val !== "");
+            function applyFilters() {
+                const searchTerm = (searchInput?.value || '').toLowerCase();
+                const filterType = filterSelect?.value || 'all';
+                imeiRows.forEach(row => {
+                    const isManual = !row.dataset.imei;
+                    const imeiNumber = isManual ?
+                        (row.querySelector('.new-imei-input')?.value || '').toLowerCase() :
+                        row.dataset.imei.toLowerCase();
+                    const checkbox = row.querySelector('.imei-checkbox');
+                    const isChecked = checkbox?.checked || false;
+                    let matchesSearch = imeiNumber.includes(searchTerm);
+                    let matchesFilter = true;
 
-        const allImeis = [...selectedImeis, ...newImeis];
-        const uniqueImeis = [...new Set(allImeis)];
+                    if (filterType === 'checked') {
+                        matchesFilter = isChecked;
+                    } else if (filterType === 'unchecked') {
+                        matchesFilter = !isChecked;
+                    }
 
-        if (allImeis.length !== uniqueImeis.length) {
-            toastr.error("Duplicate IMEI found. Please enter unique IMEIs.");
-            return;
-        }
-
-        if (uniqueImeis.length === 0) {
-            toastr.warning("Please select or enter at least one IMEI.");
-            return;
-        }
-
-        modal.hide();
-
-        const batchId = selectedBatch ? selectedBatch.id : "all";
-        const price = product.retail_price;
-        let imeiLocationId = selectedBatch && selectedBatch.location_batches.length > 0 ?
-            selectedBatch.location_batches[0].location_id : 1;
-
-        existingRows.forEach(row => row.remove());
-
-        uniqueImeis.forEach(imei => {
-            addProductToBillingBody(
-                currentImeiProduct,
-                currentImeiStockEntry,
-                price,
-                batchId,
-                1,
-                'retail',
-                1,
-                [imei]
-            );
-        });
-
-        updateTotals();
-
-        // Send IMEIs to server
-        fetch('/save-imei', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({
-                product_id: product.id,
-                batches: [{
-                    batch_id: batchId,
-                    location_id: imeiLocationId,
-                    qty: uniqueImeis.length
-                }],
-                imeis: uniqueImeis
-            })
-        }).then(response => response.json())
-          .then(data => {
-              if (data.status === 200) {
-                  toastr.success(data.message);
-              } else {
-                  toastr.error(data.message || "Failed to save IMEIs");
-              }
-          })
-          .catch(err => {
-              console.error(err);
-              toastr.error("Error saving IMEIs");
-          });
-    };
-
-    function addNewImeiRow(count) {
-        const addButtonContainer = document.getElementById('add-button-container');
-        if (!addButtonContainer) return;
-        if (count > 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${tbody.querySelectorAll('tr').length + 1}</td>
-                <td><input type="checkbox" class="imei-checkbox manual-checkbox" disabled /></td>
-                <td>
-                    <div class="input-group">
-                        <input type="text" class="form-control new-imei-input" placeholder="Enter IMEI" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
-                        <button type="button" class="btn btn-danger btn-sm remove-imei-row" title="Remove Row">&times;</button>
-                    </div>
-                </td>
-                <td><span class="badge bg-secondary">Manual</span></td>
-            `;
-            const removeBtn = row.querySelector('.remove-imei-row');
-            if (removeBtn) {
-                removeBtn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    row.remove();
-                    missingImeiCount++;
-                    toggleAddButton();
+                    row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
                 });
             }
-            tbody.appendChild(row);
-            imeiRows.push(row);
-            const input = row.querySelector('.new-imei-input');
-            const checkbox = row.querySelector('.imei-checkbox');
-            input.addEventListener('input', () => {
-                const val = input.value.trim();
-                checkbox.checked = val !== "";
-            });
-            input.focus();
-            missingImeiCount--;
-            toggleAddButton();
-        }
-    }
 
-    function toggleAddButton() {
-        const addButtonContainer = document.getElementById('add-button-container');
-        if (!addButtonContainer) return;
-        if (missingImeiCount > 0) {
-            addButtonContainer.innerHTML = `
+            searchInput?.addEventListener('input', applyFilters);
+            filterSelect?.addEventListener('change', applyFilters);
+
+            document.getElementById('confirmImeiSelection').onclick = function() {
+                const checkboxes = document.querySelectorAll('.imei-checkbox:not(.manual-checkbox)');
+                const manualInputs = document.querySelectorAll('.new-imei-input');
+
+                // Find selected existing IMEIs
+                const selectedImeis = Array.from(checkboxes)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+
+                // Find newly entered manual IMEIs
+                const newImeis = Array.from(manualInputs)
+                    .map(input => input.value.trim())
+                    .filter(val => val !== "");
+
+                const allImeis = [...selectedImeis, ...newImeis];
+                const uniqueImeis = [...new Set(allImeis)];
+
+                if (allImeis.length !== uniqueImeis.length) {
+                    toastr.error("Duplicate IMEI found. Please enter unique IMEIs.");
+                    return;
+                }
+
+                if (uniqueImeis.length === 0) {
+                    toastr.warning("Please select or enter at least one IMEI.");
+                    return;
+                }
+
+                modal.hide();
+                const batchId = selectedBatch ? selectedBatch.id : "all";
+                const price = product.retail_price;
+                let imeiLocationId = selectedBatch && selectedBatch.location_batches.length > 0 ?
+                    selectedBatch.location_batches[0].location_id : 1;
+
+                existingRows.forEach(row => row.remove());
+                uniqueImeis.forEach(imei => {
+                    addProductToBillingBody(
+                        currentImeiProduct,
+                        currentImeiStockEntry,
+                        price,
+                        batchId,
+                        1,
+                        'retail',
+                        1,
+                        [imei]
+                    );
+                });
+
+                updateTotals();
+
+                // Only call saveOrUpdateImei if there are new/manual IMEIs
+                if (newImeis.length > 0) {
+                    fetch('/save-or-update-imei', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .content
+                            },
+                            body: JSON.stringify({
+                                product_id: product.id,
+                                batches: [{
+                                    batch_id: batchId,
+                                    location_id: imeiLocationId,
+                                    qty: newImeis.length
+                                }],
+                                imeis: newImeis
+                            })
+                        }).then(response => response.json())
+                        .then(data => {
+                            if (data.status === 200) {
+                                let msg = data.message;
+                                if (typeof data.inserted !== 'undefined' && typeof data.updated !==
+                                    'undefined') {
+                                    msg += ` (${data.inserted} inserted, ${data.updated} updated)`;
+                                }
+                                toastr.success(msg);
+                                fetchAllProducts();
+                            } else {
+                                toastr.error(data.message || "Failed to save new IMEIs");
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            toastr.error("Error saving new IMEIs");
+                        });
+                }
+            };
+
+            function addNewImeiRow(count) {
+                const addButtonContainer = document.getElementById('add-button-container');
+                if (!addButtonContainer || count <= 0) return;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td>${tbody.querySelectorAll('tr').length + 1}</td>
+            <td><input type="checkbox" class="imei-checkbox manual-checkbox" disabled /></td>
+            <td>
+                <div class="input-group">
+                    <input type="text" class="form-control new-imei-input" placeholder="Enter IMEI" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+                    <button type="button" class="btn btn-danger btn-sm remove-imei-row">&times;</button>
+                </div>
+            </td>
+            <td><span class="badge bg-secondary">Manual</span></td>
+            <td></td>
+        `;
+
+                const removeBtn = row.querySelector('.remove-imei-row');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        row.remove();
+                        missingImeiCount++;
+                        toggleAddButton();
+                    });
+                }
+
+                tbody.appendChild(row);
+                imeiRows.push(row);
+
+                const input = row.querySelector('.new-imei-input');
+                const checkbox = row.querySelector('.imei-checkbox');
+                input.addEventListener('input', () => {
+                    const val = input.value.trim();
+                    checkbox.checked = val !== "";
+                });
+
+                input.focus();
+                missingImeiCount--;
+                toggleAddButton();
+            }
+
+            function toggleAddButton() {
+                const addButtonContainer = document.getElementById('add-button-container');
+                if (!addButtonContainer) return;
+
+                if (missingImeiCount > 0) {
+                    addButtonContainer.innerHTML = `
                 <button id="add-new-imei-btn" class="btn btn-sm btn-primary mt-2">+ Add New IMEI</button>`;
-            document.getElementById('add-new-imei-btn').addEventListener('click', () => {
-                addNewImeiRow(missingImeiCount);
+                    document.getElementById('add-new-imei-btn').addEventListener('click', () => {
+                        addNewImeiRow(missingImeiCount);
+                    });
+                } else {
+                    addButtonContainer.innerHTML = '';
+                }
+            }
+
+            const addButtonContainer = document.createElement('div');
+            addButtonContainer.id = 'add-button-container';
+            document.getElementById('imeiModalFooter').appendChild(addButtonContainer);
+            toggleAddButton();
+
+            // Event Listeners for Edit and Remove
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('edit-imei-btn')) {
+                    const row = e.target.closest('tr');
+                    const displayCell = row.querySelector('.imei-display');
+                    const originalImei = displayCell.textContent.trim();
+                    const imeiId = row.dataset.imeiId;
+                    if (!imeiId) {
+                        toastr.error("IMEI ID not found. Can't update.");
+                        return;
+                    }
+
+                    displayCell.innerHTML = `
+            <input type="text" class="form-control edit-imei-input" value="${originalImei}" />
+        `;
+
+                    e.target.textContent = "Save";
+                    e.target.classList.remove("btn-warning");
+                    e.target.classList.add("btn-success");
+
+                    e.target.onclick = function() {
+                        const newImei = row.querySelector('.edit-imei-input').value.trim();
+                        if (!newImei) {
+                            toastr.error("IMEI cannot be empty.");
+                            return;
+                        }
+
+                        // AJAX call to update
+                        fetch('/update-imei', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector(
+                                        'meta[name="csrf-token"]').content
+                                },
+                                body: JSON.stringify({
+                                    id: imeiId,
+                                    new_imei: newImei
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.status === 200) {
+                                    // Update UI: text, checkbox value, data-imei property
+                                    displayCell.textContent = newImei;
+                                    row.dataset.imei = newImei; // <-- important
+                                    const checkbox = row.querySelector('.imei-checkbox');
+                                    if (checkbox) {
+                                        checkbox.value = newImei; // <-- important
+                                    }
+                                    e.target.textContent = "Edit";
+                                    e.target.classList.remove("btn-success");
+                                    e.target.classList.add("btn-warning");
+                                    toastr.success("IMEI updated successfully!");
+                                } else {
+                                    toastr.error(data.message || "Failed to update IMEI");
+                                }
+                            })
+                            .catch(() => toastr.error("Network error updating IMEI"));
+                    };
+                }
             });
-        } else {
-            addButtonContainer.innerHTML = '';
+
+            let imeiToDeleteRow = null;
+
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-imei-btn')) {
+                    imeiToDeleteRow = e.target.closest('tr');
+                    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+                    modal.show();
+                }
+            });
+
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                if (!imeiToDeleteRow) return;
+                const imeiId = imeiToDeleteRow.dataset.imeiId;
+                fetch('/delete-imei', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            id: imeiId
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 200) {
+                            imeiToDeleteRow.remove();
+                            toastr.success("IMEI deleted successfully!");
+                            fetchAllProducts();
+                        } else {
+                            toastr.error(data.message || "Failed to delete IMEI");
+                        }
+                    })
+                    .catch(() => toastr.error("Network error deleting IMEI"));
+
+                // Hide modal after action
+                var modalEl = document.getElementById('confirmDeleteModal');
+                var modal = bootstrap.Modal.getInstance(modalEl);
+                modal.hide();
+            };
         }
-    }
-
-    const addButtonContainer = document.createElement('div');
-    addButtonContainer.id = 'add-button-container';
-    document.getElementById('imeiModalFooter').appendChild(addButtonContainer);
-    toggleAddButton();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('imeiSearch').value = '';
-    document.getElementById('checkboxFilter').value = 'all';
-});
-
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('imeiSearch').value = '';
+            document.getElementById('checkboxFilter').value = 'all';
+        });
 
         function showProductModal(product, stockEntry, row) {
             const modalBody = document.getElementById('productModalBody');
@@ -1052,8 +1105,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1, imeis = []) {
-            // Parse and validate price
+            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null) {
             price = parseFloat(price);
             if (isNaN(price)) {
                 console.error('Invalid price for product:', product.product_name);
@@ -1063,35 +1115,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const billingBody = document.getElementById('billing-body');
 
-            // Check for active discounts
+            locationId = selectedLocationId || 1; // Default to 1 if not set
+
             const activeDiscount = stockEntry.discounts && stockEntry.discounts.length > 0 ?
                 stockEntry.discounts.find(d => d.is_active && !d.is_expired) : null;
 
-            // Calculate default fixed discount (MRP - Retail Price)
             const defaultFixedDiscount = product.max_retail_price - product.retail_price;
 
-            // Calculate final price and discount values
+
+
+
             let finalPrice = price;
             let discountFixed = 0;
             let discountPercent = 0;
 
-            if (activeDiscount) {
+            // Discount logic: manual discount (from parameters) takes precedence, then active discount, then default
+            if (discountType && discountAmount !== null) {
+                if (discountType === 'fixed') {
+                    discountFixed = parseFloat(discountAmount);
+                    discountPercent = 0;
+                    finalPrice = product.max_retail_price - discountFixed;
+                    if (finalPrice < 0) finalPrice = 0;
+                } else if (discountType === 'percentage') {
+                    discountFixed = 0;
+                    discountPercent = parseFloat(discountAmount);
+                    finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
+                }
+            } else if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {
                     discountPercent = activeDiscount.amount;
+                    discountFixed = 0;
                     finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
                 } else if (activeDiscount.type === 'fixed') {
                     discountFixed = activeDiscount.amount;
+                    discountPercent = 0;
                     finalPrice = product.max_retail_price - discountFixed;
                     if (finalPrice < 0) finalPrice = 0;
                 }
             } else {
-                // Apply default discount when no active discount
                 discountFixed = defaultFixedDiscount;
-                finalPrice = product.retail_price;
                 discountPercent = (discountFixed / product.max_retail_price) * 100;
+                finalPrice = product.retail_price;
             }
 
-            // Adjust batch quantity
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
                 adjustedBatchQuantity = stockEntry.total_stock;
@@ -1106,7 +1172,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // Check if product exists (only for non-IMEI products)
             if (imeis.length === 0) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
                     const rowProductId = row.querySelector('.product-id').textContent;
@@ -1115,7 +1180,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
 
                 if (existingRow) {
-                    // Update existing row
                     const quantityInput = existingRow.querySelector('.quantity-input');
                     let currentQty = parseInt(quantityInput.value, 10);
                     let newQuantity = currentQty + saleQuantity;
@@ -1143,10 +1207,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // Create new row for IMEI products or new non-IMEI products
             const row = document.createElement('tr');
 
-            // IMEI display logic
             let imeiDisplay = '';
             if (imeis.length > 0) {
                 imeiDisplay = `
@@ -1197,57 +1259,36 @@ document.addEventListener('DOMContentLoaded', function() {
         <td class="d-none imei-data">${imeis.length > 0 ? imeis.join(',') : ''}</td>
     `;
 
-            // Update quantity display for IMEI products
             const qtyDisplayCell = row.querySelector('.quantity-display');
             if (imeis.length > 0) {
                 qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} PC(s)`;
             }
 
-
-            // With this:
             if (imeis.length > 0) {
                 const quantityInput = row.querySelector('.quantity-input');
                 const plusBtn = row.querySelector('.quantity-plus');
                 const minusBtn = row.querySelector('.quantity-minus');
-
                 if (quantityInput) quantityInput.readOnly = true;
                 if (plusBtn) plusBtn.disabled = true;
                 if (minusBtn) minusBtn.disabled = true;
-            } else {
-                // Ensure inputs and buttons are enabled for non-IMEI products
-                const quantityInput = row.querySelector('.quantity-input');
-                const plusBtn = row.querySelector('.quantity-plus');
-                const minusBtn = row.querySelector('.quantity-minus');
-
-                if (quantityInput) quantityInput.readOnly = false;
-                if (plusBtn) plusBtn.disabled = false;
-                if (minusBtn) minusBtn.disabled = false;
             }
 
-
-            // Add row to billing body
             billingBody.insertBefore(row, billingBody.firstChild);
-
-            // Attach event listeners
             attachRowEventListeners(row, product, stockEntry);
 
-            // Focus on quantity input
             const quantityInput = row.querySelector('.quantity-input');
             quantityInput.focus();
             quantityInput.select();
 
-            // Handle Enter key to focus search input
             quantityInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
                     document.getElementById('productSearchInput').focus();
                 }
             });
 
-            // Update UI
             disableConflictingDiscounts(row);
             updateTotals();
         }
-
         // Global flag to throttle error display
         let isErrorShown = false;
 
@@ -1575,12 +1616,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
         let saleId = null;
-
-        // Extract saleId from the URL path
         const pathSegments = window.location.pathname.split('/');
         saleId = pathSegments[pathSegments.length - 1];
 
-        // Validate saleId to ensure it is a numeric value
         if (!isNaN(saleId) && saleId !== 'pos' && saleId !== 'list-sale') {
             fetchEditSale(saleId);
         } else {
@@ -1596,24 +1634,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(data => {
                     if (data.status === 200) {
                         const saleDetails = data.sale_details;
-                        // Update the sale invoice number
+
+                        // Update invoice number
                         const saleInvoiceElement = document.getElementById('sale-invoice-no');
                         if (saleInvoiceElement && saleDetails.sale) {
                             saleInvoiceElement.textContent = `Invoice No: ${saleDetails.sale.invoice_no}`;
                         }
+
+                        // Set the locationId based on the sale's location_id
+                        if (saleDetails.sale && saleDetails.sale.location_id) {
+                            locationId = saleDetails.sale.location_id;
+                            selectedLocationId = saleDetails.sale
+                                .location_id; // Ensure global variable is updated
+                            // Update the location dropdown
+                            const locationSelect = document.getElementById('locationSelect');
+                            if (locationSelect) {
+                                locationSelect.value = saleDetails.sale.location_id
+                                    .toString(); // Ensure value matches option value type
+                                console.log('Location ID set to:', saleDetails.sale.location_id);
+                                // Manually trigger the change event to refresh products
+                                $(locationSelect).trigger('change'); // Use jQuery to trigger the event
+                            }
+                        }
+
+                        // Populate sale products
                         saleDetails.sale_products.forEach(saleProduct => {
                             const price = saleProduct.price || saleProduct.product.retail_price;
                             const stockEntry = stockData.find(stock =>
                                 stock.product.id === saleProduct.product.id
                             );
-                            if (saleDetails.sale && saleDetails.sale.location_id) {
-                                locationId = saleDetails.sale.location_id;
-                            }
                             let batches = [];
                             if (stockEntry && Array.isArray(stockEntry.batches)) {
                                 batches = [...stockEntry.batches];
                             }
-                            // Add sold quantity back to the batch to temporarily restore the original state
+
+                            // Add sold quantity back to batch temporarily
                             const originalBatchExists = batches.some(batch =>
                                 batch.id === saleProduct.batch?.id
                             );
@@ -1627,8 +1682,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                     return {
                                                         ...lb,
                                                         quantity: lb.quantity +
-                                                            saleProduct
-                                                            .quantity // Add sold quantity back
+                                                            saleProduct.quantity
                                                     };
                                                 }
                                                 return lb;
@@ -1653,14 +1707,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                     location_batches: [{
                                         location_id: saleProduct.location_id,
                                         quantity: saleProduct.total_quantity +
-                                            saleProduct
-                                            .quantity // Add sold quantity back
+                                            saleProduct.quantity
                                     }],
-                                    
                                 });
                             }
-                            let totalStock = saleProduct.total_quantity + saleProduct
-                                .quantity; // Add sold quantity back
+
+                            let totalStock = saleProduct.total_quantity + saleProduct.quantity;
                             if (stockEntry) {
                                 totalStock = batches.reduce((sum, batch) => {
                                     return sum + batch.location_batches.reduce((batchSum,
@@ -1669,23 +1721,45 @@ document.addEventListener('DOMContentLoaded', function() {
                                     }, 0);
                                 }, 0);
                             }
+
                             const normalizedStockEntry = {
                                 batches: batches,
                                 total_stock: totalStock,
                                 product: saleProduct.product
                             };
+
+                            // Pass only saleProduct.quantity as saleQuantity
                             addProductToBillingBody(
                                 saleProduct.product,
                                 normalizedStockEntry,
                                 price,
                                 saleProduct.batch_id,
-                                saleProduct.quantity,
+                                saleProduct.quantity, // Batch quantity
                                 saleProduct.price_type,
-                                saleProduct.quantity,
-                                saleProduct.imei_numbers || []
+                                saleProduct
+                                .quantity, // Sale quantity (this is what should be shown)
+                                saleProduct.imei_numbers || [],
+                                saleProduct.discount_type,
+                                saleProduct.discount_amount
                             );
+
+                            // Apply product-level discount
+                            const productRow = $('#billing-body tr:last-child');
+                            const fixedDiscountInput = productRow.find('.fixed_discount');
+                            const percentDiscountInput = productRow.find('.percent_discount');
+
+                            if (saleProduct.discount_type === 'fixed') {
+                                const fixedAmount = parseFloat(saleProduct.discount_amount) || 0;
+                                fixedDiscountInput.val(fixedAmount.toFixed(2));
+                                percentDiscountInput.val('');
+                            } else if (saleProduct.discount_type === 'percentage') {
+                                const percentAmount = parseFloat(saleProduct.discount_amount) || 0;
+                                percentDiscountInput.val(percentAmount.toFixed(2));
+                                fixedDiscountInput.val('');
+                            }
                         });
-                        // Fetch customer data directly here
+
+                        // Fetch and populate customer data
                         fetch('/customer-get-all')
                             .then(response => response.json())
                             .then(customerData => {
@@ -1704,8 +1778,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                         option.text(
                                             `${customer.first_name} ${customer.last_name} (${customer.mobile_no})`
                                         );
-                                        option.data('due', customer
-                                            .current_due); // Store the due amount in the option
+                                        option.data('due', customer.current_due);
                                         customerSelect.append(option);
                                     });
                                     const walkingCustomer = sortedCustomers.find(customer => customer
@@ -1714,19 +1787,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                         customerSelect.val(walkingCustomer.id);
                                         updateDueAmount(walkingCustomer.current_due);
                                     }
-                                    // Now set the customer ID after dropdown is populated
                                     if (saleDetails.sale) {
                                         customerSelect.val(saleDetails.sale.customer_id);
-                                        customerSelect.trigger(
-                                            'change'); // Trigger change event to update other fields
+                                        customerSelect.trigger('change');
                                     }
                                 } else {
                                     console.error('Failed to fetch customer data:', customerData ?
                                         customerData.message : 'No data received');
                                 }
                             });
-                        // Update discount and total fields
-                        const discountElement = document.getElementById('discount');
+
+                        // Set global discount values
+                        const discountElement = document.getElementById('global-discount');
                         const discountTypeElement = document.getElementById('discount-type');
                         if (discountElement && saleDetails.sale) {
                             discountElement.value = saleDetails.sale.discount_amount || 0;
@@ -1734,6 +1806,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (discountTypeElement && saleDetails.sale) {
                             discountTypeElement.value = saleDetails.sale.discount_type || 'fixed';
                         }
+
+                        // Update totals
                         updateTotals();
                     } else {
                         console.error('Invalid sale data:', data);
