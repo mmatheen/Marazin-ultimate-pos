@@ -31,4 +31,9 @@ class ImeiNumber extends Model
     {
         return $this->belongsTo(Batch::class);
     }
+
+    public static function isDuplicate($imei)
+    {
+        return self::where('imei_number', $imei)->exists();
+    }
 }

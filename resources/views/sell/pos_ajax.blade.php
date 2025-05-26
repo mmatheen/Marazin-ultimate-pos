@@ -572,10 +572,10 @@
                 const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
                 [];
                 console.log("Available IMEIs:", availableImeis);
-                if (availableImeis.length === 0) {
-                    toastr.warning("No available IMEIs for this product.");
-                    return;
-                }
+                // if (availableImeis.length === 0) {
+                //     toastr.warning("No available IMEIs for this product.");
+                //     return;
+                // }
                 // Check if this product already exists in billing
                 const billingBody = document.getElementById('billing-body');
                 const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
@@ -696,7 +696,7 @@
 
             // Add initial manual IMEI row
             if (missingImeiCount > 0) {
-                addNewImeiRow(missingImeiCount);
+                addNewImeiRow(missingImeiCount, tbody, imeiRows);
             }
 
             // Show modal
@@ -708,20 +708,31 @@
             const modal = new bootstrap.Modal(modalElement);
             modal.show();
 
-            // Setup search & filter
+            setupSearchAndFilter(tbody, imeiRows);
+            setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, imeiRows);
+            setupAddButtonContainer(missingImeiCount, tbody, imeiRows);
+            attachEditRemoveHandlers();
+        }
+
+        // --- Helper Functions ---
+
+        function setupSearchAndFilter(tbody, imeiRows) {
             const searchInput = document.getElementById('imeiSearch');
             const filterSelect = document.getElementById('checkboxFilter');
 
             function applyFilters() {
                 const searchTerm = (searchInput?.value || '').toLowerCase();
                 const filterType = filterSelect?.value || 'all';
+
                 imeiRows.forEach(row => {
                     const isManual = !row.dataset.imei;
                     const imeiNumber = isManual ?
                         (row.querySelector('.new-imei-input')?.value || '').toLowerCase() :
                         row.dataset.imei.toLowerCase();
+
                     const checkbox = row.querySelector('.imei-checkbox');
                     const isChecked = checkbox?.checked || false;
+
                     let matchesSearch = imeiNumber.includes(searchTerm);
                     let matchesFilter = true;
 
@@ -737,23 +748,21 @@
 
             searchInput?.addEventListener('input', applyFilters);
             filterSelect?.addEventListener('change', applyFilters);
+        }
 
+        function setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, imeiRows) {
             document.getElementById('confirmImeiSelection').onclick = function() {
                 const checkboxes = document.querySelectorAll('.imei-checkbox:not(.manual-checkbox)');
                 const manualInputs = document.querySelectorAll('.new-imei-input');
 
-                // Find selected existing IMEIs
-                const selectedImeis = Array.from(checkboxes)
-                    .filter(cb => cb.checked)
-                    .map(cb => cb.value);
-
-                // Find newly entered manual IMEIs
-                const newImeis = Array.from(manualInputs)
-                    .map(input => input.value.trim())
-                    .filter(val => val !== "");
+                const selectedImeis = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+                const newImeis = Array.from(manualInputs).map(input => input.value.trim()).filter(val =>
+                    val);
 
                 const allImeis = [...selectedImeis, ...newImeis];
                 const uniqueImeis = [...new Set(allImeis)];
+
+                highlightDuplicates(allImeis, tbody);
 
                 if (allImeis.length !== uniqueImeis.length) {
                     toastr.error("Duplicate IMEI found. Please enter unique IMEIs.");
@@ -768,26 +777,8 @@
                 modal.hide();
                 const batchId = selectedBatch ? selectedBatch.id : "all";
                 const price = product.retail_price;
-                let imeiLocationId = selectedBatch && selectedBatch.location_batches.length > 0 ?
-                    selectedBatch.location_batches[0].location_id : 1;
+                const imeiLocationId = selectedBatch?.location_batches[0]?.location_id ?? 1;
 
-                existingRows.forEach(row => row.remove());
-                uniqueImeis.forEach(imei => {
-                    addProductToBillingBody(
-                        currentImeiProduct,
-                        currentImeiStockEntry,
-                        price,
-                        batchId,
-                        1,
-                        'retail',
-                        1,
-                        [imei]
-                    );
-                });
-
-                updateTotals();
-
-                // Only call saveOrUpdateImei if there are new/manual IMEIs
                 if (newImeis.length > 0) {
                     fetch('/save-or-update-imei', {
                             method: 'POST',
@@ -808,13 +799,10 @@
                         }).then(response => response.json())
                         .then(data => {
                             if (data.status === 200) {
-                                let msg = data.message;
-                                if (typeof data.inserted !== 'undefined' && typeof data.updated !==
-                                    'undefined') {
-                                    msg += ` (${data.inserted} inserted, ${data.updated} updated)`;
-                                }
-                                toastr.success(msg);
-                                fetchAllProducts();
+                                const message = data.message ||
+                                    `${newImeis.length} IMEI(s) added successfully.`;
+                                toastr.success(message);
+                                updateBilling(uniqueImeis, product, stockEntry, price, batchId);
                             } else {
                                 toastr.error(data.message || "Failed to save new IMEIs");
                             }
@@ -823,148 +811,163 @@
                             console.error(err);
                             toastr.error("Error saving new IMEIs");
                         });
+                } else {
+                    updateBilling(uniqueImeis, product, stockEntry, price, batchId);
                 }
             };
+        }
 
-            function addNewImeiRow(count) {
-                const addButtonContainer = document.getElementById('add-button-container');
-                if (!addButtonContainer || count <= 0) return;
+        function highlightDuplicates(imeis, tbody) {
+            const counts = {};
+            imeis.forEach(imei => counts[imei] = (counts[imei] || 0) + 1);
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-            <td>${tbody.querySelectorAll('tr').length + 1}</td>
-            <td><input type="checkbox" class="imei-checkbox manual-checkbox" disabled /></td>
-            <td>
-                <div class="input-group">
-                    <input type="text" class="form-control new-imei-input" placeholder="Enter IMEI" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
-                    <button type="button" class="btn btn-danger btn-sm remove-imei-row">&times;</button>
-                </div>
-            </td>
-            <td><span class="badge bg-secondary">Manual</span></td>
-            <td></td>
-        `;
+            tbody.querySelectorAll('tr').forEach(row => {
+                const isManual = !row.dataset.imei;
+                const imei = isManual ? row.querySelector('.new-imei-input')?.value.trim() : row.dataset
+                    .imei;
 
-                const removeBtn = row.querySelector('.remove-imei-row');
-                if (removeBtn) {
-                    removeBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        row.remove();
-                        missingImeiCount++;
-                        toggleAddButton();
-                    });
-                }
-
-                tbody.appendChild(row);
-                imeiRows.push(row);
-
-                const input = row.querySelector('.new-imei-input');
-                const checkbox = row.querySelector('.imei-checkbox');
-                input.addEventListener('input', () => {
-                    const val = input.value.trim();
-                    checkbox.checked = val !== "";
-                });
-
-                input.focus();
-                missingImeiCount--;
-                toggleAddButton();
-            }
-
-            function toggleAddButton() {
-                const addButtonContainer = document.getElementById('add-button-container');
-                if (!addButtonContainer) return;
-
-                if (missingImeiCount > 0) {
-                    addButtonContainer.innerHTML = `
-                <button id="add-new-imei-btn" class="btn btn-sm btn-primary mt-2">+ Add New IMEI</button>`;
-                    document.getElementById('add-new-imei-btn').addEventListener('click', () => {
-                        addNewImeiRow(missingImeiCount);
-                    });
+                if (counts[imei] > 1) {
+                    row.style.backgroundColor = "#fff3cd"; // Light Yellow
                 } else {
-                    addButtonContainer.innerHTML = '';
+                    row.style.backgroundColor = ""; // Reset
                 }
+            });
+        }
+
+        function updateBilling(imeis, product, stockEntry, price, batchId) {
+            const existingRows = Array.from(document.querySelectorAll('#billing-body tr'))
+                .filter(row => row.querySelector('.product-id')?.textContent == product.id);
+
+            existingRows.forEach(row => row.remove());
+
+            imeis.forEach(imei => {
+                addProductToBillingBody(
+                    product, stockEntry, price, batchId, 1, 'retail', 1, [imei]
+                );
+            });
+
+            updateTotals();
+            fetchAllProducts();
+        }
+
+        function addNewImeiRow(count, tbody, imeiRows) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+        <td>${tbody.querySelectorAll('tr').length + 1}</td>
+        <td><input type="checkbox" class="imei-checkbox manual-checkbox" disabled /></td>
+        <td>
+            <div class="input-group">
+                <input type="text" class="form-control new-imei-input" placeholder="Enter IMEI" maxlength="15" oninput="this.value=this.value.replace(/[^0-9]/g,'')" />
+                <button type="button" class="btn btn-danger btn-sm remove-imei-row">&times;</button>
+            </div>
+        </td>
+        <td><span class="badge bg-secondary">Manual</span></td>
+        <td></td>
+    `;
+
+            const removeBtn = row.querySelector('.remove-imei-row');
+            removeBtn?.addEventListener('click', function(e) {
+                e.stopPropagation();
+                row.remove();
+                count++;
+                toggleAddButton(count);
+            });
+
+            const input = row.querySelector('.new-imei-input');
+            const checkbox = row.querySelector('.imei-checkbox');
+
+            input.addEventListener('input', () => {
+                checkbox.checked = input.value.trim() !== "";
+            });
+
+            tbody.appendChild(row);
+            imeiRows.push(row);
+            input.focus();
+            count--;
+            toggleAddButton(count);
+        }
+
+        function setupAddButtonContainer(count) {
+            const container = document.getElementById('add-button-container') || (() => {
+                const el = document.createElement('div');
+                el.id = 'add-button-container';
+                document.getElementById('imeiModalFooter').appendChild(el);
+                return el;
+            })();
+
+            toggleAddButton(count);
+        }
+
+        function toggleAddButton(count) {
+            const container = document.getElementById('add-button-container');
+            if (!container) return;
+
+            if (count > 0) {
+                container.innerHTML =
+                    `<button id="add-new-imei-btn" class="btn btn-sm btn-primary mt-2">+ Add New IMEI</button>`;
+                document.getElementById('add-new-imei-btn').addEventListener('click', () => {
+                    addNewImeiRow(count, document.getElementById('imei-table-body'), []);
+                });
+            } else {
+                container.innerHTML = '';
             }
+        }
 
-            const addButtonContainer = document.createElement('div');
-            addButtonContainer.id = 'add-button-container';
-            document.getElementById('imeiModalFooter').appendChild(addButtonContainer);
-            toggleAddButton();
-
-            // Event Listeners for Edit and Remove
+        function attachEditRemoveHandlers() {
             document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('edit-imei-btn')) {
-                    const row = e.target.closest('tr');
-                    const displayCell = row.querySelector('.imei-display');
-                    const originalImei = displayCell.textContent.trim();
-                    const imeiId = row.dataset.imeiId;
-                    if (!imeiId) {
-                        toastr.error("IMEI ID not found. Can't update.");
-                        return;
-                    }
+                if (e.target.classList.contains('edit-imei-btn')) handleEditImei(e);
+                if (e.target.classList.contains('remove-imei-btn')) handleDeleteImei(e);
+            });
+        }
 
-                    displayCell.innerHTML = `
-            <input type="text" class="form-control edit-imei-input" value="${originalImei}" />
-        `;
+        function handleEditImei(e) {
+            const row = e.target.closest('tr');
+            const displayCell = row.querySelector('.imei-display');
+            const originalImei = displayCell.textContent.trim();
+            const imeiId = row.dataset.imeiId;
 
-                    e.target.textContent = "Save";
-                    e.target.classList.remove("btn-warning");
-                    e.target.classList.add("btn-success");
+            if (!imeiId) return toastr.error("IMEI ID not found. Can't update.");
 
-                    e.target.onclick = function() {
-                        const newImei = row.querySelector('.edit-imei-input').value.trim();
-                        if (!newImei) {
-                            toastr.error("IMEI cannot be empty.");
-                            return;
+            displayCell.innerHTML =
+                `<input type="text" class="form-control edit-imei-input" value="${originalImei}" />`;
+            e.target.textContent = "Update";
+            e.target.classList.replace("btn-warning", "btn-success");
+
+            e.target.onclick = function() {
+                const newImei = row.querySelector('.edit-imei-input').value.trim();
+                if (!newImei) return toastr.error("IMEI cannot be empty.");
+
+                fetch('/update-imei', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                        },
+                        body: JSON.stringify({
+                            id: imeiId,
+                            new_imei: newImei
+                        })
+                    }).then(res => res.json())
+                    .then(data => {
+                        if (data.status === 200) {
+                            displayCell.textContent = newImei;
+                            row.dataset.imei = newImei;
+                            row.querySelector('.imei-checkbox').value = newImei;
+                            e.target.textContent = "Edit";
+                            e.target.classList.replace("btn-success", "btn-warning");
+                            toastr.success("IMEI updated successfully!");
+                        } else {
+                            toastr.error(data.message || "Failed to update IMEI");
                         }
+                    }).catch(() => toastr.error("Network error updating IMEI"));
+            };
+        }
 
-                        // AJAX call to update
-                        fetch('/update-imei', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector(
-                                        'meta[name="csrf-token"]').content
-                                },
-                                body: JSON.stringify({
-                                    id: imeiId,
-                                    new_imei: newImei
-                                })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.status === 200) {
-                                    // Update UI: text, checkbox value, data-imei property
-                                    displayCell.textContent = newImei;
-                                    row.dataset.imei = newImei; // <-- important
-                                    const checkbox = row.querySelector('.imei-checkbox');
-                                    if (checkbox) {
-                                        checkbox.value = newImei; // <-- important
-                                    }
-                                    e.target.textContent = "Edit";
-                                    e.target.classList.remove("btn-success");
-                                    e.target.classList.add("btn-warning");
-                                    toastr.success("IMEI updated successfully!");
-                                } else {
-                                    toastr.error(data.message || "Failed to update IMEI");
-                                }
-                            })
-                            .catch(() => toastr.error("Network error updating IMEI"));
-                    };
-                }
-            });
-
-            let imeiToDeleteRow = null;
-
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-imei-btn')) {
-                    imeiToDeleteRow = e.target.closest('tr');
-                    const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
-                    modal.show();
-                }
-            });
-
+        function handleDeleteImei(e) {
+            const row = e.target.closest('tr');
+            const modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
             document.getElementById('confirmDeleteBtn').onclick = function() {
-                if (!imeiToDeleteRow) return;
-                const imeiId = imeiToDeleteRow.dataset.imeiId;
+                const imeiId = row.dataset.imeiId;
                 fetch('/delete-imei', {
                         method: 'POST',
                         headers: {
@@ -974,29 +977,21 @@
                         body: JSON.stringify({
                             id: imeiId
                         })
-                    })
-                    .then(response => response.json())
+                    }).then(res => res.json())
                     .then(data => {
                         if (data.status === 200) {
-                            imeiToDeleteRow.remove();
+                            row.remove();
                             toastr.success("IMEI deleted successfully!");
                             fetchAllProducts();
                         } else {
                             toastr.error(data.message || "Failed to delete IMEI");
                         }
-                    })
-                    .catch(() => toastr.error("Network error deleting IMEI"));
+                    }).catch(() => toastr.error("Network error deleting IMEI"));
 
-                // Hide modal after action
-                var modalEl = document.getElementById('confirmDeleteModal');
-                var modal = bootstrap.Modal.getInstance(modalEl);
                 modal.hide();
             };
+            modal.show();
         }
-        document.addEventListener('DOMContentLoaded', function() {
-            document.getElementById('imeiSearch').value = '';
-            document.getElementById('checkboxFilter').value = 'all';
-        });
 
         function showProductModal(product, stockEntry, row) {
             const modalBody = document.getElementById('productModalBody');
@@ -1410,6 +1405,23 @@
             productName.addEventListener('click', () => {
                 showProductModal(product, stockEntry, row);
             });
+
+            const showImeiBtn = row.querySelector('.show-imei-btn');
+            if (showImeiBtn) {
+                showImeiBtn.addEventListener('click', function() {
+                    const imeiDataCell = row.querySelector('.imei-data');
+                    const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
+                        Boolean) : [];
+
+                    if (imeis.length === 0) {
+                        toastr.warning("No IMEIs found for this product.");
+                        return;
+                    }
+
+                    // Re-populate IMEI modal with current IMEIs
+                    showImeiSelectionModal(product, stockEntry, imeis);
+                });
+            }
 
             // Newly added: Disable conflicting discounts when product is added
             disableConflictingDiscounts(row);

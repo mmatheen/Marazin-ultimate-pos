@@ -745,7 +745,8 @@ class ProductController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request) {
+            $operation = 'save'; // Default to save
+            DB::transaction(function () use ($request, &$operation) {
                 $validImeis = collect($request->imeis)
                     ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
                     ->values();
@@ -761,24 +762,42 @@ class ProductController extends Controller
                     $validImeis = $validImeis->slice($assignedImeis->count());
 
                     foreach ($assignedImeis as $imei) {
-                        ImeiNumber::updateOrCreate(
-                            [
+                        // Check for duplicate IMEI, regardless of location/status
+                        if (ImeiNumber::isDuplicate($imei)) {
+                            throw new \Exception("IMEI number $imei is already associated with another product or sold.");
+                        }
+                        $imeiModel = ImeiNumber::where([
+                            'product_id' => $request->product_id,
+                            'batch_id' => $batchInfo['batch_id'],
+                            'location_id' => $batchInfo['location_id'],
+                            'imei_number' => $imei
+                        ])->first();
+
+                        if ($imeiModel) {
+                            $operation = 'update';
+                            $imeiModel->touch();
+                        } else {
+                            $operation = 'save';
+                            ImeiNumber::create([
                                 'product_id' => $request->product_id,
                                 'batch_id' => $batchInfo['batch_id'],
                                 'location_id' => $batchInfo['location_id'],
-                                'imei_number' => $imei
-                            ],
-                            [
-                                'updated_at' => now(), // Add more fields here if you want to update them
-                            ]
-                        );
+                                'imei_number' => $imei,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
                     }
                 }
             });
 
+            $msg = $operation === 'update'
+                ? 'IMEI numbers updated successfully.'
+                : 'IMEI numbers saved successfully.';
+
             return response()->json([
                 'status' => 200,
-                'message' => 'IMEI numbers saved or updated successfully.'
+                'message' => $msg
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -799,6 +818,14 @@ class ProductController extends Controller
         }
 
         try {
+            // Check for duplicate IMEI before updating
+            if (ImeiNumber::where('imei_number', $request->new_imei)->where('id', '!=', $request->id)->exists()) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Duplicate IMEI: This IMEI is already associated with another product or sold.'
+                ]);
+            }
+
             $imeiNumber = ImeiNumber::findOrFail($request->id);
             $imeiNumber->imei_number = $request->new_imei;
             $imeiNumber->save();
