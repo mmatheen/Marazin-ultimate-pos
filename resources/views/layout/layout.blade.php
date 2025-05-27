@@ -51,7 +51,6 @@
         .is-validGreen {
             border-color: rgb(3, 105, 54) !important;
         }
-
     </style>
 
 
@@ -65,7 +64,7 @@
             color: #fff !important;
             margin: 20px 10px;
         }
-    
+
         /* Excel button style */
         .dt-button.buttons-excel.buttons-html5 {
             background-color: #26C76F !important;
@@ -75,48 +74,49 @@
         }
 
         /* Print button style */
-        .dt-button.buttons-print{
+        .dt-button.buttons-print {
             background-color: #131111 !important;
             border-color: #000 !important;
             color: #fff !important;
             margin: 20px 10px;
         }
-    
+
         /* Flex row for search filter and dt-controls */
         .dataTables_wrapper .dt-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* optional: wrap on small screens */
+            flex-wrap: wrap;
+            /* optional: wrap on small screens */
         }
-    
+
         /* Optional: spacing adjustments */
         .dataTables_wrapper .dt-buttons {
             margin-bottom: 10px;
         }
-    
+
         .dataTables_wrapper .dt-controls {
             margin-left: auto;
             /* or use padding/margin if needed for alignment */
         }
     </style>
-    
+
     {{-- data table customize style end --}}
 
-   
-   {{-- visibility column style end --}}
-     <style>
-     .selected-column {
-        background-color:rgb(205, 222, 231) !important;
-        font-weight: 600;
-    }
+
+    {{-- visibility column style end --}}
+    <style>
+        .selected-column {
+            background-color: rgb(205, 222, 231) !important;
+            font-weight: 600;
+        }
     </style>
 
 </head>
 
 <body>
 
-{{-- @stack('scripts') --}}
+    {{-- @stack('scripts') --}}
 
     {{-- For jQuery --}}
     <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
@@ -151,7 +151,8 @@
     <script src="{{ asset('assets/plugins/apexchart/chart-data.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js">
+    </script>
 
 
     <!-- DataTables -->
@@ -188,43 +189,47 @@
         });
     </script>
 
-<script>
-    $(document).ready(function () {
-      $('.selectBox').select2();
-  
-      $('.selectBox').on('select2:open', function () {
-        // Use setTimeout to wait for DOM update
-        setTimeout(() => {
-          // Get all open Select2 dropdowns
-          const allDropdowns = document.querySelectorAll('.select2-container--open');
-  
-          // Get the most recently opened dropdown (last one)
-          const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
-  
-          if (lastOpenedDropdown) {
-            // Find the search input inside this dropdown
-            const searchInput = lastOpenedDropdown.querySelector('.select2-search__field');
-  
-            if (searchInput) {
-              searchInput.focus(); // Focus the search input
-              searchInput.select(); // Optional: select any existing text
-            }
-          }
-        }, 10); // Very short delay to allow DOM render
-      });
-    });
-  </script>
     <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                document.querySelectorAll("input").forEach(function (input) {
-                    input.setAttribute("autocomplete", "off");
-                });
+        $(document).ready(function() {
+            $('.selectBox').select2();
+
+            $('.selectBox').on('select2:open', function() {
+                // Use setTimeout to wait for DOM update
+                setTimeout(() => {
+                    // Get all open Select2 dropdowns
+                    const allDropdowns = document.querySelectorAll('.select2-container--open');
+
+                    // Get the most recently opened dropdown (last one)
+                    const lastOpenedDropdown = allDropdowns[allDropdowns.length - 1];
+
+                    if (lastOpenedDropdown) {
+                        // Find the search input inside this dropdown
+                        const searchInput = lastOpenedDropdown.querySelector(
+                            '.select2-search__field');
+
+                        if (searchInput) {
+                            searchInput.focus(); // Focus the search input
+                            searchInput.select(); // Optional: select any existing text
+                        }
+                    }
+                }, 10); // Very short delay to allow DOM render
             });
-        </script>
-<script>
-    // Global utility function to format currency
-    function formatCurrency(amount) {
-            return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll("input").forEach(function(input) {
+                input.setAttribute("autocomplete", "off");
+            });
+        });
+    </script>
+    <script>
+        // Global utility function to format currency
+        function formatCurrency(amount) {
+            return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
 
         // Function to apply currency formatting to input fields
@@ -232,7 +237,10 @@
             $('input[data-currency]').on('input', function() {
                 let value = this.value.replace(/,/g, '');
                 if (!isNaN(value) && value !== '') {
-                    this.value = parseFloat(value).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    this.value = parseFloat(value).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
                 }
             });
         }
@@ -241,10 +249,8 @@
         $(document).ready(function() {
             applyCurrencyFormatting();
         });
-
-
     </script>
-        {{-- Toaster Notifications --}}
+    {{-- Toaster Notifications --}}
     <script>
         $(document).ready(function() {
             var successSound = document.querySelector('.successSound');
@@ -299,6 +305,47 @@
             }
         });
     </script>
+
+    <script>
+        $(document).on('submit', 'form', function(e) {
+            e.preventDefault(); // prevent default submit
+
+            let $form = $(this);
+            let $btn = $form.find('button[type="submit"]');
+
+            // 🔁 Store original text in data attribute
+            let originalText = $btn.text();
+            $btn.data('original-text', originalText);
+
+
+            $btn.prop('disabled', true).text('Please wait...');
+
+            $.ajax({
+                type: $form.attr('method'),
+                url: $form.attr('action'),
+                data: $form.serialize(),
+                success: function(response) {
+                    $btn.prop('disabled', false).text($btn.data('original-text'));
+
+                },
+                error: function(xhr) {
+
+                    $btn.prop('disabled', false).text($btn.data('original-text'));
+
+                    if (xhr.status === 422) {
+                        let errors = xhr.responseJSON.errors;
+                        $.each(errors, function(key, value) {
+                            let input = $form.find('[name="' + key + '"]');
+                            input.after('<small class="text-danger">' + value[0] + '</small>');
+                        });
+                    } else {
+                        console.log('Something went wrong');
+                    }
+                }
+            });
+        });
+    </script>
+
 
 </body>
 

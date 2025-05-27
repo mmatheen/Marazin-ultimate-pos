@@ -38,7 +38,7 @@ class SalesProduct extends Model
     }
 
     public function imeis()
-{
-    return $this->hasMany(SaleImei::class, 'sale_product_id');
-}
+    {
+        return $this->hasMany(SaleImei::class, 'sale_product_id');
+    }
 }

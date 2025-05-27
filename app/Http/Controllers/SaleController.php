@@ -48,13 +48,13 @@ class SaleController extends Controller
 
     public function pos()
     {
-        
+
         return view('sell.pos');
     }
 
     public function pos2()
     {
-      
+
         return view('sell.pos2');
     }
 
@@ -80,7 +80,8 @@ class SaleController extends Controller
     }
 
 
-    public function saleDailyReport(){
+    public function saleDailyReport()
+    {
         return view('reports.daily_sales_report');
     }
 
@@ -89,20 +90,20 @@ class SaleController extends Controller
         try {
             $startDate = $request->input('start_date', Carbon::today()->toDateString());
             $endDate = $request->input('end_date', Carbon::today()->toDateString());
-    
+
             $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
                 ->whereBetween('sales_date', [$startDate, $endDate]);
-    
+
             // Get all sales for the period
             $sales = $salesQuery->get();
-    
+
             // Calculate payment totals
             $cashPayments = 0;
             $chequePayments = 0;
             $bankTransferPayments = 0;
             $cardPayments = 0;
             $creditTotal = 0;
-    
+
             foreach ($sales as $sale) {
                 foreach ($sale->payments as $payment) {
                     switch ($payment->payment_method) {
@@ -122,11 +123,11 @@ class SaleController extends Controller
                 }
                 $creditTotal += $sale->total_due;
             }
-    
+
             // Calculate sales returns
             $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total');
             $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
-    
+
             $summaries = [
                 'billTotal' => $sales->sum('final_total'),
                 'discounts' => $sales->sum('discount_amount'),
@@ -140,12 +141,12 @@ class SaleController extends Controller
                 'netIncome' => $sales->sum('final_total') - $salesReturns,
                 'cashInHand' => $cashPayments - $salesReturns, // Basic cash in hand calculation
             ];
-    
+
             // Fetch sales return details based on sale ID
             $salesReturnsDetails = SalesReturn::with('customer', 'location', 'returnProducts')
                 ->whereIn('sale_id', $sales->pluck('id'))
                 ->get();
-    
+
             return response()->json([
                 'sales' => $sales,
                 'summaries' => $summaries,
@@ -159,60 +160,60 @@ class SaleController extends Controller
         }
     }
 
-//     public function dailyReport(Request $request)
-// {
-//     try {
-//         $startDate = $request->input('start_date', Carbon::today()->toDateString());
-//         $endDate = $request->input('end_date', Carbon::today()->toDateString());
+    //     public function dailyReport(Request $request)
+    // {
+    //     try {
+    //         $startDate = $request->input('start_date', Carbon::today()->toDateString());
+    //         $endDate = $request->input('end_date', Carbon::today()->toDateString());
 
-//         $salesQuery = Sale::with(['customer', 'payments'])
-//             ->whereBetween('sales_date', [$startDate, $endDate]);
+    //         $salesQuery = Sale::with(['customer', 'payments'])
+    //             ->whereBetween('sales_date', [$startDate, $endDate]);
 
-//         if ($request->customer_id) {
-//             $salesQuery->where('customer_id', $request->customer_id);
-//         }
+    //         if ($request->customer_id) {
+    //             $salesQuery->where('customer_id', $request->customer_id);
+    //         }
 
-//         if ($request->payment_method) {
-//             $salesQuery->whereHas('payments', function($query) use ($request) {
-//                 $query->where('payment_method', $request->payment_method);
-//             });
-//         }
+    //         if ($request->payment_method) {
+    //             $salesQuery->whereHas('payments', function($query) use ($request) {
+    //                 $query->where('payment_method', $request->payment_method);
+    //             });
+    //         }
 
-//         $sales = $salesQuery->get();
-//         $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->get();
+    //         $sales = $salesQuery->get();
+    //         $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->get();
 
-//         // Calculate summaries
-//         $summaries = [
-//             'billTotal' => $sales->sum('subtotal'),
-//             'discounts' => $sales->sum('discount_amount'),
-//             'cashPayments' => $sales->sum(function($sale) {
-//                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
-//             }),
-//             'cardPayments' => $sales->sum(function($sale) {
-//                 return $sale->payments->where('payment_method', 'card')->sum('amount');
-//             }),
-//             'paymentTotal' => $sales->sum('final_total'),
-//             'creditTotal' => $sales->sum('total_due'),
-//             'salesReturns' => $salesReturns->sum('return_total'),
-//             'netIncome' => $sales->sum('final_total') - $salesReturns->sum('return_total'),
-//             'cashInHand' => $sales->sum(function($sale) {
-//                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
-//             }) - $salesReturns->sum('return_total')
-//         ];
+    //         // Calculate summaries
+    //         $summaries = [
+    //             'billTotal' => $sales->sum('subtotal'),
+    //             'discounts' => $sales->sum('discount_amount'),
+    //             'cashPayments' => $sales->sum(function($sale) {
+    //                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
+    //             }),
+    //             'cardPayments' => $sales->sum(function($sale) {
+    //                 return $sale->payments->where('payment_method', 'card')->sum('amount');
+    //             }),
+    //             'paymentTotal' => $sales->sum('final_total'),
+    //             'creditTotal' => $sales->sum('total_due'),
+    //             'salesReturns' => $salesReturns->sum('return_total'),
+    //             'netIncome' => $sales->sum('final_total') - $salesReturns->sum('return_total'),
+    //             'cashInHand' => $sales->sum(function($sale) {
+    //                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
+    //             }) - $salesReturns->sum('return_total')
+    //         ];
 
-//         return response()->json([
-//             'sales' => $sales,
-//             'salesReturns' => $salesReturns,
-//             'summaries' => $summaries
-//         ], 200);
+    //         return response()->json([
+    //             'sales' => $sales,
+    //             'salesReturns' => $salesReturns,
+    //             'summaries' => $summaries
+    //         ], 200);
 
-//     } catch (\Exception $e) {
-//         return response()->json([
-//             'error' => 'An error occurred while fetching sales data.',
-//             'details' => $e->getMessage()
-//         ], 500);
-//     }
-// }
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'error' => 'An error occurred while fetching sales data.',
+    //             'details' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
 
 
@@ -280,14 +281,14 @@ class SaleController extends Controller
             'amount_given' => 'nullable|numeric|min:0',
             'balance_amount' => 'nullable|numeric|min:0',
         ]);
-    
+
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
-    
+
         try {
             $sale = DB::transaction(function () use ($request, $id) {
-               $isUpdate = $id !== null;
+                $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
@@ -296,8 +297,8 @@ class SaleController extends Controller
                 // Calculate amounts
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
-                $finalTotal = $request->discount_type === 'percentage' 
-                    ? $subtotal - ($subtotal * $discount / 100) 
+                $finalTotal = $request->discount_type === 'percentage'
+                    ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;
 
                 // Create the sale record first to get the ID
@@ -319,12 +320,12 @@ class SaleController extends Controller
                     'amount_given' => 0,
                     'balance_amount' => 0,
                 ])->save();
-    
+
                 // Handle payments
                 $totalPaid = 0;
                 if (!empty($request->payments)) {
                     $totalPaid = array_reduce($request->payments, fn($sum, $p) => $sum + $p['amount'], 0);
-                    
+
                     if ($isUpdate) {
                         // Delete existing payments and ledger entries for updates
                         Payment::where('reference_id', $sale->id)->delete();
@@ -332,7 +333,7 @@ class SaleController extends Controller
                             ->where('transaction_type', 'payments')
                             ->delete();
                     }
-                    
+
                     // Create new payments
                     foreach ($request->payments as $paymentData) {
                         $payment = Payment::create([
@@ -355,7 +356,7 @@ class SaleController extends Controller
                             'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
                             'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                         ]);
-    
+
                         Ledger::create([
                             'transaction_date' => $payment->payment_date,
                             'reference_no' => $referenceNo,
@@ -370,11 +371,11 @@ class SaleController extends Controller
                 } elseif ($isUpdate) {
                     $totalPaid = $sale->total_paid; // Keep existing payments if none provided
                 }
-    
+
                 $totalDue = max($finalTotal - $totalPaid, 0);
                 $amountGiven = $request->amount_given ?? 0;
                 $balanceAmount = $amountGiven - $finalTotal;
-    
+
                 // Update sale with payment totals
                 $sale->update([
                     'total_paid' => $totalPaid,
@@ -382,7 +383,7 @@ class SaleController extends Controller
                     'amount_given' => $amountGiven,
                     'balance_amount' => $balanceAmount,
                 ]);
-    
+
                 // Handle products
                 if ($isUpdate) {
                     foreach ($sale->products as $product) {
@@ -390,17 +391,17 @@ class SaleController extends Controller
                         $product->delete();
                     }
                 }
-    
+
                 foreach ($request->products as $productData) {
                     $product = Product::findOrFail($productData['product_id']);
-                    
+
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
                         $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     }
                 }
-    
+
                 // Update sale ledger entry
                 if ($isUpdate) {
                     Ledger::where('reference_no', $referenceNo)
@@ -421,17 +422,17 @@ class SaleController extends Controller
                         'user_id' => $request->customer_id,
                     ]);
                 }
-    
+
                 $this->updatePaymentStatus($sale);
                 return $sale;
             });
-    
+
             // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-            
-              // Fetch the user associated with the sale
+
+            // Fetch the user associated with the sale
             $user = User::find($sale->user_id);
 
             // Fetch the first location associated with the user
@@ -448,34 +449,33 @@ class SaleController extends Controller
                 'user' => $user, // Pass the user to the view
                 'location' => $location, // Pass the user's location to the view
             ])->render();
-    
+
             return response()->json([
-                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.', 
+                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
                 'invoice_html' => $html
             ], 200);
-    
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
 
-     private function calculateNewBalance($userId, $amount, $type)
+    private function calculateNewBalance($userId, $amount, $type)
     {
         $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
         $previousBalance = $lastLedger ? $lastLedger->balance : 0;
 
         return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
     }
-    
+
     private function updatePaymentStatus($sale)
     {
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
             ->sum('amount');
-        
+
         $sale->total_paid = $totalPaid;
         $sale->total_due = max($sale->final_total - $totalPaid, 0);
-        
+
         if ($sale->total_due <= 0) {
             $sale->payment_status = 'Paid';
         } elseif ($totalPaid > 0) {
@@ -483,113 +483,113 @@ class SaleController extends Controller
         } else {
             $sale->payment_status = 'Due';
         }
-        
+
         $sale->save();
     }
 
-private function processProductSale($productData, $saleId, $locationId, $stockType)
-{
-    $totalQuantity = $productData['quantity'];
-    $remainingQuantity = $totalQuantity;
+    private function processProductSale($productData, $saleId, $locationId, $stockType)
+    {
+        $totalQuantity = $productData['quantity'];
+        $remainingQuantity = $totalQuantity;
 
-    // We'll store info about each batch deduction
-    $batchDeductions = [];
+        // We'll store info about each batch deduction
+        $batchDeductions = [];
 
-    if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
-        // Specific batch selected
-        $batch = Batch::findOrFail($productData['batch_id']);
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
-            ->where('location_id', $locationId)
-            ->firstOrFail();
-
-        if ($locationBatch->qty < $remainingQuantity) {
-            throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
-        }
-
-        $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
-        $batchDeductions[] = [
-            'batch_id' => $batch->id,
-            'quantity' => $remainingQuantity
-        ];
-    } else {
-        // All batches selected — apply FIFO
-        $batches = DB::table('location_batches')
-            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-            ->where('batches.product_id', $productData['product_id'])
-            ->where('location_batches.location_id', $locationId)
-            ->where('location_batches.qty', '>', 0)
-            ->orderBy('batches.created_at')
-            ->select('location_batches.batch_id', 'location_batches.qty')
-            ->get();
-
-        foreach ($batches as $batch) {
-            if ($remainingQuantity <= 0) break;
-
-            $deductQuantity = min($batch->qty, $remainingQuantity);
-
-            $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
-            $batchDeductions[] = [
-                'batch_id' => $batch->batch_id,
-                'quantity' => $deductQuantity
-            ];
-
-            $remainingQuantity -= $deductQuantity;
-        }
-
-        if ($remainingQuantity > 0) {
-            throw new \Exception("Not enough stock across all batches to fulfill the sale.");
-        }
-    }
-
-  // Loop through batch deductions
-foreach ($batchDeductions as $deduction) {
-    // Create sales_product record for this batch
-    $saleProduct = SalesProduct::create([
-        'sale_id' => $saleId,
-        'product_id' => $productData['product_id'],
-        'quantity' => $deduction['quantity'],
-        'price' => $productData['unit_price'],
-        'unit_price' => $productData['unit_price'],
-        'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
-        'batch_id' => $deduction['batch_id'],
-        'location_id' => $locationId,
-        'price_type' => $productData['price_type'],
-        'discount_amount' => $productData['discount_amount'] ?? 0,
-        'discount_type' => $productData['discount_type'] ?? 'fixed',
-        'tax' => $productData['tax'] ?? 0,
-    ]);
-
-    // Handle IMEI insertion if available
-    if (!empty($productData['imei_numbers']) && is_array($productData['imei_numbers'])) {
-
-        // Counter to limit IMEIs to current batch deduction quantity
-        $count = 0;
-
-        foreach ($productData['imei_numbers'] as $imei) {
-            if ($count >= $deduction['quantity']) break;
-
-            // Update IMEI status to 'sold'
-            ImeiNumber::where('imei_number', $imei)
-                ->where('product_id', $productData['product_id'])
-                ->where('batch_id', $deduction['batch_id']) // Use same batch ID as deduction
+        if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
+            // Specific batch selected
+            $batch = Batch::findOrFail($productData['batch_id']);
+            $locationBatch = LocationBatch::where('batch_id', $batch->id)
                 ->where('location_id', $locationId)
-                ->update(['status' => 'sold']);
+                ->firstOrFail();
 
-            // Record IMEI in sale_imeis table
-            SaleImei::create([
+            if ($locationBatch->qty < $remainingQuantity) {
+                throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
+            }
+
+            $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
+            $batchDeductions[] = [
+                'batch_id' => $batch->id,
+                'quantity' => $remainingQuantity
+            ];
+        } else {
+            // All batches selected — apply FIFO
+            $batches = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productData['product_id'])
+                ->where('location_batches.location_id', $locationId)
+                ->where('location_batches.qty', '>', 0)
+                ->orderBy('batches.created_at')
+                ->select('location_batches.batch_id', 'location_batches.qty')
+                ->get();
+
+            foreach ($batches as $batch) {
+                if ($remainingQuantity <= 0) break;
+
+                $deductQuantity = min($batch->qty, $remainingQuantity);
+
+                $this->deductBatchStock($batch->batch_id, $locationId, $deductQuantity, $stockType);
+                $batchDeductions[] = [
+                    'batch_id' => $batch->batch_id,
+                    'quantity' => $deductQuantity
+                ];
+
+                $remainingQuantity -= $deductQuantity;
+            }
+
+            if ($remainingQuantity > 0) {
+                throw new \Exception("Not enough stock across all batches to fulfill the sale.");
+            }
+        }
+
+        // Loop through batch deductions
+        foreach ($batchDeductions as $deduction) {
+            // Create sales_product record for this batch
+            $saleProduct = SalesProduct::create([
                 'sale_id' => $saleId,
-                'sale_product_id' => $saleProduct->id,
                 'product_id' => $productData['product_id'],
+                'quantity' => $deduction['quantity'],
+                'price' => $productData['unit_price'],
+                'unit_price' => $productData['unit_price'],
+                'subtotal' => $productData['subtotal'] * ($deduction['quantity'] / $totalQuantity),
                 'batch_id' => $deduction['batch_id'],
                 'location_id' => $locationId,
-                'imei_number' => $imei,
+                'price_type' => $productData['price_type'],
+                'discount_amount' => $productData['discount_amount'] ?? 0,
+                'discount_type' => $productData['discount_type'] ?? 'fixed',
+                'tax' => $productData['tax'] ?? 0,
             ]);
 
-            $count++;
+            // Handle IMEI insertion if available
+            if (!empty($productData['imei_numbers']) && is_array($productData['imei_numbers'])) {
+
+                // Counter to limit IMEIs to current batch deduction quantity
+                $count = 0;
+
+                foreach ($productData['imei_numbers'] as $imei) {
+                    if ($count >= $deduction['quantity']) break;
+
+                    // Update IMEI status to 'sold'
+                    ImeiNumber::where('imei_number', $imei)
+                        ->where('product_id', $productData['product_id'])
+                        ->where('batch_id', $deduction['batch_id']) // Use same batch ID as deduction
+                        ->where('location_id', $locationId)
+                        ->update(['status' => 'sold']);
+
+                    // Record IMEI in sale_imeis table
+                    SaleImei::create([
+                        'sale_id' => $saleId,
+                        'sale_product_id' => $saleProduct->id,
+                        'product_id' => $productData['product_id'],
+                        'batch_id' => $deduction['batch_id'],
+                        'location_id' => $locationId,
+                        'imei_number' => $imei,
+                    ]);
+
+                    $count++;
+                }
+            }
         }
     }
-}
-}
     private function deductBatchStock($batchId, $locationId, $quantity, $stockType)
     {
         Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
@@ -742,14 +742,36 @@ foreach ($batchDeductions as $deduction) {
             // Prepare detailed response
             $saleDetails = [
                 'sale' => $sale->only([
-                    'id', 'customer_id', 'location_id', 'sales_date', 'sale_type', 'status', 'invoice_no',
-                    'subtotal', 'discount_type', 'discount_amount', 'final_total', 'total_paid', 'total_due',
-                    'payment_status', 'created_at', 'updated_at'
+                    'id',
+                    'customer_id',
+                    'location_id',
+                    'sales_date',
+                    'sale_type',
+                    'status',
+                    'invoice_no',
+                    'subtotal',
+                    'discount_type',
+                    'discount_amount',
+                    'final_total',
+                    'total_paid',
+                    'total_due',
+                    'payment_status',
+                    'created_at',
+                    'updated_at'
                 ]),
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
                     // Handle unlimited stock products
                     // IMEI Numbers from SaleImei model
-                    $imeiNumbers = $product->imeis->pluck('imei_number')->toArray();
+                    $imeiDetails = $product->imeis->map(function ($imei) {
+                        return [
+                            'id' => $imei->id,
+                            'imei_number' => $imei->imei_number,
+                            'batch_id' => $imei->batch_id,
+                            'location_id' => $imei->location_id,
+                            'created_at' => $imei->created_at,
+                            'updated_at' => $imei->updated_at,
+                        ];
+                    });
                     if ($product->product->stock_alert === 0) {
                         return [
                             'id' => $product->id,
@@ -768,13 +790,30 @@ foreach ($batchDeductions as $deduction) {
                             'total_quantity' => 'Unlimited', // Indicate unlimited stock
                             'current_stock' => 'Unlimited',  // Indicate unlimited stock
                             'product' => optional($product->product)->only([
-                                'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
-                                'stock_alert', 'alert_quantity', 'product_image', 'description', 'is_imei_or_serial_no',
-                                'is_for_selling', 'product_type', 'pax', 'original_price', 'retail_price',
-                                'whole_sale_price', 'special_price', 'max_retail_price'
+                                'id',
+                                'product_name',
+                                'sku',
+                                'unit_id',
+                                'brand_id',
+                                'main_category_id',
+                                'sub_category_id',
+                                'stock_alert',
+                                'alert_quantity',
+                                'product_image',
+                                'description',
+                                'is_imei_or_serial_no',
+                                'is_for_selling',
+                                'product_type',
+                                'pax',
+                                'original_price',
+                                'retail_price',
+                                'whole_sale_price',
+                                'special_price',
+                                'max_retail_price'
                             ]),
                             'batch' => null, // No batch data for unlimited stock
-                            'imei_numbers' => $imeiNumbers, //IMEI NUMBERS ADDED HERE
+                            'imei_numbers' => $product->imeis->pluck('imei_number')->toArray(),
+                            'imeis' => $imeiDetails, // Full IMEI details
                         ];
                     }
                     // Handle regular products
@@ -786,12 +825,12 @@ foreach ($batchDeductions as $deduction) {
                         $product->product_id
                     );
                     // Get current stock without the sold quantity for reference
-                    $currentStock = $batchId === 'all' 
+                    $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
-                            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
-                            ->where('batches.product_id', $product->product_id)
-                            ->where('location_batches.location_id', $product->location_id)
-                            ->sum('location_batches.qty')
+                        ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                        ->where('batches.product_id', $product->product_id)
+                        ->where('location_batches.location_id', $product->location_id)
+                        ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
                     return [
                         'id' => $product->id,
@@ -802,7 +841,7 @@ foreach ($batchDeductions as $deduction) {
                         'quantity' => $product->quantity,
                         'price_type' => $product->price_type,
                         'price' => $product->price,
-                       'discount_type' => $product->discount_type,
+                        'discount_type' => $product->discount_type,
                         'discount_amount' => $product->discount_amount,
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
@@ -810,24 +849,64 @@ foreach ($batchDeductions as $deduction) {
                         'total_quantity' => $totalAllowedQuantity, // Stock + sold in this sale
                         'current_stock' => $currentStock,   // Just current stock
                         'product' => optional($product->product)->only([
-                            'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
-                            'stock_alert', 'alert_quantity', 'product_image', 'description', 'is_imei_or_serial_no',
-                            'is_for_selling', 'product_type', 'pax', 'original_price', 'retail_price',
-                            'whole_sale_price', 'special_price', 'max_retail_price'
+                            'id',
+                            'product_name',
+                            'sku',
+                            'unit_id',
+                            'brand_id',
+                            'main_category_id',
+                            'sub_category_id',
+                            'stock_alert',
+                            'alert_quantity',
+                            'product_image',
+                            'description',
+                            'is_imei_or_serial_no',
+                            'is_for_selling',
+                            'product_type',
+                            'pax',
+                            'original_price',
+                            'retail_price',
+                            'whole_sale_price',
+                            'special_price',
+                            'max_retail_price'
                         ]),
                         'batch' => optional($product->batch)->only([
-                            'id', 'batch_no', 'product_id', 'qty', 'unit_cost', 'wholesale_price', 'special_price',
-                            'retail_price', 'max_retail_price', 'expiry_date'
+                            'id',
+                            'batch_no',
+                            'product_id',
+                            'qty',
+                            'unit_cost',
+                            'wholesale_price',
+                            'special_price',
+                            'retail_price',
+                            'max_retail_price',
+                            'expiry_date'
                         ]),
-                           'imei_numbers' => $imeiNumbers,
+                        'imei_numbers' => $imeiDetails,
                     ];
                 }),
                 'customer' => optional($sale->customer)->only([
-                    'id', 'prefix', 'first_name', 'last_name', 'mobile_no', 'email', 'address', 'opening_balance',
-                    'current_balance', 'location_id'
+                    'id',
+                    'prefix',
+                    'first_name',
+                    'last_name',
+                    'mobile_no',
+                    'email',
+                    'address',
+                    'opening_balance',
+                    'current_balance',
+                    'location_id'
                 ]),
                 'location' => optional($sale->location)->only([
-                    'id', 'name', 'location_id', 'address', 'province', 'district', 'city', 'email', 'mobile',
+                    'id',
+                    'name',
+                    'location_id',
+                    'address',
+                    'province',
+                    'district',
+                    'city',
+                    'email',
+                    'mobile',
                     'telephone_no'
                 ])
             ];
@@ -839,7 +918,6 @@ foreach ($batchDeductions as $deduction) {
                 ]);
             }
             return view('sell.pos', ['saleDetails' => $saleDetails]);
-
         } catch (ModelNotFoundException $e) {
             return response()->json(['status' => 404, 'message' => 'Sale not found.']);
         } catch (\Exception $e) {
@@ -864,15 +942,13 @@ foreach ($batchDeductions as $deduction) {
         });
 
         return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
-
-
     }
 
 
     public function destroy($id)
     {
         $sale = Sale::findOrFail($id);
-    
+
         DB::transaction(function () use ($sale) {
             foreach ($sale->products as $product) {
                 $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
@@ -880,7 +956,7 @@ foreach ($batchDeductions as $deduction) {
             }
             $sale->delete();
         });
-    
+
         return response()->json([
             'status' => 200,
             'message' => 'Sale deleted and stock restored successfully.'
@@ -904,23 +980,23 @@ foreach ($batchDeductions as $deduction) {
             $balance_amount = $sale->balance_amount;
 
 
-                            // Fetch the user associated with the sale
-                $user = User::find($sale->user_id);
+            // Fetch the user associated with the sale
+            $user = User::find($sale->user_id);
 
-                // Fetch the first location associated with the user
-                $location = $user ? $user->locations()->first() : null;
+            // Fetch the first location associated with the user
+            $location = $user ? $user->locations()->first() : null;
 
-                $html = view('sell.receipt', [
-                    'sale' => $sale,
-                    'customer' => $customer,
-                    'products' => $products,
-                    'payments' => $payments,
-                    'total_discount' => $request->discount_amount ?? 0,
-                    'amount_given' => $sale->amount_given,
-                    'balance_amount' => $sale->balance_amount,
-                    'user' => $user, 
-                    'location' => $location,
-                ])->render();
+            $html = view('sell.receipt', [
+                'sale' => $sale,
+                'customer' => $customer,
+                'products' => $products,
+                'payments' => $payments,
+                'total_discount' => $request->discount_amount ?? 0,
+                'amount_given' => $sale->amount_given,
+                'balance_amount' => $sale->balance_amount,
+                'user' => $user,
+                'location' => $location,
+            ])->render();
 
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {

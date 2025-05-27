@@ -1222,12 +1222,14 @@
                         ${product.product_name} 
                         <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
                         ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
+                       
                     </div>
                     <div class="text-muted me-2 product-sku">${product.sku}
-                        ${imeis.length > 0 ? `<i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View IMEI"></i>` : ''}
+                        
                         <span class="quantity-display ms-2">${saleQuantity} of ${adjustedBatchQuantity} PC(s)</span>
                     </div>
-                    ${imeiDisplay}
+                    <span class="badge bg-info">IMEI: ${imeis[0]}</span>
+                         <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>
                 </div>
             </div>
         </td>
@@ -1412,14 +1414,14 @@
                     const imeiDataCell = row.querySelector('.imei-data');
                     const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
                         Boolean) : [];
-
                     if (imeis.length === 0) {
                         toastr.warning("No IMEIs found for this product.");
                         return;
                     }
-
                     // Re-populate IMEI modal with current IMEIs
-                    showImeiSelectionModal(product, stockEntry, imeis);
+                    showImeiSelectionModal(product, stockEntry, imeis.map(imei => ({
+                        imei_number: imei
+                    })));
                 });
             }
 
@@ -1943,7 +1945,7 @@
             }
 
 
-            function sendSaleData(saleData, saleId = null) {
+            function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
                 // Extract saleId from the URL if not provided
                 if (!saleId) {
                     const pathSegments = window.location.pathname.split('/');
@@ -2005,12 +2007,16 @@
                             fetchAllProducts();
                             fetchSalesData();
 
+                            if (onComplete) onComplete();
+
                         } else {
                             toastr.error('Failed to record sale: ' + response.message);
+                            if (onComplete) onComplete();
                         }
                     },
                     error: function(xhr, status, error) {
                         toastr.error('An error occurred: ' + xhr.responseText);
+                        if (onComplete) onComplete();
                     }
                 });
             }
@@ -2029,41 +2035,44 @@
             }
 
             $('#cashButton').on('click', function() {
-                const saleData = gatherSaleData('final');
-                if (!saleData) {
-                    toastr.error('Please add at least one product before completing the sale.');
-                    return;
-                }
-
-                // Get amount given (optional)
-                const amountGiven = parseFormattedAmount($('#amount-given').val().trim()) || 0;
-
-                // Only calculate balance if amount was actually given
-                if (amountGiven > 0) {
-                    const balance = amountGiven - saleData.final_total;
-
-                    if (balance < 0) {
-                        toastr.error('Amount given is less than the total amount due.');
+                const button = this;
+                preventDoubleClick(button, () => {
+                    const saleData = gatherSaleData('final');
+                    if (!saleData) {
+                        toastr.error(
+                            'Please add at least one product before completing the sale.'
+                        );
+                        enableButton(button);
                         return;
                     }
 
-                    // Only add these fields if amount was given
-                    saleData.balance_amount = balance;
-                    saleData.amount_given = amountGiven;
-                }
+                    // Get amount given (optional)
+                    const amountGiven = parseFormattedAmount($('#amount-given').val()
+                        .trim()) || 0;
 
-                // Always include cash payment (amount will be final_total if no amount given)
-                saleData.payments = [{
-                    payment_method: 'cash',
-                    payment_date: new Date().toISOString().slice(0, 10),
-                    amount: amountGiven > 0 ? amountGiven : saleData.final_total
-                }];
+                    // Only calculate balance if amount was actually given
+                    if (amountGiven > 0) {
+                        const balance = amountGiven - saleData.final_total;
+                        if (balance < 0) {
+                            toastr.error(
+                                'Amount given is less than the total amount due.');
+                            enableButton(button);
+                            return;
+                        }
+                        saleData.balance_amount = balance;
+                        saleData.amount_given = amountGiven;
+                    }
 
-                // Extract sale ID from URL
-                const pathSegments = window.location.pathname.split('/');
-                const saleId = pathSegments[pathSegments.length - 1];
+                    saleData.payments = [{
+                        payment_method: 'cash',
+                        payment_date: new Date().toISOString().slice(0, 10),
+                        amount: amountGiven > 0 ? amountGiven : saleData
+                            .final_total
+                    }];
 
-                sendSaleData(saleData, !isNaN(saleId) ? saleId : null);
+                    sendSaleData(saleData, null, () => enableButton(button));
+                });
+
             });
 
             $('#cardButton').on('click', function() {
@@ -2093,17 +2102,24 @@
             }
 
             $('#confirmCardPayment').on('click', function() {
-                const saleData = gatherSaleData('final');
+                const button = this;
+                preventDoubleClick(button, () => {
+                    const saleData = gatherSaleData('final');
+                    if (!saleData) {
+                        toastr.error(
+                            'Please add at least one product before completing the sale.'
+                        );
+                        enableButton(button);
+                        return;
+                    }
 
-                if (!saleData) {
-                    toastr.error('Please add at least one product before completing the sale.');
-                    return;
-                }
-
-                saleData.payments = gatherCardPaymentData();
-                sendSaleData(saleData);
-                $('#cardModal').modal('hide');
-                resetCardModal();
+                    saleData.payments = gatherCardPaymentData();
+                    sendSaleData(saleData, null, () => {
+                        $('#cardModal').modal('hide');
+                        resetCardModal();
+                        enableButton(button);
+                    });
+                });
             });
 
             $('#chequeButton').on('click', function() {
@@ -2160,21 +2176,29 @@
             }
 
             $('#confirmChequePayment').on('click', function() {
-                if (!validateChequeFields()) {
-                    return;
-                }
+                const button = this;
+                preventDoubleClick(button, () => {
+                    if (!validateChequeFields()) {
+                        enableButton(button);
+                        return;
+                    }
 
-                const saleData = gatherSaleData('final');
+                    const saleData = gatherSaleData('final');
+                    if (!saleData) {
+                        toastr.error(
+                            'Please add at least one product before completing the sale.'
+                        );
+                        enableButton(button);
+                        return;
+                    }
 
-                if (!saleData) {
-                    toastr.error('Please add at least one product before completing the sale.');
-                    return;
-                }
-
-                saleData.payments = gatherChequePaymentData();
-                sendSaleData(saleData);
-                $('#chequeModal').modal('hide');
-                resetChequeModal();
+                    saleData.payments = gatherChequePaymentData();
+                    sendSaleData(saleData, null, () => {
+                        $('#chequeModal').modal('hide');
+                        resetChequeModal();
+                        enableButton(button);
+                    });
+                });
             });
 
             function resetCardModal() {
@@ -2196,22 +2220,28 @@
             }
 
             $('#creditSaleButton').on('click', function() {
-                const customerId = $('#customer-id').val();
-                if (customerId == 1) {
-                    toastr.error(
-                        'Credit sale is not allowed for Walking Customer. Please choose another customer.'
-                    );
-                    return;
-                }
+                const button = this;
+                preventDoubleClick(button, () => {
+                    const customerId = $('#customer-id').val();
+                    if (customerId == 1) {
+                        toastr.error(
+                            'Credit sale is not allowed for Walking Customer. Please choose another customer.'
+                        );
+                        enableButton(button);
+                        return;
+                    }
 
-                const saleData = gatherSaleData('final');
+                    const saleData = gatherSaleData('final');
+                    if (!saleData) {
+                        toastr.error(
+                            'Please add at least one product before completing the sale.'
+                        );
+                        enableButton(button);
+                        return;
+                    }
 
-                if (!saleData) {
-                    toastr.error('Please add at least one product before completing the sale.');
-                    return;
-                }
-
-                sendSaleData(saleData);
+                    sendSaleData(saleData, null, () => enableButton(button));
+                });
             });
 
             $('#suspendModal').on('click', '#confirmSuspend', function() {
@@ -2686,4 +2716,47 @@
             toastr.info("{{ Session::get('toastr-info') }}");
         @endif
     });
+</script>
+
+<script>
+    /**
+     * Prevents multiple clicks on a button during async operations.
+     * @param {HTMLElement} button - The button element to protect.
+     * @param {Function} callback - The function to execute once.
+     */
+    function preventDoubleClick(button, callback) {
+        if (button.dataset.isProcessing === "true") return;
+        button.dataset.isProcessing = "true";
+        button.disabled = true;
+
+        try {
+            callback();
+        } catch (error) {
+            console.error("Error in button callback:", error);
+            enableButton(button);
+        }
+    }
+
+    function enableButton(button) {
+        button.disabled = false;
+        button.dataset.isProcessing = "false";
+    }
+
+    // Helper: Wrap AJAX calls with button protection
+    function safeAjaxCall(button, options) {
+        preventDoubleClick(button, () => {
+            $.ajax(options)
+                .done(function(response) {
+                    if (options.done) options.done(response);
+                })
+                .fail(function(xhr, status, error) {
+                    toastr.error('An error occurred: ' + xhr.responseText);
+                    if (options.fail) options.fail(xhr, status, error);
+                })
+                .always(function() {
+                    enableButton(button);
+                    if (options.always) options.always();
+                });
+        });
+    }
 </script>
