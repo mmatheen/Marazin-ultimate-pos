@@ -209,8 +209,8 @@
                 locationName = product.locations[0]?.location_name || 'N/A';
             }
 
-            let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
-                '/assets/img/No Product Image Available.png';
+            // let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
+            //     '/assets/img/No Product Image Available.png';
             return `
             <tr data-product-id="${product.id}">
             <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
@@ -241,7 +241,7 @@
                         </ul>
                     </div>
                 </td>
-                <td class="text-center"><img src="${imagePath}" alt="${product.product_name}" width="50" height="50"></td>
+               
                 <td>${product.product_name}</td>
                 <td>${product.sku}</td>
                 <td>${locationName}</td>
@@ -283,7 +283,7 @@
             fetchData('/location-get-all', function(response) {
                 if (response.status === 200) {
                     const locations = response
-                    .message; // Ensure this is correct according to your API response
+                        .message; // Ensure this is correct according to your API response
                     const locationSelect = $('#locations');
                     locationSelect.empty();
                     locations.forEach(function(location) {
@@ -495,7 +495,7 @@
                             0) {
                             $('#imeiTableBody').append(
                                 '<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>'
-                                );
+                            );
                             $('#imeiModal').modal('show');
                             return;
                         }
@@ -525,7 +525,7 @@
                         // Display product name and total count of IMEI numbers in the modal header
                         $('#imeiModalTitle').html(
                             `<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`
-                            );
+                        );
 
                         $('#imeiModal').modal('show');
                     });
@@ -1064,7 +1064,7 @@
                             const batches = response.openingStock.batches;
 
                             $('#locationRows').html(
-                            ''); // Clear existing rows before appending
+                                ''); // Clear existing rows before appending
 
                             // Create a map of location_id to array of batches
                             const batchesByLocation = {};
@@ -1165,7 +1165,7 @@
                             });
 
                             initializeDateTimePicker
-                        (); // Initialize datetime picker for existing rows
+                                (); // Initialize datetime picker for existing rows
 
                             if (isEditMode) {
                                 $('#pageTitle').text('Edit Opening Stock for Product');
@@ -1320,7 +1320,7 @@
 
                                     toastr.success(
                                         `Filled ${imeis.length} rows from pasted IMEIs`
-                                        );
+                                    );
                                 });
 
                                 // Load existing IMEIs if editing
@@ -1333,15 +1333,15 @@
                                                 $('#imeiTable tbody').empty();
                                                 res.imeis.forEach((imei,
                                                     index) => {
-                                                        $('#imeiTable tbody')
-                                                            .append(`
+                                                    $('#imeiTable tbody')
+                                                        .append(`
                                             <tr>
                                                 <td>${index + 1}</td>
                                                 <td><input type="text" class="form-control imei-input" value="${imei.imei_number}" data-id="${imei.id}"></td>
                                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                                             </tr>
                                         `);
-                                                    });
+                                                });
                                                 $('#totalImeiCount').text(res
                                                     .imeis.length);
                                             }
@@ -1362,7 +1362,7 @@
                                     if (currentCount + 1 > allowedQty) {
                                         toastr.warning(
                                             `You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`
-                                            );
+                                        );
                                         return;
                                     }
                                     $('#imeiTable tbody').append(`
@@ -1403,7 +1403,7 @@
                                         headers: {
                                             'X-CSRF-TOKEN': $(
                                                 'meta[name="csrf-token"]'
-                                                ).attr('content')
+                                            ).attr('content')
                                         },
                                         data: JSON.stringify({
                                             product_id: productId,
@@ -1450,7 +1450,7 @@
                                     function(e) {
                                         if (!confirm(
                                                 "Are you sure you want to skip entering IMEIs?"
-                                                )) {
+                                            )) {
                                             e.preventDefault();
                                             return;
                                         }
@@ -1639,7 +1639,7 @@
                         $('.progress-bar').css('width', percentComplete + '%');
                         $('.progress-bar').attr('aria-valuenow', percentComplete);
                         $('.progress-bar').text(Math.round(percentComplete) +
-                        '%'); // Display the percentage
+                            '%'); // Display the percentage
                     }
                 }, false);
                 return xhr;
@@ -1658,7 +1658,8 @@
                 if (response.status == 400) {
                     $.each(response.errors, function(key, err_value) {
                         $('#' + key + '_error').html(
-                        err_value); // Assuming there's only one file input with id 'leadFile'
+                            err_value
+                            ); // Assuming there's only one file input with id 'leadFile'
                         document.getElementsByClassName('errorSound')[0].play(); //for sound
                         toastr.error(err_value, 'Error');
 
