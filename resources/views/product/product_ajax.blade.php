@@ -8,8 +8,6 @@
         let subCategories = [];
         const discountMap = {};
 
-        fetchProductData();
-
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {
@@ -1659,7 +1657,7 @@
                     $.each(response.errors, function(key, err_value) {
                         $('#' + key + '_error').html(
                             err_value
-                            ); // Assuming there's only one file input with id 'leadFile'
+                        ); // Assuming there's only one file input with id 'leadFile'
                         document.getElementsByClassName('errorSound')[0].play(); //for sound
                         toastr.error(err_value, 'Error');
 
