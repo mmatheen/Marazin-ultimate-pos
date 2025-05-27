@@ -1228,8 +1228,9 @@
                         
                         <span class="quantity-display ms-2">${saleQuantity} of ${adjustedBatchQuantity} PC(s)</span>
                     </div>
-                    <span class="badge bg-info">IMEI: ${imeis[0]}</span>
-                         <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>
+                     ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info">IMEI: ${imeis[0]}</span>
+                      <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>`: ''}
+                  
                 </div>
             </div>
         </td>
