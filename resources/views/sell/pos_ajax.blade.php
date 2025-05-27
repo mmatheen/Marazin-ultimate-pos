@@ -2500,10 +2500,16 @@
 
             // Add each row in sorted order
             sortedSales.forEach((sale, index) => {
+                let customerName = [
+                    sale.customer?.prefix,
+                    sale.customer?.first_name,
+                    sale.customer?.last_name
+                ].filter(Boolean).join(' ');
+
                 table.row.add([
                     index + 1,
                     sale.invoice_no,
-                    `${sale.customer.prefix} ${sale.customer.first_name} ${sale.customer.last_name}`,
+                    customerName || 'Walk-In Customer',
                     sale.sales_date,
                     sale.final_total,
                     `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>

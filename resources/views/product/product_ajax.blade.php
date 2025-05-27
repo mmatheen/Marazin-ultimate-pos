@@ -8,6 +8,8 @@
         let subCategories = [];
         const discountMap = {};
 
+        fetchProductData();
+
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {
@@ -198,7 +200,7 @@
             });
         }
 
-       // Format product data into table rows
+        // Format product data into table rows
         function formatProductData(product) {
             let locationName = 'N/A';
             if (product.batches && product.batches.length > 0) {
@@ -218,19 +220,19 @@
                             Actions
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
-                            @can("show one product details")
+                            @can('show one product details')
                                 <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
                             @endcan
-                            @can("edit product")
+                            @can('edit product')
                                 <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
                             @endcan
-                            @can("delete product")
+                            @can('delete product')
                                 <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
                             @endcan
-                            @can("Add & Edit Opening Stock product")
+                            @can('Add & Edit Opening Stock product')
                                 <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
                             @endcan
-                            @can("product Full History")
+                            @can('product Full History')
                                 <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
                             @endcan
                             ${product.is_imei_or_serial_no === 1 ? 
@@ -255,244 +257,253 @@
 
 
 
-// Collect selected product IDs
-let selectedProductIds = [];
+        // Collect selected product IDs
+        let selectedProductIds = [];
 
-$(document).on('change', '.product-checkbox', function() {
-    const productId = $(this).data('product-id');
-    if (this.checked) {
-        selectedProductIds.push(productId);
-    } else {
-        selectedProductIds = selectedProductIds.filter(id => id !== productId);
-    }
-    toggleAddLocationButton();
-});
-
-function toggleAddLocationButton() {
-    if (selectedProductIds.length > 0) {
-        $('#addLocationButton').show();
-    } else {
-        $('#addLocationButton').hide();
-    }
-}
-
-// Fetch and populate the location dropdown
-function populateLocationDropdown() {
-    fetchData('/location-get-all', function(response) {
-        if (response.status === 200) {
-            const locations = response.message; // Ensure this is correct according to your API response
-            const locationSelect = $('#locations');
-            locationSelect.empty();
-            locations.forEach(function(location) {
-                locationSelect.append(new Option(location.name, location.id));
-            });
-        } else {
-            console.error('Failed to fetch locations.');
-        }
-    });
-}
-
-$('#addLocationModal').on('show.bs.modal', function() {
-    populateLocationDropdown();
-});
-
-$('#saveLocationsButton').on('click', function() {
-    const selectedLocations = $('#locations').val();
-    if (selectedLocations && selectedProductIds.length > 0) {
-        $.ajax({
-        url: '/save-changes',
-        type: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        data: {
-            product_ids: selectedProductIds,
-            location_ids: selectedLocations
-        },
-        success: function (response) {
-            if (response.status === 'success') {
-                toastr.success(response.message, 'Success');
-                $('#addLocationModal').modal('hide');
-                fetchProductData();
-            } else {
-                toastr.error(response.message || 'Failed to save changes.', 'Error');
-            }
-        },
-        error: function (xhr) {
-            toastr.error('An error occurred while saving changes.', 'Error');
-        }
-    });
-    } else {
-        alert('Please select at least one product and one location.');
-    }
-});
-
-
-// Toggle both buttons when products are selected
-function toggleActionButtons() {
-    if (selectedProductIds.length > 0) {
-        $('#addLocationButton').show();
-        $('#applyDiscountButton').show();
-    } else {
-        $('#addLocationButton').hide();
-        $('#applyDiscountButton').hide();
-    }
-}
-
-// Update the checkbox change handler to use the new function
-$(document).on('change', '.product-checkbox', function() {
-    const productId = $(this).data('product-id');
-    if (this.checked) {
-        selectedProductIds.push(productId);
-    } else {
-        selectedProductIds = selectedProductIds.filter(id => id !== productId);
-    }
-    toggleActionButtons();
-});
-
-
-$('#saveDiscountButton').on('click', function() {
-    const discountData = {
-        name: $('#discountName').val(),  // Fixed typo (was discounTName)
-        description: $('#discountDescription').val(),
-        type: $('#discountType').val(),
-        amount: $('#discountAmount').val(),
-        start_date: $('#startDate').val(),
-        end_date: $('#endDate').val() || null,
-        is_active: $('#isActive').is(':checked') ? 1 : 0,  // Convert to 1/0 instead of true/false
-        product_ids: selectedProductIds
-    };
-
-    // Validate required fields
-    if (!discountData.name || !discountData.type || !discountData.amount || !discountData.start_date) {
-        toastr.error('Please fill all required fields', 'Error');
-        return;
-    }
-
-    $.ajax({
-        url: '/apply-discount',
-        type: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        data: discountData,
-        success: function(response) {
-            if (response.status === 'success') {
-                toastr.success(response.message, 'Success');
-                $('#applyDiscountModal').modal('hide');
-                $('#discountForm')[0].reset();
-                fetchProductData();
-            } else {
-                toastr.error(response.message || 'Failed to apply discount', 'Error');
-            }
-        },
-        error: function(xhr) {
-            const errors = xhr.responseJSON?.errors;
-            if (errors) {
-                Object.values(errors).forEach(error => {
-                    toastr.error(error[0], 'Validation Error');
-                });
-            } else {
-                toastr.error('An error occurred while applying discount', 'Error');
-            }
-            console.error(xhr.responseText);
-        }
-    });
-});
-
-// Fetch product data and populate the table
-function fetchProductData() {
-    fetchData('/products/stocks', function(response) {
-        if (response.status === 200) {
-            allProducts = response.data;
-            populateProductFilter();
-
-            if ($.fn.DataTable.isDataTable('#productTable')) {
-                $('#productTable').DataTable().destroy();
-            }
-
-            $('#productTable tbody').empty();
-
-            response.data.forEach(function(item) {
-                let product = item.product;
-                product.total_stock = item.total_stock;
-                product.batches = item.batches;
-                product.locations = item.locations;
-                $('#productTable tbody').append(formatProductData(product));
-            });
-
-            let table = $('#productTable').DataTable({
-                lengthMenu: [
-                    [10, 20, 50, 75, 100, 500,1000,1500,2000,-1],
-                    [10, 20, 50, 75, 100,500,1000,1500,2000,"All"]
-                ],
-                columnDefs: [
-                    { orderable: false, targets: [1] }
-                ],
-                select: {
-                    style: 'multi',
-                    selector: 'td:first-child input[type="checkbox"]',
-                },
-            });
-
-            $('#selectAll').on('change', function() {
-                const isChecked = this.checked;
-                $('.product-checkbox').each(function() {
-                    this.checked = isChecked;
-                    $(this).trigger('change');
-                });
-            });
-
-            $('#productTable thead').on('click', 'th', function(event) {
-                event.stopImmediatePropagation();
-            });
-
-            $('#productTable tbody').on('click', '.dropdown-item', function(event) {
-                event.stopPropagation();
-            });
-
-            $('#productTable tbody').on('click', '.view-product', function(event) {
-                event.preventDefault();
-                var productId = $(this).data('product-id');
-                if (productId) {
-                    fetchProductDetails(productId);
-                    $('#viewProductModal').modal('show');
-                }
-            });
-
-            // Handle delete product action
-            $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
-                event.preventDefault();
-                var productId = $(this).data('product-id');
-                if (productId) {
-                    deleteProduct(productId);
-                }
-            })
-
-
-                    // When clicking on IMEI Entry from dropdown
-        $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
-            event.preventDefault();
+        $(document).on('change', '.product-checkbox', function() {
             const productId = $(this).data('product-id');
-            $('#currentProductId').val(productId);
+            if (this.checked) {
+                selectedProductIds.push(productId);
+            } else {
+                selectedProductIds = selectedProductIds.filter(id => id !== productId);
+            }
+            toggleAddLocationButton();
+        });
 
-            // Clear previous IMEIs
-            $('#imeiTableBody').empty();
+        function toggleAddLocationButton() {
+            if (selectedProductIds.length > 0) {
+                $('#addLocationButton').show();
+            } else {
+                $('#addLocationButton').hide();
+            }
+        }
 
-            if (!productId) return;
+        // Fetch and populate the location dropdown
+        function populateLocationDropdown() {
+            fetchData('/location-get-all', function(response) {
+                if (response.status === 200) {
+                    const locations = response
+                    .message; // Ensure this is correct according to your API response
+                    const locationSelect = $('#locations');
+                    locationSelect.empty();
+                    locations.forEach(function(location) {
+                        locationSelect.append(new Option(location.name, location.id));
+                    });
+                } else {
+                    console.error('Failed to fetch locations.');
+                }
+            });
+        }
 
-            // Find the product in `allProducts` by ID
-            const product = allProducts.find(p => p.product.id == productId);
-            if (!product || !product.imei_numbers || product.imei_numbers.length === 0) {
-                $('#imeiTableBody').append('<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>');
-                $('#imeiModal').modal('show');
+        $('#addLocationModal').on('show.bs.modal', function() {
+            populateLocationDropdown();
+        });
+
+        $('#saveLocationsButton').on('click', function() {
+            const selectedLocations = $('#locations').val();
+            if (selectedLocations && selectedProductIds.length > 0) {
+                $.ajax({
+                    url: '/save-changes',
+                    type: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: {
+                        product_ids: selectedProductIds,
+                        location_ids: selectedLocations
+                    },
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            toastr.success(response.message, 'Success');
+                            $('#addLocationModal').modal('hide');
+                            fetchProductData();
+                        } else {
+                            toastr.error(response.message || 'Failed to save changes.',
+                                'Error');
+                        }
+                    },
+                    error: function(xhr) {
+                        toastr.error('An error occurred while saving changes.', 'Error');
+                    }
+                });
+            } else {
+                alert('Please select at least one product and one location.');
+            }
+        });
+
+
+        // Toggle both buttons when products are selected
+        function toggleActionButtons() {
+            if (selectedProductIds.length > 0) {
+                $('#addLocationButton').show();
+                $('#applyDiscountButton').show();
+            } else {
+                $('#addLocationButton').hide();
+                $('#applyDiscountButton').hide();
+            }
+        }
+
+        // Update the checkbox change handler to use the new function
+        $(document).on('change', '.product-checkbox', function() {
+            const productId = $(this).data('product-id');
+            if (this.checked) {
+                selectedProductIds.push(productId);
+            } else {
+                selectedProductIds = selectedProductIds.filter(id => id !== productId);
+            }
+            toggleActionButtons();
+        });
+
+
+        $('#saveDiscountButton').on('click', function() {
+            const discountData = {
+                name: $('#discountName').val(), // Fixed typo (was discounTName)
+                description: $('#discountDescription').val(),
+                type: $('#discountType').val(),
+                amount: $('#discountAmount').val(),
+                start_date: $('#startDate').val(),
+                end_date: $('#endDate').val() || null,
+                is_active: $('#isActive').is(':checked') ? 1 :
+                0, // Convert to 1/0 instead of true/false
+                product_ids: selectedProductIds
+            };
+
+            // Validate required fields
+            if (!discountData.name || !discountData.type || !discountData.amount || !discountData
+                .start_date) {
+                toastr.error('Please fill all required fields', 'Error');
                 return;
             }
 
-                    // Fill the table with IMEI numbers
-                    let counter = 1; // Initialize counter for auto-increment
-                    product.imei_numbers.forEach(imei => {
-                        $('#imeiTableBody').append(`
+            $.ajax({
+                url: '/apply-discount',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                data: discountData,
+                success: function(response) {
+                    if (response.status === 'success') {
+                        toastr.success(response.message, 'Success');
+                        $('#applyDiscountModal').modal('hide');
+                        $('#discountForm')[0].reset();
+                        fetchProductData();
+                    } else {
+                        toastr.error(response.message || 'Failed to apply discount',
+                            'Error');
+                    }
+                },
+                error: function(xhr) {
+                    const errors = xhr.responseJSON?.errors;
+                    if (errors) {
+                        Object.values(errors).forEach(error => {
+                            toastr.error(error[0], 'Validation Error');
+                        });
+                    } else {
+                        toastr.error('An error occurred while applying discount', 'Error');
+                    }
+                    console.error(xhr.responseText);
+                }
+            });
+        });
+
+        // Fetch product data and populate the table
+        function fetchProductData() {
+            fetchData('/products/stocks', function(response) {
+                if (response.status === 200) {
+                    allProducts = response.data;
+                    populateProductFilter();
+
+                    if ($.fn.DataTable.isDataTable('#productTable')) {
+                        $('#productTable').DataTable().destroy();
+                    }
+
+                    $('#productTable tbody').empty();
+
+                    response.data.forEach(function(item) {
+                        let product = item.product;
+                        product.total_stock = item.total_stock;
+                        product.batches = item.batches;
+                        product.locations = item.locations;
+                        $('#productTable tbody').append(formatProductData(product));
+                    });
+
+                    let table = $('#productTable').DataTable({
+                        lengthMenu: [
+                            [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, -1],
+                            [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, "All"]
+                        ],
+                        columnDefs: [{
+                            orderable: false,
+                            targets: [1]
+                        }],
+                        select: {
+                            style: 'multi',
+                            selector: 'td:first-child input[type="checkbox"]',
+                        },
+                    });
+
+                    $('#selectAll').on('change', function() {
+                        const isChecked = this.checked;
+                        $('.product-checkbox').each(function() {
+                            this.checked = isChecked;
+                            $(this).trigger('change');
+                        });
+                    });
+
+                    $('#productTable thead').on('click', 'th', function(event) {
+                        event.stopImmediatePropagation();
+                    });
+
+                    $('#productTable tbody').on('click', '.dropdown-item', function(event) {
+                        event.stopPropagation();
+                    });
+
+                    $('#productTable tbody').on('click', '.view-product', function(event) {
+                        event.preventDefault();
+                        var productId = $(this).data('product-id');
+                        if (productId) {
+                            fetchProductDetails(productId);
+                            $('#viewProductModal').modal('show');
+                        }
+                    });
+
+                    // Handle delete product action
+                    $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
+                        event.preventDefault();
+                        var productId = $(this).data('product-id');
+                        if (productId) {
+                            deleteProduct(productId);
+                        }
+                    })
+
+
+                    // When clicking on IMEI Entry from dropdown
+                    $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
+                        event.preventDefault();
+                        const productId = $(this).data('product-id');
+                        $('#currentProductId').val(productId);
+
+                        // Clear previous IMEIs
+                        $('#imeiTableBody').empty();
+
+                        if (!productId) return;
+
+                        // Find the product in `allProducts` by ID
+                        const product = allProducts.find(p => p.product.id == productId);
+                        if (!product || !product.imei_numbers || product.imei_numbers.length ===
+                            0) {
+                            $('#imeiTableBody').append(
+                                '<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>'
+                                );
+                            $('#imeiModal').modal('show');
+                            return;
+                        }
+
+                        // Fill the table with IMEI numbers
+                        let counter = 1; // Initialize counter for auto-increment
+                        product.imei_numbers.forEach(imei => {
+                            $('#imeiTableBody').append(`
                             <tr>
                                 <td>${counter++}</td> <!-- Auto-incremented count -->
                                 <td>
@@ -509,25 +520,30 @@ function fetchProductData() {
                                 </td>
                             </tr>
                         `);
+                        });
+
+                        // Display product name and total count of IMEI numbers in the modal header
+                        $('#imeiModalTitle').html(
+                            `<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`
+                            );
+
+                        $('#imeiModal').modal('show');
                     });
 
-                    // Display product name and total count of IMEI numbers in the modal header
-                    $('#imeiModalTitle').html(`<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`);
-
-                    $('#imeiModal').modal('show');
-                });
-
-                    $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]', function(event) {
-                        event.stopPropagation();
-                        event.stopImmediatePropagation();
-                    });
+                    $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]',
+                        function(event) {
+                            event.stopPropagation();
+                            event.stopImmediatePropagation();
+                        });
 
                     $('#productTable tbody').on('click', 'tr', function(event) {
-                        if ($(event.target).closest('.product-checkbox, input[type="checkbox"]').length > 0) {
+                        if ($(event.target).closest('.product-checkbox, input[type="checkbox"]')
+                            .length > 0) {
                             return;
                         }
 
-                        if ($(event.target).closest('.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
+                        if ($(event.target).closest(
+                                '.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
                             return;
                         }
 
@@ -544,134 +560,134 @@ function fetchProductData() {
         }
 
 
-//Delte product
+        //Delte product
 
-function deleteProduct(productId) {
-    if (swal({
-            title: "Are you sure?",
-            text: "You will not be able to recover this imaginary file!",
-            icon: "warning",
-            buttons: true,
-            dangerMode: true,
-        })) {
-        $.ajax({
-            url: '/delete-product/' + productId,
-            type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            },
-            success: function(response) {
-                if (response.status === 200) {
-                    toastr.success(response.message, 'Deleted');
-                    fetchProductData();
-                } else {
-                    toastr.error(response.message || 'Failed to delete product', 'Error');
-                }
-            },
-            error: function(xhr) {
-                toastr.error('An error occurred while deleting the product', 'Error');
+        function deleteProduct(productId) {
+            if (swal({
+                    title: "Are you sure?",
+                    text: "You will not be able to recover this imaginary file!",
+                    icon: "warning",
+                    buttons: true,
+                    dangerMode: true,
+                })) {
+                $.ajax({
+                    url: '/delete-product/' + productId,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    success: function(response) {
+                        if (response.status === 200) {
+                            toastr.success(response.message, 'Deleted');
+                            fetchProductData();
+                        } else {
+                            toastr.error(response.message || 'Failed to delete product', 'Error');
+                        }
+                    },
+                    error: function(xhr) {
+                        toastr.error('An error occurred while deleting the product', 'Error');
+                    }
+                });
             }
-        });
-    }
-}
-
-
-
-
-// Populate product filter dropdowns
-function populateProductFilter() {
-    const productNameFilter = $('#productNameFilter');
-    const categoryFilter = $('#categoryFilter');
-    const brandFilter = $('#brandFilter');
-
-    const productNames = [...new Set(allProducts.map(item => item.product.product_name))];
-    const categories = [...new Set(allProducts.map(item => item.product.main_category_id))];
-    const brands = [...new Set(allProducts.map(item => item.product.brand_id))];
-
-    productNameFilter.empty().append('<option value="">Select Product</option>');
-    categoryFilter.empty().append('<option value="">Select Category</option>');
-    brandFilter.empty().append('<option value="">Select Brand</option>');
-
-    productNames.forEach(name => {
-        productNameFilter.append(`<option value="${name}">${name}</option>`);
-    });
-
-    categories.forEach(category => {
-        if (categoryMap[category]) {
-            categoryFilter.append(
-                `<option value="${category}">${categoryMap[category]}</option>`);
         }
-    });
 
-    brands.forEach(brand => {
-        if (brandMap[brand]) {
-            brandFilter.append(`<option value="${brand}">${brandMap[brand]}</option>`);
-        }
-    });
-}
 
-// Filter products based on selected filters
-function filterProducts() {
-    const selectedProduct = $('#productNameFilter').val();
-    const selectedCategory = $('#categoryFilter').val();
-    const selectedBrand = $('#brandFilter').val();
 
-    const filteredProducts = allProducts.filter(item => {
-        const product = item.product;
-        const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
-            true;
-        const matchesCategory = selectedCategory ? product.main_category_id ==
-            selectedCategory : true;
-        const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
-        return matchesProduct && matchesCategory && matchesBrand;
-    });
 
-    let table = $('#productTable').DataTable();
-    table.clear().draw();
+        // Populate product filter dropdowns
+        function populateProductFilter() {
+            const productNameFilter = $('#productNameFilter');
+            const categoryFilter = $('#categoryFilter');
+            const brandFilter = $('#brandFilter');
 
-    filteredProducts.forEach(function(item) {
-        let product = item.product;
-        product.total_stock = item.total_stock;
-        product.batches = item.batches;
-        product.locations = item.locations;
-        table.row.add($(formatProductData(product))).draw();
-    });
-}
+            const productNames = [...new Set(allProducts.map(item => item.product.product_name))];
+            const categories = [...new Set(allProducts.map(item => item.product.main_category_id))];
+            const brands = [...new Set(allProducts.map(item => item.product.brand_id))];
 
-// Fetch main category, sub-category, location, unit, brand details to select box
-function fetchCategoriesAndBrands() {
-    fetchData('/main-category-get-all', function(response) {
-        response.message.forEach(function(category) {
-            categoryMap[category.id] = category.mainCategoryName;
-        });
-    });
+            productNameFilter.empty().append('<option value="">Select Product</option>');
+            categoryFilter.empty().append('<option value="">Select Category</option>');
+            brandFilter.empty().append('<option value="">Select Brand</option>');
 
-    fetchData('/brand-get-all', function(response) {
-        response.message.forEach(function(brand) {
-            brandMap[brand.id] = brand.name;
-        });
-    });
-
-    fetchData('/location-get-all', function(response) {
-        if (response.status === 200) {
-            response.message.forEach(function(location) {
-                locationMap[location.id] = location
-                    .name; // Store location name with ID as key
+            productNames.forEach(name => {
+                productNameFilter.append(`<option value="${name}">${name}</option>`);
             });
-        } else {
-            console.error('Failed to load location data. Status: ' + response.status);
+
+            categories.forEach(category => {
+                if (categoryMap[category]) {
+                    categoryFilter.append(
+                        `<option value="${category}">${categoryMap[category]}</option>`);
+                }
+            });
+
+            brands.forEach(brand => {
+                if (brandMap[brand]) {
+                    brandFilter.append(`<option value="${brand}">${brandMap[brand]}</option>`);
+                }
+            });
         }
-    });
-}
 
-// Initialize fetching categories and brands
-fetchCategoriesAndBrands();
+        // Filter products based on selected filters
+        function filterProducts() {
+            const selectedProduct = $('#productNameFilter').val();
+            const selectedCategory = $('#categoryFilter').val();
+            const selectedBrand = $('#brandFilter').val();
 
-// Fetch initial dropdown data and product data on page load
-fetchInitialDropdowns(fetchProductData);
+            const filteredProducts = allProducts.filter(item => {
+                const product = item.product;
+                const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
+                    true;
+                const matchesCategory = selectedCategory ? product.main_category_id ==
+                    selectedCategory : true;
+                const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
+                return matchesProduct && matchesCategory && matchesBrand;
+            });
 
-// Apply filters on change
-$('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
+            let table = $('#productTable').DataTable();
+            table.clear().draw();
+
+            filteredProducts.forEach(function(item) {
+                let product = item.product;
+                product.total_stock = item.total_stock;
+                product.batches = item.batches;
+                product.locations = item.locations;
+                table.row.add($(formatProductData(product))).draw();
+            });
+        }
+
+        // Fetch main category, sub-category, location, unit, brand details to select box
+        function fetchCategoriesAndBrands() {
+            fetchData('/main-category-get-all', function(response) {
+                response.message.forEach(function(category) {
+                    categoryMap[category.id] = category.mainCategoryName;
+                });
+            });
+
+            fetchData('/brand-get-all', function(response) {
+                response.message.forEach(function(brand) {
+                    brandMap[brand.id] = brand.name;
+                });
+            });
+
+            fetchData('/location-get-all', function(response) {
+                if (response.status === 200) {
+                    response.message.forEach(function(location) {
+                        locationMap[location.id] = location
+                            .name; // Store location name with ID as key
+                    });
+                } else {
+                    console.error('Failed to load location data. Status: ' + response.status);
+                }
+            });
+        }
+
+        // Initialize fetching categories and brands
+        fetchCategoriesAndBrands();
+
+        // Fetch initial dropdown data and product data on page load
+        fetchInitialDropdowns(fetchProductData);
+
+        // Apply filters on change
+        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
 
         function resetFormAndValidation() {
             $('#addForm')[0].reset();
@@ -967,30 +983,30 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
 
 
         $(document).ready(function() {
-        const productId = $('#product_id').val();
-        const productName = $('#product_name').val();
-        const productSku = $('#product_sku').val();
-        const productOriginalPrice = $('#product_original_price').val();
+            const productId = $('#product_id').val();
+            const productName = $('#product_name').val();
+            const productSku = $('#product_sku').val();
+            const productOriginalPrice = $('#product_original_price').val();
 
-        const currentPath = window.location.pathname;
-        const isEditMode = currentPath.startsWith('/edit-opening-stock/');
+            const currentPath = window.location.pathname;
+            const isEditMode = currentPath.startsWith('/edit-opening-stock/');
 
 
-    // Initialize datetime picker for expiry date fields
-    function initializeDateTimePicker() {
-        $(".expiry-date-picker").datepicker({
-            dateFormat: 'yy-mm-dd' // Set the date format as per your requirement
-        });
-    }
+            // Initialize datetime picker for expiry date fields
+            function initializeDateTimePicker() {
+                $(".expiry-date-picker").datepicker({
+                    dateFormat: 'yy-mm-dd' // Set the date format as per your requirement
+                });
+            }
 
-    // Fetch and populate data dynamically
-    fetchOpeningStockData(productId, isEditMode);
+            // Fetch and populate data dynamically
+            fetchOpeningStockData(productId, isEditMode);
 
-    $('#addRow').click(function() {
-        var index = $('#locationRows tr').length;
-        var locationId = $('#locationRows tr:last').data('location-id');
-        var locationName = $('#locationRows tr:last td:first p').text();
-        var newRow = `
+            $('#addRow').click(function() {
+                var index = $('#locationRows tr').length;
+                var locationId = $('#locationRows tr:last').data('location-id');
+                var locationName = $('#locationRows tr:last td:first p').text();
+                var newRow = `
             <tr data-location-id="${locationId}">
                 <td>
                     <input type="hidden" name="locations[` + index + `][id]" value="${locationId}">
@@ -1024,49 +1040,52 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                 </td>
             </tr>
         `;
-        $('#locationRows').append(newRow);
-        initializeDateTimePicker(); // Re-initialize datetime picker for new rows
-    });
+                $('#locationRows').append(newRow);
+                initializeDateTimePicker(); // Re-initialize datetime picker for new rows
+            });
 
-    $('#submitOpeningStock').click(function(e) {
-        e.preventDefault();
-        handleFormSubmission(isEditMode, productId);
-    });
+            $('#submitOpeningStock').click(function(e) {
+                e.preventDefault();
+                handleFormSubmission(isEditMode, productId);
+            });
 
-  
-    function fetchOpeningStockData(productId, isEditMode) {
-    const url = isEditMode ? `/edit-opening-stock/${productId}` : `/opening-stock/${productId}`;
 
-    $.ajax({
-        url: url,
-        type: 'GET',
-        success: function(response) {
-            if (response.status === 200) {
-                const product = response.product;
-                const locations = response.locations;
-                const batches = response.openingStock.batches;
+            function fetchOpeningStockData(productId, isEditMode) {
+                const url = isEditMode ? `/edit-opening-stock/${productId}` :
+                    `/opening-stock/${productId}`;
 
-                $('#locationRows').html(''); // Clear existing rows before appending
+                $.ajax({
+                    url: url,
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.status === 200) {
+                            const product = response.product;
+                            const locations = response.locations;
+                            const batches = response.openingStock.batches;
 
-                // Create a map of location_id to array of batches
-                const batchesByLocation = {};
-                batches.forEach(batch => {
-                    if (!batchesByLocation[batch.location_id]) {
-                        batchesByLocation[batch.location_id] = [];
-                    }
-                    batchesByLocation[batch.location_id].push(batch);
-                });
+                            $('#locationRows').html(
+                            ''); // Clear existing rows before appending
 
-                // Track row index separately since we may have multiple rows per location
-                let rowIndex = 0;
+                            // Create a map of location_id to array of batches
+                            const batchesByLocation = {};
+                            batches.forEach(batch => {
+                                if (!batchesByLocation[batch.location_id]) {
+                                    batchesByLocation[batch.location_id] = [];
+                                }
+                                batchesByLocation[batch.location_id].push(batch);
+                            });
 
-                // Show all locations, with all batches for each location
-                locations.forEach(function(location) {
-                    const locationBatches = batchesByLocation[location.id] || [];
-                    
-                    // If no batches exist for this location, show one empty row
-                    if (locationBatches.length === 0) {
-                        const newRow = `
+                            // Track row index separately since we may have multiple rows per location
+                            let rowIndex = 0;
+
+                            // Show all locations, with all batches for each location
+                            locations.forEach(function(location) {
+                                const locationBatches = batchesByLocation[location
+                                    .id] || [];
+
+                                // If no batches exist for this location, show one empty row
+                                if (locationBatches.length === 0) {
+                                    const newRow = `
                             <tr data-location-id="${location.id}">
                                 <td>
                                     <input type="hidden" name="locations[${rowIndex}][id]" value="${location.id}">
@@ -1100,12 +1119,12 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                 </td>
                             </tr>
                         `;
-                        $('#locationRows').append(newRow);
-                        rowIndex++;
-                    } else {
-                        // Show one row for each batch in this location
-                        locationBatches.forEach(batch => {
-                            const newRow = `
+                                    $('#locationRows').append(newRow);
+                                    rowIndex++;
+                                } else {
+                                    // Show one row for each batch in this location
+                                    locationBatches.forEach(batch => {
+                                        const newRow = `
                                 <tr data-location-id="${location.id}">
                                     <td>
                                         <input type="hidden" name="locations[${rowIndex}][id]" value="${location.id}">
@@ -1139,295 +1158,332 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                     </td>
                                 </tr>
                             `;
-                            $('#locationRows').append(newRow);
-                            rowIndex++;
-                        });
+                                        $('#locationRows').append(newRow);
+                                        rowIndex++;
+                                    });
+                                }
+                            });
+
+                            initializeDateTimePicker
+                        (); // Initialize datetime picker for existing rows
+
+                            if (isEditMode) {
+                                $('#pageTitle').text('Edit Opening Stock for Product');
+                                $('#breadcrumbTitle').text('Edit Opening Stock');
+                                $('#submitOpeningStock').text('Update');
+                            }
+                        } else {
+                            console.log('Failed to fetch existing stock data.', 'Error');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.log('Failed to fetch existing stock data.', 'Error');
+                    }
+                });
+            }
+
+            // function handleFormSubmission(isEditMode, productId) {
+            //     let form = $('#openingStockForm')[0];
+            //     let formData = new FormData(form);
+
+            //     let locations = [];
+            //     formData.forEach((value, key) => {
+            //         if (key.includes('locations') && value) {
+            //             let parts = key.split('[');
+            //             let index = parts[1].split(']')[0];
+            //             if (!locations[index]) {
+            //                 locations[index] = {};
+            //             }
+            //             let field = parts[2].split(']')[0];
+            //             locations[index][field] = value;
+            //         }
+            //     });
+
+            //     // Filter out locations with empty qty and ensure expiry_date is set
+            //     locations = locations.filter(location => location.qty).map(location => {
+            //         if (!location.expiry_date) {
+            //             location.expiry_date = ''; // or any default value you consider
+            //         }
+            //         return location;
+            //     });
+
+            //     // if (!validateBatchNumbers(locations)) {
+            //     //     toastr.error(
+            //     //         'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
+            //     //         'Warning');
+            //     //     return;
+            //     // }
+
+            //     let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+            //     $.ajax({
+            //         url: url,
+            //         type: 'POST',
+            //         headers: {
+            //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            //         },
+            //         data: JSON.stringify({ locations }),
+            //         contentType: 'application/json',
+            //         processData: false,
+            //         success: function(response) {
+            //             if (response.status === 200) {
+            //                 toastr.success(response.message, 'Success');
+            //                 window.location.href = '/list-product';
+            //             } else {
+            //                 toastr.error(response.message, 'Error');
+            //             }
+            //         },
+            //         error: function(xhr) {
+            //             if (xhr.status === 422) {
+            //                 let errors = xhr.responseJSON.errors;
+            //                 $.each(errors, function(key, val) {
+            //                     $(`#${key}_error`).text(val[0]);
+            //                 });
+            //             } else {
+            //                 toastr.error('Unexpected error occurred', 'Error');
+            //             }
+            //         }
+            //     });
+            // }
+            function handleFormSubmission(isEditMode, productId) {
+                let form = $('#openingStockForm')[0];
+                let formData = new FormData(form);
+
+                let locations = [];
+                formData.forEach((value, key) => {
+                    if (key.includes('locations') && value) {
+                        let parts = key.split('[');
+                        let index = parts[1].split(']')[0];
+                        if (!locations[index]) {
+                            locations[index] = {};
+                        }
+                        let field = parts[2].split(']')[0];
+                        locations[index][field] = value;
                     }
                 });
 
-                initializeDateTimePicker(); // Initialize datetime picker for existing rows
+                locations = locations.filter(location => location.qty).map(location => {
+                    if (!location.expiry_date) location.expiry_date = '';
+                    return location;
+                });
 
-                if (isEditMode) {
-                    $('#pageTitle').text('Edit Opening Stock for Product');
-                    $('#breadcrumbTitle').text('Edit Opening Stock');
-                    $('#submitOpeningStock').text('Update');
-                }
-            } else {
-                console.log('Failed to fetch existing stock data.', 'Error');
-            }
-        },
-        error: function(xhr) {
-            console.log('Failed to fetch existing stock data.', 'Error');
-        }
-    });
-}
+                let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
 
-    // function handleFormSubmission(isEditMode, productId) {
-    //     let form = $('#openingStockForm')[0];
-    //     let formData = new FormData(form);
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: JSON.stringify({
+                        locations
+                    }),
+                    contentType: 'application/json',
+                    processData: false,
+                    success: function(response) {
+                        if (response.status === 200) {
+                            const enableImei = response.product.is_imei_or_serial_no === 1;
 
-    //     let locations = [];
-    //     formData.forEach((value, key) => {
-    //         if (key.includes('locations') && value) {
-    //             let parts = key.split('[');
-    //             let index = parts[1].split(']')[0];
-    //             if (!locations[index]) {
-    //                 locations[index] = {};
-    //             }
-    //             let field = parts[2].split(']')[0];
-    //             locations[index][field] = value;
-    //         }
-    //     });
+                            if (enableImei && response.batches && response.batches.length >
+                                0) {
+                                let totalQty = 0;
+                                response.batches.forEach(batch => {
+                                    totalQty += parseInt(batch.qty);
+                                });
 
-    //     // Filter out locations with empty qty and ensure expiry_date is set
-    //     locations = locations.filter(location => location.qty).map(location => {
-    //         if (!location.expiry_date) {
-    //             location.expiry_date = ''; // or any default value you consider
-    //         }
-    //         return location;
-    //     });
+                                $('#totalImeiCount').text(totalQty);
+                                $('#imeiModal').modal('show');
 
-    //     // if (!validateBatchNumbers(locations)) {
-    //     //     toastr.error(
-    //     //         'Invalid Batch Number. It should start with "BATCH" followed by at least 3 digits.',
-    //     //         'Warning');
-    //     //     return;
-    //     // }
+                                // Clear previous rows
+                                $('#imeiTable tbody').empty();
 
-    //     let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-    //     $.ajax({
-    //         url: url,
-    //         type: 'POST',
-    //         headers: {
-    //             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-    //         },
-    //         data: JSON.stringify({ locations }),
-    //         contentType: 'application/json',
-    //         processData: false,
-    //         success: function(response) {
-    //             if (response.status === 200) {
-    //                 toastr.success(response.message, 'Success');
-    //                 window.location.href = '/list-product';
-    //             } else {
-    //                 toastr.error(response.message, 'Error');
-    //             }
-    //         },
-    //         error: function(xhr) {
-    //             if (xhr.status === 422) {
-    //                 let errors = xhr.responseJSON.errors;
-    //                 $.each(errors, function(key, val) {
-    //                     $(`#${key}_error`).text(val[0]);
-    //                 });
-    //             } else {
-    //                 toastr.error('Unexpected error occurred', 'Error');
-    //             }
-    //         }
-    //     });
-    // }
-    function handleFormSubmission(isEditMode, productId) {
-    let form = $('#openingStockForm')[0];
-    let formData = new FormData(form);
+                                // Auto-fill from textarea if needed
+                                $('#autoFillImeis').off().on('click', function() {
+                                    const imeiText = $('#imeiInput').val().trim();
+                                    const imeis = imeiText.split(/\r?\n/).filter(
+                                        Boolean);
+                                    $('#imeiTable tbody').empty();
 
-    let locations = [];
-    formData.forEach((value, key) => {
-        if (key.includes('locations') && value) {
-            let parts = key.split('[');
-            let index = parts[1].split(']')[0];
-            if (!locations[index]) {
-                locations[index] = {};
-            }
-            let field = parts[2].split(']')[0];
-            locations[index][field] = value;
-        }
-    });
+                                    if (imeis.length === 0) {
+                                        toastr.warning("No IMEIs found to fill.");
+                                        return;
+                                    }
 
-    locations = locations.filter(location => location.qty).map(location => {
-        if (!location.expiry_date) location.expiry_date = '';
-        return location;
-    });
-
-    let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
-
-    $.ajax({
-        url: url,
-        type: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        data: JSON.stringify({ locations }),
-        contentType: 'application/json',
-        processData: false,
-        success: function(response) {
-            if (response.status === 200) {
-                const enableImei = response.product.is_imei_or_serial_no === 1;
-
-                if (enableImei && response.batches && response.batches.length > 0) {
-                    let totalQty = 0;
-                    response.batches.forEach(batch => {
-                        totalQty += parseInt(batch.qty);
-                    });
-
-                    $('#totalImeiCount').text(totalQty);
-                    $('#imeiModal').modal('show');
-
-                    // Clear previous rows
-                    $('#imeiTable tbody').empty();
-
-                    // Auto-fill from textarea if needed
-                    $('#autoFillImeis').off().on('click', function () {
-                        const imeiText = $('#imeiInput').val().trim();
-                        const imeis = imeiText.split(/\r?\n/).filter(Boolean);
-                        $('#imeiTable tbody').empty();
-
-                        if (imeis.length === 0) {
-                            toastr.warning("No IMEIs found to fill.");
-                            return;
-                        }
-
-                        imeis.forEach((imei, idx) => {
-                            $('#imeiTable tbody').append(`
+                                    imeis.forEach((imei, idx) => {
+                                        $('#imeiTable tbody').append(`
                                 <tr>
                                     <td>${idx + 1}</td>
                                     <td><input type="text" class="form-control imei-input" value="${imei}"></td>
                                     <td><button class="btn btn-sm btn-danger removeImei"><i class="fas fa-trash"></i></button></td>
                                 </tr>
                             `);
-                        });
+                                    });
 
-                        toastr.success(`Filled ${imeis.length} rows from pasted IMEIs`);
-                    });
+                                    toastr.success(
+                                        `Filled ${imeis.length} rows from pasted IMEIs`
+                                        );
+                                });
 
-                    // Load existing IMEIs if editing
-                    if (isEditMode) {
-                        $.ajax({
-                            url: `/get-imeis/${productId}`,
-                            method: 'GET',
-                            success: function(res) {
-                                if (res.status === 200) {
-                                    $('#imeiTable tbody').empty();
-                                    res.imeis.forEach((imei, index) => {
-                                        $('#imeiTable tbody').append(`
+                                // Load existing IMEIs if editing
+                                if (isEditMode) {
+                                    $.ajax({
+                                        url: `/get-imeis/${productId}`,
+                                        method: 'GET',
+                                        success: function(res) {
+                                            if (res.status === 200) {
+                                                $('#imeiTable tbody').empty();
+                                                res.imeis.forEach((imei,
+                                                    index) => {
+                                                        $('#imeiTable tbody')
+                                                            .append(`
                                             <tr>
                                                 <td>${index + 1}</td>
                                                 <td><input type="text" class="form-control imei-input" value="${imei.imei_number}" data-id="${imei.id}"></td>
                                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                                             </tr>
                                         `);
+                                                    });
+                                                $('#totalImeiCount').text(res
+                                                    .imeis.length);
+                                            }
+                                        },
+                                        error: function() {
+                                            toastr.error(
+                                                "Failed to load existing IMEIs",
+                                                'Error');
+                                        }
                                     });
-                                    $('#totalImeiCount').text(res.imeis.length);
                                 }
-                            },
-                            error: function() {
-                                toastr.error("Failed to load existing IMEIs", 'Error');
-                            }
-                        });
-                    }
 
-                    // Add Row Button with qty check
-                    $('#addImeiRow').off().on('click', function () {
-                        const currentCount = $('#imeiTable tbody tr').length;
-                        const allowedQty = totalQty;
-                        if (currentCount + 1 > allowedQty) {
-                            toastr.warning(`You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`);
-                            return;
-                        }
-                        $('#imeiTable tbody').append(`
+                                // Add Row Button with qty check
+                                $('#addImeiRow').off().on('click', function() {
+                                    const currentCount = $('#imeiTable tbody tr')
+                                        .length;
+                                    const allowedQty = totalQty;
+                                    if (currentCount + 1 > allowedQty) {
+                                        toastr.warning(
+                                            `You cannot add more than ${allowedQty} IMEI rows (Qty limit reached).`
+                                            );
+                                        return;
+                                    }
+                                    $('#imeiTable tbody').append(`
                             <tr>
                                 <td>${currentCount + 1}</td>
                                 <td><input type="text" class="form-control imei-input" placeholder="Enter IMEI"></td>
                                 <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
                             </tr>
                         `);
-                    });
+                                });
 
-                    // Remove Row on Click (and update count)
-                    $(document).on('click', '.removeImei', function () {
-                        $(this).closest('tr').remove();
-                        // Re-number the rows after removal
-                        $('#imeiTable tbody tr').each(function(idx) {
-                            $(this).find('td:first').text(idx + 1);
-                        });
-                    });
+                                // Remove Row on Click (and update count)
+                                $(document).on('click', '.removeImei', function() {
+                                    $(this).closest('tr').remove();
+                                    // Re-number the rows after removal
+                                    $('#imeiTable tbody tr').each(function(idx) {
+                                        $(this).find('td:first').text(idx +
+                                            1);
+                                    });
+                                });
 
-                    // Save Button Logic
-                    $('#saveImeiButton').off().on('click', function () {
-                        const imeis = [];
-                        let hasEmpty = false;
+                                // Save Button Logic
+                                $('#saveImeiButton').off().on('click', function() {
+                                    const imeis = [];
+                                    let hasEmpty = false;
 
-                        $('#imeiTable tbody tr').each(function () {
-                            let val = $(this).find('.imei-input').val().trim();
-                            if (!val) hasEmpty = true;
-                            imeis.push(val);
-                        });
+                                    $('#imeiTable tbody tr').each(function() {
+                                        let val = $(this).find(
+                                            '.imei-input').val().trim();
+                                        if (!val) hasEmpty = true;
+                                        imeis.push(val);
+                                    });
 
 
-                        $.ajax({
-                            url: '/save-imei',
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
-                            data: JSON.stringify({
-                                product_id: productId,
-                                batches: response.batches,
-                                imeis: imeis
-                            }),
-                            contentType: 'application/json',
-                            success: function (imeiRes) {
-                                if (imeiRes.status === 200) {
-                                    toastr.success(imeiRes.message, 'Success');
-                                    $('#imeiModal').modal('hide');
+                                    $.ajax({
+                                        url: '/save-imei',
+                                        method: 'POST',
+                                        headers: {
+                                            'X-CSRF-TOKEN': $(
+                                                'meta[name="csrf-token"]'
+                                                ).attr('content')
+                                        },
+                                        data: JSON.stringify({
+                                            product_id: productId,
+                                            batches: response
+                                                .batches,
+                                            imeis: imeis
+                                        }),
+                                        contentType: 'application/json',
+                                        success: function(imeiRes) {
+                                            if (imeiRes.status ===
+                                                200) {
+                                                toastr.success(imeiRes
+                                                    .message,
+                                                    'Success');
+                                                $('#imeiModal').modal(
+                                                    'hide');
+                                                window.location.href =
+                                                    '/list-product';
+                                            } else {
+                                                if (imeiRes.message &&
+                                                    imeiRes.message
+                                                    .toLowerCase()
+                                                    .includes(
+                                                        'duplicate')) {
+                                                    toastr.error(
+                                                        'Duplicate IMEI numbers found. Please check your entries.',
+                                                        'Error');
+                                                } else {
+                                                    toastr.error(imeiRes
+                                                        .message,
+                                                        'Error');
+                                                }
+                                            }
+                                        },
+                                        error: function() {
+                                            toastr.error(
+                                                "Failed to save IMEIs",
+                                                'Error');
+                                        }
+                                    });
+                                });
+
+                                $('#imeiModal').on('click', '[data-bs-dismiss="modal"]',
+                                    function(e) {
+                                        if (!confirm(
+                                                "Are you sure you want to skip entering IMEIs?"
+                                                )) {
+                                            e.preventDefault();
+                                            return;
+                                        }
+
+                                        $('#imeiTable tbody').empty();
+                                        $('#imeiInput').val('');
+                                        $('#imeiModal').modal('hide');
+                                        window.location.href = '/list-product';
+                                    });
+                            } else {
+                                toastr.success(response.message, 'Success');
+                                setTimeout(() => {
                                     window.location.href = '/list-product';
-                                } else {
-                                    if (imeiRes.message && imeiRes.message.toLowerCase().includes('duplicate')) {
-                                        toastr.error('Duplicate IMEI numbers found. Please check your entries.', 'Error');
-                                    } else {
-                                        toastr.error(imeiRes.message, 'Error');
-                                    }
-                                }
-                            },
-                            error: function () {
-                                toastr.error("Failed to save IMEIs", 'Error');
+                                }, 1000);
                             }
-                        });
-                    });
-
-                    $('#imeiModal').on('click', '[data-bs-dismiss="modal"]', function (e) {
-                        if (!confirm("Are you sure you want to skip entering IMEIs?")) {
-                            e.preventDefault();
-                            return;
+                        } else {
+                            toastr.error(response.message, 'Error');
                         }
-
-                        $('#imeiTable tbody').empty();
-                        $('#imeiInput').val('');
-                        $('#imeiModal').modal('hide');
-                        window.location.href = '/list-product';
-                    });
-                } 
-                else {
-                    toastr.success(response.message, 'Success');
-                    setTimeout(() => {
-                        window.location.href = '/list-product';
-                    }, 1000);
-                }
-            } else {
-                toastr.error(response.message, 'Error');
-            }
-        },
-        error: function(xhr) {
-            if (xhr.status === 422) {
-                let errors = xhr.responseJSON.errors;
-                $.each(errors, function(key, val) {
-                    $(`#${key}_error`).text(val[0]);
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, val) {
+                                $(`#${key}_error`).text(val[0]);
+                            });
+                        } else {
+                            toastr.error('Unexpected error occurred', 'Error');
+                        }
+                    }
                 });
-            } else {
-                toastr.error('Unexpected error occurred', 'Error');
             }
-        }
-    });
-}
 
-});
+        });
         // Extract the product ID from the URL and fetch data if valid
         $(document).ready(function() {
             const pathSegments = window.location.pathname.split('/');
@@ -1444,7 +1500,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                                 const mainCategories = response.message
                                     .mainCategories;
                                 const subCategories = response.message
-                                .subCategories;
+                                    .subCategories;
                                 const brands = response.message.brands;
                                 const units = response.message.units;
                                 const locations = response.message.locations;
@@ -1458,7 +1514,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         error: function() {
                             console.error(
                                 'An error occurred while fetching product details.'
-                                );
+                            );
                         }
                     });
                 });
@@ -1477,9 +1533,9 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             e.stopPropagation();
         });
 
-      
-        
-    
+
+
+
 
 
 
@@ -1567,7 +1623,7 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
         if (fileInput.files.length === 0) {
             $('#file_error').html('Please select the excel format file.');
             document.getElementsByClassName('errorSound')[0].play(); //for sound
-            toastr.error('Please select the excel format file' ,'Error');
+            toastr.error('Please select the excel format file', 'Error');
             return;
         } else {
             $('#file_error').html('');
@@ -1582,7 +1638,8 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
                         $('.progress').show();
                         $('.progress-bar').css('width', percentComplete + '%');
                         $('.progress-bar').attr('aria-valuenow', percentComplete);
-                        $('.progress-bar').text(Math.round(percentComplete) + '%'); // Display the percentage
+                        $('.progress-bar').text(Math.round(percentComplete) +
+                        '%'); // Display the percentage
                     }
                 }, false);
                 return xhr;
@@ -1600,22 +1657,22 @@ $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProduc
             success: function(response) {
                 if (response.status == 400) {
                     $.each(response.errors, function(key, err_value) {
-                        $('#' + key + '_error').html(err_value); // Assuming there's only one file input with id 'leadFile'
+                        $('#' + key + '_error').html(
+                        err_value); // Assuming there's only one file input with id 'leadFile'
                         document.getElementsByClassName('errorSound')[0].play(); //for sound
-                        toastr.error(err_value,'Error');
+                        toastr.error(err_value, 'Error');
 
                     });
                     $('.progress').hide(); // Hide progress bar on validation error
                 } else if (response.status == 200) {
                     $("#importProductForm")[0].reset();
                     document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.success(response.message, 'Uploaded');
+                    toastr.success(response.message, 'Uploaded');
                     $('.progress').hide();
-                }
-                else if (response.status == 401) {
+                } else if (response.status == 401) {
                     $("#importProductForm")[0].reset();
                     document.getElementsByClassName('errorSound')[0].play(); //for sound
-                        toastr.error(response.validation_errors, 'Error');
+                    toastr.error(response.validation_errors, 'Error');
                     $('.progress').hide();
                 }
 

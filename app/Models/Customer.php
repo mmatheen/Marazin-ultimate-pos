@@ -18,7 +18,7 @@ class Customer extends Model
         'email',
         'address',
         'opening_balance',
-        // 'location_id',
+        
     ];
 
     public static function boot()
