@@ -2423,8 +2423,20 @@
 
         document.getElementById('cancelButton').addEventListener('click', resetForm);
 
+        function resetToWalkingCustomer() {
+            const customerSelect = $('#customer-id');
+            const walkingCustomer = customerSelect.find('option').filter(function() {
+                return $(this).text().startsWith('Walking');
+            });
+
+            if (walkingCustomer.length > 0) {
+                customerSelect.val(walkingCustomer.val());
+                customerSelect.trigger('change');
+            }
+        }
+
         function resetForm() {
-            document.getElementById('customer-id').value = 1;
+            resetToWalkingCustomer();
             const quantityInputs = document.querySelectorAll('.quantity-input');
             quantityInputs.forEach(input => {
                 input.value = 1;

@@ -13,19 +13,22 @@ class LocationScope implements Scope
     public function apply(Builder $builder, Model $model)
     {
         if (Auth::check() && !Auth::user()->hasRole('Super Admin')) {
-            // Check if user has selected a specific location
             $selectedLocation = Session::get('selected_location');
 
             if ($selectedLocation) {
-                // Only show data for the selected location
-                $builder->where('location_id', $selectedLocation);
+                // Show data for the selected location or where location_id is null (walking customer)
+                $builder->where(function ($query) use ($selectedLocation) {
+                    $query->where('location_id', $selectedLocation)
+                        ->orWhereNull('location_id');
+                });
             } else {
-                // If not selected, use all accessible locations
                 $user = Auth::user();
                 $locationIds = $user->locations->pluck('id')->toArray();
-                $builder->whereIn('location_id', $locationIds);
+                $builder->where(function ($query) use ($locationIds) {
+                    $query->whereIn('location_id', $locationIds)
+                        ->orWhereNull('location_id');
+                });
             }
         }
     }
-    
 }

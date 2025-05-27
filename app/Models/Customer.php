@@ -1,13 +1,14 @@
 <?php
 
 namespace App\Models;
+
 use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Customer extends Model
 {
-    use HasFactory,LocationTrait;
+    use HasFactory, LocationTrait;
 
     protected $table = 'customers';
     protected $fillable = [
@@ -18,7 +19,7 @@ class Customer extends Model
         'email',
         'address',
         'opening_balance',
-        
+
     ];
 
     public static function boot()
@@ -47,9 +48,9 @@ class Customer extends Model
     }
 
     public function payments()
-{
-    return $this->hasMany(Payment::class);
-}
+    {
+        return $this->hasMany(Payment::class);
+    }
 
 
     // Total Sale Due for the customer
@@ -68,18 +69,16 @@ class Customer extends Model
     {
         // Get total sales due
         $totalSalesDue = $this->sales()->sum('total_due');
-    
+
         // Get total return due
         $totalReturnDue = $this->salesReturns()->sum('total_due');
-        
+
         // // Calculate the total payments made by the customer
         // $totalPaymentsMade = $this->payments()->sum('amount');
-        
+
         // Current due calculation considering sales, payments, and returns
         $currentDue = ($this->opening_balance + $totalSalesDue  - $totalReturnDue);
-    
+
         return $currentDue;
     }
-    
-    
 }
