@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('sale_id')->nullable(); // If returning with a bill (invoice)
             $table->unsignedBigInteger('customer_id')->nullable(); // Allow null for walk-in returns
             $table->unsignedBigInteger('location_id');
-            $table->date('return_date');
+            $table->timestamp('return_date');
             $table->decimal('return_total', 12, 2); // Total value of the return
             $table->decimal('total_paid', 15, 2)->default(0);
 

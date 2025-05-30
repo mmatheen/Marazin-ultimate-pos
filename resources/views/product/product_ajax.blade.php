@@ -1396,7 +1396,7 @@
 
 
                                     $.ajax({
-                                        url: '/save-imei',
+                                        url: '/save-or-update-imei',
                                         method: 'POST',
                                         headers: {
                                             'X-CSRF-TOKEN': $(

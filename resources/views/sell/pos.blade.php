@@ -597,7 +597,7 @@
                                 <div class="col-md-6 d-flex align-items-center">
                                     <button class="btn btn-primary text-white border-1 px-2 py-1"
                                         style="width: auto; height: 30px;" id="currentTimeButton"
-                                        disabled>{{ now()->format('Y-m-d H:i:s') }}</button>
+                                        enabled>{{ now()->format('H:i:s') }}</button>
                                     <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
                                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
                                         data-bs-content="<div class='row'>
@@ -1714,7 +1714,7 @@
         });
     </script>
 
-    
+
 
     <!-- JavaScript for Calculator Functionality -->
     <script>

@@ -88,8 +88,9 @@ class SaleController extends Controller
     public function dailyReport(Request $request)
     {
         try {
-            $startDate = $request->input('start_date', Carbon::today()->toDateString());
-            $endDate = $request->input('end_date', Carbon::today()->toDateString());
+            // Use timestamps for sales_date filtering
+            $startDate = $request->input('start_date', Carbon::today()->startOfDay());
+            $endDate = $request->input('end_date', Carbon::today()->endOfDay());
 
             $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
                 ->whereBetween('sales_date', [$startDate, $endDate]);
@@ -124,8 +125,8 @@ class SaleController extends Controller
                 $creditTotal += $sale->total_due;
             }
 
-            // Calculate sales returns
-            $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->sum('return_total');
+            // Calculate sales returns (using timestamps for return_date)
+            $salesReturns = SalesReturn::whereBetween('return_date', [$startDate, $endDate])->sum('return_total');
             $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
 
             $summaries = [
@@ -142,9 +143,10 @@ class SaleController extends Controller
                 'cashInHand' => $cashPayments - $salesReturns, // Basic cash in hand calculation
             ];
 
-            // Fetch sales return details based on sale ID
+            // Fetch sales return details based on sale ID, using timestamps for return_date
             $salesReturnsDetails = SalesReturn::with('customer', 'location', 'returnProducts')
                 ->whereIn('sale_id', $sales->pluck('id'))
+                ->whereBetween('return_date', [$startDate, $endDate])
                 ->get();
 
             return response()->json([
@@ -301,11 +303,13 @@ class SaleController extends Controller
                     ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;
 
+
+
                 // Create the sale record first to get the ID
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
-                    'sales_date' => $request->sales_date,
+                    'sales_date' => Carbon::parse($sale->created_at)->setTimezone('Asia/Colombo')->toDateString(),
                     'sale_type' => $request->sale_type ?? 'retail',
                     'status' => $request->status,
                     'invoice_no' => $invoiceNo,
