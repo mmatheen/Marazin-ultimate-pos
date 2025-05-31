@@ -352,6 +352,9 @@
 
             function populateSelect(selectEl, map, label) {
                 if (!selectEl) return;
+
+                const previouslySelected = selectEl.value; // Save previous selection
+
                 selectEl.innerHTML = `<option value="">Select ${label}</option>`;
                 map.forEach((name, id) => {
                     const option = document.createElement('option');
@@ -359,12 +362,33 @@
                     option.textContent = name;
                     selectEl.appendChild(option);
                 });
-            }
 
+                selectEl.value = previouslySelected; // Restore previous selection
+            }
             $('#reportrange').on('apply.daterangepicker', fetchAllSalesData);
-            $(customerFilter).on('change', fetchAllSalesData);
-            $(userFilter).on('change', fetchAllSalesData);
-            $(locationFilter).on('change', fetchAllSalesData);
+            $(customerFilter).on('change', () => {
+                fetchAllSalesData();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+
+            $(userFilter).on('change', () => {
+                fetchAllSalesData();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+
+            $(locationFilter).on('change', () => {
+                fetchAllSalesData();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
 
             function formatNumber(num) {
                 return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
