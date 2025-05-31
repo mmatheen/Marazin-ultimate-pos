@@ -17,7 +17,7 @@
             table.dataTable th,
             table.dataTable td {
                 white-space: nowrap;
-                padding: 10px 12px;
+                padding: 4px 6px;
                 font-size: 14px !important;
             }
 
