@@ -26,12 +26,12 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button trigger modal -->
-                                     <!-- Button trigger modal -->
+                                    <!-- Button trigger modal -->
 
                                     @can('create main-category')
-                                    <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
-                                        New  <i class="fas fa-plus px-2"> </i>
-                                    </button>
+                                        <button type="button" class="btn btn-outline-info " id="addMainCategoryButton">
+                                            New <i class="fas fa-plus px-2"> </i>
+                                        </button>
                                     @endcan
                                 </div>
                             </div>
@@ -59,8 +59,8 @@
     </div>
 
     @include('category.main_category.main_category_modal')
-     {{-- Delete modal --}}
-     <div id="deleteModal" class="modal custom-modal fade" role="dialog">
+    {{-- Delete modal --}}
+    <div id="deleteModal" class="modal custom-modal fade" role="dialog">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-body">
@@ -73,7 +73,8 @@
                             <input type="hidden" id="deleting_id">
                             <div class="row">
                                 <div class="col-6">
-                                    <button type="submit" class="confirm_main_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                    <button type="submit" class="confirm_main_delete_btn btn btn-primary paid-continue-btn"
+                                        style="width: 100%;">Delete</button>
                                 </div>
                                 <div class="col-6">
                                     <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel
@@ -88,6 +89,4 @@
     </div>
 
     @include('category.main_category.main_category_ajax')
-
-
 @endsection

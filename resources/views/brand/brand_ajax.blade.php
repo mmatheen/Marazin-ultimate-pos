@@ -223,6 +223,27 @@ function populateBrandDropdown(selectedId = null) {
                         toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
                         toastr.success(response.message, 'Deleted');
                     }
+                },
+                error: function(xhr) {
+
+                    // Check for SQLSTATE[23000] error code 1451 (foreign key constraint)
+                    if (
+                        xhr.responseJSON &&
+                        (
+                            (xhr.responseJSON.message && xhr.responseJSON.message.includes(
+                                'SQLSTATE[23000]') && xhr.responseJSON.message.includes(
+                                '1451')) ||
+                            (xhr.responseJSON.exception && xhr.responseJSON.exception
+                                .includes('Integrity constraint violation'))
+                        )
+                    ) {
+                        toastr.error(
+                            'This brand cannot be deleted because it is associated with one or more products.',
+                            'Delete Not Allowed');
+                    } else {
+                        toastr.error('An error occurred while deleting the brand.',
+                            'Error');
+                    }
                 }
             });
         });
