@@ -8,24 +8,26 @@
         $('#productSearch').autocomplete({
             source: [],
             select: function(event, ui) {
-            const selectedProduct = locationFilteredProducts.find(data => data.product
-                .product_name === ui.item.value);
-            if (selectedProduct) {
-                addProductWithBatches(selectedProduct);
-                $(this).val('');
-            }
-            return false;
+                const selectedProduct = locationFilteredProducts.find(data =>
+                    data.product.product_name === ui.item.value ||
+                    data.product.sku === ui.item.value
+                );
+                if (selectedProduct) {
+                    addProductWithBatches(selectedProduct);
+                    $(this).val('');
+                }
+                return false;
             }
         });
 
         // Prevent autocomplete dropdown from causing page scroll/overflow
-        $.ui.autocomplete.prototype._resizeMenu = function () {
+        $.ui.autocomplete.prototype._resizeMenu = function() {
             var ul = this.menu.element;
             ul.outerWidth(this.element.outerWidth());
             // Set a max height and enable scroll if needed
             ul.css({
-            "max-height": "250px",
-            "overflow-y": "auto"
+                "max-height": "250px",
+                "overflow-y": "auto"
             });
         };
 
