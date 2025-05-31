@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('reference_no')->nullable();
             $table->decimal('final_total', 10, 2);
             $table->text('note')->nullable();
-            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected',''])->default('pending');
             $table->timestamps();
 
             // Foreign key constraints

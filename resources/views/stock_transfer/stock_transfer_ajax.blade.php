@@ -1,37 +1,102 @@
 <script>
     $(document).ready(function() {
         let productIndex = 1;
-        let productsData = {};
+        // Global variable to store filtered product data per location
+        let locationFilteredProducts = [];
 
-        // Extract the stock transfer ID from the URL
+        // Initialize autocomplete early with empty source
+        $('#productSearch').autocomplete({
+            source: [],
+            select: function(event, ui) {
+                const selectedProduct = locationFilteredProducts.find(data => data.product
+                    .product_name === ui.item.value);
+                if (selectedProduct) {
+                    addProductWithBatches(selectedProduct);
+                    $(this).val('');
+                }
+                return false;
+            }
+        });
+
+        // Extract stock transfer ID from URL
         const pathSegments = window.location.pathname.split('/');
-        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
+        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[
+            pathSegments.length - 1] : null;
 
-        // Fetch products and stock transfer data
-        fetchProductsData();
-        if (stockTransferId) {
-            fetchStockTransferData(stockTransferId);
-        }
-
-        // Fetch locations data
+        // Fetch locations
         fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
         fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
 
-        // Function to fetch products data
+        // Fetch products only after location is selected
+        $('#from_location_id').on('change', function() {
+            fetchProductsData();
+        });
+
+        // On page load, if editing a transfer, wait until locations are loaded before fetching products
+        if (stockTransferId) {
+            // Delayed check to wait for location dropdowns to populate
+            const checkLocationInterval = setInterval(() => {
+                if ($('#from_location_id').val()) {
+                    clearInterval(checkLocationInterval);
+                    fetchStockTransferData(stockTransferId);
+                    fetchProductsData(); // Now safe to fetch
+                }
+            }, 200);
+        }
+
+        // Function to fetch and filter products by selected location
         function fetchProductsData() {
+            const fromLocationId = $('#from_location_id').val();
+            if (!fromLocationId) {
+                console.warn("No 'From Location' selected.");
+                $('#productSearch').autocomplete("option", "source", []);
+                return;
+            }
+
             $.ajax({
                 url: '/products/stocks',
                 method: 'GET',
                 success: function(response) {
                     if (response.status === 200) {
-                        productsData = response.data;
-                        setupAutocomplete();
+                        // Filter products by selected location
+                        const filteredProducts = response.data
+                            .map(productData => {
+                                // Filter batches to only include those in the selected location with quantity > 0
+                                const validBatches = productData.batches.filter(batch =>
+                                    batch.location_batches.some(locBatch =>
+                                        locBatch.location_id == fromLocationId && locBatch
+                                        .quantity > 0
+                                    )
+                                );
+
+                                if (validBatches.length > 0) {
+                                    // Return updated product data with only relevant batches
+                                    return {
+                                        ...productData,
+                                        batches: validBatches
+                                    };
+                                }
+                                return null;
+                            })
+                            .filter(
+                                Boolean); // Remove null entries (products not in selected location)
+
+                        // Save filtered products for later use
+                        locationFilteredProducts = filteredProducts;
+
+                        setupAutocomplete(filteredProducts);
                     }
                 },
                 error: function(error) {
                     console.error('Error fetching products data:', error);
                 }
             });
+        }
+
+        // Setup autocomplete with filtered products
+        function setupAutocomplete(filteredProducts) {
+            const productNames = filteredProducts.map(data => data.product.product_name);
+            $('#productSearch').autocomplete("option", "source", productNames);
         }
 
         // Function to fetch stock transfer data
@@ -55,14 +120,13 @@
             $('#transfer_date').val(stockTransfer.transfer_date.split(' ')[0]);
             $('#reference_no').val(stockTransfer.reference_no);
             $('#status').val(stockTransfer.status);
-
-            fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location", stockTransfer.from_location_id);
-            fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location", stockTransfer.to_location_id);
-
+            fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'),
+                "Select Location", stockTransfer.from_location_id);
+            fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'),
+                "Select Location", stockTransfer.to_location_id);
             stockTransfer.stock_transfer_products.forEach(product => {
                 addProductToTable(product, true);
             });
-
             updateTotalAmount();
         }
 
@@ -70,7 +134,6 @@
         function addProductToTable(productData, isEditing = false) {
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
-
             if (existingRow.length > 0) {
                 // Update the quantity if the product already exists in the table
                 const quantityInput = existingRow.find('.quantity-input');
@@ -80,13 +143,20 @@
                 return;
             }
 
-            const batches = product.batches ? product.batches.map(batch => ({
-                batch_id: batch.id,
-                batch_no: batch.batch_no,
-                batch_price: parseFloat(batch.retail_price),
-                batch_quantity: batch.qty,
-                transfer_quantity: productData.quantity
-            })) : [];
+            // Filter batches to only include those in the selected "From" location
+            const fromLocationId = $('#from_location_id').val();
+            // Only use batches from the selected "From" location
+            const batches = product.batches.flatMap(batch => {
+                return batch.location_batches
+                    .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
+                    .map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        batch_price: parseFloat(batch.retail_price),
+                        batch_quantity: locationBatch.quantity,
+                        transfer_quantity: productData.quantity
+                    }));
+            });
 
             if (batches.length === 0) {
                 console.error('No batches available for product:', product.product_name);
@@ -94,44 +164,44 @@
             }
 
             const batchOptions = batches.map(batch => `
-                <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}">
-                    Batch ${batch.batch_no} - Current Qty: ${batch.batch_quantity} - Transfer Qty: ${batch.transfer_quantity} - Price: ${batch.batch_price}
-                </option>
-            `).join('');
+            <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}">
+                Batch ${batch.batch_no} - Current Qty: ${batch.batch_quantity} - Transfer Qty: ${batch.transfer_quantity} - Price: ${batch.batch_price}
+            </option>
+        `).join('');
 
             const quantityInput = isEditing ? `
-                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly>
-            ` : `
-                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
-            `;
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly>
+        ` : `
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
+        `;
 
             const newRow = `
-                <tr class="add-row" data-product-id="${product.id}">
-                    <td>
-                        ${product.product_name}
-                        <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-                    </td>
-                    <td>
-                        <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                            ${batchOptions}
-                        </select>
-                        <div class="error-message batch-error"></div>
-                    </td>
-                    <td>
-                        ${quantityInput}
-                        <div class="error-message quantity-error text-danger"></div>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
-                    </td>
-                    <td class="add-remove text-end">
-                        <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
-                    </td>
-                </tr>
-            `;
+            <tr class="add-row" data-product-id="${product.id}">
+                <td>
+                    ${product.product_name}
+                    <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+                </td>
+                <td>
+                    <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                        ${batchOptions}
+                    </select>
+                    <div class="error-message batch-error"></div>
+                </td>
+                <td>
+                    ${quantityInput}
+                    <div class="error-message quantity-error text-danger"></div>
+                </td>
+                <td>
+                    <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
+                </td>
+                <td>
+                    <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
+                </td>
+                <td class="add-remove text-end">
+                    <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
+                </td>
+            </tr>
+        `;
 
             $(".add-table-items").find("tr:last").remove();
             $(".add-table-items").append(newRow);
@@ -140,81 +210,81 @@
             productIndex++;
         }
 
-        // Function to setup autocomplete for product search
-        function setupAutocomplete() {
-            const productNames = productsData.map(data => data.product.product_name);
-
-            $('#productSearch').autocomplete({
-                source: productNames,
-                select: function(event, ui) {
-                    const selectedProduct = productsData.find(data => data.product.product_name === ui.item.value);
-                    addProductWithBatches(selectedProduct);
-                    $(this).val('');
-                    return false;
-                }
-            });
-        }
-
-        // Function to add product to the table with dynamic batches
         function addProductWithBatches(productData) {
+            const fromLocationId = $('#from_location_id').val();
+            if (!fromLocationId) {
+                toastr.warning("Please select a 'From' location before adding products.");
+                return;
+            }
+
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
 
             if (existingRow.length > 0) {
-                // Update the quantity if the product already exists in the table
                 const quantityInput = existingRow.find('.quantity-input');
-                const newQuantity = parseInt(quantityInput.val()) + 1; // Increment by 1 for this example
+                const newQuantity = parseInt(quantityInput.val()) + 1;
                 quantityInput.val(newQuantity);
                 existingRow.find('.quantity-input').trigger('change');
                 return;
             }
 
-            const batches = productData.batches ? productData.batches.flatMap(batch => batch.location_batches.map(locationBatch => ({
-                batch_id: batch.id,
-                batch_no: batch.batch_no,
-                batch_price: parseFloat(batch.retail_price),
-                batch_quantity: locationBatch.quantity,
-                transfer_quantity: locationBatch.quantity
-            }))) : [];
+            // Filter batches to only those in the selected "From" location with quantity > 0
+            const batches = productData.batches.flatMap(batch => {
+                return batch.location_batches
+                    .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
+                    .map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        batch_price: parseFloat(batch.retail_price),
+                        batch_quantity: locationBatch.quantity,
+                        transfer_quantity: locationBatch.quantity
+                    }));
+            });
 
             if (batches.length === 0) {
-                console.error('No batches available for product:', product.product_name);
+                console.warn(`No batches available in selected location for product: ${product.product_name}`);
+                toastr.error(
+                    `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+                );
                 return;
             }
 
             const batchOptions = batches.map(batch => `
-                <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}">
-                    Batch ${batch.batch_no} - Current Qty: ${batch.batch_quantity} - Transfer Qty: ${batch.transfer_quantity} - Price: ${batch.batch_price}
-                </option>
-            `).join('');
+        <option value="${batch.batch_id}" 
+                data-price="${batch.batch_price}" 
+                data-quantity="${batch.batch_quantity}"
+                data-transfer-quantity="${batch.transfer_quantity}">
+            Batch ${batch.batch_no} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price}
+        </option>
+    `).join('');
 
             const newRow = `
-                <tr class="add-row" data-product-id="${product.id}">
-                    <td>
-                        ${product.product_name}
-                        <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-                    </td>
-                    <td>
-                        <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                            ${batchOptions}
-                        </select>
-                        <div class="error-message batch-error"></div>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
-                        <div class="error-message quantity-error text-danger"></div>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
-                    </td>
-                    <td>
-                        <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
-                    </td>
-                    <td class="add-remove text-end">
-                        <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
-                    </td>
-                </tr>
-            `;
+        <tr class="add-row" data-product-id="${product.id}">
+            <td>
+                ${product.product_name}
+                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+            </td>
+            <td>
+                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                    ${batchOptions}
+                </select>
+                <div class="error-message batch-error"></div>
+            </td>
+            <td>
+                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
+                <div class="error-message quantity-error text-danger"></div>
+            </td>
+            <td>
+                <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
+            </td>
+            <td>
+                <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
+            </td>
+            <td class="add-remove text-end">
+                <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
+            </td>
+        </tr>
+    `;
 
             $(".add-table-items").find("tr:last").remove();
             $(".add-table-items").append(newRow);
@@ -223,6 +293,7 @@
             productIndex++;
         }
 
+        // Event listeners for quantity and batch changes
         $(document).on("change", ".batch-select", function() {
             const row = $(this).closest("tr");
             const selectedBatch = row.find(".batch-select option:selected");
@@ -263,19 +334,19 @@
 
         function addTotalRow() {
             const totalRow = `
-                <tr>
-                    <td colspan="4"></td>
-                    <td id="totalRow">Total : 0.00</td>
-                    <td></td>
-                </tr>
-            `;
+            <tr>
+                <td colspan="4"></td>
+                <td id="totalRow">Total : 0.00</td>
+                <td></td>
+            </tr>
+        `;
             $(".add-table-items").append(totalRow);
         }
 
         function updateTotalAmount() {
             let total = 0;
             $(".add-row").each(function() {
-                const subtotal = parseFloat($(this).find('input[name^="products"][name$="[sub_total]"]').val());
+                const subtotal = parseFloat($(this).find('input[name$="[sub_total]"]').val());
                 total += subtotal;
             });
             $('#totalRow').text(`Total : ${total.toFixed(2)}`);
@@ -309,30 +380,25 @@
             },
             submitHandler: function(form, event) {
                 event.preventDefault();
-
                 const fromLocationId = $('#from_location_id').val();
                 const toLocationId = $('#to_location_id').val();
-
                 if (fromLocationId === toLocationId) {
                     toastr.error('Please select different locations for "From" and "To".');
                     return;
                 }
-
                 if ($('.add-row').length === 0) {
                     toastr.error('Please add at least one product.');
                     return;
                 }
-
                 const transferDate = $('#transfer_date').val();
                 const dateParts = transferDate.split('-');
-                const formattedDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`).toISOString().split('T')[0];
+                const formattedDate = new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`)
+                    .toISOString().split('T')[0];
                 $('#transfer_date').val(formattedDate);
-
-                const url = stockTransferId ? `/stock-transfer/update/${stockTransferId}` : '/stock-transfer/store';
+                const url = stockTransferId ? `/stock-transfer/update/${stockTransferId}` :
+                    '/stock-transfer/store';
                 const method = stockTransferId ? 'PUT' : 'POST';
-
                 const formData = $(form).serialize();
-
                 $.ajax({
                     url: url,
                     method: method,
@@ -343,11 +409,13 @@
                     },
                     error: function(response) {
                         if (response.responseJSON && response.responseJSON.errors) {
-                            for (const [key, value] of Object.entries(response.responseJSON.errors)) {
+                            for (const [key, value] of Object.entries(response
+                                    .responseJSON.errors)) {
                                 toastr.error(value.join(', '));
                             }
                         } else {
-                            toastr.error(response.responseJSON.message || 'An error occurred. Please try again.');
+                            toastr.error(response.responseJSON.message ||
+                                'An error occurred. Please try again.');
                         }
                     }
                 });
@@ -363,10 +431,10 @@
                     if (data.status === 200 && Array.isArray(data.message)) {
                         targetSelect.html(`<option selected disabled>${placeholder}</option>`);
                         data.message.forEach(item => {
-                            const option = $('<option></option>').val(item.id).text(item.name || item.first_name + ' ' + item.last_name);
+                            const option = $('<option></option>').val(item.id).text(item
+                                .name || item.first_name + ' ' + item.last_name);
                             targetSelect.append(option);
                         });
-
                         if (selectedId) {
                             targetSelect.val(selectedId).trigger('change');
                         }
@@ -404,37 +472,34 @@
         function populateStockTransferTable(data) {
             const tableBody = $('#stockTransfer tbody');
             tableBody.empty();
-
             data.forEach(transfer => {
                 const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
                     return sum + (product.quantity * product.unit_price);
                 }, 0);
-
                 const row = `
-                    <tr>
-                        <td>${new Date(transfer.transfer_date).toLocaleDateString()}</td>
-                        <td>${transfer.reference_no}</td>
-                        <td>${transfer.from_location.name}</td>
-                        <td>${transfer.to_location.name}</td>
-                        <td>${transfer.status}</td>
-                        <td>${transfer.shipping_charges || '0.00'}</td>
-                        <td>${totalAmount.toFixed(2)}</td>
-                        <td>${transfer.note || ''}</td>
-                        <td>
-                            @can('edit stock-transfer')
-                                <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            @endcan
-                            @can('delete stock-transfer')
-                                <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            @endcan
-                        </td>
-
-                    </tr>
-                `;
+                <tr>
+                    <td>${new Date(transfer.transfer_date).toLocaleDateString()}</td>
+                    <td>${transfer.reference_no}</td>
+                    <td>${transfer.from_location.name}</td>
+                    <td>${transfer.to_location.name}</td>
+                    <td>${transfer.status}</td>
+                    <td>${transfer.shipping_charges || '0.00'}</td>
+                    <td>${totalAmount.toFixed(2)}</td>
+                    <td>${transfer.note || ''}</td>
+                    <td>
+                        @can('edit stock-transfer')
+                            <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        @endcan
+                        @can('delete stock-transfer')
+                            <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        @endcan
+                    </td>
+                </tr>
+            `;
                 tableBody.append(row);
             });
         }
@@ -463,4 +528,4 @@
             }
         }
     });
-    </script>
+</script>
