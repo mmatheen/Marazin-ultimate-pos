@@ -104,6 +104,8 @@
             });
         }
 
+
+
         // Fetch products data for autocomplete
         function fetchProductsData() {
             $.ajax({
@@ -125,64 +127,88 @@
             });
         }
 
-        // Initialize product autocomplete (search by name or SKU)
-        function setupAutocomplete() {
-            // Prepare an array of objects with label (name + SKU) and value (product_name)
-            const productSuggestions = productsData.map(data => ({
-            label: `${data.product.product_name} (${data.product.sku})`,
-            value: data.product.product_name,
-            sku: data.product.sku
+
+
+        function setupAutocomplete(customProducts = productsData) {
+            const $input = $('#productSearchInput');
+
+            // Destroy only if previously initialized
+            if ($input.data('ui-autocomplete')) {
+                $input.autocomplete("destroy");
+            }
+
+            // Prepare suggestions
+            const productSuggestions = customProducts.map(data => ({
+                label: `${data.product.product_name} (${data.product.sku})`,
+                value: data.product.product_name,
+                sku: data.product.sku
             }));
 
-            $('#productSearchInput').autocomplete({
-            minLength: 1,
-            source: function(request, response) {
-                // Filter by product name or SKU (case-insensitive)
-                const term = $.trim(request.term).toLowerCase();
-                const matches = productSuggestions.filter(item =>
-                item.value.toLowerCase().includes(term) ||
-                (item.sku && item.sku.toLowerCase().includes(term))
-                );
-                response(matches);
-            },
-            select: function(event, ui) {
-                // Find the selected product by SKU or name
-                const selectedProduct = productsData.find(data =>
-                data.product.product_name === ui.item.value ||
-                data.product.sku === ui.item.sku
-                );
-                addOrUpdateProductInTable(selectedProduct);
-                $(this).val(''); // Clear the search input
-                return false;
-            },
-            focus: function(event, ui) {
-                // Show label (name + SKU) in the input while navigating suggestions
-                $('#productSearchInput').val(ui.item.label);
-                return false;
-            },
-            open: function() {
-                // Set custom height for the dropdown
-                $('.ui-autocomplete').css({
-                'max-height': '200px',
-                'overflow-y': 'auto',
-                'overflow-x': 'hidden',
-                'z-index': 1050,
-                });
-            },
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-            // Custom rendering: show product name and SKU
-            return $("<li>")
-                .append(
-                `<div><strong>${item.value}</strong> <small class="autocomplete-sku">(${item.sku})</small></div>`
-                )
-                .appendTo(ul);
-            };
+            // Initialize autocomplete
+            $input.autocomplete({
+                minLength: 1,
+                source: function(request, response) {
+                    const term = $.trim(request.term).toLowerCase();
+                    const matches = productSuggestions.filter(item =>
+                        item.value.toLowerCase().includes(term) ||
+                        (item.sku && item.sku.toLowerCase().includes(term))
+                    );
+                    response(matches);
+                },
+                select: function(event, ui) {
+                    const selectedProduct = customProducts.find(data =>
+                        data.product.product_name === ui.item.value ||
+                        data.product.sku === ui.item.sku
+                    );
 
-            // Add custom CSS for SKU color on hover
-            if (!$('#autocomplete-sku-style').length) {
-            $('<style id="autocomplete-sku-style">.ui-menu-item-wrapper:hover .autocomplete-sku, .ui-state-active .autocomplete-sku { color: #333 !important; }</style>').appendTo('head');
-            }
+                    addOrUpdateProductInTable(selectedProduct);
+                    $(this).val('');
+                    return false;
+                },
+                focus: function(event, ui) {
+                    $('#productSearchInput').val(ui.item.label);
+                    return false;
+                },
+                open: function() {
+                    $('.ui-autocomplete').css({
+                        'max-height': '200px',
+                        'overflow-y': 'auto',
+                        'overflow-x': 'hidden',
+                        'z-index': 1050
+                    });
+                }
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                return $("<li>")
+                    .append(
+                        `<div><strong>${item.value}</strong> <small class="autocomplete-sku">(${item.sku})</small></div>`
+                        )
+                    .appendTo(ul);
+            };
         }
+
+        $('#location_id').on('change', function() {
+            const selectedLocationId = $(this).val();
+            const $productInput = $('#productSearchInput');
+
+            if (selectedLocationId) {
+                // Filter products by selected location
+                const filteredProducts = productsData.filter(product => {
+                    return product.locations.some(loc => loc.location_id == selectedLocationId);
+                });
+
+                // Enable product search input
+                $productInput.prop('disabled', false);
+
+                // Re-initialize autocomplete only if not already initialized
+                setupAutocomplete(filteredProducts);
+            } else {
+                // No location selected, disable product input again
+                $productInput.prop('disabled', true).val('');
+
+                // Optionally clear table or warn user
+                toastr.info('Please select a location first.');
+            }
+        });
 
         // Add or update a product in the table
         function addOrUpdateProductInTable(productData) {

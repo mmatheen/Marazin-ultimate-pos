@@ -1,6 +1,31 @@
 @extends('layout.layout')
 @section('title', 'Daily Sales Report')
 @section('content')
+    <style>
+        @media print {
+            body {
+                font-size: 14px !important;
+            }
+
+            table.dataTable {
+                font-size: 14px !important;
+                width: 100% !important;
+                border-collapse: collapse;
+            }
+
+
+            table.dataTable th,
+            table.dataTable td {
+                white-space: nowrap;
+                padding: 10px 12px;
+                font-size: 14px !important;
+            }
+
+            .dt-buttons {
+                display: none;
+            }
+        }
+    </style>
     <div class="content container-fluid">
         <div class="row">
             <div class="page-header">
@@ -220,888 +245,549 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        {{-- <script>
-            $(function() {
-                // Initialize date range picker
-                const start = moment();
-                const end = moment();
 
-                function setDateRange(start, end) {
-                    $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+
+    <script>
+        $(function() {
+            const start = moment(); // Default start date is today
+            const end = moment(); // Default end date is also today
+
+            function setDateRange(start, end) {
+                $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
+            }
+
+            $('#reportrange').daterangepicker({
+                startDate: start,
+                endDate: end,
+                ranges: {
+                    'Today': [moment(), moment()],
+                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1,
+                        'month').endOf('month')]
                 }
+            }, setDateRange);
 
-                $('#reportrange').daterangepicker({
-                    startDate: start,
-                    endDate: end,
-                    ranges: {
-                        'Today': [moment(), moment()],
-                        'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                        'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-                        'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-                        'This Month': [moment().startOf('month'), moment().endOf('month')],
-                        'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1,
-                            'month').endOf('month')]
-                    }
-                }, setDateRange);
+            setDateRange(start, end);
+        });
 
-                setDateRange(start, end);
-            });
+        document.addEventListener('DOMContentLoaded', () => {
+            const customerFilter = document.getElementById('customerFilter');
+            const userFilter = document.getElementById('userFilter');
+            const locationFilter = document.getElementById('locationFilter');
+            let allSales = [];
+            let allSalesReturns = [];
+            let allSummaries = {};
+            let filterTimeout;
 
-            document.addEventListener('DOMContentLoaded', () => {
-                const customerFilter = document.getElementById('customerFilter');
-                const userFilter = document.getElementById('userFilter');
-                const locationFilter = document.getElementById('locationFilter');
+            const debounceFilter = () => {
+                clearTimeout(filterTimeout);
+                filterTimeout = setTimeout(fetchAllSalesData, 300);
+            };
 
-                let allSales = [];
-                let allSalesReturns = [];
-                let allSummaries = {};
-                let filterTimeout;
+            fetchAllSalesData();
 
-                // Debounce function to prevent rapid firing of filters
-                const debounceFilter = () => {
-                    clearTimeout(filterTimeout);
-                    filterTimeout = setTimeout(filterAndRender, 300);
-                };
-
-                // Fetch all data once
-                fetchAllSalesData();
-
-                async function fetchAllSalesData() {
-                    try {
-                        const response = await fetch(`/daily-sales-report`);
-                        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                        const data = await response.json();
-                        allSales = data.sales || [];
-                        allSalesReturns = data.salesReturns || [];
-                        allSummaries = data.summaries || {};
-                        populateDropdowns(allSales);
-                        filterAndRender();
-                    } catch (error) {
-                        console.error('Error fetching sales data:', error);
-                        populateDropdowns([]);
-                        populateTable([], []);
-                        updateSummaries({});
-                    }
-                }
-
-                // Populate dropdowns
-                function populateDropdowns(sales) {
-                    const customerMap = new Map();
-                    const userMap = new Map();
-                    const locationMap = new Map();
-
-                    sales.forEach(sale => {
-                        if (sale.customer) {
-                            const name = `${sale.customer.first_name} ${sale.customer.last_name}`.trim();
-                            customerMap.set(sale.customer.id, name);
-                        }
-                        if (sale.user) {
-                            userMap.set(sale.user.id, sale.user.full_name);
-                        }
-                        if (sale.location) {
-                            locationMap.set(sale.location.id, sale.location.name);
-                        }
-                    });
-
-                    populateSelect(customerFilter, customerMap, 'Customer');
-                    populateSelect(userFilter, userMap, 'User');
-                    populateSelect(locationFilter, locationMap, 'Location');
-                }
-
-                function populateSelect(selectEl, map, label) {
-                    if (!selectEl) return;
-                    selectEl.innerHTML = `<option value="">Select ${label}</option>`;
-                    map.forEach((name, id) => {
-                        const option = document.createElement('option');
-                        option.value = id;
-                        option.textContent = name;
-                        selectEl.appendChild(option);
-                    });
-                }
-
-                // Filtering logic with immediate response
-                function filterAndRender() {
-                    const customerId = customerFilter?.value || '';
-                    const userId = userFilter?.value || '';
-                    const locationId = locationFilter?.value || '';
+            async function fetchAllSalesData() {
+                try {
                     const dateRange = $('#reportrange span').text().split(' - ');
-
                     let startDate = null,
                         endDate = null;
                     if (dateRange.length === 2) {
-                        startDate = moment(dateRange[0], 'MMMM D, YYYY').startOf('day');
-                        endDate = moment(dateRange[1], 'MMMM D, YYYY').endOf('day');
+                        startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
+                        endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
                     }
 
-                    let filteredSales = allSales.filter(sale => {
-                        // Customer filter
-                        if (customerId && (!sale.customer || String(sale.customer.id) !== customerId)) {
-                            return false;
-                        }
+                    const params = new URLSearchParams();
+                    if (startDate) params.append('start_date', startDate);
+                    if (endDate) params.append('end_date', endDate);
+                    if (customerFilter?.value) params.append('customer_id', customerFilter.value);
+                    if (userFilter?.value) params.append('user_id', userFilter.value);
+                    if (locationFilter?.value) params.append('location_id', locationFilter.value);
 
-                        // User filter
-                        if (userId && (!sale.user || String(sale.user.id) !== userId)) {
-                            return false;
-                        }
+                    const response = await fetch(`/daily-sales-report?${params.toString()}`);
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
-                        // Location filter
-                        if (locationId && (!sale.location || String(sale.location.id) !== locationId)) {
-                            return false;
-                        }
+                    const data = await response.json();
+                    allSales = data.sales || [];
+                    allSalesReturns = data.salesReturns || [];
+                    allSummaries = data.summaries || {};
 
-                        // Date range filter - only apply if dates are selected
-                        if (startDate && endDate) {
-                            const saleDate = moment(sale.sales_date);
-                            if (!saleDate.isBetween(startDate, endDate, null, '[]')) {
-                                return false;
+                    populateDropdowns(allSales);
+                    populateTable(allSales, allSalesReturns);
+                    updateSummaries(allSummaries);
+                } catch (error) {
+                    console.error('Error fetching sales data:', error);
+                    populateDropdowns([]);
+                    populateTable([], []);
+                    updateSummaries({});
+                }
+            }
+
+            function populateDropdowns(sales) {
+                const customerMap = new Map();
+                const userMap = new Map();
+                const locationMap = new Map();
+
+                sales.forEach(sale => {
+                    if (sale.customer) {
+                        const name = `${sale.customer.first_name} ${sale.customer.last_name}`.trim();
+                        customerMap.set(sale.customer.id, name);
+                    }
+                    if (sale.user) {
+                        userMap.set(sale.user.id, sale.user.full_name);
+                    }
+                    if (sale.location) {
+                        locationMap.set(sale.location.id, sale.location.name);
+                    }
+                });
+
+                populateSelect(customerFilter, customerMap, 'Customer');
+                populateSelect(userFilter, userMap, 'User');
+                populateSelect(locationFilter, locationMap, 'Location');
+            }
+
+            function populateSelect(selectEl, map, label) {
+                if (!selectEl) return;
+                selectEl.innerHTML = `<option value="">Select ${label}</option>`;
+                map.forEach((name, id) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = name;
+                    selectEl.appendChild(option);
+                });
+            }
+
+            $('#reportrange').on('apply.daterangepicker', fetchAllSalesData);
+            $(customerFilter).on('change', fetchAllSalesData);
+            $(userFilter).on('change', fetchAllSalesData);
+            $(locationFilter).on('change', fetchAllSalesData);
+
+            function formatNumber(num) {
+                return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            }
+
+            function populateTable(sales, salesReturns) {
+                const table = $('#salesTable').DataTable({
+                    lengthMenu: [
+                        [10, 20, 50, -1],
+                        [10, 20, 50, "All"]
+                    ],
+                    destroy: true,
+                    deferRender: true,
+                    pageLength: 10,
+                    dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
+                    buttons: [{
+                            extend: 'pdfHtml5',
+                            text: '<i class="fa fa-file-pdf"></i> PDF',
+                            orientation: 'landscape',
+                            pageSize: 'A4',
+                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0,
+                                10),
+                            exportOptions: {
+                                columns: 'thead th', // Export all columns including hidden ones
+                                stripHtml: false,
+                                footer: true
+                            },
+                            customize: function(doc) {
+                                // Reduce font size for headers and body
+                                doc.styles.tableHeader.fontSize = 8;
+                                doc.styles.tableBodyEven.fontSize = 7;
+                                doc.styles.tableBodyOdd.fontSize = 7;
+
+                                // Auto-adjust column widths
+                                const colCount = doc.content[1].table.body[0].length;
+                                doc.content[1].table.widths = Array(colCount).fill(
+                                    '*'); // Distribute width evenly
+
+                                // Add summary cards below main table
+                                const summaryRows = [];
+                                $('.card-body .table-bordered tbody tr').each(function() {
+                                    const cells = [];
+                                    $(this).find('td').each(function() {
+                                        cells.push($(this).text());
+                                    });
+                                    summaryRows.push(cells);
+                                });
+
+                                doc.content.push({
+                                    table: {
+                                        headerRows: 1,
+                                        widths: ['*', '*'],
+                                        body: [
+                                            [{
+                                                    text: 'Summary Report',
+                                                    style: 'tableHeader',
+                                                    colSpan: 2,
+                                                    alignment: 'center'
+                                                },
+                                                {}
+                                            ],
+                                            ...summaryRows
+                                        ]
+                                    },
+                                    margin: [0, 20, 0, 0]
+                                });
+
+                                // Set page margins and alignment
+                                doc.pageMargins = [10, 10, 10, 10];
+                                doc.defaultStyle.alignment = 'center';
+                                doc.styles.tableHeader.alignment = 'center';
+                            }
+                        },
+                        {
+                            extend: 'excelHtml5',
+                            text: '<i class="fa fa-file-excel"></i> Excel',
+                            filename: () => 'daily_sales_details_' + new Date().toISOString().slice(0,
+                                10),
+                            exportOptions: {
+                                columns: ':visible',
+                                footer: true // This ensures the tfoot is included in the Excel export
+                            }
+                        },
+                        {
+                            extend: 'print',
+                            text: '<i class="fa fa-print"></i> Print',
+                            title: 'ARB Fashion Daily Sales Report',
+                            exportOptions: {
+                                columns: ':visible',
+                                format: {
+                                    body: function(data, row, column, node) {
+                                        return data;
+                                    },
+                                    header: function(data, column, node) {
+                                        return data;
+                                    }
+                                }
+                            },
+                            customize: function(win) {
+                                // Remove any duplicate tables/pages
+                                $(win.document.body).find('table').not(':first').remove();
+
+                                // Manually ensure the footer is included
+                                const footer = $('#salesTable tfoot').clone();
+                                $(win.document.body).find('table').append(footer);
+
+                                // Styling adjustments for the main table
+                                $(win.document.body).find('table').addClass('table table-bordered');
+                                $(win.document.body).find('h1').remove();
+
+                                // Summaries
+                                const summaryRows = [];
+                                $('.card-body .table-bordered tbody tr').each(function() {
+                                    const cells = [];
+                                    $(this).find('td').each(function() {
+                                        cells.push($(this).text());
+                                    });
+                                    summaryRows.push(cells);
+                                });
+
+                                // Create summary table with proper alignment and smaller width
+                                const summaryTable = $(`
+                                                <div style="width: 60%; margin-top: 30px; margin-left: auto; margin-right: auto;">
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th colspan="2" style="text-align: center; font-size: 20px;">Summary Report</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody></tbody>
+                                                    </table>
+                                                </div>
+                                            `);
+                                // Populate summary table with rows
+                                summaryRows.forEach(row => {
+                                    const tr = $('<tr></tr>');
+                                    tr.append(
+                                        $('<td></td>').text(row[0]).css({
+                                            'text-align': 'left',
+                                            'font-size': '16px',
+                                            'font-weight': 'bold'
+                                        })
+                                    );
+                                    tr.append(
+                                        $('<td></td>').text(row[1]).css({
+                                            'text-align': 'right',
+                                            'font-size': '16px',
+                                            'font-weight': 'bold'
+                                        })
+                                    );
+                                    summaryTable.find('tbody').append(tr);
+                                });
+
+                                // Append the summary table to the document
+                                $(win.document.body).append(summaryTable);
+
+                                // General styling for the print output
+                                $(win.document.body).find('table').css({
+                                    'font-size': '14px',
+                                    'width': '100%',
+                                    'border-collapse': 'collapse'
+                                });
+                                $(win.document.body).find('td, th').css({
+                                    'padding': '10px 12px',
+                                    'font-size': '14px'
+                                });
+                                $(win.document.body).find('th').css({
+                                    'font-weight': 'bold',
+                                    'text-align': 'center'
+                                });
+                                $(win.document.body).find('h1').css({
+                                    'text-align': 'center',
+                                    'font-size': '24px',
+                                    'margin-bottom': '20px'
+                                });
+
+                                // Additional styling for the summary table
+                                summaryTable.find('table').css({
+                                    'width': '100%'
+                                });
+                                summaryTable.find('td').css({
+                                    'border': '1px solid #ddd'
+                                });
+
+                                // Prevent page breaks inside tables and summary cards
+                                $(win.document.body).find('table').css('page-break-inside',
+                                    'avoid');
+                                $(win.document.body).find('.card').css('page-break-inside',
+                                    'avoid');
+
+                                // Add custom styles for print
+                                $(win.document.body).append(
+                                    '<style>' +
+                                    '@page { size: A4 landscape; margin: 20mm; }' +
+                                    // Landscape orientation
+                                    'body { font-size: 12px; }' +
+                                    'table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }' +
+                                    'table, th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 9px; }' +
+                                    // Reduce font size
+                                    'tfoot { display: table-row-group; }' +
+                                    // Ensure footer is visible
+                                    '.card { margin-top: 20px; }' +
+                                    // Add spacing between DataTable and summary cards
+                                    '</style>'
+                                );
+
+                                // Adjust column widths dynamically
+                                const tables = $(win.document.body).find('table');
+                                tables.each(function() {
+                                    const $table = $(this);
+                                    const colCount = $table.find('thead th').length;
+                                    const widths = new Array(colCount).fill(
+                                        '*'); // Distribute column widths evenly
+                                    $table.css('width', '100%');
+                                    $table.find('colgroup').html(widths.map(() =>
+                                        '<col style="width: auto;" />').join(''));
+                                });
+
+                                // Handle multi-page scenarios
+                                $(win.document.body).find('div.page-break').css('page-break-before',
+                                    'always');
                             }
                         }
+                    ],
+                    columns: [{
+                            title: "#"
+                        },
+                        {
+                            title: "Invoice No"
+                        },
+                        {
+                            title: "Customer"
+                        },
+                        {
+                            title: "Location"
+                        },
+                        {
+                            title: "User"
+                        },
+                        {
+                            title: "Date"
+                        },
+                        {
+                            title: "Sub Total"
+                        },
+                        {
+                            title: "Bill Discount"
+                        },
+                        {
+                            title: "Net Bill Total"
+                        },
+                        {
+                            title: "Cash"
+                        },
+                        {
+                            title: "Bank Transfer"
+                        },
+                        {
+                            title: "Cheque"
+                        },
+                        {
+                            title: "Card"
+                        },
+                        {
+                            title: "Credit"
+                        },
+                        {
+                            title: "Sales Return"
+                        }
+                    ]
+                });
 
-                        return true;
+                function updateDropdownHighlights() {
+                    $('#columnVisibilityDropdown a').each(function() {
+                        const value = $(this).data('value');
+                        if (value === "hide all") {
+                            $(this).removeClass('selected-column');
+                        } else if (value === "show all") {
+                            let allVisible = true;
+                            table.columns().every(function() {
+                                if (!this.visible()) allVisible = false;
+                            });
+                            if (allVisible) $(this).addClass('selected-column');
+                            else $(this).removeClass('selected-column');
+                        } else if (!isNaN(value)) {
+                            if (table.column(value).visible()) $(this).addClass('selected-column');
+                            else $(this).removeClass('selected-column');
+                        }
                     });
-
-                    // Filter salesReturns to only those matching filtered sales
-                    const filteredSaleIds = filteredSales.map(s => s.id);
-                    let filteredSalesReturns = allSalesReturns.filter(r => filteredSaleIds.includes(r.sale_id));
-
-                    populateTable(filteredSales, filteredSalesReturns);
-                    updateSummaries(calcSummaries(filteredSales, filteredSalesReturns));
                 }
 
-                // Event listeners for filters with debounce
-                $('#reportrange').on('apply.daterangepicker', debounceFilter);
-                $(customerFilter).on('change', debounceFilter);
-                $(userFilter).on('change', debounceFilter);
-                $(locationFilter).on('change', debounceFilter);
-
-                // Table rendering with optimized DataTable handling
-                function populateTable(sales, salesReturns) {
-                    let table = $('#salesTable').DataTable();
-
-                    // If DataTable already exists, just update the data
-                    if ($.fn.DataTable.isDataTable('#salesTable')) {
-                        table.clear();
-                    } else {
-                        // Initialize new DataTable if it doesn't exist
-                        table = $('#salesTable').DataTable({
-                            lengthMenu: [
-                                [10, 20, 50, -1],
-                                [10, 20, 50, "All"]
-                            ],
-                            pageLength: 10,
-                            dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
-                            buttons: [{
-                                    extend: 'pdfHtml5',
-                                    text: '<i class="fa fa-file-pdf"></i> PDF'
-                                },
-                                {
-                                    extend: 'excelHtml5',
-                                    text: '<i class="fa fa-file-excel"></i> Excel'
-                                },
-                                {
-                                    extend: 'print',
-                                    text: '<i class="fa fa-print"></i> Print'
-                                }
-                            ],
-                            columns: [{
-                                    title: "#"
-                                },
-                                {
-                                    title: "Invoice No"
-                                },
-                                {
-                                    title: "Customer"
-                                },
-                                {
-                                    title: "Location"
-                                },
-                                {
-                                    title: "User"
-                                },
-                                {
-                                    title: "Date"
-                                },
-                                {
-                                    title: "Sub Total"
-                                },
-                                {
-                                    title: "Bill Discount"
-                                },
-                                {
-                                    title: "Net Bill Total"
-                                },
-                                {
-                                    title: "Cash"
-                                },
-                                {
-                                    title: "Bank Transfer"
-                                },
-                                {
-                                    title: "Cheque"
-                                },
-                                {
-                                    title: "Card"
-                                },
-                                {
-                                    title: "Credit"
-                                },
-                                {
-                                    title: "Sales Return"
-                                }
-
-                            ]
-                        });
-                    }
-
-                    let tableIndex = 0;
-                    const tableData = sales.map(sale => {
-                        let cash = 0,
-                            bankTransfer = 0,
-                            cheque = 0,
-                            card = 0;
-                        sale.payments.forEach(payment => {
-                            switch (payment.payment_method) {
-                                case 'cash':
-                                    cash += parseFloat(payment.amount);
-                                    break;
-                                case 'bank_transfer':
-                                    bankTransfer += parseFloat(payment.amount);
-                                    break;
-                                case 'cheque':
-                                    cheque += parseFloat(payment.amount);
-                                    break;
-                                case 'card':
-                                    card += parseFloat(payment.amount);
-                                    break;
-                            }
-                        });
-
-                        const saleReturn = salesReturns.find(r => r.sale_id === sale.id);
-                        const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
-
-                        return [
-                            ++tableIndex,
-                            sale.invoice_no,
-                            `${sale.customer?.first_name || ''} ${sale.customer?.last_name || ''}`.trim(),
-                            sale.location?.name || '',
-                            sale.user?.full_name || '',
-                            new Date(sale.sales_date).toLocaleDateString(),
-                            parseFloat(sale.subtotal).toFixed(2),
-                            parseFloat(sale.discount_amount || 0).toFixed(2),
-                            parseFloat(sale.final_total).toFixed(2),
-                            cash.toFixed(2),
-                            bankTransfer.toFixed(2),
-                            cheque.toFixed(2),
-                            card.toFixed(2),
-                            parseFloat(sale.total_due).toFixed(2),
-                            salesReturnAmount.toFixed(2),
-
-                        ];
-                    });
-
-                    table.clear().rows.add(tableData).draw();
-
-                    if (tableData.length > 0) {
-                        const totals = tableData.reduce((acc, row) => ({
-                            subTotal: acc.subTotal + parseFloat(row[6]),
-                            billDiscount: acc.billDiscount + parseFloat(row[7]),
-                            netBillTotal: acc.netBillTotal + parseFloat(row[8]),
-                            cash: acc.cash + parseFloat(row[9]),
-                            bankTransfer: acc.bankTransfer + parseFloat(row[10]),
-                            cheque: acc.cheque + parseFloat(row[11]),
-                            card: acc.card + parseFloat(row[12]),
-                            credit: acc.credit + parseFloat(row[13]),
-                            salesReturn: acc.salesReturn + parseFloat(row[14])
-                        }), {
-                            subTotal: 0,
-                            billDiscount: 0,
-                            netBillTotal: 0,
-                            cash: 0,
-                            bankTransfer: 0,
-                            cheque: 0,
-                            card: 0,
-                            credit: 0,
-                            salesReturn: 0
-                        });
-
-                        $('#totalSubTotal').text(totals.subTotal.toFixed(2));
-                        $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
-                        $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
-                        $('#totalCash').text(totals.cash.toFixed(2));
-                        $('#totalBankTransfer').text(totals.bankTransfer.toFixed(2));
-                        $('#totalCheque').text(totals.cheque.toFixed(2));
-                        $('#totalCard').text(totals.card.toFixed(2));
-                        $('#totalCredit').text(totals.credit.toFixed(2));
-                        $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
-                    } else {
-
-
-                        $('#salesTable tbody').html(
-                            '<tr><td colspan="15" class="text-center">No records found</td></tr>');
-                        $('tfoot th:not(:first-child)').text('0.00');
-                    }
-
-                    //  Column visibility dropdown DataTable code start
-
-                    function updateDropdownHighlights() {
-                        $('#columnVisibilityDropdown a').each(function() {
-                            const value = $(this).data('value');
-
-                            if (value === "hide all") {
-                                $(this).removeClass('selected-column');
-                            } else if (value === "show all") {
-                                // Highlight only if all columns are visible
-                                let allVisible = true;
-                                table.columns().every(function() {
-                                    if (!this.visible()) {
-                                        allVisible = false;
-                                    }
-                                });
-                                if (allVisible) {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            } else if (!isNaN(value)) {
-                                if (table.column(value).visible()) {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            }
-                        });
-                    }
-
-                    $('#columnVisibilityDropdown a').on('click', function(e) {
-                        e.preventDefault();
-                        const selectedValue = $(this).data('value');
-
-                        if (selectedValue === "hide all") {
-                            table.columns().visible(false);
-
-                            // Remove all highlights
-                            $('#columnVisibilityDropdown a').removeClass('selected-column');
-
-                            // Highlight only "Hide All"
-                            $(this).addClass('selected-column');
-                        } else if (selectedValue === "show all") {
-                            table.columns().visible(true);
-
-                            // Highlight all column items and also "Show All"
-                            $('#columnVisibilityDropdown a').each(function() {
-                                const val = $(this).data('value');
-                                if (!isNaN(val) || val === "show all") {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            });
-                        } else {
-                            const column = table.column(selectedValue);
-                            column.visible(!column.visible());
-
-                            // Always remove highlight from hide all
-                            $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass(
-                                'selected-column');
-
-                            // Toggle selected column's highlight
-                            if (column.visible()) {
-                                $(this).addClass('selected-column');
-                            } else {
-                                $(this).removeClass('selected-column');
-                            }
-
-                            // Re-check and update "Show All" highlight if all are now visible
-                            updateDropdownHighlights();
-                        }
-                    });
-
-                    // Prevent dropdown from closing
-                    document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function(item) {
-                        item.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                        });
-                    });
-
-                    // On page load — show all columns and highlight all column items and "Show All"
-                    $(document).ready(function() {
+                $('#columnVisibilityDropdown a').on('click', function(e) {
+                    e.preventDefault();
+                    const selectedValue = $(this).data('value');
+                    if (selectedValue === "hide all") {
+                        table.columns().visible(false);
+                        $('#columnVisibilityDropdown a').removeClass('selected-column');
+                        $(this).addClass('selected-column');
+                    } else if (selectedValue === "show all") {
                         table.columns().visible(true);
                         $('#columnVisibilityDropdown a').each(function() {
-                            const value = $(this).data('value');
-                            if (!isNaN(value) || value === "show all") {
-                                $(this).addClass('selected-column');
-                            }
+                            const val = $(this).data('value');
+                            if (!isNaN(val) || val === "show all") $(this).addClass(
+                                'selected-column');
+                            else $(this).removeClass('selected-column');
                         });
+                    } else {
+                        const column = table.column(selectedValue);
+                        column.visible(!column.visible());
+                        $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass(
+                            'selected-column');
+                        if (column.visible()) $(this).addClass('selected-column');
+                        else $(this).removeClass('selected-column');
+                        updateDropdownHighlights();
+                    }
+                });
+
+                document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.stopPropagation();
                     });
-                }
+                });
 
-                //  Column visibility dropdown DataTable code end
-
-
-                // Calculate summaries based on filtered data
-                function calcSummaries(sales, salesReturns) {
-                    let billTotal = 0,
-                        discounts = 0,
-                        cashPayments = 0,
-                        cardPayments = 0,
-                        chequePayments = 0,
+                let tableIndex = 0;
+                const tableData = sales.map(sale => {
+                    let cash = 0,
                         bankTransfer = 0,
-                        paymentTotal = 0,
-                        creditTotal = 0,
-                        salesReturnsTotal = 0,
-                        netIncome = 0,
-                        cashInHand = 0;
-
-                    sales.forEach(sale => {
-                        billTotal += parseFloat(sale.final_total || 0);
-                        discounts += parseFloat(sale.discount_amount || 0);
-
-                        sale.payments.forEach(payment => {
-                            switch (payment.payment_method) {
-                                case 'cash':
-                                    cashPayments += parseFloat(payment.amount);
-                                    break;
-                                case 'card':
-                                    cardPayments += parseFloat(payment.amount);
-                                    break;
-                                case 'cheque':
-                                    chequePayments += parseFloat(payment.amount);
-                                    break;
-                                case 'bank_transfer':
-                                    bankTransfer += parseFloat(payment.amount);
-                                    break;
-                            }
-                            paymentTotal += parseFloat(payment.amount);
-                        });
-
-                        creditTotal += parseFloat(sale.total_due || 0);
-                    });
-
-                    salesReturns.forEach(r => {
-                        salesReturnsTotal += parseFloat(r.return_total || 0);
-                    });
-
-                    netIncome = billTotal - discounts - salesReturnsTotal;
-                    cashInHand = cashPayments - salesReturnsTotal;
-
-                    return {
-                        billTotal,
-                        discounts,
-                        cashPayments,
-                        cardPayments,
-                        chequePayments,
-                        bankTransfer,
-                        paymentTotal,
-                        creditTotal,
-                        salesReturns: salesReturnsTotal,
-                        netIncome,
-                        cashInHand
-                    };
-                }
-
-                function updateSummaries(summaries) {
-                    $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
-                    $('#discounts').text(parseFloat(summaries.discounts || 0).toFixed(2));
-                    $('#cashPayments').text(parseFloat(summaries.cashPayments || 0).toFixed(2));
-                    $('#cardPayments').text(parseFloat(summaries.cardPayments || 0).toFixed(2));
-                    $('#chequePayments').text(parseFloat(summaries.chequePayments || 0).toFixed(2));
-                    $('#bankTransfer').text(parseFloat(summaries.bankTransfer || 0).toFixed(2));
-                    $('#paymentTotal').text(parseFloat(summaries.paymentTotal || 0).toFixed(2));
-                    $('#creditTotal').text(parseFloat(summaries.creditTotal || 0).toFixed(2));
-                    $('#salesReturns').text(parseFloat(summaries.salesReturns || 0).toFixed(2));
-                    $('#netIncome').text(parseFloat(summaries.netIncome || 0).toFixed(2));
-                    $('#cashInHand').text(parseFloat(summaries.cashInHand || 0).toFixed(2));
-                }
-            });
-        </script> --}}
-        <script>
-            $(function() {
-                // Initialize date range picker
-                const start = moment();
-                const end = moment();
-
-                function setDateRange(start, end) {
-                    $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
-                }
-
-                $('#reportrange').daterangepicker({
-                    startDate: start,
-                    endDate: end,
-                    ranges: {
-                        'Today': [moment(), moment()],
-                        'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                        'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-                        'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-                        'This Month': [moment().startOf('month'), moment().endOf('month')],
-                        'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1,
-                            'month').endOf('month')]
-                    }
-                }, setDateRange);
-
-                setDateRange(start, end);
-            });
-
-            document.addEventListener('DOMContentLoaded', () => {
-                const customerFilter = document.getElementById('customerFilter');
-                const userFilter = document.getElementById('userFilter');
-                const locationFilter = document.getElementById('locationFilter');
-
-                let allSales = [];
-                let allSalesReturns = [];
-                let allSummaries = {};
-                let filterTimeout;
-
-                // Debounce function to prevent rapid firing of filters
-                const debounceFilter = () => {
-                    clearTimeout(filterTimeout);
-                    filterTimeout = setTimeout(filterAndRender, 300);
-                };
-
-                // Fetch all data once
-                fetchAllSalesData();
-
-                async function fetchAllSalesData() {
-                    try {
-                        // Get date range from picker
-                        const dateRange = $('#reportrange span').text().split(' - ');
-                        let startDate = null,
-                            endDate = null;
-                        if (dateRange.length === 2) {
-                            startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                            endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
-                        }
-
-                        // Build query params
-                        const params = new URLSearchParams();
-                        if (startDate) params.append('start_date', startDate);
-                        if (endDate) params.append('end_date', endDate);
-
-                        const customerId = customerFilter?.value;
-                        if (customerId) params.append('customer_id', customerId);
-
-                        const userId = userFilter?.value;
-                        if (userId) params.append('user_id', userId);
-
-                        const locationId = locationFilter?.value;
-                        if (locationId) params.append('location_id', locationId);
-
-                        const response = await fetch(`/daily-sales-report?${params.toString()}`);
-                        if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                        const data = await response.json();
-
-                        allSales = data.sales || [];
-                        allSalesReturns = data.salesReturns || [];
-                        allSummaries = data.summaries || {};
-
-                        populateDropdowns(allSales);
-                        populateTable(allSales, allSalesReturns);
-                        updateSummaries(allSummaries);
-                    } catch (error) {
-                        console.error('Error fetching sales data:', error);
-                        populateDropdowns([]);
-                        populateTable([], []);
-                        updateSummaries({});
-                    }
-                }
-
-                // Populate dropdowns
-                function populateDropdowns(sales) {
-                    const customerMap = new Map();
-                    const userMap = new Map();
-                    const locationMap = new Map();
-
-                    sales.forEach(sale => {
-                        if (sale.customer) {
-                            const name = `${sale.customer.first_name} ${sale.customer.last_name}`.trim();
-                            customerMap.set(sale.customer.id, name);
-                        }
-                        if (sale.user) {
-                            userMap.set(sale.user.id, sale.user.full_name);
-                        }
-                        if (sale.location) {
-                            locationMap.set(sale.location.id, sale.location.name);
+                        cheque = 0,
+                        card = 0;
+                    sale.payments.forEach(payment => {
+                        switch (payment.payment_method) {
+                            case 'cash':
+                                cash += parseFloat(payment.amount);
+                                break;
+                            case 'bank_transfer':
+                                bankTransfer += parseFloat(payment.amount);
+                                break;
+                            case 'cheque':
+                                cheque += parseFloat(payment.amount);
+                                break;
+                            case 'card':
+                                card += parseFloat(payment.amount);
+                                break;
                         }
                     });
 
-                    populateSelect(customerFilter, customerMap, 'Customer');
-                    populateSelect(userFilter, userMap, 'User');
-                    populateSelect(locationFilter, locationMap, 'Location');
+                    const saleReturn = salesReturns.find(r => r.sale_id === sale.id);
+                    const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
+
+                    return [
+                        ++tableIndex,
+                        sale.invoice_no,
+                        `${sale.customer?.first_name || ''} ${sale.customer?.last_name || ''}`.trim(),
+                        sale.location?.name || '',
+                        sale.user?.full_name || '',
+                        new Date(sale.sales_date).toLocaleString(),
+                        formatNumber(parseFloat(sale.subtotal)),
+                        formatNumber(parseFloat(sale.discount_amount || 0)),
+                        formatNumber(parseFloat(sale.final_total)),
+                        formatNumber(cash),
+                        formatNumber(bankTransfer),
+                        formatNumber(cheque),
+                        formatNumber(card),
+                        formatNumber(parseFloat(sale.total_due)),
+                        formatNumber(salesReturnAmount)
+                    ];
+                });
+
+                table.clear().rows.add(tableData).draw();
+
+                if (tableData.length > 0) {
+                    const totals = tableData.reduce((acc, row) => ({
+                        subTotal: acc.subTotal + parseFloat(row[6].replace(/,/g, '')),
+                        billDiscount: acc.billDiscount + parseFloat(row[7].replace(/,/g, '')),
+                        netBillTotal: acc.netBillTotal + parseFloat(row[8].replace(/,/g, '')),
+                        cash: acc.cash + parseFloat(row[9].replace(/,/g, '')),
+                        bankTransfer: acc.bankTransfer + parseFloat(row[10].replace(/,/g, '')),
+                        cheque: acc.cheque + parseFloat(row[11].replace(/,/g, '')),
+                        card: acc.card + parseFloat(row[12].replace(/,/g, '')),
+                        credit: acc.credit + parseFloat(row[13].replace(/,/g, '')),
+                        salesReturn: acc.salesReturn + parseFloat(row[14].replace(/,/g, '')),
+                    }), {
+                        subTotal: 0,
+                        billDiscount: 0,
+                        netBillTotal: 0,
+                        cash: 0,
+                        bankTransfer: 0,
+                        cheque: 0,
+                        card: 0,
+                        credit: 0,
+                        salesReturn: 0
+                    });
+
+                    $('#totalSubTotal').text(formatNumber(totals.subTotal));
+                    $('#totalBillDiscount').text(formatNumber(totals.billDiscount));
+                    $('#totalNetBillTotal').text(formatNumber(totals.netBillTotal));
+                    $('#totalCash').text(formatNumber(totals.cash));
+                    $('#totalBankTransfer').text(formatNumber(totals.bankTransfer));
+                    $('#totalCheque').text(formatNumber(totals.cheque));
+                    $('#totalCard').text(formatNumber(totals.card));
+                    $('#totalCredit').text(formatNumber(totals.credit));
+                    $('#totalSalesReturn').text(formatNumber(totals.salesReturn));
+                } else {
+                    $('#salesTable tbody').html(
+                        '<tr><td colspan="15" class="text-center">No records found</td></tr>');
+                    $('tfoot th:not(:first-child)').text('0.00');
                 }
+            }
 
-                function populateSelect(selectEl, map, label) {
-                    if (!selectEl) return;
-                    selectEl.innerHTML = `<option value="">Select ${label}</option>`;
-                    map.forEach((name, id) => {
-                        const option = document.createElement('option');
-                        option.value = id;
-                        option.textContent = name;
-                        selectEl.appendChild(option);
-                    });
-                }
+            function updateSummaries(summaries) {
+                $('#billTotal').text(formatNumber(parseFloat(summaries.billTotal || 0)));
+                $('#discounts').text(formatNumber(parseFloat(summaries.discounts || 0)));
+                $('#cashPayments').text(formatNumber(parseFloat(summaries.cashPayments || 0)));
+                $('#cardPayments').text(formatNumber(parseFloat(summaries.cardPayments || 0)));
+                $('#chequePayments').text(formatNumber(parseFloat(summaries.chequePayments || 0)));
+                $('#bankTransfer').text(formatNumber(parseFloat(summaries.bankTransfer || 0)));
+                $('#paymentTotal').text(formatNumber(parseFloat(summaries.paymentTotal || 0)));
+                $('#creditTotal').text(formatNumber(parseFloat(summaries.creditTotal || 0)));
+                $('#salesReturns').text(formatNumber(parseFloat(summaries.salesReturns || 0)));
+                $('#netIncome').text(formatNumber(parseFloat(summaries.netIncome || 0)));
+                $('#cashInHand').text(formatNumber(parseFloat(summaries.cashInHand || 0)));
+            }
+        });
+    </script>
 
-                // Event listeners for filters
-                $('#reportrange').on('apply.daterangepicker', fetchAllSalesData);
-                $(customerFilter).on('change', fetchAllSalesData);
-                $(userFilter).on('change', fetchAllSalesData);
-                $(locationFilter).on('change', fetchAllSalesData);
-
-                // Table rendering with DataTable
-                function populateTable(sales, salesReturns) {
-                    let table = $('#salesTable').DataTable();
-
-                    // If DataTable already exists, just update the data
-                    if ($.fn.DataTable.isDataTable('#salesTable')) {
-                        table.clear();
-                    } else {
-                        // Initialize new DataTable if it doesn't exist
-                        table = $('#salesTable').DataTable({
-                            lengthMenu: [
-                                [10, 20, 50, -1],
-                                [10, 20, 50, "All"]
-                            ],
-                            pageLength: 10,
-                            dom: '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
-                            buttons: [{
-                                    extend: 'pdfHtml5',
-                                    text: '<i class="fa fa-file-pdf"></i> PDF'
-                                },
-                                {
-                                    extend: 'excelHtml5',
-                                    text: '<i class="fa fa-file-excel"></i> Excel'
-                                },
-                                {
-                                    extend: 'print',
-                                    text: '<i class="fa fa-print"></i> Print'
-                                }
-                            ],
-                            columns: [{
-                                    title: "#"
-                                },
-                                {
-                                    title: "Invoice No"
-                                },
-                                {
-                                    title: "Customer"
-                                },
-                                {
-                                    title: "Location"
-                                },
-                                {
-                                    title: "User"
-                                },
-                                {
-                                    title: "Date"
-                                },
-                                {
-                                    title: "Sub Total"
-                                },
-                                {
-                                    title: "Bill Discount"
-                                },
-                                {
-                                    title: "Net Bill Total"
-                                },
-                                {
-                                    title: "Cash"
-                                },
-                                {
-                                    title: "Bank Transfer"
-                                },
-                                {
-                                    title: "Cheque"
-                                },
-                                {
-                                    title: "Card"
-                                },
-                                {
-                                    title: "Credit"
-                                },
-                                {
-                                    title: "Sales Return"
-                                }
-                            ]
-                        });
-                    }
-
-                    let tableIndex = 0;
-                    const tableData = sales.map(sale => {
-                        let cash = 0,
-                            bankTransfer = 0,
-                            cheque = 0,
-                            card = 0;
-                        sale.payments.forEach(payment => {
-                            switch (payment.payment_method) {
-                                case 'cash':
-                                    cash += parseFloat(payment.amount);
-                                    break;
-                                case 'bank_transfer':
-                                    bankTransfer += parseFloat(payment.amount);
-                                    break;
-                                case 'cheque':
-                                    cheque += parseFloat(payment.amount);
-                                    break;
-                                case 'card':
-                                    card += parseFloat(payment.amount);
-                                    break;
-                            }
-                        });
-
-                        const saleReturn = salesReturns.find(r => r.sale_id === sale.id);
-                        const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
-
-                        return [
-                            ++tableIndex,
-                            sale.invoice_no,
-                            `${sale.customer?.first_name || ''} ${sale.customer?.last_name || ''}`.trim(),
-                            sale.location?.name || '',
-                            sale.user?.full_name || '',
-                            new Date(sale.sales_date).toLocaleDateString(),
-                            parseFloat(sale.subtotal).toFixed(2),
-                            parseFloat(sale.discount_amount || 0).toFixed(2),
-                            parseFloat(sale.final_total).toFixed(2),
-                            cash.toFixed(2),
-                            bankTransfer.toFixed(2),
-                            cheque.toFixed(2),
-                            card.toFixed(2),
-                            parseFloat(sale.total_due).toFixed(2),
-                            salesReturnAmount.toFixed(2),
-                        ];
-                    });
-
-                    table.clear().rows.add(tableData).draw();
-
-                    if (tableData.length > 0) {
-                        const totals = tableData.reduce((acc, row) => ({
-                            subTotal: acc.subTotal + parseFloat(row[6]),
-                            billDiscount: acc.billDiscount + parseFloat(row[7]),
-                            netBillTotal: acc.netBillTotal + parseFloat(row[8]),
-                            cash: acc.cash + parseFloat(row[9]),
-                            bankTransfer: acc.bankTransfer + parseFloat(row[10]),
-                            cheque: acc.cheque + parseFloat(row[11]),
-                            card: acc.card + parseFloat(row[12]),
-                            credit: acc.credit + parseFloat(row[13]),
-                            salesReturn: acc.salesReturn + parseFloat(row[14])
-                        }), {
-                            subTotal: 0,
-                            billDiscount: 0,
-                            netBillTotal: 0,
-                            cash: 0,
-                            bankTransfer: 0,
-                            cheque: 0,
-                            card: 0,
-                            credit: 0,
-                            salesReturn: 0
-                        });
-
-                        $('#totalSubTotal').text(totals.subTotal.toFixed(2));
-                        $('#totalBillDiscount').text(totals.billDiscount.toFixed(2));
-                        $('#totalNetBillTotal').text(totals.netBillTotal.toFixed(2));
-                        $('#totalCash').text(totals.cash.toFixed(2));
-                        $('#totalBankTransfer').text(totals.bankTransfer.toFixed(2));
-                        $('#totalCheque').text(totals.cheque.toFixed(2));
-                        $('#totalCard').text(totals.card.toFixed(2));
-                        $('#totalCredit').text(totals.credit.toFixed(2));
-                        $('#totalSalesReturn').text(totals.salesReturn.toFixed(2));
-                    } else {
-                        $('#salesTable tbody').html(
-                            '<tr><td colspan="15" class="text-center">No records found</td></tr>');
-                        $('tfoot th:not(:first-child)').text('0.00');
-                    }
-
-                    // Column visibility dropdown
-                    function updateDropdownHighlights() {
-                        $('#columnVisibilityDropdown a').each(function() {
-                            const value = $(this).data('value');
-
-                            if (value === "hide all") {
-                                $(this).removeClass('selected-column');
-                            } else if (value === "show all") {
-                                let allVisible = true;
-                                table.columns().every(function() {
-                                    if (!this.visible()) {
-                                        allVisible = false;
-                                    }
-                                });
-                                if (allVisible) {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            } else if (!isNaN(value)) {
-                                if (table.column(value).visible()) {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            }
-                        });
-                    }
-
-                    $('#columnVisibilityDropdown a').on('click', function(e) {
-                        e.preventDefault();
-                        const selectedValue = $(this).data('value');
-
-                        if (selectedValue === "hide all") {
-                            table.columns().visible(false);
-                            $('#columnVisibilityDropdown a').removeClass('selected-column');
-                            $(this).addClass('selected-column');
-                        } else if (selectedValue === "show all") {
-                            table.columns().visible(true);
-                            $('#columnVisibilityDropdown a').each(function() {
-                                const val = $(this).data('value');
-                                if (!isNaN(val) || val === "show all") {
-                                    $(this).addClass('selected-column');
-                                } else {
-                                    $(this).removeClass('selected-column');
-                                }
-                            });
-                        } else {
-                            const column = table.column(selectedValue);
-                            column.visible(!column.visible());
-                            $('#columnVisibilityDropdown a[data-value="hide all"]').removeClass(
-                                'selected-column');
-                            if (column.visible()) {
-                                $(this).addClass('selected-column');
-                            } else {
-                                $(this).removeClass('selected-column');
-                            }
-                            updateDropdownHighlights();
-                        }
-                    });
-
-                    // Prevent dropdown from closing
-                    document.querySelectorAll('.dropdown-menu .dropdown-item').forEach(function(item) {
-                        item.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                        });
-                    });
-
-                    // On page load - show all columns and highlight all column items and "Show All"
-                    $(document).ready(function() {
-                        table.columns().visible(true);
-                        $('#columnVisibilityDropdown a').each(function() {
-                            const value = $(this).data('value');
-                            if (!isNaN(value) || value === "show all") {
-                                $(this).addClass('selected-column');
-                            }
-                        });
-                    });
-                }
-
-                function updateSummaries(summaries) {
-                    $('#billTotal').text(parseFloat(summaries.billTotal || 0).toFixed(2));
-                    $('#discounts').text(parseFloat(summaries.discounts || 0).toFixed(2));
-                    $('#cashPayments').text(parseFloat(summaries.cashPayments || 0).toFixed(2));
-                    $('#cardPayments').text(parseFloat(summaries.cardPayments || 0).toFixed(2));
-                    $('#chequePayments').text(parseFloat(summaries.chequePayments || 0).toFixed(2));
-                    $('#bankTransfer').text(parseFloat(summaries.bankTransfer || 0).toFixed(2));
-                    $('#paymentTotal').text(parseFloat(summaries.paymentTotal || 0).toFixed(2));
-                    $('#creditTotal').text(parseFloat(summaries.creditTotal || 0).toFixed(2));
-                    $('#salesReturns').text(parseFloat(summaries.salesReturns || 0).toFixed(2));
-                    $('#netIncome').text(parseFloat(summaries.netIncome || 0).toFixed(2));
-                    $('#cashInHand').text(parseFloat(summaries.cashInHand || 0).toFixed(2));
-                }
-            });
-        </script>
-    @endsection
+@endsection

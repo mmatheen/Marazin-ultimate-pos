@@ -16,10 +16,10 @@ class StockAdjustmentController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view stock-adjustment', ['only' => ['index','stockAdjustmentList']]);
+        $this->middleware('permission:view stock-adjustment', ['only' => ['index', 'stockAdjustmentList']]);
         $this->middleware('permission:add stock-adjustment', ['only' => ['addStockAdjustment']]);
         $this->middleware('permission:create stock-adjustment', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit stock-adjustment', ['only' => ['edit','storeOrUpdate']]);
+        $this->middleware('permission:edit stock-adjustment', ['only' => ['edit', 'storeOrUpdate']]);
     }
 
     public function index()
@@ -77,7 +77,7 @@ class StockAdjustmentController extends Controller
                 'adjustment_type' => $request->adjustment_type,
                 'total_amount_recovered' => $request->total_amount_recovered,
                 'reason' => $request->reason,
-                'user_id' => auth()->id(), 
+                'user_id' => auth()->id(),
             ])->save();
 
             // Delete existing adjustment products if updating
