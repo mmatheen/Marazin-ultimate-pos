@@ -88,17 +88,25 @@ class SaleController extends Controller
     public function dailyReport(Request $request)
     {
         try {
-            // Use timestamps for sales_date filtering
+            // Get start and end date from request or default to today
             $startDate = $request->input('start_date', Carbon::today()->startOfDay());
             $endDate = $request->input('end_date', Carbon::today()->endOfDay());
 
-            $salesQuery = Sale::with('customer', 'location', 'payments', 'products')
+            // Convert inputs to Carbon instances if they are strings
+            $startDate = Carbon::parse($startDate)->startOfDay();
+            $endDate = Carbon::parse($endDate)->endOfDay();
+
+            // Use UTC or set timezone explicitly if needed
+            $startDate = $startDate->setTimezone('UTC');
+            $endDate = $endDate->setTimezone('UTC');
+
+            // Fetch sales within the date range, including the user who made the sale
+            $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->whereBetween('sales_date', [$startDate, $endDate]);
 
-            // Get all sales for the period
             $sales = $salesQuery->get();
 
-            // Calculate payment totals
+            // Initialize totals
             $cashPayments = 0;
             $chequePayments = 0;
             $bankTransferPayments = 0;
@@ -125,10 +133,13 @@ class SaleController extends Controller
                 $creditTotal += $sale->total_due;
             }
 
-            // Calculate sales returns (using timestamps for return_date)
+            // Calculate sales returns
             $salesReturns = SalesReturn::whereBetween('return_date', [$startDate, $endDate])->sum('return_total');
+
+            // Payment total
             $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
 
+            // Summaries
             $summaries = [
                 'billTotal' => $sales->sum('final_total'),
                 'discounts' => $sales->sum('discount_amount'),
@@ -139,12 +150,12 @@ class SaleController extends Controller
                 'salesReturns' => $salesReturns,
                 'paymentTotal' => $paymentTotal,
                 'creditTotal' => $creditTotal,
-                'netIncome' => $sales->sum('final_total') - $salesReturns,
-                'cashInHand' => $cashPayments - $salesReturns, // Basic cash in hand calculation
+                'netIncome' => ($sales->sum('final_total') - $salesReturns),
+                'cashInHand' => ($cashPayments - $salesReturns),
             ];
 
-            // Fetch sales return details based on sale ID, using timestamps for return_date
-            $salesReturnsDetails = SalesReturn::with('customer', 'location', 'returnProducts')
+            // Get return details related to these sales
+            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
                 ->whereIn('sale_id', $sales->pluck('id'))
                 ->whereBetween('return_date', [$startDate, $endDate])
                 ->get();
@@ -609,9 +620,9 @@ class SaleController extends Controller
             ->where('id', $locationBatch->id)
             ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
 
-        DB::table('batches')
-            ->where('id', $batch->id)
-            ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+        // DB::table('batches')
+        //     ->where('id', $batch->id)
+        //     ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
 
         $locationBatch->refresh();
         $batch->refresh();
@@ -665,9 +676,9 @@ class SaleController extends Controller
             ->where('id', $locationBatch->id)
             ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
 
-        DB::table('batches')
-            ->where('id', $product->batch_id)
-            ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
+        // DB::table('batches')
+        //     ->where('id', $product->batch_id)
+        //     ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
 
         $locationBatch->refresh();
 

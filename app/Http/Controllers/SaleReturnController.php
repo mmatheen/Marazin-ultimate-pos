@@ -81,7 +81,7 @@ class SaleReturnController extends Controller
         // Use transaction to ensure atomicity
         DB::transaction(function () use ($request, $id) {
             $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
-             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+            $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
 
             // Create or update the sales return
             $salesReturn = SalesReturn::updateOrCreate(
@@ -139,20 +139,20 @@ class SaleReturnController extends Controller
     /**
      * Get all sale returns.
      */
-   // Controller method
-public function getAllSaleReturns()
-{
-    $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments'])->get();
-    $totalAmount = $salesReturns->sum('return_total');
-    $totalDue = $salesReturns->sum('total_due');
+    // Controller method
+    public function getAllSaleReturns()
+    {
+        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments'])->get();
+        $totalAmount = $salesReturns->sum('return_total');
+        $totalDue = $salesReturns->sum('total_due');
 
-    return response()->json([
-        'status' => 200,
-        'data' => $salesReturns,
-        'totalAmount' => $totalAmount,
-        'totalDue' => $totalDue
-    ]);
-}
+        return response()->json([
+            'status' => 200,
+            'data' => $salesReturns,
+            'totalAmount' => $totalAmount,
+            'totalDue' => $totalDue
+        ]);
+    }
 
     /**
      * Get a sale return by ID.
@@ -244,8 +244,6 @@ public function getAllSaleReturns()
         // Restock stock to location batch
         $locationBatch->increment('qty', $quantity);
 
-        // Restock stock to batch
-        $batch->increment('qty', $quantity);
 
         // Create stock history record
         StockHistory::create([

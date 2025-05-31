@@ -152,57 +152,56 @@
             </div>
         </div>
 
-    </div>
-
-    {{-- table row --}}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card card-table">
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="tab-content">
-                            <div class="tab-pane show active" id="solid-justified-tab1">
-                                <div class="card-body">
-                                    <div class="page-header">
-                                        <div class="row align-items-center">
-                                            <div class="col-auto text-end float-end ms-auto download-grp">
-                                                <!-- Button trigger modal -->
-                                                <a href={{ route('sale-return/add')}}><button type="button"
-                                                        class="btn btn-outline-info">
-                                                        <i class="fas fa-plus px-2"> </i>Add
-                                                    </button></a>
+        {{-- table row --}}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card card-table">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="tab-content">
+                                <div class="tab-pane show active" id="solid-justified-tab1">
+                                    <div class="card-body">
+                                        <div class="page-header">
+                                            <div class="row align-items-center">
+                                                <div class="col-auto text-end float-end ms-auto download-grp">
+                                                    <!-- Button trigger modal -->
+                                                    <a href={{ route('sale-return/add') }}><button type="button"
+                                                            class="btn btn-outline-info">
+                                                            <i class="fas fa-plus px-2"> </i>Add
+                                                        </button></a>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div class="table-responsive">
-                                        <table class="table table-striped table-bordered" id="salesReturnTable">
-                                            <thead>
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Invoice No.</th>
-                                                    <th>Parent Sale</th>
-                                                    <th>Customer Name</th>
-                                                    <th>Location</th>
-                                                    <th>Payment Status</th>
-                                                    <th>Total Amount</th>
-                                                    <th>Payment Due</th>
-                                                    <th>Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <!-- Data will be populated by DataTables -->
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <td colspan="5"></td>
-                                                    <td>Total:</td>
-                                                    <td>0</td>
-                                                    <td>0</td>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-bordered" id="salesReturnTable">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Invoice No.</th>
+                                                        <th>Parent Sale</th>
+                                                        <th>Customer Name</th>
+                                                        <th>Location</th>
+                                                        <th>Payment Status</th>
+                                                        <th>Total Amount</th>
+                                                        <th>Payment Due</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Data will be populated by DataTables -->
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="5"></td>
+                                                        <td>Total:</td>
+                                                        <td>0</td>
+                                                        <td>0</td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -211,7 +210,10 @@
                 </div>
             </div>
         </div>
+
     </div>
+
+
 
     <!-- Modal to show sale details -->
     <div class="modal fade" id="saleDetailsModal" tabindex="-1" aria-labelledby="saleDetailsModalLabel"
