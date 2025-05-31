@@ -497,6 +497,8 @@
             fetchData();
 
             function fetchData() {
+                $('#salesReturnTable').DataTable().destroy(); // Destroy previous instance if exists
+
                 $.ajax({
                     url: '/sale-returns',
                     method: 'GET',
@@ -506,60 +508,103 @@
                             var totalAmount = response.totalAmount;
                             var totalDue = response.totalDue;
 
-                            $('#salesReturnTable tbody').empty();
-                            salesReturns.forEach(function(salesReturn) {
-                                var parentSaleInvoice = salesReturn.sale ? salesReturn
-                                    .sale.invoice_no : 'N/A';
+                            // Prepare table rows
+                            var rows = salesReturns.map(function(salesReturn) {
+                                var parentSaleInvoice = salesReturn.sale ? salesReturn.sale
+                                    .invoice_no : 'N/A';
                                 var customerName = salesReturn.sale && salesReturn.sale
                                     .customer ?
-                                    salesReturn.sale.customer.first_name + ' ' +
-                                    salesReturn.sale.customer.last_name :
-                                    (salesReturn.customer ? salesReturn.customer
-                                        .first_name + ' ' + salesReturn.customer
-                                        .last_name : 'N/A');
-                                var locationName = salesReturn.sale ? salesReturn.sale
-                                    .location.name : (salesReturn.location ? salesReturn
-                                        .location.name : 'N/A');
+                                    salesReturn.sale.customer.first_name + ' ' + salesReturn
+                                    .sale.customer.last_name :
+                                    (salesReturn.customer ? salesReturn.customer.first_name +
+                                        ' ' + salesReturn.customer.last_name : 'N/A');
+                                var locationName = salesReturn.sale ?
+                                    (salesReturn.sale.location ? salesReturn.sale.location
+                                        .name : 'N/A') :
+                                    (salesReturn.location ? salesReturn.location.name : 'N/A');
 
-                                $('#salesReturnTable tbody').append(`
-                                                <tr>
-                                                    <td>${new Date(salesReturn.return_date).toLocaleDateString()}</td>
-                                                    <td>${salesReturn.invoice_number}</td>
-                                                    <td>${parentSaleInvoice}</td>
-                                                    <td>${customerName}</td>
-                                                    <td>${locationName}</td>
-                                                    <td>${salesReturn.payment_status}</td>
-                                                    <td>${salesReturn.return_total}</td>
-                                                    <td>${salesReturn.total_due}</td>
-                                                    <td>
-                                                        <div class="dropdown dropdown-action">
-                                                            <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                                                <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
-                                                            </a>
-                                                            <div class="dropdown-menu dropdown-menu-end">
-                                                                <a class="dropdown-item view-sale-return" href="#" data-id="${salesReturn.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                                                <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                                                <a class="dropdown-item edit-link" href="/salesReturn-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                                                <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
-                                                                <a class="dropdown-item view-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            `);
+                                return [
+                                    new Date(salesReturn.return_date).toLocaleDateString(),
+                                    salesReturn.invoice_number,
+                                    parentSaleInvoice,
+                                    customerName,
+                                    locationName,
+                                    salesReturn.payment_status,
+                                    salesReturn.return_total,
+                                    salesReturn.total_due,
+                                    `<div class="dropdown dropdown-action">
+                                        <a href="#" class="action-icon dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <button type="button" class="btn btn-outline-info">Actions &nbsp;<i class="fas fa-sort-down"></i></button>
+                                        </a>
+                                        <div class="dropdown-menu dropdown-menu-end">
+                                            <a class="dropdown-item view-sale-return" href="#" data-id="${salesReturn.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
+                                            <a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
+                                            <a class="dropdown-item edit-link" href="/salesReturn-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
+                                            <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
+                                            <a class="dropdown-item view-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
+                                        </div>
+                                    </div>`
+                                ];
                             });
 
-                            $('#salesReturnTable tfoot tr').find('td:eq(2)').text(totalAmount);
-                            $('#salesReturnTable tfoot tr').find('td:eq(3)').text(totalDue);
+                            // Initialize DataTable
+                            $('#salesReturnTable').DataTable({
+                                data: rows,
+                                destroy: true,
+                                columns: [{
+                                        title: "Return Date"
+                                    },
+                                    {
+                                        title: "Return Invoice No."
+                                    },
+                                    {
+                                        title: "Parent Sale Invoice"
+                                    },
+                                    {
+                                        title: "Customer"
+                                    },
+                                    {
+                                        title: "Location"
+                                    },
+                                    {
+                                        title: "Payment Status"
+                                    },
+                                    {
+                                        title: "Return Total"
+                                    },
+                                    {
+                                        title: "Total Due"
+                                    },
+                                    {
+                                        title: "Actions",
+                                        orderable: false,
+                                        searchable: false
+                                    }
+                                ],
+                                footerCallback: function(row, data, start, end, display) {
+                                    var api = this.api();
+                                    // Calculate total for Return Total and Total Due columns
+                                    var totalReturn = api.column(6).data().reduce(function(
+                                        a, b) {
+                                        return parseFloat(a) + parseFloat(b);
+                                    }, 0);
+                                    var totalDue = api.column(7).data().reduce(function(a,
+                                        b) {
+                                        return parseFloat(a) + parseFloat(b);
+                                    }, 0);
+
+                                    $(api.column(6).footer()).html(totalReturn.toFixed(2));
+                                    $(api.column(7).footer()).html(totalDue.toFixed(2));
+                                }
+                            });
                         }
                     },
                     error: function(error) {
                         console.log('Error fetching sales returns:', error);
                     }
                 });
-            }
+            } // Event listener for the view button
 
-            // Event listener for the view button
             $(document).on('click', '.view-sale-return', function() {
                 var saleReturnId = $(this).data('id');
                 $.ajax({
