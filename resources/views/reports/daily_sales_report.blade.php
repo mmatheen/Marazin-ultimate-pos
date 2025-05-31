@@ -4,25 +4,29 @@
     <style>
         @media print {
             body {
-                font-size: 14px !important;
+            font-size: 14px !important;
             }
 
             table.dataTable {
-                font-size: 14px !important;
-                width: 100% !important;
-                border-collapse: collapse;
+            font-size: 14px !important;
+            width: 100% !important;
+            border-collapse: collapse;
             }
-
 
             table.dataTable th,
             table.dataTable td {
-                white-space: nowrap;
-                padding: 4px 6px;
-                font-size: 14px !important;
+            white-space: nowrap;
+            padding: 4px 6px;
+            font-size: 14px !important;
             }
 
             .dt-buttons {
-                display: none;
+            display: none;
+            }
+
+            @page {
+            margin-left: 0.2in;
+            margin-right: 0.2in;
             }
         }
     </style>
