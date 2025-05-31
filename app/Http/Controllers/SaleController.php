@@ -96,13 +96,24 @@ class SaleController extends Controller
             $startDate = Carbon::parse($startDate)->startOfDay();
             $endDate = Carbon::parse($endDate)->endOfDay();
 
-            // Use UTC or set timezone explicitly if needed
-            $startDate = $startDate->setTimezone('UTC');
-            $endDate = $endDate->setTimezone('UTC');
-
-            // Fetch sales within the date range, including the user who made the sale
+            // Build the base query
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->whereBetween('sales_date', [$startDate, $endDate]);
+
+            // Apply customer filter if provided
+            if ($request->has('customer_id') && $request->customer_id) {
+                $salesQuery->where('customer_id', $request->customer_id);
+            }
+
+            // Apply user filter if provided
+            if ($request->has('user_id') && $request->user_id) {
+                $salesQuery->where('user_id', $request->user_id);
+            }
+
+            // Apply location filter if provided
+            if ($request->has('location_id') && $request->location_id) {
+                $salesQuery->where('location_id', $request->location_id);
+            }
 
             $sales = $salesQuery->get();
 
@@ -133,11 +144,22 @@ class SaleController extends Controller
                 $creditTotal += $sale->total_due;
             }
 
-            // Calculate sales returns
-            $salesReturns = SalesReturn::whereBetween('return_date', [$startDate, $endDate])->sum('return_total');
+            // Calculate sales returns for the filtered sales
+            $salesReturnsQuery = SalesReturn::whereBetween('return_date', [$startDate, $endDate]);
 
-            // Payment total
-            $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
+            if ($request->has('customer_id') && $request->customer_id) {
+                $salesReturnsQuery->where('customer_id', $request->customer_id);
+            }
+
+            if ($request->has('location_id') && $request->location_id) {
+                $salesReturnsQuery->where('location_id', $request->location_id);
+            }
+
+            $salesReturns = $salesReturnsQuery->sum('return_total');
+            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
+                ->whereBetween('return_date', [$startDate, $endDate])
+                ->whereIn('sale_id', $sales->pluck('id'))
+                ->get();
 
             // Summaries
             $summaries = [
@@ -148,17 +170,11 @@ class SaleController extends Controller
                 'bankTransfer' => $bankTransferPayments,
                 'cardPayments' => $cardPayments,
                 'salesReturns' => $salesReturns,
-                'paymentTotal' => $paymentTotal,
+                'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
                 'creditTotal' => $creditTotal,
                 'netIncome' => ($sales->sum('final_total') - $salesReturns),
                 'cashInHand' => ($cashPayments - $salesReturns),
             ];
-
-            // Get return details related to these sales
-            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-                ->whereIn('sale_id', $sales->pluck('id'))
-                ->whereBetween('return_date', [$startDate, $endDate])
-                ->get();
 
             return response()->json([
                 'sales' => $sales,
