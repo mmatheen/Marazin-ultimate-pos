@@ -290,40 +290,74 @@
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
+                    const searchTerm = request.term.toLowerCase().trim();
 
-                    // Filter products by:
-                    // - product name or SKU or IMEI number (partial match)
-                    // - total_stock > 0
-                    const filteredProducts = allProducts.filter(product => {
-                        const matchesNameOrSku = (
-                            (product.product_name && product.product_name.toLowerCase()
-                                .includes(searchTerm)) ||
-                            (product.sku && product.sku.toLowerCase().includes(
-                                searchTerm))
-                        );
+                    if (!searchTerm) {
+                        // If search term is empty, return nothing or optionally show all products
+                        response([]);
+                        return;
+                    }
 
-                        // Search through all IMEIs across batches and location_batches
-                        const imeiMatch = product.batches?.some(batch =>
-                            batch.imei_numbers?.some(imeiObj =>
-                                imeiObj.imei_number?.toLowerCase().includes(searchTerm)
-                            )
-                        );
+                    let exactMatchProducts = [];
 
-                        return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
-                    });
+                    // Step 1: Check for exact matches on SKU or IMEI
+                    for (const product of allProducts) {
+                        const isExactSkuMatch = product.sku && product.sku.toLowerCase() ===
+                            searchTerm;
 
-                    // Sort alphabetically by product name
+                        let isExactImeiMatch = false;
+                        for (const batch of product.batches || []) {
+                            for (const imeiObj of batch.imei_numbers || []) {
+                                if (imeiObj.imei_number?.toLowerCase() === searchTerm) {
+                                    isExactImeiMatch = true;
+                                    break;
+                                }
+                            }
+                            if (isExactImeiMatch) break;
+                        }
+
+                        if (isExactSkuMatch || isExactImeiMatch) {
+                            exactMatchProducts.push(product);
+                        }
+                    }
+
+                    // Step 2: If we found exact matches, use only them
+                    let filteredProducts = [];
+
+                    if (exactMatchProducts.length > 0) {
+                        filteredProducts = exactMatchProducts;
+                    } else {
+                        // Step 3: Else fallback to partial matches (name, sku, imei)
+                        filteredProducts = allProducts.filter(product => {
+                            const matchesNameOrSku = (
+                                (product.product_name && product.product_name
+                                    .toLowerCase().includes(searchTerm)) ||
+                                (product.sku && product.sku.toLowerCase().includes(
+                                    searchTerm))
+                            );
+
+                            const imeiMatch = product.batches?.some(batch =>
+                                batch.imei_numbers?.some(imeiObj =>
+                                    imeiObj.imei_number?.toLowerCase().includes(
+                                        searchTerm)
+                                )
+                            );
+
+                            return (matchesNameOrSku || imeiMatch) && product.total_stock >
+                                0;
+                        });
+                    }
+
+                    // Step 4: Sort alphabetically by product name
                     filteredProducts.sort((a, b) => {
                         const nameA = a.product_name?.toLowerCase() || '';
                         const nameB = b.product_name?.toLowerCase() || '';
                         return nameA.localeCompare(nameB);
                     });
 
-                    // Map results for UI
+                    // Step 5: Map results for UI
                     const autoCompleteResults = filteredProducts.length ?
                         filteredProducts.map(p => {
-                            // Find matching IMEI if any
                             let matchedImei = null;
 
                             for (const batch of p.batches || []) {
@@ -352,17 +386,13 @@
                         }];
 
                     response(autoCompleteResults);
-
-                    // // Auto-add product if exactly one match and term is long enough
-                    // if (filteredProducts.length === 1 && searchTerm.length >= 2) {
-                    //     addProductToTable(filteredProducts[0]);
-                    // }
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
 
                     $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product);
+                    addProductToTable(ui.item.product, ui.item
+                    .imei); // You can also pass IMEI if needed
                     return false;
                 },
                 focus: function(event, ui) {
