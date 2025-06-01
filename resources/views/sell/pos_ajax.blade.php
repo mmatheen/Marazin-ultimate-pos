@@ -353,10 +353,10 @@
 
                     response(autoCompleteResults);
 
-                    // Auto-add product if exactly one match and term is long enough
-                    if (filteredProducts.length === 1 && searchTerm.length >= 2) {
-                        addProductToTable(filteredProducts[0]);
-                    }
+                    // // Auto-add product if exactly one match and term is long enough
+                    // if (filteredProducts.length === 1 && searchTerm.length >= 2) {
+                    //     addProductToTable(filteredProducts[0]);
+                    // }
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
@@ -2059,7 +2059,7 @@
 
                     if (isNaN(amountGiven) || amountGiven <= 0) {
                         amountGiven =
-                        totalAmount; // Default to full payment if not entered
+                            totalAmount; // Default to full payment if not entered
                     }
 
                     const balance = amountGiven - totalAmount;

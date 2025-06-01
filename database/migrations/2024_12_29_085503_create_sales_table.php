@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
             $table->unsignedBigInteger('location_id');
-            $table->timestamp('sales_date');
+            $table->datetime('sales_date');
             $table->enum('sale_type', ['POS', 'Normal'])->default('Normal'); // Added sale_type field
             $table->string('status');
             $table->string('invoice_no')->nullable()->unique();
