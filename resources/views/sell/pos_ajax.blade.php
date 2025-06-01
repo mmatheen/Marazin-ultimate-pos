@@ -1280,7 +1280,12 @@
 
             quantityInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter') {
-                    document.getElementById('productSearchInput').focus();
+                    const searchInput = document.getElementById('productSearchInput');
+                    if (searchInput) {
+                        searchInput.value = '';
+                        searchInput.focus();
+                    }
+
                 }
             });
 
