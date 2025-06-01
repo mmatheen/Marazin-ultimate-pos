@@ -252,4 +252,42 @@ class SaleReturnController extends Controller
             'stock_type' => $stockType === 'with_bill' ? 'sales_return_with_bill' : 'sales_return_without_bill',
         ]);
     }
+
+    public function printReturnReceipt($id)
+    {
+        $saleReturn = SalesReturn::with([
+            'sale.customer',
+            'sale.location',
+            'returnProducts.product'
+        ])->findOrFail($id);
+
+        // Extract related models
+        $location = $saleReturn->sale->location ?? null;
+        $customer = $saleReturn->sale->customer ?? null;
+
+        // Handle payments safely
+        $payments = collect($saleReturn->payments ?? []);
+
+        $amount_given = null;
+        $balance_amount = null;
+
+        if ($payments->isNotEmpty()) {
+            $totalPaid = $payments->sum('amount');
+            $amount_given = $totalPaid;
+            $balance_amount = $totalPaid - $saleReturn->return_total;
+        }
+
+        // Render the Blade view to HTML
+        $html = view('saleReturn.sale_return_receipt', compact(
+            'saleReturn',
+            'location',
+            'customer',
+            'amount_given',
+            'balance_amount',
+            'payments'
+        ))->render();
+
+        // Return JSON response for AJAX
+        return response()->json(['invoice_html' => $html]);
+    }
 }

@@ -220,15 +220,18 @@
 
             const product = productData.product;
 
-            // Use a polyfill or fallback for flatMap for environments that don't support it
+            // Filter batches to only include those for the selected location
+             selectedLocationId = $('#location_id').val();
             const batches = [].concat.apply(
                 [],
                 productData.batches.map(batch =>
-                    batch.location_batches.map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: locationBatch.quantity,
-                    }))
+                    batch.location_batches
+                        .filter(locationBatch => locationBatch.location_id == selectedLocationId)
+                        .map(locationBatch => ({
+                            batch_id: batch.id,
+                            batch_price: parseFloat(batch.retail_price),
+                            batch_quantity: locationBatch.quantity,
+                        }))
                 )
             );
 

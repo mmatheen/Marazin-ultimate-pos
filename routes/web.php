@@ -289,6 +289,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/sale-return/store', [SaleReturnController::class, 'storeOrUpdate']);
         Route::put('/sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpdate']);
         Route::get('/sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
+        Route::get('/sale-return/print/{id}', [SaleReturnController::class, 'printReturnReceipt'])->name('sale.return.print');
 
         // Stock Transfer Routes
         Route::get('/stock-transfers', [StockTransferController::class, 'index']);
