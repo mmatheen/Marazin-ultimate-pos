@@ -597,21 +597,33 @@
                                 <div class="col-md-6 d-flex align-items-center">
                                     <button class="btn btn-primary text-white border-1 px-2 py-1"
                                         style="width: auto; height: 30px;" id="currentTimeButton"
-                                        enabled>{{ now()->format('H:i:s') }}</button>
+                                        enabled>
+                                        {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') }}
+                                    </button>
                                     <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
                                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
-                                        data-bs-content="<div class='row'>
-                                                        <div class='col-6'><strong>Operation</strong></div>
-                                                        <div class='col-6'><strong>Keyboard Shortcut</strong></div>
-                                                        <div class='col-6'>Go to product quantity</div>
-                                                        <div class='col-6'>F2</div>
-                                                        <div class='col-6'>Add new product or search</div>
-                                                        <div class='col-6'>F4</div>
-                                                        <div class='col-6'>Choose customer</div>
-                                                        <div class='col-6'>Ctrl + Shift + C</div>
-                                                    </div>">
+                                        data-bs-content="
+                                    <div class='row'>
+                                        <div class='col-6'><strong>Operation</strong></div>
+                                        <div class='col-6'><strong>Keyboard Shortcut</strong></div>
+                                        <div class='col-6'>Go to next product quantity</div>
+                                        <div class='col-6'>F2</div>
+                                        <div class='col-6'>Add/Search new product</div>
+                                        <div class='col-6'>F4</div>
+                                        <div class='col-6'>Refresh the page</div>
+                                        <div class='col-6'>F5</div>
+                                        <div class='col-6'>Click Cash button</div>
+                                        <div class='col-6'>F6</div>
+                                        <div class='col-6'>Focus Amount Given</div>
+                                        <div class='col-6'>F7</div>
+                                        <div class='col-6'>Focus Discount Input</div>
+                                        <div class='col-6'>F8</div>
+                                        <div class='col-6'>Choose Customer</div>
+                                        <div class='col-6'>F9</div>
+                                    </div>">
                                         <i class="fas fa-keyboard"></i>
                                     </button>
+
                                 </div>
                             </div>
 

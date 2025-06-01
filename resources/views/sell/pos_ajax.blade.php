@@ -392,7 +392,7 @@
 
                     $("#productSearchInput").val("");
                     addProductToTable(ui.item.product, ui.item
-                    .imei); // You can also pass IMEI if needed
+                        .imei); // You can also pass IMEI if needed
                     return false;
                 },
                 focus: function(event, ui) {
@@ -2619,7 +2619,7 @@
 <!-- Include Mousetrap library -->
 {{-- <script src="{{ asset('assets/js/mousetrap.js') }}"></script> --}}
 <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
-<script type="text/javascript">
+{{-- <script type="text/javascript">
     document.addEventListener('DOMContentLoaded', function() {
         let currentRowIndex = 0;
 
@@ -2654,6 +2654,41 @@
                 location.reload();
             }
         });
+        // Cash Button: Ctrl + Shift + K
+        hotkeys('shift+k', function(event) {
+            event.preventDefault();
+            const cashBtn = document.querySelector('#cashButton'); // Update selector if needed
+            if (cashBtn) {
+                cashBtn.click();
+            } else {
+                console.warn('Cash button not found.');
+            }
+        });
+
+        // Amount Given Input: Ctrl + Shift + A
+        hotkeys('shift+a', function(event) {
+            event.preventDefault();
+            const amountInput = document.querySelector('#amount-given');
+            if (amountInput) {
+                amountInput.focus();
+                amountInput.select();
+            } else {
+                console.warn('Amount given input not found.');
+            }
+        });
+
+        // Discount Input: Ctrl + Shift + D
+        hotkeys('shift+d', function(event) {
+            event.preventDefault();
+            const discountInput = document.querySelector('#global-discount');
+            if (discountInput) {
+                discountInput.focus();
+                discountInput.select();
+            } else {
+                console.warn('Discount input not found.');
+            }
+        });
+
 
         if (typeof hotkeys !== 'undefined') {
             hotkeys('ctrl+shift+c', function(event) {
@@ -2676,7 +2711,95 @@
         // Initial focus on the first quantity input if available
         focusQuantityInput();
     });
+</script> --}}
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        let currentRowIndex = 0;
+
+        // Enable hotkeys inside input, textarea, and select fields
+        hotkeys.filter = function(event) {
+            return true; // Allow shortcuts in any element
+        };
+
+        function focusQuantityInput() {
+            const quantityInputs = document.querySelectorAll('.quantity-input');
+            if (quantityInputs.length > 0) {
+                quantityInputs[currentRowIndex].focus();
+                quantityInputs[currentRowIndex].select();
+                currentRowIndex = (currentRowIndex + 1) % quantityInputs.length;
+            }
+        }
+
+        // F2 - Focus next quantity input
+        hotkeys('f2', function(event) {
+            event.preventDefault();
+            focusQuantityInput();
+        });
+
+        // F4 - Focus product search
+        hotkeys('f4', function(event) {
+            event.preventDefault();
+            const productSearchInput = document.getElementById('productSearchInput');
+            if (productSearchInput) {
+                productSearchInput.focus();
+                productSearchInput.select();
+            }
+        });
+
+        // F5 - Refresh page
+        hotkeys('f5', function(event) {
+            event.preventDefault();
+            if (confirm('Are you sure you want to refresh the page?')) {
+                location.reload();
+            }
+        });
+
+        // F6 - Click cash button
+        hotkeys('f6', function(event) {
+            event.preventDefault();
+            const cashBtn = document.querySelector('#cashButton');
+            if (cashBtn) {
+                cashBtn.click();
+            }
+        });
+
+        // F7 - Focus amount given input
+        hotkeys('f7', function(event) {
+            event.preventDefault();
+            const amountInput = document.querySelector('#amount-given');
+            if (amountInput) {
+                amountInput.focus();
+                amountInput.select();
+            }
+        });
+
+        // F8 - Focus discount input
+        hotkeys('f8', function(event) {
+            event.preventDefault();
+            const discountInput = document.querySelector('#global-discount');
+            if (discountInput) {
+                discountInput.focus();
+                discountInput.select();
+            }
+        });
+
+        // F9 - Open customer Select2 and focus search
+        hotkeys('f9', function(event) {
+            event.preventDefault();
+            const customerSelect = $('#customer-id');
+            if (customerSelect.length) {
+                customerSelect.select2('open');
+                setTimeout(() => {
+                    $('.select2-search__field').focus();
+                }, 100);
+            }
+        });
+
+        // Initial focus
+        focusQuantityInput();
+    });
 </script>
+
 
 <!-- Include cleave.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cleave.js/1.6.0/cleave.min.js"></script>
