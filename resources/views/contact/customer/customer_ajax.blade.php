@@ -191,7 +191,7 @@
                         showFetchData();
                         fetchCustomerData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -231,7 +231,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -254,8 +254,8 @@
 
                     if (data && data.status === 200 && Array.isArray(data.message)) {
                         const sortedCustomers = data.message.sort((a, b) => {
-                            if (a.first_name === 'Walking') return -1;
-                            if (b.first_name === 'Walking') return 1;
+                            if (a.first_name === 'Walk-in') return -1;
+                            if (b.first_name === 'Walk-in') return 1;
                             return 0;
                         });
 
@@ -264,15 +264,15 @@
                             option.val(customer.id);
                             option.text(
                                 `${customer.first_name || ''} ${customer.last_name || ''} (${customer.mobile_no || ''})`
-                                );
+                            );
                             option.data('due', customer.current_due ||
-                            0); // Default due to 0
+                                0); // Default due to 0
                             customerSelect.append(option);
                         });
 
                         // Always select Walking Customer by default
                         const walkingCustomer = sortedCustomers.find(customer => customer
-                            .first_name === 'Walking');
+                            .first_name === 'Walk-in');
                         if (walkingCustomer) {
                             customerSelect.val(walkingCustomer.id);
                             updateDueAmount(walkingCustomer.current_due || 0);

@@ -1818,8 +1818,8 @@
                                     const customerSelect = $('#customer-id');
                                     customerSelect.empty();
                                     const sortedCustomers = customerData.message.sort((a, b) => {
-                                        if (a.first_name === 'Walking') return -1;
-                                        if (b.first_name === 'Walking') return 1;
+                                        if (a.first_name === 'Walk-in') return -1;
+                                        if (b.first_name === 'Walk-in') return 1;
                                         return 0;
                                     });
                                     sortedCustomers.forEach(customer => {
@@ -1832,7 +1832,7 @@
                                         customerSelect.append(option);
                                     });
                                     const walkingCustomer = sortedCustomers.find(customer => customer
-                                        .first_name === 'Walking');
+                                        .first_name === 'Walk-in');
                                     if (walkingCustomer) {
                                         customerSelect.val(walkingCustomer.id);
                                         updateDueAmount(walkingCustomer.current_due);

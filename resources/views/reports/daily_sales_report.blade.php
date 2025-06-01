@@ -4,29 +4,29 @@
     <style>
         @media print {
             body {
-            font-size: 14px !important;
+                font-size: 14px !important;
             }
 
             table.dataTable {
-            font-size: 14px !important;
-            width: 100% !important;
-            border-collapse: collapse;
+                font-size: 14px !important;
+                width: 100% !important;
+                border-collapse: collapse;
             }
 
             table.dataTable th,
             table.dataTable td {
-            white-space: nowrap;
-            padding: 4px 6px;
-            font-size: 14px !important;
+                white-space: nowrap;
+                padding: 4px 6px;
+                font-size: 14px !important;
             }
 
             .dt-buttons {
-            display: none;
+                display: none;
             }
 
             @page {
-            margin-left: 0.2in;
-            margin-right: 0.2in;
+                margin-left: 0.2in;
+                margin-right: 0.2in;
             }
         }
     </style>
@@ -342,7 +342,8 @@
                         customerMap.set(sale.customer.id, name);
                     }
                     if (sale.user) {
-                        userMap.set(sale.user.id, sale.user.full_name);
+                        userMap.set(sale.user.id, sale.user.user_name || sale.user.full_name ||
+                            'Unknown User');
                     }
                     if (sale.location) {
                         locationMap.set(sale.location.id, sale.location.name);
@@ -747,7 +748,7 @@
                         sale.invoice_no,
                         `${sale.customer?.first_name || ''} ${sale.customer?.last_name || ''}`.trim(),
                         sale.location?.name || '',
-                        sale.user?.full_name || '',
+                        sale.user?.user_name || '',
                         new Date(sale.sales_date).toLocaleString(),
                         formatNumber(parseFloat(sale.subtotal)),
                         formatNumber(parseFloat(sale.discount_amount || 0)),
