@@ -355,7 +355,10 @@ class SaleController extends Controller
                 // Handle payments
                 $totalPaid = 0;
                 if (!empty($request->payments)) {
-                    $totalPaid = array_reduce($request->payments, fn($sum, $p) => $sum + $p['amount'], 0);
+
+                    $totalPaid = $request->has('payments')
+                        ? array_sum(array_column($request->payments, 'amount'))
+                        : $sale->final_total;
 
                     if ($isUpdate) {
                         // Delete existing payments and ledger entries for updates
@@ -403,16 +406,13 @@ class SaleController extends Controller
                     $totalPaid = $sale->total_paid; // Keep existing payments if none provided
                 }
 
-                $totalDue = max($finalTotal - $totalPaid, 0);
-                $amountGiven = $request->amount_given ?? 0;
-                $balanceAmount = $amountGiven - $finalTotal;
-
+                $amountGiven = $request->amount_given ?? $sale->total_paid ?? 0;
                 // Update sale with payment totals
                 $sale->update([
-                    'total_paid' => $totalPaid,
-                    'total_due' => $totalDue,
+                    'total_paid' => $sale->final_total,
+                    'total_due' => max(0, $sale->final_total - $totalPaid),
                     'amount_given' => $amountGiven,
-                    'balance_amount' => $balanceAmount,
+                    'balance_amount' => max(0, $amountGiven - $sale->final_total),
                 ]);
 
                 // Handle products

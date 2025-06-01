@@ -2047,33 +2047,30 @@
                         return;
                     }
 
-                    // Get amount given (optional)
-                    const amountGiven = parseFormattedAmount($('#amount-given').val()
-                        .trim()) || 0;
+                    const totalAmount = parseFormattedAmount($('#final-total-amount')
+                        .text().trim());
+                    let amountGiven = parseFormattedAmount($('#amount-given').val()
+                        .trim());
 
-                    // Only calculate balance if amount was actually given
-                    if (amountGiven > 0) {
-                        const balance = amountGiven - saleData.final_total;
-                        if (balance < 0) {
-                            toastr.error(
-                                'Amount given is less than the total amount due.');
-                            enableButton(button);
-                            return;
-                        }
-                        saleData.balance_amount = balance;
-                        saleData.amount_given = amountGiven;
+                    if (isNaN(amountGiven) || amountGiven <= 0) {
+                        amountGiven =
+                        totalAmount; // Default to full payment if not entered
                     }
+
+                    const balance = amountGiven - totalAmount;
+
+                    saleData.balance_amount = Math.max(0, balance); // Prevent negative
+                    saleData.amount_given = amountGiven;
 
                     saleData.payments = [{
                         payment_method: 'cash',
                         payment_date: new Date().toISOString().slice(0, 10),
-                        amount: amountGiven > 0 ? amountGiven : saleData
-                            .final_total
+                        amount: saleData
+                            .final_total // Only record the amount actually owed
                     }];
 
                     sendSaleData(saleData, null, () => enableButton(button));
                 });
-
             });
 
             $('#cardButton').on('click', function() {
@@ -2367,10 +2364,18 @@
             });
 
             $('#amount-given').on('input', function() {
-                let amountGiven = parseFormattedAmount($(this).val()) ||
-                    0; // Default to 0 if empty
-                $(this).val(amountGiven ? formatAmountWithSeparators(amountGiven) :
-                    ''); // Show empty when cleared
+                let amountGiven = parseFormattedAmount($(this).val().trim());
+
+                if (isNaN(amountGiven) || amountGiven < 0) {
+                    amountGiven = 0;
+                }
+
+                // Optional: Set placeholder or clear if empty
+                if (amountGiven === 0) {
+                    $(this).val('');
+                } else {
+                    $(this).val(formatAmountWithSeparators(amountGiven));
+                }
             });
 
 
