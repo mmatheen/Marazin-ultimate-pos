@@ -49,7 +49,7 @@
                             <label for="adjustmentType" class="form-label">Adjustment Type:*</label>
                             <select id="adjustmentType" class="form-select" name="adjustment_type">
                                 <option value="" selected disabled>Please Select</option>
-                                <option value="increase">Increase Stock</option>
+                                <option value="increase" disabled>Increase Stock</option>
                                 <option value="decrease">Decrease Stock</option>
                             </select>
                         </div>
