@@ -538,8 +538,8 @@
                                         </a>
                                         <div class="dropdown-menu dropdown-menu-end">
                                             <a class="dropdown-item view-sale-return" href="#" data-id="${salesReturn.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
-                                            <a class="dropdown-item" href="#" onclick="printReturnReceipt(${salesReturn.id}); return false;"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>    <a class="dropdown-item edit-link" href="/salesReturn-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
-                                            <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
+                                            <a class="dropdown-item print-return-receipt" href="#" data-id="${salesReturn.id}"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
+                                            <a class="dropdown-item edit-link" href="/sale-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>    <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
                                             <a class="dropdown-item view-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
                                         </div>
                                     </div>`
@@ -604,8 +604,47 @@
                 });
             } // Event listener for the view button
 
+            // Attach print event handler for dynamically generated print buttons
+            $(document).on('click', '.print-return-receipt', function(e) {
+                e.preventDefault();
+                // Get saleReturnId from button click or from modal if inside modal
+                var saleReturnId = $(this).data('id') || $('#saleDetailsModal').attr('data-sale-return-id');    
+                fetch(`/sale-return/print/${saleReturnId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.invoice_html) {
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'fixed';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            document.body.appendChild(iframe);
+
+                            iframe.contentDocument.open();
+                            iframe.contentDocument.write(data.invoice_html);
+                            iframe.contentDocument.close();
+
+                            iframe.onload = function() {
+                                iframe.contentWindow.print();
+                                iframe.contentWindow.onafterprint = function() {
+                                    document.body.removeChild(iframe);
+                                };
+                            };
+                        } else {
+                            // alert('Failed to fetch the receipt. Please try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching the receipt:', error);
+                        // alert('An error occurred while fetching the receipt. Please try again.');
+                    });
+            });
+
+
             $(document).on('click', '.view-sale-return', function() {
                 var saleReturnId = $(this).data('id');
+                // Set the sale return ID in the modal
+                $('#saleDetailsModal').attr('data-sale-return-id', saleReturnId);
                 $.ajax({
                     url: '/sale-return-get/' + saleReturnId,
                     method: 'GET',
@@ -696,6 +735,10 @@
                         console.log('Error fetching sale return details:', error);
                     }
                 });
+            });
+
+            $('#saleDetailsModal').on('hidden.bs.modal', function() {
+                $(this).removeAttr('data-sale-return-id');
             });
 
             // Event listener for the add payment button

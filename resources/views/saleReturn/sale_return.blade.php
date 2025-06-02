@@ -217,7 +217,7 @@
 
     <!-- Modal to show sale details -->
     <div class="modal fade" id="saleDetailsModal" tabindex="-1" aria-labelledby="saleDetailsModalLabel"
-        aria-hidden="true">
+        aria-hidden="true" data-sale-return-id="">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -312,7 +312,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-secondary" onclick="printModal()">Print</button>
+                    <button type="button" class="btn btn-secondary print-return-receipt">Print</button>
                 </div>
             </div>
         </div>

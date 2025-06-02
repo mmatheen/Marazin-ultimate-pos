@@ -127,14 +127,46 @@
                             </div>
                         </td>
                         <td>&nbsp;</td>
-                        <td width="120" align="center">
-                            <div style="font-size: 12px; color: #000;">RETURN #{{ $saleReturn->invoice_number }}</div>
-                            <div style="font-size: 10px; color: #000;">(RETURN)</div>
+                        <td width="180" align="center" style="vertical-align: top;">
+                            <div
+                                style="border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; background: #f9f9f9; margin-bottom: 4px;">
+                                <div style="font-size: 11px; color: #333; font-weight: bold; margin-bottom: 2px;">
+                                    SALE DETAILS
+                                </div>
+                                @if ($saleReturn->sale && isset($saleReturn->sale->invoice_no))
+                                    <div style="font-size: 10px; color: #000;">
+                                        <span style="font-weight: 600;">INV #:</span>
+                                        {{ $saleReturn->sale->invoice_no }}
+                                    </div>
+                                    <div style="font-size: 10px; color: #000;">
+                                        <span style="font-weight: 600;">Date:</span>
+                                        {{ date('d-m-Y', strtotime($saleReturn->sale->sales_date)) }}
+                                    </div>
+                                @else
+                                    <div style="font-size: 10px; color: #888;">
+                                        SALE INVOICE #: N/A
+                                    </div>
+                                @endif
+                            </div>
+                            <div
+                                style="border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; background: #f1f7fa;">
+                                <div style="font-size: 11px; color: #333; font-weight: bold; margin-bottom: 2px;">
+                                    RETURN DETAILS
+                                </div>
+                                <div style="font-size: 10px; color: #000;">
+                                    <span style="font-weight: 600;">RETURN #:</span> {{ $saleReturn->invoice_number }}
+                                </div>
+                                <div style="font-size: 10px; color: #000;">
+                                    <span style="font-weight: 600;">User:</span>
+                                    {{ $user->user_name ?? ($user->name ?? 'N/A') }}
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
 
         <table width="100%" border="0" style="color: #000; margin-bottom: 12px;">
             <thead>
@@ -152,7 +184,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($saleReturn->return_products ?? [] as $index => $item)
+                @forelse ($saleReturn->returnProducts as $item)
                     <tr>
                         <td>{{ $loop->iteration }}</td>
                         <td>{{ $item->product->product_name }}</td>
@@ -160,7 +192,11 @@
                         <td>{{ $item->quantity }}</td>
                         <td align="right">{{ number_format($item->subtotal, 0, '.', ',') }}</td>
                     </tr>
-                @endforeach
+                @empty
+                    <tr>
+                        <td colspan="5">No products returned</td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Models\LocationBatch;
 use App\Models\StockHistory;
+use App\Models\User;
 
 class SaleReturnController extends Controller
 {
@@ -83,6 +84,9 @@ class SaleReturnController extends Controller
             $stockType = $request->sale_id ? 'with_bill' : 'without_bill';
             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
 
+            // Get the authenticated user ID
+            $userId = auth()->id();
+
             // Create or update the sales return
             $salesReturn = SalesReturn::updateOrCreate(
                 ['id' => $id],
@@ -97,6 +101,7 @@ class SaleReturnController extends Controller
                     'notes' => $request->notes,
                     'is_defective' => $request->is_defective,
                     'stock_type' => $stockType,
+                    'user_id' => $userId, // Set the user who created/updated the return
                 ]
             );
 
@@ -253,17 +258,39 @@ class SaleReturnController extends Controller
         ]);
     }
 
+    /**
+     * Print the return receipt with user details.
+     */
     public function printReturnReceipt($id)
     {
+        // Eager-load all necessary relationships
         $saleReturn = SalesReturn::with([
-            'sale.customer',
-            'sale.location',
-            'returnProducts.product'
+            'sale' => function ($query) {
+                $query->with(['customer', 'location']);
+            },
+            'returnProducts.product',
+            'payments'
         ])->findOrFail($id);
 
-        // Extract related models
-        $location = $saleReturn->sale->location ?? null;
-        $customer = $saleReturn->sale->customer ?? null;
+        // Extract related models with null checks
+        $customer = $saleReturn->sale && $saleReturn->sale->customer
+            ? $saleReturn->sale->customer
+            : ($saleReturn->customer ?? null);
+
+        // Fetch the user associated with the sale return
+        $user = $saleReturn->user_id ? User::find($saleReturn->user_id) : null;
+
+        // Fetch the first location associated with the user, or fallback to sale location
+        if ($user && method_exists($user, 'locations')) {
+            $userLocations = $user->locations();
+            $location = $userLocations instanceof \Illuminate\Database\Eloquent\Relations\Relation
+                ? $userLocations->first()
+                : (is_callable([$userLocations, 'first']) ? $userLocations->first() : null);
+        } else {
+            $location = $saleReturn->sale && $saleReturn->sale->location
+                ? $saleReturn->sale->location
+                : null;
+        }
 
         // Handle payments safely
         $payments = collect($saleReturn->payments ?? []);
@@ -284,7 +311,8 @@ class SaleReturnController extends Controller
             'customer',
             'amount_given',
             'balance_amount',
-            'payments'
+            'payments',
+            'user'
         ))->render();
 
         // Return JSON response for AJAX

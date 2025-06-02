@@ -22,6 +22,7 @@ class SalesReturn extends Model
         'is_defective',
         'invoice_number',
         'stock_type',
+        'user_id',
     ];
 
     /**
@@ -62,10 +63,10 @@ class SalesReturn extends Model
     public function payments()
     {
         return $this->hasMany(Payment::class, 'reference_id', 'id')
-                    ->where(function($query) {
-                        $query->where('payment_type', 'sale_return_with_bill')
-                              ->orWhere('payment_type', 'sale_return_without_bill');
-                    });
+            ->where(function ($query) {
+                $query->where('payment_type', 'sale_return_with_bill')
+                    ->orWhere('payment_type', 'sale_return_without_bill');
+            });
     }
 
     /**
@@ -103,5 +104,10 @@ class SalesReturn extends Model
         $this->total_paid = $this->payments()->sum('amount');
         $this->total_due = $this->return_total - $this->total_paid;
         $this->save();
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

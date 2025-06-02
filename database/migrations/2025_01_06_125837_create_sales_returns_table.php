@@ -30,14 +30,16 @@ return new class extends Migration
             $table->text('notes')->nullable(); // Reason or additional details
             $table->boolean('is_defective')->default(false)->nullable(); // Indicates defective items
             $table->enum('stock_type', ['with_bill', 'without_bill']);
+            //userid
+            $table->unsignedBigInteger('user_id')->nullable(); // Nullable for walk-in returns
             $table->timestamps();
 
             // Foreign keys
             $table->foreign('sale_id')->references('id')->on('sales')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
             $table->foreign('location_id')->references('id')->on('locations')->onDelete('cascade');
         });
-
     }
 
     /**
