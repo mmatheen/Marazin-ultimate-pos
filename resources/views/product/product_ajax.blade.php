@@ -1036,6 +1036,10 @@
                         name="locations[` + index + `][expiry_date]"
                         value="">
                 </td>
+                
+                        <td>
+                <button type="button" class="btn btn-danger btn-sm removeRowBtn"><i class="fas fa-trash"></i></button>
+            </td>
             </tr>
         `;
                 $('#locationRows').append(newRow);
@@ -1045,6 +1049,15 @@
             $('#submitOpeningStock').click(function(e) {
                 e.preventDefault();
                 handleFormSubmission(isEditMode, productId);
+            });
+
+            $('#submitOpeningStock-saveAndAddAnother').click(function(e) {
+                e.preventDefault();
+                handleFormSubmission(isEditMode, productId);
+                // After successful submission, redirect to add product page
+                setTimeout(function() {
+                    window.location.href = '/add-product';
+                }, 1000);
             });
 
 
@@ -1154,6 +1167,7 @@
                                             name="locations[${rowIndex}][expiry_date]"
                                             value="${batch.expiry_date}">
                                     </td>
+
                                 </tr>
                             `;
                                         $('#locationRows').append(newRow);
@@ -1162,6 +1176,7 @@
                                 }
                             });
 
+
                             initializeDateTimePicker
                                 (); // Initialize datetime picker for existing rows
 
@@ -1169,6 +1184,8 @@
                                 $('#pageTitle').text('Edit Opening Stock for Product');
                                 $('#breadcrumbTitle').text('Edit Opening Stock');
                                 $('#submitOpeningStock').text('Update');
+                                $('#submitOpeningStock-saveAndAddAnother').text(
+                                    'Update And Add Another');
                             }
                         } else {
                             console.log('Failed to fetch existing stock data.', 'Error');
@@ -1179,6 +1196,11 @@
                     }
                 });
             }
+
+            // Remove row button handler (only for rows with the button)
+            $(document).on('click', '.removeRowBtn', function() {
+                $(this).closest('tr').remove();
+            });
 
             // function handleFormSubmission(isEditMode, productId) {
             //     let form = $('#openingStockForm')[0];

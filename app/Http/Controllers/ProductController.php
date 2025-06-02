@@ -61,16 +61,32 @@ class ProductController extends Controller
 
     public function getStockHistory($productId)
     {
-        // Debug: Check if stock history exists
-        $exists = \App\Models\StockHistory::whereHas('locationBatch.batch', function ($query) use ($productId) {
-            $query->where('product_id', $productId);
-        })->exists();
-        if (!$exists) {
-            return response()->json(['error' => 'No stock history found for this product'], 404);
+        $locationId = request()->input('location_id');
+        $searchTerm = request()->input('term'); // For select2 search
+
+        // Handle AJAX search requests (for select2)
+        if (request()->ajax() && $searchTerm) {
+            return Product::where('product_name', 'like', '%' . $searchTerm . '%')
+                ->orWhere('sku', 'like', '%' . $searchTerm . '%')
+                ->select('id', 'product_name', 'sku')
+                ->get()
+                ->map(function ($product) {
+                    return [
+                        'id' => $product->id,
+                        'text' => $product->product_name . ' - ' . $product->sku
+                    ];
+                });
         }
 
-        $product = Product::with([
-            'stockHistories' => function ($query) {
+        // Fetch product with all necessary relationships
+        $productQuery = Product::with([
+            'locationBatches' => function ($query) use ($locationId) {
+                if ($locationId) {
+                    $query->where('location_id', $locationId);
+                }
+                $query->with('batch');
+            },
+            'locationBatches.stockHistories' => function ($query) {
                 $query->with([
                     'locationBatch.batch.purchaseProducts.purchase.supplier',
                     'locationBatch.batch.salesProducts.sale.customer',
@@ -80,45 +96,134 @@ class ProductController extends Controller
                     'locationBatch.batch.stockTransfers.stockTransfer',
                 ]);
             }
-        ])->findOrFail($productId);
+        ]);
 
-        $stockHistories = $product->stockHistories;
+        $product = $productQuery->findOrFail($productId);
 
-        // Calculate quantities in and out
-        $quantitiesIn = $stockHistories->whereIn('stock_type', [
-            StockHistory::STOCK_TYPE_PURCHASE,
+        // Flatten all stock histories across location batches
+        $stockHistories = $product->locationBatches->flatMap(function ($locBatch) {
+            return $locBatch->stockHistories;
+        });
+
+        if ($stockHistories->isEmpty()) {
+            if (request()->ajax()) {
+                return response()->json(['error' => 'No stock history found for this product'], 404);
+            }
+            return redirect()->back()->withErrors('No stock history found for this product.');
+        }
+
+        // Group by stock_type and sum quantities
+        $stockTypeSums = $stockHistories->groupBy('stock_type')->map(function ($group) {
+            return $group->sum('quantity');
+        });
+
+        // Define types for In and Out
+        $inTypes = [
             StockHistory::STOCK_TYPE_OPENING,
+            StockHistory::STOCK_TYPE_PURCHASE,
             StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
             StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
             StockHistory::STOCK_TYPE_TRANSFER_IN,
-        ])->sum('quantity');
+        ];
 
-        $quantitiesOut = $stockHistories->whereIn('stock_type', [
+        $outTypes = [
             StockHistory::STOCK_TYPE_SALE,
             StockHistory::STOCK_TYPE_ADJUSTMENT,
             StockHistory::STOCK_TYPE_PURCHASE_RETURN,
             StockHistory::STOCK_TYPE_TRANSFER_OUT,
-        ])->sum(function ($history) {
-            return abs($history->quantity);
-        });
+        ];
 
+        // Calculate totals
+        $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
+        $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
         $currentStock = $quantitiesIn - $quantitiesOut;
 
-        $data = [
+        $responseData = [
             'product' => $product,
             'stock_histories' => $stockHistories,
-            'quantities_in' => $quantitiesIn,
-            'quantities_out' => $quantitiesOut,
-            'current_stock' => $currentStock,
+            'stock_type_sums' => $stockTypeSums,
+            'current_stock' => round($currentStock, 2),
         ];
 
         if (request()->ajax()) {
-            return response()->json($data);
+            return response()->json($responseData);
         }
 
-        return view('product.product_stock_history', $data);
+        // For initial page load (non-AJAX)
+        $products = Product::where('id', $productId)->get(); // Only load the current product initially
+        $locations = Location::all();
+
+        return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
     }
 
+    // public function getStockHistory($productId)
+    // {
+    //     $locationId = request()->input('location_id');
+
+    //     // Fetch basic product info
+    //     $product = Product::select(['id', 'product_name', 'sku'])->findOrFail($productId);
+
+    //     // Build query for stock histories with joins instead of deep nesting
+    //     $stockHistoriesQuery = StockHistory::with([
+    //         'locationBatch.batch' // Only necessary relation
+    //     ])
+    //         ->whereHas('locationBatch.batch', function ($query) use ($productId) {
+    //             $query->where('product_id', $productId);
+    //         });
+
+    //     // Optional: Filter by location
+    //     if ($locationId) {
+    //         $stockHistoriesQuery->whereHas('locationBatch', function ($query) use ($locationId) {
+    //             $query->where('location_id', $locationId);
+    //         });
+    //     }
+
+    //     $stockHistories = $stockHistoriesQuery->get();
+
+    //     if ($stockHistories->isEmpty()) {
+    //         return response()->json(['error' => 'No stock history found for this product'], 404);
+    //     }
+
+    //     // Group by stock_type and sum quantities
+    //     $stockTypeSums = $stockHistories->groupBy('stock_type')->map(fn($group) => $group->sum('quantity'));
+
+    //     // Define types for In and Out
+    //     $inTypes = [
+    //         StockHistory::STOCK_TYPE_OPENING,
+    //         StockHistory::STOCK_TYPE_PURCHASE,
+    //         StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
+    //         StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+    //         StockHistory::STOCK_TYPE_TRANSFER_IN,
+    //     ];
+
+    //     $outTypes = [
+    //         StockHistory::STOCK_TYPE_SALE,
+    //         StockHistory::STOCK_TYPE_ADJUSTMENT,
+    //         StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+    //         StockHistory::STOCK_TYPE_TRANSFER_OUT,
+    //     ];
+
+    //     // Calculate totals
+    //     $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
+    //     $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
+    //     $currentStock = $quantitiesIn - $quantitiesOut;
+
+    //     $responseData = [
+    //         'product' => $product,
+    //         'stock_histories' => $stockHistories,
+    //         'stock_type_sums' => $stockTypeSums,
+    //         'current_stock' => round($currentStock, 2),
+    //     ];
+
+    //     if (request()->ajax()) {
+    //         return response()->json($responseData);
+    //     }
+
+    //     $products = Product::all(); // For dropdown
+    //     $locations = Location::all(); // Assuming you have a Location model
+
+    //     return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
+    // }
 
     public function initialProductDetails()
     {
@@ -364,38 +469,6 @@ class ProductController extends Controller
         return response()->json(['status' => 200, 'message' => $message, 'product_id' => $product->id]);
     }
 
-    // private function removeUnusedLocationBatchesAndStockHistory($product, $newLocations)
-    // {
-    //     $newLocationIds = array_column($newLocations, 'id');
-
-    //     // Get the existing location ids for the product
-    //     $existingLocationIds = $product->locations->pluck('id')->toArray();
-
-    //     // Find locations that are no longer associated with the product
-    //     $removedLocationIds = array_diff($existingLocationIds, $newLocationIds);
-
-    //     // Remove stock history records and location batches for locations that are no longer associated
-    //     foreach ($removedLocationIds as $locationId) {
-    //         $locationBatches = LocationBatch::where('location_id', $locationId)
-    //             ->whereHas('batch', function ($query) use ($product) {
-    //                 $query->where('product_id', $product->id);
-    //             })->get();
-
-    //         foreach ($locationBatches as $locationBatch) {
-    //             StockHistory::where('loc_batch_id', $locationBatch->id)
-    //                 ->where('stock_type', StockHistory::STOCK_TYPE_OPENING)
-    //                 ->delete();
-    //             $locationBatch->delete();
-    //         }
-    //     }
-
-    //     // Remove batches that are no longer associated with any location
-    //     $batchIds = Batch::where('product_id', $product->id)->pluck('id')->toArray();
-    //     $usedBatchIds = LocationBatch::whereIn('batch_id', $batchIds)->pluck('batch_id')->toArray();
-    //     $unusedBatchIds = array_diff($batchIds, $usedBatchIds);
-    //     Batch::whereIn('id', $unusedBatchIds)->delete();
-    // }
-
     public function showOpeningStock($productId)
     {
         $product = Product::with('locations')->findOrFail($productId);
@@ -596,139 +669,6 @@ class ProductController extends Controller
         }
     }
 
-    // public function saveImei(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'product_id' => 'required|exists:products,id',
-    //         'batches' => 'required|array',
-    //         'batches.*.batch_id' => 'required|exists:batches,id',
-    //         'batches.*.location_id' => 'required|exists:locations,id',
-    //         'imeis' => 'nullable|array',
-    //         'imeis.*' => 'nullable|string|max:255'
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     try {
-    //         DB::transaction(function () use ($request) {
-    //             // Filter out empty or null IMEIs
-    //             $validImeis = collect($request->imeis)
-    //                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
-    //                 ->values();
-
-    //             foreach ($request->batches as $batchInfo) {
-    //                 $batchQty = (int)$batchInfo['qty'];
-
-    //                 // Skip saving if no IMEIs provided
-    //                 if ($batchQty === 0 || $validImeis->isEmpty()) continue;
-
-    //                 // Take up to $batchQty IMEIs from the list
-    //                 $assignedImeis = $validImeis->take($batchQty);
-
-    //                 // Remove assigned IMEIs from the list
-    //                 $validImeis = $validImeis->slice($assignedImeis->count());
-
-    //                 // Insert only unique IMEIs that don't already exist
-    //                 foreach ($assignedImeis as $imei) {
-    //                     ImeiNumber::firstOrCreate(
-    //                         [
-    //                             'product_id' => $request->product_id,
-    //                             'batch_id' => $batchInfo['batch_id'],
-    //                             'location_id' => $batchInfo['location_id'],
-    //                             'imei_number' => $imei
-    //                         ],
-    //                         [
-    //                             'created_at' => now(),
-    //                             'updated_at' => now()
-    //                         ]
-    //                     );
-    //                 }
-    //             }
-    //         });
-
-    //         return response()->json([
-    //             'status' => 200,
-    //             'message' => 'IMEI numbers saved successfully.'
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => 500,
-    //             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
-    //         ]);
-    //     }
-    // }
-    // public function saveImei(Request $request)
-    // {
-    //     // Validate request data
-    //     $validator = Validator::make($request->all(), [
-    //         'product_id' => 'required|exists:products,id',
-    //         'batches' => 'required|array',
-    //         'batches.*.batch_id' => 'required|exists:batches,id',
-    //         'batches.*.location_id' => 'required|exists:locations,id',
-    //         'imeis' => 'nullable|array',
-    //         'imeis.*' => 'nullable|string|max:255'
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     try {
-    //         DB::transaction(function () use ($request) {
-    //             // Filter and deduplicate valid IMEIs
-    //             $validImeis = collect($request->imeis)
-    //                 ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
-    //                 ->unique()
-    //                 ->values();
-
-    //             foreach ($request->batches as $batchInfo) {
-    //                 $productId = $request->product_id;
-    //                 $batchId = $batchInfo['batch_id'];
-    //                 $locationId = $batchInfo['location_id'];
-
-    //                 // Get all existing IMEIs for this product/batch/location
-    //                 $existingImeis = ImeiNumber::where('product_id', $productId)
-    //                     ->where('batch_id', $batchId)
-    //                     ->where('location_id', $locationId)
-    //                     ->pluck('imei_number')
-    //                     ->toArray();
-
-    //                 // Separate already existing IMEIs and newly added ones
-    //                 $oldImeis = array_intersect($validImeis->toArray(), $existingImeis);
-    //                 $newImeis = array_diff($validImeis->toArray(), $existingImeis);
-
-    //                 // Only insert new IMEIs
-    //                 foreach ($newImeis as $imei) {
-    //                     // Optional: Check globally across all batches/locations to avoid duplicates
-    //                     $duplicateExists = ImeiNumber::where('imei_number', $imei)->exists();
-    //                     if (!$duplicateExists) {
-    //                         ImeiNumber::create([
-    //                             'product_id' => $productId,
-    //                             'batch_id' => $batchId,
-    //                             'location_id' => $locationId,
-    //                             'imei_number' => $imei,
-    //                             'status' => 'available'
-    //                         ]);
-    //                     }
-    //                 }
-
-    //                 // No deletion — keep all old IMEIs intact
-    //             }
-    //         });
-
-    //         return response()->json([
-    //             'status' => 200,
-    //             'message' => 'IMEI numbers saved successfully.'
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => 500,
-    //             'message' => 'Failed to save IMEIs: ' . $e->getMessage()
-    //         ]);
-    //     }
-    // }
 
     public function saveOrUpdateImei(Request $request)
     {

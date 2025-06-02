@@ -313,7 +313,6 @@
             let $form = $(this);
             let $btn = $form.find('button[type="submit"]');
 
-            // 🔁 Store original text in data attribute
             let originalText = $btn.text();
             $btn.data('original-text', originalText);
 

@@ -43,6 +43,8 @@
                                             <th scope="col">Unit Cost</th>
                                             <th scope="col">Batch No</th>
                                             <th scope="col">Expiry Date</th>
+
+                                            <th scope="col">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="locationRows">
@@ -54,6 +56,7 @@
                             <div class="modal-footer">
                                 <button type="button" id="addRow" class="btn btn-secondary">Add New Row</button>
                                 <button type="submit" id="submitOpeningStock" class="btn btn-primary">Save</button>
+                                <button type="submit" id="submitOpeningStock-saveAndAddAnother" class="btn btn-success">Save and Add Another</button>
                             </div>
                         </div>
                     </div>

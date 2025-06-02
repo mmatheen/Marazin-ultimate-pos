@@ -42,9 +42,9 @@ class Product extends Model
     }
 
     public function subCategory()
-{
-    return $this->belongsTo(SubCategory::class, 'sub_category_id');
-}
+    {
+        return $this->belongsTo(SubCategory::class, 'sub_category_id');
+    }
 
     public function brand()
     {
@@ -61,11 +61,6 @@ class Product extends Model
         return $this->hasMany(Batch::class);
     }
 
-    public function stockHistories()
-    {
-        return $this->hasManyThrough(StockHistory::class, LocationBatch::class, 'batch_id', 'loc_batch_id', 'id', 'id');
-    }
-
     public function salesProducts()
     {
         return $this->hasManyThrough(SalesProduct::class, Batch::class, 'product_id', 'batch_id', 'id', 'id');
@@ -75,7 +70,7 @@ class Product extends Model
     {
         return $this->hasManyThrough(Purchase::class, PurchaseProduct::class, 'product_id', 'purchase_id', 'id', 'id');
     }
-    
+
     public function purchaseReturn()
     {
         return $this->hasManyThrough(PurchaseReturn::class, PurchaseReturnProduct::class, 'product_id', 'purchase_id', 'id', 'id');
@@ -89,5 +84,15 @@ class Product extends Model
     public function imeiNumbers()
     {
         return $this->hasMany(ImeiNumber::class);
+    }
+
+    public function locationBatches()
+    {
+        return $this->hasManyThrough(LocationBatch::class, Batch::class);
+    }
+
+    public function stockHistories()
+    {
+        return $this->hasManyThrough(StockHistory::class, LocationBatch::class);
     }
 }
