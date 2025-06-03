@@ -49,8 +49,8 @@ class AuthenticatedSessionController extends Controller
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name'; // Default to 'username' if not email
 
         // Attempt to authenticate based on either email or username
-        if (Auth::attempt([$field => $login, 'password' => $request->password])) {
-            $request->session()->regenerate(); // Regenerate session on successful login
+        if (Auth::attempt([$field => $login, 'password' => $request->input('password')])) {
+            session()->regenerate(); // Regenerate session on successful login
 
             // Check user's role and handle the selected location
             if (Auth::user()->role_name) {
@@ -66,9 +66,8 @@ class AuthenticatedSessionController extends Controller
 
             // Redirect to the intended page after successful login and show the success message with user name
 
-                return redirect()->intended(RouteServiceProvider::HOME)
-             ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
-
+            return redirect()->intended(RouteServiceProvider::HOME)
+                ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
         }
 
         // If authentication fails, return with an error message
