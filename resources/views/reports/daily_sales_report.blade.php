@@ -316,7 +316,8 @@
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
                     const data = await response.json();
-                    allSales = data.sales || [];
+                    // Only keep sales with status 'final'
+                    allSales = (data.sales || []).filter(sale => sale.status === 'final');
                     allSalesReturns = data.salesReturns || [];
                     allSummaries = data.summaries || {};
 
