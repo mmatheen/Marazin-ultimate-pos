@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\LocationBatch;
 use App\Models\StockHistory;
 use App\Models\User;
+use Carbon\Carbon;
 
 class SaleReturnController extends Controller
 {
@@ -94,7 +95,8 @@ class SaleReturnController extends Controller
                     'sale_id' => $request->sale_id,
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
-                    'return_date' => $request->return_date,
+                    // Set return_date as created_at in Asia/Colombo timezone
+                    'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
                     'return_total' => $request->return_total,
                     'total_paid' => 0, // Ensure total_paid is set to 0
                     'total_due' => $request->return_total, // Ensure total_due is set correctly
