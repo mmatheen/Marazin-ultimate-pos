@@ -169,6 +169,14 @@ class SaleController extends Controller
                 ->whereIn('sale_id', $sales->pluck('id'))
                 ->get();
 
+            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
+                ->whereBetween('return_date', [$startDate, $endDate])
+                ->whereIn('sale_id', $sales->pluck('id'))
+                ->whereHas('sale', function ($query) use ($startDate, $endDate) {
+                    $query->whereBetween('sales_date', [$startDate, $endDate]);
+                })
+                ->get();
+
             // Summaries
             $summaries = [
                 'billTotal' => $sales->sum('final_total'),
