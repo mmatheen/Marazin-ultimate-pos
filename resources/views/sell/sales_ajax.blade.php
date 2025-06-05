@@ -95,7 +95,7 @@
                     if (response.sales && Array.isArray(response.sales)) {
                         var counter = 1;
                         response.sales.forEach(function(item) {
-                            // if (item.sale_type === 'Normal') { // Add this condition
+                            if (item.status === 'final') { // Add this condition
                                 let row = $('<tr>');
                                 row.append('<td>' +
                                     '<div class="btn-group">' +
@@ -126,13 +126,18 @@
                                 row.append('<td>' + item.location.name + '</td>');
                                 let paymentStatusBadge = '';
                                 if (item.payment_status === 'Due') {
-                                    paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-danger">Due</span>';
                                 } else if (item.payment_status === 'Partial') {
-                                    paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-warning">Partial</span>';
                                 } else if (item.payment_status === 'Paid') {
-                                    paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-success">Paid</span>';
                                 } else {
-                                    paymentStatusBadge = '<span class="badge bg-secondary">' + item.payment_status + '</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-secondary">' + item
+                                        .payment_status + '</span>';
                                 }
                                 row.append('<td>' + paymentStatusBadge + '</td>');
                                 row.append('<td>' + (item.payments && item.payments[0] ?
@@ -147,7 +152,7 @@
 
                                 table.row.add(row).draw(false);
                                 counter++;
-                            // }
+                            }
                         });
                     } else {
                         console.error('Sales data is not in the expected format.');
@@ -160,249 +165,272 @@
         }
 
 
-// Show the modal when the button is clicked
-$('#bulkPaymentBtn').click(function() {
-    $('#bulkPaymentModal').modal('show');
-});
+        // Show the modal when the button is clicked
+        $('#bulkPaymentBtn').click(function() {
+            $('#bulkPaymentModal').modal('show');
+        });
 
-// Fetch customers and populate the dropdown
-$.ajax({
-    url: '/customer-get-all',
-    type: 'GET',
-    dataType: 'json',
-    success: function(response) {
-        var customerSelect = $('#customerSelect');
-        customerSelect.empty();
-        customerSelect.append('<option value="" selected disabled>Select Customer</option>');
-        if (response.message && response.message.length > 0) {
-            response.message.forEach(function(customer) {
+        // Fetch customers and populate the dropdown
+        $.ajax({
+            url: '/customer-get-all',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                var customerSelect = $('#customerSelect');
+                customerSelect.empty();
                 customerSelect.append(
-                    '<option value="' + customer.id +
-                    '" data-opening-balance="' + customer.opening_balance + '">' +
-                    customer.first_name + ' ' + customer.last_name + '</option>'
-                );
-            });
-        } else {
-            console.error("No customers found or response.message is undefined.");
-        }
-    },
-    error: function(xhr, status, error) {
-        console.error("AJAX error: ", status, error);
-    }
-});
+                '<option value="" selected disabled>Select Customer</option>');
+                if (response.message && response.message.length > 0) {
+                    response.message.forEach(function(customer) {
+                        customerSelect.append(
+                            '<option value="' + customer.id +
+                            '" data-opening-balance="' + customer.opening_balance +
+                            '">' +
+                            customer.first_name + ' ' + customer.last_name + '</option>'
+                        );
+                    });
+                } else {
+                    console.error("No customers found or response.message is undefined.");
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("AJAX error: ", status, error);
+            }
+        });
 
-let originalOpeningBalance = 0; // Store the actual customer opening balance
-$('#customerSelect').change(function() {
-    var customerId = $(this).val();
-    originalOpeningBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
+        let originalOpeningBalance = 0; // Store the actual customer opening balance
+        $('#customerSelect').change(function() {
+            var customerId = $(this).val();
+            originalOpeningBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
 
-    $('#openingBalance').text(originalOpeningBalance.toFixed(2)); // Display initial balance
+            $('#openingBalance').text(originalOpeningBalance.toFixed(2)); // Display initial balance
 
-    $.ajax({
-        url: '/sales',
-        type: 'GET',
-        dataType: 'json',
-        data: { customer_id: customerId }, // Ensure customer_id is sent
-        success: function(response) {
-            var salesTable = $('#salesList').DataTable();
-            salesTable.clear().draw(); // Clear the table before adding new data
-            var totalSalesAmount = 0, totalPaidAmount = 0, totalDueAmount = 0;
+            $.ajax({
+                url: '/sales',
+                type: 'GET',
+                dataType: 'json',
+                data: {
+                    customer_id: customerId
+                }, // Ensure customer_id is sent
+                success: function(response) {
+                    var salesTable = $('#salesList').DataTable();
+                    salesTable.clear().draw(); // Clear the table before adding new data
+                    var totalSalesAmount = 0,
+                        totalPaidAmount = 0,
+                        totalDueAmount = 0;
 
-            if (response.sales && response.sales.length > 0) {
-                response.sales.forEach(function(sale) {
-                    if (sale.customer_id == customerId) { // Filter by customer ID
-                        var finalTotal = parseFloat(sale.final_total) || 0;
-                        var totalPaid = parseFloat(sale.total_paid) || 0;
-                        var totalDue = parseFloat(sale.total_due) || 0;
+                    if (response.sales && response.sales.length > 0) {
+                        response.sales.forEach(function(sale) {
+                            if (sale.customer_id ==
+                                customerId) { // Filter by customer ID
+                                var finalTotal = parseFloat(sale.final_total) || 0;
+                                var totalPaid = parseFloat(sale.total_paid) || 0;
+                                var totalDue = parseFloat(sale.total_due) || 0;
 
-                        if (totalDue > 0) {
-                            totalSalesAmount += finalTotal;
-                            totalPaidAmount += totalPaid;
-                            totalDueAmount += totalDue;
+                                if (totalDue > 0) {
+                                    totalSalesAmount += finalTotal;
+                                    totalPaidAmount += totalPaid;
+                                    totalDueAmount += totalDue;
 
-                            salesTable.row.add([
-                                sale.id + " (" + sale.invoice_no + ")",
-                                finalTotal.toFixed(2),
-                                totalPaid.toFixed(2),
-                                totalDue.toFixed(2),
-                                '<input type="number" class="form-control reference-amount" data-reference-id="' + sale.id + '">'
-                            ]);
-                        }
+                                    salesTable.row.add([
+                                        sale.id + " (" + sale.invoice_no +
+                                        ")",
+                                        finalTotal.toFixed(2),
+                                        totalPaid.toFixed(2),
+                                        totalDue.toFixed(2),
+                                        '<input type="number" class="form-control reference-amount" data-reference-id="' +
+                                        sale.id + '">'
+                                    ]);
+                                }
+                            }
+                        });
+                        salesTable.draw();
+                    } else {
+                        salesTable.row.add([
+                            '<td class="text-center" colspan="5">No records found</td>'
+                        ]).draw();
                     }
-                });
-                salesTable.draw();
+
+                    $('#totalSalesAmount').text(totalSalesAmount.toFixed(2));
+                    $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
+                    $('#totalDueAmount').text(totalDueAmount.toFixed(2));
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX error: ", status, error);
+                }
+            });
+        });
+
+        $('#globalPaymentAmount').on('input', function() {
+            var globalAmount = parseFloat($(this).val()) || 0;
+            var customerOpeningBalance = originalOpeningBalance; // Always use original balance
+            var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
+            var remainingAmount = globalAmount;
+
+            // Validate global amount
+            if (globalAmount > (customerOpeningBalance + totalDueAmount)) {
+                $(this).addClass('is-invalid').after(
+                    '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
+                    );
+                return;
             } else {
-                salesTable.row.add([
-                    '<td class="text-center" colspan="5">No records found</td>'
-                ]).draw();
+                $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
             }
 
-            $('#totalSalesAmount').text(totalSalesAmount.toFixed(2));
-            $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
-            $('#totalDueAmount').text(totalDueAmount.toFixed(2));
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-        }
-    });
-});
+            // Deduct from opening balance first
+            let newOpeningBalance = customerOpeningBalance;
+            if (newOpeningBalance > 0) {
+                if (remainingAmount <= newOpeningBalance) {
+                    newOpeningBalance -= remainingAmount;
+                    remainingAmount = 0;
+                } else {
+                    remainingAmount -= newOpeningBalance;
+                    newOpeningBalance = 0;
+                }
+            }
+            $('#openingBalance').text(newOpeningBalance.toFixed(2));
 
-$('#globalPaymentAmount').on('input', function() {
-    var globalAmount = parseFloat($(this).val()) || 0;
-    var customerOpeningBalance = originalOpeningBalance; // Always use original balance
-    var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
-    var remainingAmount = globalAmount;
-
-    // Validate global amount
-    if (globalAmount > (customerOpeningBalance + totalDueAmount)) {
-        $(this).addClass('is-invalid').after('<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>');
-        return;
-    } else {
-        $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
-    }
-
-    // Deduct from opening balance first
-    let newOpeningBalance = customerOpeningBalance;
-    if (newOpeningBalance > 0) {
-        if (remainingAmount <= newOpeningBalance) {
-            newOpeningBalance -= remainingAmount;
-            remainingAmount = 0;
-        } else {
-            remainingAmount -= newOpeningBalance;
-            newOpeningBalance = 0;
-        }
-    }
-    $('#openingBalance').text(newOpeningBalance.toFixed(2));
-
-    // Apply the remaining amount to the sales dynamically
-    $('.reference-amount').each(function() {
-        var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-        if (remainingAmount > 0) {
-            var paymentAmount = Math.min(remainingAmount, referenceDue);
-            $(this).val(paymentAmount);
-            remainingAmount -= paymentAmount;
-        } else {
-            $(this).val(0);
-        }
-    });
-});
-
-// Validate individual payment amounts
-$(document).on('input', '.reference-amount', function() {
-    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-    var paymentAmount = parseFloat($(this).val());
-    if (paymentAmount > referenceDue) {
-        $(this).addClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-        $(this).after('<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
-    } else {
-        $(this).removeClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-    }
-});
-
-// Function to update the opening balance
-function updateOpeningBalance() {
-    var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
-    var customerOpeningBalance = parseFloat($('#customerSelect').find(':selected').data('opening-balance')) || 0;
-    var totalPayment = 0;
-
-    // Calculate the total payment from individual amounts
-    $('.reference-amount').each(function() {
-        totalPayment += parseFloat($(this).val()) || 0;
-    });
-
-    var remainingAmount = globalAmount - totalPayment;
-
-    // Adjust the opening balance based on the remaining amount
-    if (remainingAmount >= 0) {
-        $('#openingBalance').text((customerOpeningBalance - remainingAmount).toFixed(2));
-    } else {
-        $('#openingBalance').text("0.00");
-    }
-}
-
-// Handle global payment amount input
-$('#globalPaymentAmount').change(function() {
-    updateOpeningBalance();
-});
-
-// Initialize DataTable
-$(document).ready(function() {
-    $('#salesList').DataTable({
-        columns: [
-            { title: "ID (Invoice)" },
-            { title: "Final Total" },
-            { title: "Total Paid" },
-            { title: "Total Due" },
-            { title: "Payment" }
-        ]
-    });
-
-    // Clear the modal content when the modal is hidden
-    $('#bulkPaymentModal').on('hidden.bs.modal', function () {
-        $('#bulkPaymentForm')[0].reset(); // Reset the form
-        $('#salesList').DataTable().clear().draw(); // Clear the sales list
-        $('#openingBalance').text('0.00'); // Reset the opening balance
-        $('#totalSalesAmount').text('0.00'); // Reset the total sales amount
-        $('#totalPaidAmount').text('0.00'); // Reset the total paid amount
-        $('#totalDueAmount').text('0.00'); // Reset the total due amount
-        $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove(); // Remove validation feedback
-        $('#paymentMethod').val('cash'); // Reset payment method to cash
-        togglePaymentFields('bulkPaymentModal'); // Ensure the correct fields are shown
-    });
-});
-// Handle payment submission
-$('#submitBulkPayment').click(function() {
-    var customerId = $('#customerSelect').val();
-    var paymentMethod = $('#paymentMethod').val();
-    var paymentDate = $('#paidOn').val();
-    var globalPaymentAmount = $('#globalPaymentAmount').val();
-    var salePayments = [];
-
-    // Validate customer selection
-    if (!customerId) {
-        alert('Please select a customer.');
-        return;
-    }
-
-    $('.reference-amount').each(function() {
-        var referenceId = $(this).data('reference-id');
-        var paymentAmount = parseFloat($(this).val());
-        if (paymentAmount > 0) {
-            salePayments.push({
-                reference_id: referenceId,
-                amount: paymentAmount
+            // Apply the remaining amount to the sales dynamically
+            $('.reference-amount').each(function() {
+                var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+                if (remainingAmount > 0) {
+                    var paymentAmount = Math.min(remainingAmount, referenceDue);
+                    $(this).val(paymentAmount);
+                    remainingAmount -= paymentAmount;
+                } else {
+                    $(this).val(0);
+                }
             });
-        }
-    });
+        });
 
-    var paymentData = {
-        entity_type: 'customer',
-        entity_id: customerId,
-        payment_method: paymentMethod,
-        payment_date: paymentDate,
-        global_amount: globalPaymentAmount,
-        payments: salePayments
-    };
+        // Validate individual payment amounts
+        $(document).on('input', '.reference-amount', function() {
+            var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+            var paymentAmount = parseFloat($(this).val());
+            if (paymentAmount > referenceDue) {
+                $(this).addClass('is-invalid');
+                $(this).next('.invalid-feedback').remove();
+                $(this).after(
+                '<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).next('.invalid-feedback').remove();
+            }
+        });
 
-    $.ajax({
-        url: '/api/submit-bulk-payment',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(paymentData),
-        success: function(response) {
-            toastr.success(response.message, 'Payment Submitted');
-            $('#bulkPaymentModal').modal('hide');
-            $('#bulkPaymentForm')[0].reset(); // Reset the form
-            fetchSalesData();
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-            alert('Failed to submit payment.');
+        // Function to update the opening balance
+        function updateOpeningBalance() {
+            var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
+            var customerOpeningBalance = parseFloat($('#customerSelect').find(':selected').data(
+                'opening-balance')) || 0;
+            var totalPayment = 0;
+
+            // Calculate the total payment from individual amounts
+            $('.reference-amount').each(function() {
+                totalPayment += parseFloat($(this).val()) || 0;
+            });
+
+            var remainingAmount = globalAmount - totalPayment;
+
+            // Adjust the opening balance based on the remaining amount
+            if (remainingAmount >= 0) {
+                $('#openingBalance').text((customerOpeningBalance - remainingAmount).toFixed(2));
+            } else {
+                $('#openingBalance').text("0.00");
+            }
         }
-    });
-});
+
+        // Handle global payment amount input
+        $('#globalPaymentAmount').change(function() {
+            updateOpeningBalance();
+        });
+
+        // Initialize DataTable
+        $(document).ready(function() {
+            $('#salesList').DataTable({
+                columns: [{
+                        title: "ID (Invoice)"
+                    },
+                    {
+                        title: "Final Total"
+                    },
+                    {
+                        title: "Total Paid"
+                    },
+                    {
+                        title: "Total Due"
+                    },
+                    {
+                        title: "Payment"
+                    }
+                ]
+            });
+
+            // Clear the modal content when the modal is hidden
+            $('#bulkPaymentModal').on('hidden.bs.modal', function() {
+                $('#bulkPaymentForm')[0].reset(); // Reset the form
+                $('#salesList').DataTable().clear().draw(); // Clear the sales list
+                $('#openingBalance').text('0.00'); // Reset the opening balance
+                $('#totalSalesAmount').text('0.00'); // Reset the total sales amount
+                $('#totalPaidAmount').text('0.00'); // Reset the total paid amount
+                $('#totalDueAmount').text('0.00'); // Reset the total due amount
+                $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback')
+                    .remove(); // Remove validation feedback
+                $('#paymentMethod').val('cash'); // Reset payment method to cash
+                togglePaymentFields('bulkPaymentModal'); // Ensure the correct fields are shown
+            });
+        });
+        // Handle payment submission
+        $('#submitBulkPayment').click(function() {
+            var customerId = $('#customerSelect').val();
+            var paymentMethod = $('#paymentMethod').val();
+            var paymentDate = $('#paidOn').val();
+            var globalPaymentAmount = $('#globalPaymentAmount').val();
+            var salePayments = [];
+
+            // Validate customer selection
+            if (!customerId) {
+                alert('Please select a customer.');
+                return;
+            }
+
+            $('.reference-amount').each(function() {
+                var referenceId = $(this).data('reference-id');
+                var paymentAmount = parseFloat($(this).val());
+                if (paymentAmount > 0) {
+                    salePayments.push({
+                        reference_id: referenceId,
+                        amount: paymentAmount
+                    });
+                }
+            });
+
+            var paymentData = {
+                entity_type: 'customer',
+                entity_id: customerId,
+                payment_method: paymentMethod,
+                payment_date: paymentDate,
+                global_amount: globalPaymentAmount,
+                payments: salePayments
+            };
+
+            $.ajax({
+                url: '/api/submit-bulk-payment',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(paymentData),
+                success: function(response) {
+                    toastr.success(response.message, 'Payment Submitted');
+                    $('#bulkPaymentModal').modal('hide');
+                    $('#bulkPaymentForm')[0].reset(); // Reset the form
+                    fetchSalesData();
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX error: ", status, error);
+                    alert('Failed to submit payment.');
+                }
+            });
+        });
 
 
 
@@ -807,7 +835,7 @@ $('#submitBulkPayment').click(function() {
         }
 
 
-            // Fetch locations using AJAX
+        // Fetch locations using AJAX
         $.ajax({
             url: '/location-get-all',
             method: 'GET',
@@ -820,7 +848,8 @@ $('#submitBulkPayment').click(function() {
                         '<option selected disabled>Please Select Locations</option>');
 
                     data.message.forEach(function(location) {
-                        const option = $('<option></option>').val(location.id).text(location.name);
+                        const option = $('<option></option>').val(location.id).text(location
+                            .name);
                         // Check if the location ID matches the user's location ID and set it as selected
                         if (location.id === data.user_id) {
                             option.attr('selected', 'selected');
@@ -835,211 +864,217 @@ $('#submitBulkPayment').click(function() {
                 console.error('Error fetching location data:', error);
             }
         });
-             // Fetch customers using AJAX
-// Fetch customers using AJAX
-$.ajax({
-    url: '/customer-get-all',
-    method: 'GET',
-    dataType: 'json',
-    success: function(data) {
-        console.log('Customer Data:', data); // Log customer data
-        if (data.status === 200) {
-            const customerSelect = $('#customer-id');
-            customerSelect.html('<option selected disabled>Customer</option>');
+        // Fetch customers using AJAX
+        // Fetch customers using AJAX
+        $.ajax({
+            url: '/customer-get-all',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                console.log('Customer Data:', data); // Log customer data
+                if (data.status === 200) {
+                    const customerSelect = $('#customer-id');
+                    customerSelect.html('<option selected disabled>Customer</option>');
 
-            data.message.forEach(function(customer) {
-                const option = $('<option></option>')
-                    .val(customer.id)
-                    .text(
-                        `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
-                    )
-                    .data('details', customer);
-                // Check if the customer is the "Walking Customer" and set it as selected
-                if (customer.first_name === "Walking" && customer.last_name === "Customer") {
-                    option.attr('selected', 'selected');
-                }
-                customerSelect.append(option);
-            });
+                    data.message.forEach(function(customer) {
+                        const option = $('<option></option>')
+                            .val(customer.id)
+                            .text(
+                                `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
+                            )
+                            .data('details', customer);
+                        // Check if the customer is the "Walking Customer" and set it as selected
+                        if (customer.first_name === "Walking" && customer.last_name ===
+                            "Customer") {
+                            option.attr('selected', 'selected');
+                        }
+                        customerSelect.append(option);
+                    });
 
-            // Trigger change event to display details of the default selected customer (Walking Customer)
-            customerSelect.trigger('change');
-        } else {
-            console.error('Failed to fetch customer data:', data.message);
-        }
-    },
-    error: function(xhr, status, error) {
-        console.error('Error fetching customer data:', error);
-    }
-});
-
-// Handle customer selection
-$('#customer-id').on('change', function() {
-    const selectedOption = $(this).find(':selected');
-    const customerDetails = selectedOption.data('details');
-
-    if (customerDetails) {
-        $('#customer-name').text(`${customerDetails.first_name} ${customerDetails.last_name}`);
-        $('#customer-phone').text(customerDetails.mobile_no);
-    }
-});
-// Global variable to store combined product data
-let allProducts = [];
-
-// Fetch data from the single API and combine it
-fetch('/products/stocks')
-    .then(response => response.json())
-    .then(data => {
-        console.log('Stock Data:', data); // Log stock data
-        if (data.status === 200 && Array.isArray(data.data)) {
-            allProducts = data.data.map(stock => {
-                const product = stock.product;
-                const totalQuantity = stock.total_stock;
-
-                // Ensure product object and necessary properties are defined
-                if (product && typeof product.id !== 'undefined' && typeof product.product_name !== 'undefined') {
-                    return {
-                        id: product.id,
-                        name: product.product_name,
-                        sku: product.sku,
-                        quantity: totalQuantity,
-                        price: product.retail_price,
-                        product_details: product,
-                        batches: stock.batches
-                    };
+                    // Trigger change event to display details of the default selected customer (Walking Customer)
+                    customerSelect.trigger('change');
                 } else {
-                    console.error('Invalid product data:', product);
-                    return null;
+                    console.error('Failed to fetch customer data:', data.message);
                 }
-            }).filter(product => product !== null); // Filter out invalid products
-
-            initAutocomplete();
-        } else {
-            console.error('Unexpected format or status for stocks data:', data);
-        }
-    })
-    .catch(err => console.error('Error fetching product data:', err));
-
-// Function to initialize autocomplete functionality
-function initAutocomplete() {
-    if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
-        console.error('jQuery UI Autocomplete is not loaded.');
-        return;
-    }
-
-    const autocompleteInstance = $("#productSearchInput").autocomplete({
-        minLength: 2, // Trigger autocomplete after at least 2 letters
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
-            const filteredProducts = allProducts.filter(product =>
-                (product.name && product.name.toLowerCase().includes(searchTerm)) ||
-                (product.sku && product.sku.toLowerCase().includes(searchTerm))
-            );
-            response(filteredProducts.map(product => ({
-                label: `${product.name} (${product.sku || 'No SKU'})`,
-                value: product.name,
-                product: product
-            })));
-        },
-        response: function(event, ui) {
-            // If only one result, automatically add the product
-            if (ui.content.length === 1) {
-                const product = ui.content[0].product;
-                $("#productSearchInput").val(ui.content[0].value);
-                product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
-                addProductToTable(product);
-                $(this).autocomplete('close');
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching customer data:', error);
             }
-        },
-        select: function(event, ui) {
-            $("#productSearchInput").val(ui.item.value);
-            ui.item.product.quantity = 1; // Ensure quantity is set to 1 when adding a new product
-            addProductToTable(ui.item.product);
-            $(this).autocomplete('close');
-            return false;
+        });
+
+        // Handle customer selection
+        $('#customer-id').on('change', function() {
+            const selectedOption = $(this).find(':selected');
+            const customerDetails = selectedOption.data('details');
+
+            if (customerDetails) {
+                $('#customer-name').text(`${customerDetails.first_name} ${customerDetails.last_name}`);
+                $('#customer-phone').text(customerDetails.mobile_no);
+            }
+        });
+        // Global variable to store combined product data
+        let allProducts = [];
+
+        // Fetch data from the single API and combine it
+        fetch('/products/stocks')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Stock Data:', data); // Log stock data
+                if (data.status === 200 && Array.isArray(data.data)) {
+                    allProducts = data.data.map(stock => {
+                        const product = stock.product;
+                        const totalQuantity = stock.total_stock;
+
+                        // Ensure product object and necessary properties are defined
+                        if (product && typeof product.id !== 'undefined' && typeof product
+                            .product_name !== 'undefined') {
+                            return {
+                                id: product.id,
+                                name: product.product_name,
+                                sku: product.sku,
+                                quantity: totalQuantity,
+                                price: product.retail_price,
+                                product_details: product,
+                                batches: stock.batches
+                            };
+                        } else {
+                            console.error('Invalid product data:', product);
+                            return null;
+                        }
+                    }).filter(product => product !== null); // Filter out invalid products
+
+                    initAutocomplete();
+                } else {
+                    console.error('Unexpected format or status for stocks data:', data);
+                }
+            })
+            .catch(err => console.error('Error fetching product data:', err));
+
+        // Function to initialize autocomplete functionality
+        function initAutocomplete() {
+            if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
+                console.error('jQuery UI Autocomplete is not loaded.');
+                return;
+            }
+
+            const autocompleteInstance = $("#productSearchInput").autocomplete({
+                minLength: 2, // Trigger autocomplete after at least 2 letters
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = allProducts.filter(product =>
+                        (product.name && product.name.toLowerCase().includes(searchTerm)) ||
+                        (product.sku && product.sku.toLowerCase().includes(searchTerm))
+                    );
+                    response(filteredProducts.map(product => ({
+                        label: `${product.name} (${product.sku || 'No SKU'})`,
+                        value: product.name,
+                        product: product
+                    })));
+                },
+                response: function(event, ui) {
+                    // If only one result, automatically add the product
+                    if (ui.content.length === 1) {
+                        const product = ui.content[0].product;
+                        $("#productSearchInput").val(ui.content[0].value);
+                        product.quantity =
+                        1; // Ensure quantity is set to 1 when adding a new product
+                        addProductToTable(product);
+                        $(this).autocomplete('close');
+                    }
+                },
+                select: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    ui.item.product.quantity =
+                    1; // Ensure quantity is set to 1 when adding a new product
+                    addProductToTable(ui.item.product);
+                    $(this).autocomplete('close');
+                    return false;
+                }
+            }).autocomplete("instance");
+
+            if (autocompleteInstance) {
+                console.log('Autocomplete instance initialized successfully.');
+                autocompleteInstance._renderItem = function(ul, item) {
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
+            } else {
+                console.error('Failed to initialize autocomplete instance.');
+            }
         }
-    }).autocomplete("instance");
 
-    if (autocompleteInstance) {
-        console.log('Autocomplete instance initialized successfully.');
-        autocompleteInstance._renderItem = function(ul, item) {
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    } else {
-        console.error('Failed to initialize autocomplete instance.');
-    }
-}
+        // Function to get batches
+        function getBatches(product, selectedBatchId, isEditing) {
+            if (!Array.isArray(product.batches)) {
+                return [];
+            }
 
-// Function to get batches
-function getBatches(product, selectedBatchId, isEditing) {
-    if (!Array.isArray(product.batches)) {
-        return [];
-    }
+            if (isEditing) {
+                return product.batches.map(batch => ({
+                    batch_id: batch.id,
+                    batch_price: parseFloat(batch.retail_price) || 0,
+                    batch_quantity: batch.qty || 0,
+                    batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product
+                        .quantity : 0) // Adjust batch quantity if editing
+                }));
+            } else {
+                return product.batches.flatMap(batch =>
+                    Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
+                        batch_id: batch.id,
+                        batch_price: parseFloat(batch.retail_price) || 0,
+                        batch_quantity: locationBatch.quantity || 0
+                    })) : []
+                );
+            }
+        }
 
-    if (isEditing) {
-        return product.batches.map(batch => ({
-            batch_id: batch.id,
-            batch_price: parseFloat(batch.retail_price) || 0,
-            batch_quantity: batch.qty || 0,
-            batch_quantity_plus_sold: batch.qty + (batch.id === selectedBatchId ? product.quantity : 0) // Adjust batch quantity if editing
-        }));
-    } else {
-        return product.batches.flatMap(batch =>
-            Array.isArray(batch.location_batches) ? batch.location_batches.map(locationBatch => ({
-                batch_id: batch.id,
-                batch_price: parseFloat(batch.retail_price) || 0,
-                batch_quantity: locationBatch.quantity || 0
-            })) : []
-        );
-    }
-}
+        // Function to add product to table
+        function addProductToTable(product, selectedBatchId = null, isEditing = false) {
+            // Check if product already added
+            const existingRow = $(`#addSaleProduct tbody tr[data-id="${product.id}"]`);
+            if (existingRow.length > 0) {
+                // Update quantity if product already added
+                const quantityInput = existingRow.find('.quantity-input');
+                quantityInput.val(parseInt(quantityInput.val(), 10) + 1);
+                updateRow(existingRow);
+                updateTotals();
+                return;
+            }
 
-// Function to add product to table
-function addProductToTable(product, selectedBatchId = null, isEditing = false) {
-    // Check if product already added
-    const existingRow = $(`#addSaleProduct tbody tr[data-id="${product.id}"]`);
-    if (existingRow.length > 0) {
-        // Update quantity if product already added
-        const quantityInput = existingRow.find('.quantity-input');
-        quantityInput.val(parseInt(quantityInput.val(), 10) + 1);
-        updateRow(existingRow);
-        updateTotals();
-        return;
-    }
+            // Validate product data
+            if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
+                console.error("Invalid product data:", product);
+                return;
+            }
 
-    // Validate product data
-    if (!product || typeof product.id === 'undefined' || typeof product.name === 'undefined') {
-        console.error("Invalid product data:", product);
-        return;
-    }
+            // Set default quantity if it's not provided
+            if (typeof product.quantity === 'undefined') {
+                product.quantity = 1;
+            }
 
-    // Set default quantity if it's not provided
-    if (typeof product.quantity === 'undefined') {
-        product.quantity = 1;
-    }
+            const batches = getBatches(product, selectedBatchId, isEditing);
 
-    const batches = getBatches(product, selectedBatchId, isEditing);
+            const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch
+                .batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
+            const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
 
-    const totalQuantity = batches.reduce((total, batch) => total + (isEditing ? batch.batch_quantity_plus_sold : batch.batch_quantity), 0); // Calculate total quantity correctly
-    const finalPrice = typeof product.price !== 'undefined' ? parseFloat(product.price) : 0;
+            // Calculate discount and net price
+            const discountPercent = product.discount || 0;
+            const discountType = product.discount_type || 'fixed';
+            let discountAmount = 0;
 
-    // Calculate discount and net price
-    const discountPercent = product.discount || 0;
-    const discountType = product.discount_type || 'fixed';
-    let discountAmount = 0;
+            if (discountType === 'fixed') {
+                discountAmount = discountPercent;
+            } else if (discountType === 'percentage') {
+                discountAmount = finalPrice * (discountPercent / 100);
+            }
 
-    if (discountType === 'fixed') {
-        discountAmount = discountPercent;
-    } else if (discountType === 'percentage') {
-        discountAmount = finalPrice * (discountPercent / 100);
-    }
+            const netPrice = finalPrice - discountAmount;
+            const subtotal = netPrice * product.quantity;
 
-    const netPrice = finalPrice - discountAmount;
-    const subtotal = netPrice * product.quantity;
-
-    // Generate batch options
-    const batchOptions = batches.map(batch => `
+            // Generate batch options
+            const batchOptions = batches.map(batch => `
         <option value="${batch.batch_id}"
                 data-price="${batch.batch_price}"
                 data-quantity="${batch.batch_quantity}"
@@ -1049,7 +1084,7 @@ function addProductToTable(product, selectedBatchId = null, isEditing = false) {
         </option>
     `).join('');
 
-    const newRow = `
+            const newRow = `
         <tr data-id="${product.id}">
             <td>${product.name || '-'} <br><span style="font-size:12px;">Current stock: ${totalQuantity}</span>
                 <select class="form-select batch-dropdown" aria-label="Select Batch">
@@ -1083,285 +1118,285 @@ function addProductToTable(product, selectedBatchId = null, isEditing = false) {
     `;
 
 
-    const $newRow = $(newRow);
-    $('#addSaleProduct').DataTable().row.add($newRow).draw();
-    allProducts = allProducts.filter(p => p.id !== product.id);
+            const $newRow = $(newRow);
+            $('#addSaleProduct').DataTable().row.add($newRow).draw();
+            allProducts = allProducts.filter(p => p.id !== product.id);
 
-    // Update footer and set up event listeners
-    updateFooter();
-    toastr.success('Product added to the table!', 'Success');
+            // Update footer and set up event listeners
+            updateFooter();
+            toastr.success('Product added to the table!', 'Success');
 
-    // Event listeners for row updates
-    const quantityInput = $newRow.find('.quantity-input');
-    const priceInput = $newRow.find('.price-input');
-    const discountTypeSelect = $newRow.find('.discount-type');
-    const batchDropdown = $newRow.find('.batch-dropdown');
+            // Event listeners for row updates
+            const quantityInput = $newRow.find('.quantity-input');
+            const priceInput = $newRow.find('.price-input');
+            const discountTypeSelect = $newRow.find('.discount-type');
+            const batchDropdown = $newRow.find('.batch-dropdown');
 
-    $newRow.find('.remove-btn').on('click', function(event) {
-        event.preventDefault(); // Prevent form submission
-        var row = $(this).closest('tr');
-        $('#confirmRemoveModal').data('row', row).modal('show');
-    });
+            $newRow.find('.remove-btn').on('click', function(event) {
+                event.preventDefault(); // Prevent form submission
+                var row = $(this).closest('tr');
+                $('#confirmRemoveModal').data('row', row).modal('show');
+            });
 
-    $newRow.find('.quantity-minus').on('click', () => {
-        if (quantityInput.val() > 1) {
-            quantityInput.val(quantityInput.val() - 1);
-            updateTotals();
-        }
-    });
+            $newRow.find('.quantity-minus').on('click', () => {
+                if (quantityInput.val() > 1) {
+                    quantityInput.val(quantityInput.val() - 1);
+                    updateTotals();
+                }
+            });
 
-    $newRow.find('.quantity-plus').on('click', () => {
-        let newQuantity = parseInt(quantityInput.val(), 10) + 1;
-        const selectedOption = batchDropdown.find(':selected');
-        const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-            selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-        );
+            $newRow.find('.quantity-plus').on('click', () => {
+                let newQuantity = parseInt(quantityInput.val(), 10) + 1;
+                const selectedOption = batchDropdown.find(':selected');
+                const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+                );
 
-        if (newQuantity > maxQuantity) {
-            document.getElementsByClassName('errorSound')[0].play();
-            toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
-                'Error');
-        } else {
-            quantityInput.val(newQuantity);
-            updateTotals();
-        }
-    });
+                if (newQuantity > maxQuantity) {
+                    document.getElementsByClassName('errorSound')[0].play();
+                    toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+                        'Error');
+                } else {
+                    quantityInput.val(newQuantity);
+                    updateTotals();
+                }
+            });
 
-    // quantityInput.on('input', () => {
-    //     const quantityValue = parseInt(quantityInput.val(), 10);
-    //     const selectedOption = batchDropdown.find(':selected');
-    //     const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-    //         selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-    //     );
+            // quantityInput.on('input', () => {
+            //     const quantityValue = parseInt(quantityInput.val(), 10);
+            //     const selectedOption = batchDropdown.find(':selected');
+            //     const maxQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+            //         selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+            //     );
 
-    //     if (quantityValue > maxQuantity) {
-    //         quantityInput.val(maxQuantity);
-    //         document.getElementsByClassName('errorSound')[0].play();
-    //         toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
-    //             'Error');
-    //     }
-    //     updateTotals();
-    // });
+            //     if (quantityValue > maxQuantity) {
+            //         quantityInput.val(maxQuantity);
+            //         document.getElementsByClassName('errorSound')[0].play();
+            //         toastr.error(`You cannot add more than ${maxQuantity} units of this product.`,
+            //             'Error');
+            //     }
+            //     updateTotals();
+            // });
 
-    quantityInput.on('input', () => {
-        // Update row and totals when quantity is changed
-        updateRow($newRow);
-        updateTotals();
-    });
+            quantityInput.on('input', () => {
+                // Update row and totals when quantity is changed
+                updateRow($newRow);
+                updateTotals();
+            });
 
-    priceInput.on('input', () => {
-        // Update row and totals when price is changed
-        updateRow($newRow);
-        updateTotals();
-    });
+            priceInput.on('input', () => {
+                // Update row and totals when price is changed
+                updateRow($newRow);
+                updateTotals();
+            });
 
-    discountTypeSelect.on('change', () => {
-        // Update row and totals when discount type is changed
-        updateRow($newRow);
-        updateTotals();
-    });
+            discountTypeSelect.on('change', () => {
+                // Update row and totals when discount type is changed
+                updateRow($newRow);
+                updateTotals();
+            });
 
-    batchDropdown.on('change', () => {
-        const selectedOption = batchDropdown.find(':selected');
-        const batchPrice = parseFloat(selectedOption.data('price')) || 0;
-        const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
-            selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
-        );
+            batchDropdown.on('change', () => {
+                const selectedOption = batchDropdown.find(':selected');
+                const batchPrice = parseFloat(selectedOption.data('price')) || 0;
+                const batchQuantity = selectedOption.val() === 'all' ? totalQuantity : parseInt(
+                    selectedOption.data('quantity-plus-sold') || selectedOption.data('quantity'), 10
+                );
 
-        if (quantityInput.val() > batchQuantity) {
-            quantityInput.val(batchQuantity);
-            toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
-                'Error');
-        }
-        priceInput.val(batchPrice.toFixed(2));
-        updateRow($newRow); // Update row when batch is changed
-        updateTotals();
-    });
-}
-
-function updateRow($row) {
-    const batchElement = $row.find('.batch-dropdown option:selected');
-    const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
-    const price = parseFloat($row.find('.price-input').val()) || 0;
-    const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
-    const discountType = $row.find('.discount-type').val();
-    const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
-
-    if (quantity > batchQuantity) {
-        alert('Requested quantity exceeds available batch quantity.');
-        $row.find('.quantity-input').val(batchQuantity);
-        quantity = batchQuantity;
-    }
-
-    const subTotal = quantity * price;
-    let discountAmount = 0;
-
-    if (discountType === 'fixed') {
-        discountAmount = discountPercent;
-    } else if (discountType === 'percentage') {
-        discountAmount = subTotal * (discountPercent / 100);
-    }
-
-    const netCost = subTotal - discountAmount;
-    const lineTotal = netCost;
-
-    $row.find('.subtotal').text(subTotal.toFixed(2));
-    $row.find('.net-cost').text(netCost.toFixed(2));
-    $row.find('.line-total').text(lineTotal.toFixed(2));
-    $row.find('.retail-price').text(price.toFixed(2));
-
-    // Update batch quantity if the quantity is updated
-    batchElement.data('quantity', batchQuantity - quantity);
-}
-
-function updateTotals() {
-    let totalItems = 0;
-    let netTotalAmount = 0;
-
-    $('#addSaleProduct tbody tr').each(function() {
-        totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
-        netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
-    });
-
-    $('#total-items').text(totalItems.toFixed(2));
-    $('#net-total-amount').text(netTotalAmount.toFixed(2));
-
-    const discountType = $('#discount_type').val();
-    const discountAmount = parseFloat($('#discount_amount').val()) || 0;
-    let discountNetTotalAmount = netTotalAmount;
-
-    if (discountType === 'percentage') {
-        discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
-    } else if (discountType === 'fixed') {
-        discountNetTotalAmount -= discountAmount;
-    }
-
-    $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
-
-    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-    const paymentDue = discountNetTotalAmount - paidAmount;
-    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-}
-
-// Function to update calculations
-function updateCalculations() {
-    let totalItems = 0;
-    let netTotalAmount = 0;
-
-    $('#addSaleProduct tbody tr').each(function() {
-        // Get the quantity, price, and discount details
-        const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
-        const price = parseFloat($(this).find('.price-input').val()) || 0;
-        const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
-        const discountType = $(this).find('.discount-type').val();
-
-        // Calculate the subtotal before discount
-        const subTotal = quantity * price;
-        let discountAmount = 0;
-
-        // Calculate the discount amount based on the discount type
-        if (discountType === 'fixed') {
-            discountAmount = discountPercent;
-        } else if (discountType === 'percentage') {
-            discountAmount = subTotal * (discountPercent / 100);
+                if (quantityInput.val() > batchQuantity) {
+                    quantityInput.val(batchQuantity);
+                    toastr.error(`You cannot add more than ${batchQuantity} units from this batch.`,
+                        'Error');
+                }
+                priceInput.val(batchPrice.toFixed(2));
+                updateRow($newRow); // Update row when batch is changed
+                updateTotals();
+            });
         }
 
-        // Calculate the net cost after discount
-        const netCost = subTotal - discountAmount;
+        function updateRow($row) {
+            const batchElement = $row.find('.batch-dropdown option:selected');
+            const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+            const price = parseFloat($row.find('.price-input').val()) || 0;
+            const discountPercent = parseFloat($row.find('.discount-percent').val()) || 0;
+            const discountType = $row.find('.discount-type').val();
+            const batchQuantity = parseFloat(batchElement.data('quantity')) || 0;
 
-        // Update the subtotal and net cost in the respective columns
-        $(this).find('.subtotal').text(subTotal.toFixed(2));
-        $(this).find('.net-cost').text(netCost.toFixed(2));
+            if (quantity > batchQuantity) {
+                alert('Requested quantity exceeds available batch quantity.');
+                $row.find('.quantity-input').val(batchQuantity);
+                quantity = batchQuantity;
+            }
 
-        // Add the quantity and net cost to the total items and net total amount
-        totalItems += quantity;
-        netTotalAmount += netCost;
-    });
+            const subTotal = quantity * price;
+            let discountAmount = 0;
 
-    const discountTypeOverall = $('#discount-type').val();
-    const discountInput = parseFloat($('#discount-amount').val()) || 0;
-    let discountAmountOverall = 0;
+            if (discountType === 'fixed') {
+                discountAmount = discountPercent;
+            } else if (discountType === 'percentage') {
+                discountAmount = subTotal * (discountPercent / 100);
+            }
 
-    if (discountTypeOverall === 'fixed') {
-        discountAmountOverall = discountInput;
-    } else if (discountTypeOverall === 'percentage') {
-        discountAmountOverall = (netTotalAmount * discountInput) / 100;
-    }
+            const netCost = subTotal - discountAmount;
+            const lineTotal = netCost;
 
-    const taxType = $('#tax-type').val();
-    let taxAmount = 0;
+            $row.find('.subtotal').text(subTotal.toFixed(2));
+            $row.find('.net-cost').text(netCost.toFixed(2));
+            $row.find('.line-total').text(lineTotal.toFixed(2));
+            $row.find('.retail-price').text(price.toFixed(2));
 
-    if (taxType === 'vat10' || taxType === 'cgst10') {
-        taxAmount = (netTotalAmount - discountAmountOverall) * 0.10;
-    }
+            // Update batch quantity if the quantity is updated
+            batchElement.data('quantity', batchQuantity - quantity);
+        }
 
-    const finalTotal = netTotalAmount - discountAmountOverall + taxAmount;
+        function updateTotals() {
+            let totalItems = 0;
+            let netTotalAmount = 0;
 
-    $('#total-items').text(totalItems.toFixed(2));
-    $('#net-total-amount').text(netTotalAmount.toFixed(2));
-    $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
-    $('#discount-display').text(`(-) Rs. ${discountAmountOverall.toFixed(2)}`);
-    $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
-    updatePaymentDue(finalTotal, discountAmountOverall);
-}
+            $('#addSaleProduct tbody tr').each(function() {
+                totalItems += parseFloat($(this).find('.quantity-input').val()) || 0;
+                netTotalAmount += parseFloat($(this).find('.subtotal').text()) || 0;
+            });
 
-// Function to update payment due amount
-function updatePaymentDue(finalTotal, discountAmount) {
-    const paidAmount = parseFloat($('#paid-amount').val()) || 0;
-    const discountNetTotalAmount = finalTotal - discountAmount;
-    const paymentDue = discountNetTotalAmount - paidAmount;
-    $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
-}
+            $('#total-items').text(totalItems.toFixed(2));
+            $('#net-total-amount').text(netTotalAmount.toFixed(2));
 
-// Function to update footer
-function updateFooter() {
-    // Example footer update logic
-    const totalItems = parseFloat($('#total-items').text());
-    const netTotalAmount = parseFloat($('#net-total-amount').text());
-    // Update footer elements with these values
-    $('#footer-total-items').text(totalItems);
-    $('#footer-net-total-amount').text(`Rs. ${netTotalAmount.toFixed(2)}`);
-}
+            const discountType = $('#discount_type').val();
+            const discountAmount = parseFloat($('#discount_amount').val()) || 0;
+            let discountNetTotalAmount = netTotalAmount;
 
-// Event listener for remove button click
-$(document).on('click', '.remove-btn', function(event) {
-    event.preventDefault(); // Prevent form submission
-    var row = $(this).closest('tr');
-    $('#confirmRemoveModal').data('row', row).modal('show');
-});
+            if (discountType === 'percentage') {
+                discountNetTotalAmount -= (netTotalAmount * (discountAmount / 100));
+            } else if (discountType === 'fixed') {
+                discountNetTotalAmount -= discountAmount;
+            }
 
-// Event listener for confirmation modal
-$('#confirmRemoveButton').on('click', function() {
-    var row = $('#confirmRemoveModal').data('row');
-    removeProduct(row);
-    $('#confirmRemoveModal').modal('hide');
-});
+            $('#discount-net-total-amount').text(discountNetTotalAmount.toFixed(2));
 
-// Function to handle the removal of the product from the DataTable
-function removeProduct(row) {
-    var table = $('#addSaleProduct').DataTable();
-    var productId = row.data('id');
-    var product = allProducts.find(p => p.id === productId);
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const paymentDue = discountNetTotalAmount - paidAmount;
+            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+        }
 
-    // Re-add the removed product back to the allProducts array
-    if (product) {
-        allProducts.push(product);
-    }
+        // Function to update calculations
+        function updateCalculations() {
+            let totalItems = 0;
+            let netTotalAmount = 0;
 
-    table.row(row).remove().draw();
+            $('#addSaleProduct tbody tr').each(function() {
+                // Get the quantity, price, and discount details
+                const quantity = parseFloat($(this).find('.quantity-input').val()) || 0;
+                const price = parseFloat($(this).find('.price-input').val()) || 0;
+                const discountPercent = parseFloat($(this).find('.discount-percent').val()) || 0;
+                const discountType = $(this).find('.discount-type').val();
 
-    toastr.success('Product removed successfully!', 'Success');
-    updateCalculations();
-    updateFooter();
-    initAutocomplete(); // Re-initialize autocomplete to include the removed product
-}
+                // Calculate the subtotal before discount
+                const subTotal = quantity * price;
+                let discountAmount = 0;
 
-// Trigger calculations on events
-$(document).on('change keyup',
-    '.quantity-input, .discount-percent, .price-input, .discount-type, #discount-amount, #discount-type, #tax-type',
-    function() {
-        updateCalculations();
-    });
+                // Calculate the discount amount based on the discount type
+                if (discountType === 'fixed') {
+                    discountAmount = discountPercent;
+                } else if (discountType === 'percentage') {
+                    discountAmount = subTotal * (discountPercent / 100);
+                }
+
+                // Calculate the net cost after discount
+                const netCost = subTotal - discountAmount;
+
+                // Update the subtotal and net cost in the respective columns
+                $(this).find('.subtotal').text(subTotal.toFixed(2));
+                $(this).find('.net-cost').text(netCost.toFixed(2));
+
+                // Add the quantity and net cost to the total items and net total amount
+                totalItems += quantity;
+                netTotalAmount += netCost;
+            });
+
+            const discountTypeOverall = $('#discount-type').val();
+            const discountInput = parseFloat($('#discount-amount').val()) || 0;
+            let discountAmountOverall = 0;
+
+            if (discountTypeOverall === 'fixed') {
+                discountAmountOverall = discountInput;
+            } else if (discountTypeOverall === 'percentage') {
+                discountAmountOverall = (netTotalAmount * discountInput) / 100;
+            }
+
+            const taxType = $('#tax-type').val();
+            let taxAmount = 0;
+
+            if (taxType === 'vat10' || taxType === 'cgst10') {
+                taxAmount = (netTotalAmount - discountAmountOverall) * 0.10;
+            }
+
+            const finalTotal = netTotalAmount - discountAmountOverall + taxAmount;
+
+            $('#total-items').text(totalItems.toFixed(2));
+            $('#net-total-amount').text(netTotalAmount.toFixed(2));
+            $('#purchase-total').text(`Purchase Total: Rs. ${finalTotal.toFixed(2)}`);
+            $('#discount-display').text(`(-) Rs. ${discountAmountOverall.toFixed(2)}`);
+            $('#tax-display').text(`(+) Rs. ${taxAmount.toFixed(2)}`);
+            updatePaymentDue(finalTotal, discountAmountOverall);
+        }
+
+        // Function to update payment due amount
+        function updatePaymentDue(finalTotal, discountAmount) {
+            const paidAmount = parseFloat($('#paid-amount').val()) || 0;
+            const discountNetTotalAmount = finalTotal - discountAmount;
+            const paymentDue = discountNetTotalAmount - paidAmount;
+            $('.payment-due').text(`Rs. ${paymentDue.toFixed(2)}`);
+        }
+
+        // Function to update footer
+        function updateFooter() {
+            // Example footer update logic
+            const totalItems = parseFloat($('#total-items').text());
+            const netTotalAmount = parseFloat($('#net-total-amount').text());
+            // Update footer elements with these values
+            $('#footer-total-items').text(totalItems);
+            $('#footer-net-total-amount').text(`Rs. ${netTotalAmount.toFixed(2)}`);
+        }
+
+        // Event listener for remove button click
+        $(document).on('click', '.remove-btn', function(event) {
+            event.preventDefault(); // Prevent form submission
+            var row = $(this).closest('tr');
+            $('#confirmRemoveModal').data('row', row).modal('show');
+        });
+
+        // Event listener for confirmation modal
+        $('#confirmRemoveButton').on('click', function() {
+            var row = $('#confirmRemoveModal').data('row');
+            removeProduct(row);
+            $('#confirmRemoveModal').modal('hide');
+        });
+
+        // Function to handle the removal of the product from the DataTable
+        function removeProduct(row) {
+            var table = $('#addSaleProduct').DataTable();
+            var productId = row.data('id');
+            var product = allProducts.find(p => p.id === productId);
+
+            // Re-add the removed product back to the allProducts array
+            if (product) {
+                allProducts.push(product);
+            }
+
+            table.row(row).remove().draw();
+
+            toastr.success('Product removed successfully!', 'Success');
+            updateCalculations();
+            updateFooter();
+            initAutocomplete(); // Re-initialize autocomplete to include the removed product
+        }
+
+        // Trigger calculations on events
+        $(document).on('change keyup',
+            '.quantity-input, .discount-percent, .price-input, .discount-type, #discount-amount, #discount-type, #tax-type',
+            function() {
+                updateCalculations();
+            });
 
 
         // Function to reset form and validation messages
@@ -1376,49 +1411,54 @@ $(document).on('change keyup',
         // // Use event delegation for the action buttons and stop event propagation
         $(document).on('click', '.delete_btn', function(event) {
             var id = $(this).val();
-            
+
             swal({
-        title: "Are you sure?",
-        text: "Do you really want to delete this sale? This action cannot be undone.",
-        type: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#3085d6",
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "Cancel",
-        closeOnConfirm: false
-    },
-    function(isConfirm) {
-        if (isConfirm) {
-            $.ajax({
-                url: `sales/delete/${id}`,
-                method: 'DELETE', 
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    title: "Are you sure?",
+                    text: "Do you really want to delete this sale? This action cannot be undone.",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Yes, delete it!",
+                    cancelButtonText: "Cancel",
+                    closeOnConfirm: false
                 },
-                success: function(response) {
-                    if (response.status === 200) {
-                        toastr.success(response.message || "Sale deleted successfully!");
-                        const successSound = document.querySelector('.successSound');
-                        fetchSalesData();
-                        swal.close();
-                        successSound.play();
-                    
-                    } else {
-                        swal("Error!", response.message || "An error occurred while deleting the sale.", "error");
+                function(isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: `sales/delete/${id}`,
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function(response) {
+                                if (response.status === 200) {
+                                    toastr.success(response.message ||
+                                        "Sale deleted successfully!");
+                                    const successSound = document.querySelector(
+                                        '.successSound');
+                                    fetchSalesData();
+                                    swal.close();
+                                    successSound.play();
+
+                                } else {
+                                    swal("Error!", response.message ||
+                                        "An error occurred while deleting the sale.",
+                                        "error");
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                let errorMessage =
+                                    "Unable to delete the sale. Please try again later.";
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    errorMessage = xhr.responseJSON.message;
+                                }
+                                swal("Error!", errorMessage, "error");
+                                console.error('Delete error:', error);
+                            }
+                        });
                     }
-                },
-                error: function(xhr, status, error) {
-                    let errorMessage = "Unable to delete the sale. Please try again later.";
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    swal("Error!", errorMessage, "error");
-                    console.error('Delete error:', error);
-                }
-            });
-        }
-    });
+                });
         });
 
         // // Use event delegation for the action buttons and stop event propagation

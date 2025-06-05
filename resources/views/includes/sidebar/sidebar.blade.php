@@ -142,6 +142,17 @@
                     <li><a href="{{ route('sale-return/list') }}" class="{{ set_active(['sale-return/list']) }}">List Sale Return</a></li>
                     @endcan
 
+                    {{-- Quotation , Draft list --}}
+
+                    {{-- @can('view quotation') --}}
+                    <li><a href={{ route('quotation-list') }} class="{{ set_active(['quotation-list'])}}">Quotation List</a></li>   
+                    {{-- @endcan --}}
+                    {{-- @can('view draft') --}}
+                    <li><a href={{ route('draft-list') }} class="{{ set_active(['draft-list'])}}">Draft List</a></li>
+                    {{-- @endcan --}}
+
+        
+
                     @can('add return-sale')
                     <li><a href="{{ route('sale-return/add') }}" class="{{ set_active(['sale-return/add']) }}">Add Sale Return</a></li>
                     @endcan

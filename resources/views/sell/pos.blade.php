@@ -596,8 +596,7 @@
                                 </div>
                                 <div class="col-md-6 d-flex align-items-center">
                                     <button class="btn btn-primary text-white border-1 px-2 py-1"
-                                        style="width: auto; height: 30px;" id="currentTimeButton"
-                                        enabled>
+                                        style="width: auto; height: 30px;" id="currentTimeButton" enabled>
                                         {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') }}
                                     </button>
                                     <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
@@ -1007,30 +1006,43 @@
                         Cancel</button>
                 </div>
 
-
                 <!-- Left Side: Actions (Aligned to Right) -->
                 <div class="col-md-7 text-end">
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
-                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#suspendModal">
+                        <!-- Quotation Button -->
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
+                            <i class="fas fa-file-alt"></i> Quotation
+                        </button>
+
+                        <!-- Draft Button -->
+                        <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
+                            <i class="fas fa-edit"></i> Draft
+                        </button>
+
+                        <!-- Existing Buttons -->
+                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#suspendModal">
                             <i class="fas fa-pause"></i> Suspend
                         </button>
-                        <button class="btn btn-outline-success" id="creditSaleButton">
+                        <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
                             <i class="fas fa-check"></i> Credit Sale
                         </button>
-                        <button class="btn btn-outline-primary" id="cardButton">
+                        <button class="btn btn-outline-primary btn-sm" id="cardButton">
                             <i class="fas fa-credit-card"></i> Card
                         </button>
-                        <button class="btn btn-outline-warning" id="chequeButton">
+                        <button class="btn btn-outline-warning btn-sm" id="chequeButton">
                             <i class="fas fa-money-check"></i> Cheque
                         </button>
-                        <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#paymentModal">
+                        <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#paymentModal">
                             <i class="fas fa-list"></i> Multiple Pay
                         </button>
-                        <button class="btn btn-outline-success" id="cashButton">
-                            <i class="fas fa-money-bill-wave"></i> Cash
+                        <button class="btn btn-outline-secondary btn-sm" id="cashButton">
+                            <i class="fas fa-cash-register"></i> Cash
                         </button>
                     </div>
                 </div>
+
 
             </div>
         </div>
@@ -1462,7 +1474,7 @@
             </div>
         </div>
     </div>
-    <script>
+    {{-- <script>
         // Function to format amounts with separators for display
         function formatAmountWithSeparators(amount) {
             return new Intl.NumberFormat().format(amount);
@@ -1723,6 +1735,216 @@
             totalAmount = fetchTotalAmount();
             updatePaymentSummary();
             initializeDateTimePickers();
+        });
+    </script> --}}
+
+    <script>
+        // Format amounts with commas
+        function formatAmountWithSeparators(amount) {
+            return new Intl.NumberFormat().format(amount);
+        }
+
+        // Parse formatted numbers back to float
+        function parseFormattedAmount(formattedAmount) {
+            return parseFloat(formattedAmount.replace(/,/g, ''));
+        }
+
+        let totalPayable = 0;
+
+        document.getElementById('addPaymentRow').addEventListener('click', function() {
+            const paymentRows = document.getElementById('paymentRows');
+            const usedMethods = Array.from(document.querySelectorAll('.payment-method')).map(el => el.value);
+
+            const newPaymentRow = document.createElement('div');
+            newPaymentRow.className = 'card mb-3 payment-row position-relative';
+            newPaymentRow.innerHTML = `
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-select payment-method" name="payment_method" onchange="togglePaymentFields(this)">
+                            <option value="cash" ${!usedMethods.includes('cash') ? '' : 'disabled'}>Cash</option>
+                            <option value="card" ${!usedMethods.includes('card') ? '' : 'disabled'}>Credit Card</option>
+                            <option value="cheque" ${!usedMethods.includes('cheque') ? '' : 'disabled'}>Cheque</option>
+                            <option value="bank_transfer" ${!usedMethods.includes('bank_transfer') ? '' : 'disabled'}>Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="paidOn" class="form-label">Paid On</label>
+                        <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
+                               placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="payAmount" class="form-label">Amount</label>
+                        <input type="text" class="form-control payment-amount" name="amount" oninput="validateAmount()">
+                        <div class="text-danger amount-error" style="display:none;">Enter valid amount</div>
+                    </div>
+                </div>
+                <div class="conditional-fields row mt-3"></div>
+            </div>
+            <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
+        `;
+
+            paymentRows.appendChild(newPaymentRow);
+
+            // Initialize date pickers
+            initializeDateTimePickers();
+
+            // Remove button handler
+            newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
+                this.closest('.payment-row').remove();
+                updatePaymentSummary();
+            });
+
+            togglePaymentFields(newPaymentRow.querySelector('.payment-method'));
+            updatePaymentSummary();
+        });
+
+        function togglePaymentFields(selectElement) {
+            const paymentMethod = selectElement.value;
+            const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
+            conditionalFields.innerHTML = '';
+
+            if (paymentMethod === 'card') {
+                conditionalFields.innerHTML =
+                    `
+                <div class="col-md-6"><label class="form-label">Card Number</label><input class="form-control" name="card_number" required></div>
+                <div class="col-md-6"><label class="form-label">Card Holder Name</label><input class="form-control" name="card_holder_name"></div>
+                <div class="col-md-6"><label class="form-label">Card Type</label><select class="form-select" name="card_type">
+                    <option value="visa">Visa</option><option value="mastercard">MasterCard</option><option value="amex">American Express</option>
+                </select></div>
+                <div class="col-md-6"><label class="form-label">Expiry Month</label><input class="form-control" name="card_expiry_month"></div>
+                <div class="col-md-6"><label class="form-label">Expiry Year</label><input class="form-control" name="card_expiry_year"></div>
+                <div class="col-md-6"><label class="form-label">Security Code</label><input class="form-control" name="card_security_code"></div>`;
+            } else if (paymentMethod === 'cheque') {
+                conditionalFields.innerHTML =
+                    `
+                <div class="col-md-6"><label class="form-label">Cheque Number</label><input class="form-control" name="cheque_number" required></div>
+                <div class="col-md-6"><label class="form-label">Bank Branch</label><input class="form-control" name="cheque_bank_branch"></div>
+                <div class="col-md-6"><label class="form-label">Received Date</label><input class="form-control datetimepicker cheque-received-date" name="cheque_received_date"></div>
+                <div class="col-md-6"><label class="form-label">Valid Date</label><input class="form-control datetimepicker cheque-valid-date" name="cheque_valid_date"></div>
+                <div class="col-md-6"><label class="form-label">Given By</label><input class="form-control" name="cheque_given_by"></div>`;
+                initializeDateTimePickers();
+            } else if (paymentMethod === 'bank_transfer') {
+                conditionalFields.innerHTML =
+                    `
+                <div class="col-md-12"><label class="form-label">Bank Account Number</label><input class="form-control" name="bank_account_number"></div>`;
+            }
+        }
+
+        function validateAmount() {
+            const amountInputs = document.querySelectorAll('.payment-amount');
+            amountInputs.forEach(input => {
+                const amountError = input.nextElementSibling;
+                const val = parseFloat(input.value);
+                if (isNaN(val) || val <= 0) {
+                    amountError.style.display = 'block';
+                } else {
+                    amountError.style.display = 'none';
+                }
+            });
+            updatePaymentSummary();
+        }
+
+        function updatePaymentSummary() {
+            const totalItems = fetchTotalItems();
+            const totalAmount = fetchTotalAmount();
+
+            // Apply discount if any
+            const discount = parseFloat(document.getElementById('discount')?.value || 0);
+            const discountType = document.getElementById('discount-type')?.value || 'fixed';
+            totalPayable = discountType === 'percentage' ?
+                totalAmount - (totalAmount * discount / 100) :
+                totalAmount - discount;
+
+            let totalPaying = 0;
+            document.querySelectorAll('.payment-amount').forEach(input => {
+                totalPaying += parseFloat(input.value) || 0;
+            });
+
+            let changeReturn = Math.max(totalPaying - totalPayable, 0);
+            let balance = Math.max(totalPayable - totalPaying, 0);
+
+            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable.toFixed(
+                2));
+            document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(2));
+            document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn.toFixed(
+                2));
+            document.getElementById('modal-balance').textContent = formatAmountWithSeparators(balance.toFixed(2));
+
+            // Disable add button if balance is zero
+            document.getElementById('addPaymentRow').disabled = (balance === 0 && totalPaying >= totalPayable);
+        }
+
+        function fetchTotalAmount() {
+            let total = 0;
+            document.querySelectorAll('#billing-body tr .subtotal').forEach(cell => {
+                total += parseFloat(cell.textContent.replace(/,/g, ''));
+            });
+            return total;
+        }
+
+        function fetchTotalItems() {
+            let count = 0;
+            document.querySelectorAll('#billing-body tr .quantity-input').forEach(input => {
+                count += parseInt(input.value) || 0;
+            });
+            return count;
+        }
+
+        function initializeDateTimePickers() {
+            $('.datetimepicker').datetimepicker({
+                format: 'DD-MM-YYYY',
+                useCurrent: false,
+                minDate: moment().startOf('day')
+            });
+            $('.cheque-received-date').datetimepicker({
+                format: 'DD-MM-YYYY'
+            });
+            $('.cheque-valid-date').datetimepicker({
+                format: 'DD-MM-YYYY',
+                minDate: moment().add(1, 'days')
+            });
+        }
+
+        document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
+            // Reset form
+            document.getElementById('paymentForm').reset();
+            document.getElementById('paymentRows').innerHTML = ''; // Clear all rows
+
+            // Set default first cash row
+            const defaultAmount = fetchTotalAmount();
+            const defaultRow = document.createElement('div');
+            defaultRow.className = 'card mb-3 payment-row position-relative';
+            defaultRow.innerHTML = `
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="form-label">Payment Method</label>
+                        <select class="form-select payment-method" name="payment_method" disabled onchange="togglePaymentFields(this)">
+                            <option value="cash" selected>Cash</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Paid On</label>
+                        <input class="form-control datetimepicker payment-date" type="text" name="payment_date"
+                               placeholder="DD-MM-YYYY" value="${moment().format('DD-MM-YYYY')}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Amount</label>
+                        <input type="text" class="form-control payment-amount" name="amount"
+                               value="${defaultAmount.toFixed(2)}" oninput="validateAmount()">
+                        <div class="text-danger amount-error" style="display:none;"></div>
+                    </div>
+                </div>
+                <div class="conditional-fields row mt-3"></div>
+            </div>
+        `;
+            document.getElementById('paymentRows').appendChild(defaultRow);
+
+            initializeDateTimePickers();
+            updatePaymentSummary();
         });
     </script>
 

@@ -1346,6 +1346,125 @@
 
 
 
+        // function attachRowEventListeners(row, product, stockEntry) {
+        //     const quantityInput = row.querySelector('.quantity-input');
+        //     const priceInput = row.querySelector('.price-input');
+        //     const quantityMinus = row.querySelector('.quantity-minus');
+        //     const quantityPlus = row.querySelector('.quantity-plus');
+        //     const removeBtn = row.querySelector('.remove-btn');
+        //     const productImage = row.querySelector('.product-image');
+        //     const productName = row.querySelector('.product-name');
+        //     const fixedDiscountInput = row.querySelector(".fixed_discount");
+        //     const percentDiscountInput = row.querySelector(".percent_discount");
+
+        //     // Handle discount inputs
+        //     if (fixedDiscountInput) {
+        //         fixedDiscountInput.addEventListener('input', () => {
+        //             handleDiscountToggle(fixedDiscountInput);
+        //             updateTotals();
+        //         });
+        //     }
+        //     if (percentDiscountInput) {
+        //         percentDiscountInput.addEventListener('input', () => {
+        //             handleDiscountToggle(percentDiscountInput);
+        //             updateTotals();
+        //         });
+        //     }
+
+
+
+        //     // Price input change → Recalculate discount
+        //     priceInput.addEventListener('input', () => {
+        //         const mrpElement = row.querySelector('.product-name .badge.bg-info');
+        //         const mrpText = mrpElement ? mrpElement.textContent.trim() : '';
+        //         const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
+        //         let priceValue = parseFloat(priceInput.value);
+        //         if (isNaN(priceValue) || priceValue < 0) {
+        //             toastr.error('Invalid price entered.', 'Error');
+        //             priceValue = 0;
+        //             priceInput.value = '0.00';
+        //         }
+        //         const discountAmount = mrp - priceValue;
+        //         fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
+        //         disableConflictingDiscounts(row); // Ensure conflict check
+        //         updateTotals();
+        //     });
+
+        //     const validateAndUpdateQuantity = (newQuantity) => {
+        //         const priceInput = row.querySelector('.price-input');
+        //         const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+
+        //         if (newQuantity > maxQuantity && product.stock_alert !== 0) {
+        //             showQuantityLimitError(maxQuantity);
+        //             return false;
+        //         }
+
+        //         quantityInput.value = newQuantity;
+        //         updateTotals();
+        //         return true;
+        //     };
+
+        //     // Minus button
+        //     quantityMinus.addEventListener('click', () => {
+        //         const currentQuantity = parseInt(quantityInput.value, 10);
+        //         if (currentQuantity > 1) {
+        //             validateAndUpdateQuantity(currentQuantity - 1);
+        //         }
+        //     });
+
+        //     // Plus button
+        //     quantityPlus.addEventListener('click', () => {
+        //         const currentQuantity = parseInt(quantityInput.value, 10);
+        //         validateAndUpdateQuantity(currentQuantity + 1);
+        //     });
+
+        //     // Input change
+        //     quantityInput.addEventListener('input', () => {
+        //         let quantityValue = parseInt(quantityInput.value, 10);
+        //         if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
+        //         const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute(
+        //             'data-quantity'), 10);
+        //         quantityValue = Math.min(quantityValue, maxQuantity); // Clamp
+        //         validateAndUpdateQuantity(quantityValue);
+        //     });
+
+        //     // Event listener for the remove button
+        //     removeBtn.addEventListener('click', () => {
+        //         row.remove();
+        //         updateTotals();
+        //     });
+
+        //     // Event listener for product image click
+        //     productImage.addEventListener('click', () => {
+        //         showProductModal(product, stockEntry, row);
+        //     });
+
+        //     // Event listener for product name click
+        //     productName.addEventListener('click', () => {
+        //         showProductModal(product, stockEntry, row);
+        //     });
+
+        //     const showImeiBtn = row.querySelector('.show-imei-btn');
+        //     if (showImeiBtn) {
+        //         showImeiBtn.addEventListener('click', function() {
+        //             const imeiDataCell = row.querySelector('.imei-data');
+        //             const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
+        //                 Boolean) : [];
+        //             if (imeis.length === 0) {
+        //                 toastr.warning("No IMEIs found for this product.");
+        //                 return;
+        //             }
+        //             // Re-populate IMEI modal with current IMEIs
+        //             showImeiSelectionModal(product, stockEntry, imeis.map(imei => ({
+        //                 imei_number: imei
+        //             })));
+        //         });
+        //     }
+
+        //     // Newly added: Disable conflicting discounts when product is added
+        //     disableConflictingDiscounts(row);
+        // }
+
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');
             const priceInput = row.querySelector('.price-input');
@@ -1371,8 +1490,6 @@
                 });
             }
 
-
-
             // Price input change → Recalculate discount
             priceInput.addEventListener('input', () => {
                 const mrpElement = row.querySelector('.product-name .badge.bg-info');
@@ -1390,42 +1507,44 @@
                 updateTotals();
             });
 
-            const validateAndUpdateQuantity = (newQuantity) => {
-                const priceInput = row.querySelector('.price-input');
-                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+            // Allow user to freely type any quantity (no validation here)
+            quantityInput.addEventListener('input', () => {
+                let quantityValue = parseInt(quantityInput.value, 10);
+                if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
 
-                if (newQuantity > maxQuantity && product.stock_alert !== 0) {
-                    showQuantityLimitError(maxQuantity);
-                    return false;
+                // Clamp max value temporarily to prevent too high values (optional UX improvement)
+                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+                quantityInput.setAttribute('max', maxQuantity);
+
+                // Still allow typing more than available stock, but show warning
+                if (quantityValue > maxQuantity && product.stock_alert !== 0) {
+                    toastr.warning(
+                        `You are entering more than available stock for ${product.product_name}.`);
                 }
 
-                quantityInput.value = newQuantity;
+                quantityInput.value = quantityValue;
                 updateTotals();
-                return true;
-            };
+            });
 
             // Minus button
             quantityMinus.addEventListener('click', () => {
                 const currentQuantity = parseInt(quantityInput.value, 10);
                 if (currentQuantity > 1) {
-                    validateAndUpdateQuantity(currentQuantity - 1);
+                    quantityInput.value = currentQuantity - 1;
+                    updateTotals();
                 }
             });
 
             // Plus button
             quantityPlus.addEventListener('click', () => {
                 const currentQuantity = parseInt(quantityInput.value, 10);
-                validateAndUpdateQuantity(currentQuantity + 1);
-            });
-
-            // Input change
-            quantityInput.addEventListener('input', () => {
-                let quantityValue = parseInt(quantityInput.value, 10);
-                if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
-                const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute(
-                    'data-quantity'), 10);
-                quantityValue = Math.min(quantityValue, maxQuantity); // Clamp
-                validateAndUpdateQuantity(quantityValue);
+                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
+                if (currentQuantity < maxQuantity || product.stock_alert === 0) {
+                    quantityInput.value = currentQuantity + 1;
+                    updateTotals();
+                } else {
+                    showQuantityLimitError(maxQuantity);
+                }
             });
 
             // Event listener for the remove button
@@ -2082,29 +2201,71 @@
                         return;
                     }
 
+                    const customerId = $('#customer-id').val();
                     const totalAmount = parseFormattedAmount($('#final-total-amount')
                         .text().trim());
                     let amountGiven = parseFormattedAmount($('#amount-given').val()
                         .trim());
 
+                    // Default to full payment if empty or invalid
+                    const isWalkInCustomer = customerId == 1;
+
                     if (isNaN(amountGiven) || amountGiven <= 0) {
-                        amountGiven =
-                            totalAmount; // Default to full payment if not entered
+                        amountGiven = totalAmount;
                     }
 
-                    const balance = amountGiven - totalAmount;
+                    let paidAmount = amountGiven;
+                    let balance = amountGiven - totalAmount;
 
-                    saleData.balance_amount = Math.max(0, balance); // Prevent negative
+                    // If amountGiven is greater than totalAmount, settle only up to totalAmount
+                    if (amountGiven > totalAmount) {
+                        paidAmount = totalAmount;
+                        balance = amountGiven - totalAmount;
+                    }
+
                     saleData.amount_given = amountGiven;
+                    saleData.balance_amount = Math.max(0, balance); // Prevent negatives
+
+                    // Block partial payment for Walk-In Customer
+                    if (isWalkInCustomer && paidAmount < totalAmount) {
+                        toastr.error(
+                            "Partial payment is not allowed for Walk-In Customer.");
+                        enableButton(button);
+                        return;
+                    }
 
                     saleData.payments = [{
                         payment_method: 'cash',
                         payment_date: new Date().toISOString().slice(0, 10),
-                        amount: saleData
-                            .final_total // Only record the amount actually owed
+                        amount: paidAmount // Only settle up to total amount
                     }];
 
-                    sendSaleData(saleData, null, () => enableButton(button));
+                    if (paidAmount >= totalAmount) {
+                        sendSaleData(saleData, null, () => enableButton(button));
+                    } else {
+                        // Partial payment (non-Walk-In)
+                        swal({
+                            title: "Partial Payment",
+                            text: "You're making a partial payment of Rs. " +
+                                formatAmountWithSeparators(paidAmount.toFixed(
+                                    2)) +
+                                ". The remaining Rs. " +
+                                formatAmountWithSeparators((totalAmount -
+                                    paidAmount).toFixed(2)) +
+                                " will be due later.",
+                            type: "warning",
+                            showCancelButton: true,
+                            confirmButtonText: "Proceed",
+                            cancelButtonText: "Cancel"
+                        }, function(isConfirm) {
+                            if (isConfirm) {
+                                sendSaleData(saleData, null, () => enableButton(
+                                    button));
+                            } else {
+                                enableButton(button);
+                            }
+                        });
+                    }
                 });
             });
 
@@ -2290,6 +2451,46 @@
                 modal.hide();
             });
 
+
+
+            // document.getElementById('finalize_payment').addEventListener('click', function() {
+            //     const saleData = gatherSaleData('final');
+            //     if (!saleData) {
+            //         toastr.error('Please add at least one product before completing the sale.');
+            //         return;
+            //     }
+
+            //     const paymentData = gatherPaymentData();
+            //     saleData.payments = paymentData;
+            //     sendSaleData(saleData);
+            //     let modal = bootstrap.Modal.getInstance(document.getElementById(
+            //         "paymentModal"));
+            //     modal.hide();
+            // });
+
+            // function gatherPaymentData() {
+            //     const paymentData = [];
+            //     document.querySelectorAll('.payment-row').forEach(row => {
+            //         const paymentMethod = row.querySelector('.payment-method').value;
+            //         const paymentDate = row.querySelector('.payment-date').value;
+            //         const amount = parseFormattedAmount(row.querySelector('.payment-amount')
+            //             .value);
+            //         const conditionalFields = {};
+
+            //         row.querySelectorAll('.conditional-fields input').forEach(input => {
+            //             conditionalFields[input.name] = input.value;
+            //         });
+
+            //         paymentData.push({
+            //             payment_method: paymentMethod,
+            //             payment_date: paymentDate,
+            //             amount: amount,
+            //             ...conditionalFields
+            //         });
+            //     });
+            //     return paymentData;
+            // }
+
             document.getElementById('finalize_payment').addEventListener('click', function() {
                 const saleData = gatherSaleData('final');
                 if (!saleData) {
@@ -2298,36 +2499,80 @@
                 }
 
                 const paymentData = gatherPaymentData();
+                if (!validatePayment(paymentData)) {
+                    return; // Show error if validation fails
+                }
+
                 saleData.payments = paymentData;
+
+                // Send to server
                 sendSaleData(saleData);
+
+                // Hide modal
                 let modal = bootstrap.Modal.getInstance(document.getElementById(
                     "paymentModal"));
-                modal.hide();
+                if (modal) modal.hide();
             });
 
             function gatherPaymentData() {
                 const paymentData = [];
+
                 document.querySelectorAll('.payment-row').forEach(row => {
                     const paymentMethod = row.querySelector('.payment-method').value;
                     const paymentDate = row.querySelector('.payment-date').value;
-                    const amount = parseFormattedAmount(row.querySelector('.payment-amount')
-                        .value);
+                    const amountInput = row.querySelector('.payment-amount').value;
+                    const amount = parseFormattedAmount(
+                        amountInput); // Use actual entered amount
+
                     const conditionalFields = {};
 
-                    row.querySelectorAll('.conditional-fields input').forEach(input => {
-                        conditionalFields[input.name] = input.value;
-                    });
+                    // Collect all inputs inside conditional-fields
+                    row.querySelectorAll(
+                        '.conditional-fields input, .conditional-fields select').forEach(
+                        input => {
+                            conditionalFields[input.name] = input.value.trim();
+                        });
 
                     paymentData.push({
                         payment_method: paymentMethod,
                         payment_date: paymentDate,
-                        amount: amount,
+                        amount: amount, // Store actual entered amount
                         ...conditionalFields
                     });
                 });
+
                 return paymentData;
             }
 
+            function validatePayment(paymentData) {
+                let totalPaid = 0;
+
+                for (const payment of paymentData) {
+                    const amount = parseFloat(payment.amount);
+
+                    // Validate individual amount
+                    if (isNaN(amount) || amount <= 0) {
+                        toastr.error("Please enter valid amounts for all payments.");
+                        return false;
+                    }
+
+                    totalPaid += amount;
+                }
+
+                const totalPayable = parseFormattedAmount(document.getElementById('modal-total-payable')
+                    .textContent);
+
+                // Allow if totalPaid >= totalPayable
+                if (totalPaid < totalPayable) {
+                    const balance = totalPayable - totalPaid;
+                    toastr.error(
+                        `Please pay the remaining balance of Rs. ${formatAmountWithSeparators(balance.toFixed(2))}`
+                    );
+                    return false;
+                }
+
+                return true;
+            }
 
             function fetchSuspendedSales() {
                 $.ajax({
@@ -2405,11 +2650,24 @@
                     amountGiven = 0;
                 }
 
+                const allPaymentButtons = [
+                    '#cardButton',
+                    '#chequeButton',
+                    '#creditSaleButton',
+                    '#multiplePayButton',
+                    '#pauseCircleButton'
+                ].join(',');
+
                 // Optional: Set placeholder or clear if empty
                 if (amountGiven === 0) {
                     $(this).val('');
+                    // Enable all payment buttons when cleared
+                    $(allPaymentButtons).prop('disabled', false); // To enable
+
                 } else {
                     $(this).val(formatAmountWithSeparators(amountGiven));
+
+                    $(allPaymentButtons).prop('disabled', true); // To disable
                 }
             });
 
@@ -2426,33 +2684,44 @@
                     }
 
                     const balance = amountGiven - totalAmount;
-                    if (balance < 0) {
-                        toastr.error('The given amount is less than the total amount.');
-                        return;
-                    }
 
+                    if (balance > 0) {
+                        swal({
+                            title: "Return Amount",
+                            text: "The balance amount to be returned is Rs. " +
+                                formatAmountWithSeparators(balance.toFixed()),
+                            type: "info",
+                            showCancelButton: false,
+                            confirmButtonText: "OK",
+                            customClass: {
+                                title: 'swal-title-large',
+                                text: 'swal-title-large'
+                            }
+                        }, function() {
+                            $('#cashButton').trigger('click');
+                        });
+                    } else {
 
-                    swal({
-                        title: "Balance Amount  Rs. " + formatAmountWithSeparators(
-                            balance.toFixed()),
-                        // text: "The balance amount to be returned is Rs. " +
-
-                        type: "info",
-                        showCancelButton: false,
-                        confirmButtonText: "OK",
-                        customClass: {
-                            title: 'swal-title-large',
-                            text: 'swal-title-large' // Use the same class as title for larger text
-                        }
-                    }, function() {
                         $('#cashButton').trigger('click');
-                    });
+                    }
                 }
             });
 
             // Fetch suspended sales when the POS page loads
             // fetchSuspendedSales();
 
+
+            document.getElementById('quotationButton').addEventListener('click', function() {
+                const saleData = gatherSaleData('quotation');
+                if (!saleData) return;
+                sendSaleData(saleData);
+            });
+
+            document.getElementById('draftButton').addEventListener('click', function() {
+                const saleData = gatherSaleData('draft');
+                if (!saleData) return;
+                sendSaleData(saleData);
+            });
 
 
 

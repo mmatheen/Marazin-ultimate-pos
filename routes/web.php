@@ -304,6 +304,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/pos-create', [SaleController::class, 'pos'])->name('pos-create');
         Route::get('/pos-create/new', [SaleController::class, 'pos2'])->name('pos-create/new');
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
+        Route::get('/draft-list', [SaleController::class, 'draft'])->name('draft-list');
+        Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
