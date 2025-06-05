@@ -93,165 +93,110 @@ class SaleController extends Controller
         return view('reports.daily_sales_report');
     }
 
-    public function dailyReport(Request $request)
-    {
-        try {
-            // Get start and end date from request or default to today
-            $startDate = $request->input('start_date', Carbon::today()->startOfDay());
-            $endDate = $request->input('end_date', Carbon::today()->endOfDay());
-
-            // Convert inputs to Carbon instances if they are strings
-            $startDate = Carbon::parse($startDate)->startOfDay();
-            $endDate = Carbon::parse($endDate)->endOfDay();
-
-            // Build the base query
-            $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
-                ->whereBetween('sales_date', [$startDate, $endDate]);
-
-            // Apply customer filter if provided
-            if ($request->has('customer_id') && $request->customer_id) {
-                $salesQuery->where('customer_id', $request->customer_id);
-            }
-
-            // Apply user filter if provided
-            if ($request->has('user_id') && $request->user_id) {
-                $salesQuery->where('user_id', $request->user_id);
-            }
-
-            // Apply location filter if provided
-            if ($request->has('location_id') && $request->location_id) {
-                $salesQuery->where('location_id', $request->location_id);
-            }
-
-            $sales = $salesQuery->get();
-
-            // Initialize totals
-            $cashPayments = 0;
-            $chequePayments = 0;
-            $bankTransferPayments = 0;
-            $cardPayments = 0;
-            $creditTotal = 0;
-
-            foreach ($sales as $sale) {
-                foreach ($sale->payments as $payment) {
-                    switch ($payment->payment_method) {
-                        case 'cash':
-                            $cashPayments += $payment->amount;
-                            break;
-                        case 'cheque':
-                            $chequePayments += $payment->amount;
-                            break;
-                        case 'bank_transfer':
-                            $bankTransferPayments += $payment->amount;
-                            break;
-                        case 'card':
-                            $cardPayments += $payment->amount;
-                            break;
-                    }
-                }
-                $creditTotal += $sale->total_due;
-            }
-
-            // Calculate sales returns for the filtered sales
-            $salesReturnsQuery = SalesReturn::whereBetween('return_date', [$startDate, $endDate]);
-
-            if ($request->has('customer_id') && $request->customer_id) {
-                $salesReturnsQuery->where('customer_id', $request->customer_id);
-            }
-
-            if ($request->has('location_id') && $request->location_id) {
-                $salesReturnsQuery->where('location_id', $request->location_id);
-            }
-
-            $salesReturns = $salesReturnsQuery->sum('return_total');
-            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-                ->whereBetween('return_date', [$startDate, $endDate])
-                ->whereIn('sale_id', $sales->pluck('id'))
-                ->get();
-
-            $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-                ->whereBetween('return_date', [$startDate, $endDate])
-                ->whereIn('sale_id', $sales->pluck('id'))
-                ->whereHas('sale', function ($query) use ($startDate, $endDate) {
-                    $query->whereBetween('sales_date', [$startDate, $endDate]);
-                })
-                ->get();
-
-            // Summaries
-            $summaries = [
-                'billTotal' => $sales->sum('final_total'),
-                'discounts' => $sales->sum('discount_amount'),
-                'cashPayments' => $cashPayments,
-                'chequePayments' => $chequePayments,
-                'bankTransfer' => $bankTransferPayments,
-                'cardPayments' => $cardPayments,
-                'salesReturns' => $salesReturns,
-                'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
-                'creditTotal' => $creditTotal,
-                'netIncome' => ($sales->sum('final_total') - $salesReturns),
-                'cashInHand' => ($cashPayments - $salesReturns),
-            ];
-
-            return response()->json([
-                'sales' => $sales,
-                'summaries' => $summaries,
-                'salesReturns' => $salesReturnsDetails
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while fetching sales data.',
-                'details' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    //     public function dailyReport(Request $request)
+    // public function dailyReport(Request $request)
     // {
     //     try {
-    //         $startDate = $request->input('start_date', Carbon::today()->toDateString());
-    //         $endDate = $request->input('end_date', Carbon::today()->toDateString());
+    //         // Get start and end date from request or default to today
+    //         $startDate = $request->input('start_date', Carbon::today()->startOfDay());
+    //         $endDate = $request->input('end_date', Carbon::today()->endOfDay());
 
-    //         $salesQuery = Sale::with(['customer', 'payments'])
+    //         // Convert inputs to Carbon instances if they are strings
+    //         $startDate = Carbon::parse($startDate)->startOfDay();
+    //         $endDate = Carbon::parse($endDate)->endOfDay();
+
+    //         // Build the base query
+    //         $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
     //             ->whereBetween('sales_date', [$startDate, $endDate]);
 
-    //         if ($request->customer_id) {
+    //         // Apply customer filter if provided
+    //         if ($request->has('customer_id') && $request->customer_id) {
     //             $salesQuery->where('customer_id', $request->customer_id);
     //         }
 
-    //         if ($request->payment_method) {
-    //             $salesQuery->whereHas('payments', function($query) use ($request) {
-    //                 $query->where('payment_method', $request->payment_method);
-    //             });
+    //         // Apply user filter if provided
+    //         if ($request->has('user_id') && $request->user_id) {
+    //             $salesQuery->where('user_id', $request->user_id);
+    //         }
+
+    //         // Apply location filter if provided
+    //         if ($request->has('location_id') && $request->location_id) {
+    //             $salesQuery->where('location_id', $request->location_id);
     //         }
 
     //         $sales = $salesQuery->get();
-    //         $salesReturns = SalesReturn::whereBetween('created_at', [$startDate, $endDate])->get();
 
-    //         // Calculate summaries
+    //         // Initialize totals
+    //         $cashPayments = 0;
+    //         $chequePayments = 0;
+    //         $bankTransferPayments = 0;
+    //         $cardPayments = 0;
+    //         $creditTotal = 0;
+
+    //         foreach ($sales as $sale) {
+    //             foreach ($sale->payments as $payment) {
+    //                 switch ($payment->payment_method) {
+    //                     case 'cash':
+    //                         $cashPayments += $payment->amount;
+    //                         break;
+    //                     case 'cheque':
+    //                         $chequePayments += $payment->amount;
+    //                         break;
+    //                     case 'bank_transfer':
+    //                         $bankTransferPayments += $payment->amount;
+    //                         break;
+    //                     case 'card':
+    //                         $cardPayments += $payment->amount;
+    //                         break;
+    //                 }
+    //             }
+    //             $creditTotal += $sale->total_due;
+    //         }
+
+    //         // Calculate sales returns for the filtered sales
+    //         $salesReturnsQuery = SalesReturn::whereBetween('return_date', [$startDate, $endDate]);
+
+    //         if ($request->has('customer_id') && $request->customer_id) {
+    //             $salesReturnsQuery->where('customer_id', $request->customer_id);
+    //         }
+
+    //         if ($request->has('location_id') && $request->location_id) {
+    //             $salesReturnsQuery->where('location_id', $request->location_id);
+    //         }
+
+    //         $salesReturns = $salesReturnsQuery->sum('return_total');
+    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
+    //             ->whereBetween('return_date', [$startDate, $endDate])
+    //             ->whereIn('sale_id', $sales->pluck('id'))
+    //             ->get();
+
+    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
+    //             ->whereBetween('return_date', [$startDate, $endDate])
+    //             ->whereIn('sale_id', $sales->pluck('id'))
+    //             ->whereHas('sale', function ($query) use ($startDate, $endDate) {
+    //                 $query->whereBetween('sales_date', [$startDate, $endDate]);
+    //             })
+    //             ->get();
+
+    //         // Summaries
     //         $summaries = [
-    //             'billTotal' => $sales->sum('subtotal'),
+    //             'billTotal' => $sales->sum('final_total'),
     //             'discounts' => $sales->sum('discount_amount'),
-    //             'cashPayments' => $sales->sum(function($sale) {
-    //                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
-    //             }),
-    //             'cardPayments' => $sales->sum(function($sale) {
-    //                 return $sale->payments->where('payment_method', 'card')->sum('amount');
-    //             }),
-    //             'paymentTotal' => $sales->sum('final_total'),
-    //             'creditTotal' => $sales->sum('total_due'),
-    //             'salesReturns' => $salesReturns->sum('return_total'),
-    //             'netIncome' => $sales->sum('final_total') - $salesReturns->sum('return_total'),
-    //             'cashInHand' => $sales->sum(function($sale) {
-    //                 return $sale->payments->where('payment_method', 'cash')->sum('amount');
-    //             }) - $salesReturns->sum('return_total')
+    //             'cashPayments' => $cashPayments,
+    //             'chequePayments' => $chequePayments,
+    //             'bankTransfer' => $bankTransferPayments,
+    //             'cardPayments' => $cardPayments,
+    //             'salesReturns' => $salesReturns,
+    //             'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
+    //             'creditTotal' => $creditTotal,
+    //             'netIncome' => ($sales->sum('final_total') - $salesReturns),
+    //             'cashInHand' => ($cashPayments - $salesReturns),
     //         ];
 
     //         return response()->json([
     //             'sales' => $sales,
-    //             'salesReturns' => $salesReturns,
-    //             'summaries' => $summaries
+    //             'summaries' => $summaries,
+    //             'salesReturns' => $salesReturnsDetails
     //         ], 200);
-
     //     } catch (\Exception $e) {
     //         return response()->json([
     //             'error' => 'An error occurred while fetching sales data.',
@@ -259,6 +204,108 @@ class SaleController extends Controller
     //         ], 500);
     //     }
     // }
+
+   public function dailyReport(Request $request)
+{
+    try {
+        // Get start and end date from request or default to today
+        $startDate = $request->input('start_date', Carbon::today()->startOfDay());
+        $endDate = $request->input('end_date', Carbon::today()->endOfDay());
+
+        // Convert inputs to Carbon instances if they are strings
+        $startDate = Carbon::parse($startDate)->startOfDay();
+        $endDate = Carbon::parse($endDate)->endOfDay();
+
+        // Fetch today's sales
+        $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
+            ->whereBetween('sales_date', [$startDate, $endDate]);
+
+        // Apply filters
+        if ($request->has('customer_id') && $request->customer_id) {
+            $salesQuery->where('customer_id', $request->customer_id);
+        }
+        if ($request->has('user_id') && $request->user_id) {
+            $salesQuery->where('user_id', $request->user_id);
+        }
+        if ($request->has('location_id') && $request->location_id) {
+            $salesQuery->where('location_id', $request->location_id);
+        }
+
+        $sales = $salesQuery->get();
+
+        // Initialize totals
+        $cashPayments = 0;
+        $chequePayments = 0;
+        $bankTransferPayments = 0;
+        $cardPayments = 0;
+        $creditTotal = 0;
+
+        foreach ($sales as $sale) {
+            foreach ($sale->payments as $payment) {
+                switch ($payment->payment_method) {
+                    case 'cash':
+                        $cashPayments += $payment->amount;
+                        break;
+                    case 'cheque':
+                        $chequePayments += $payment->amount;
+                        break;
+                    case 'bank_transfer':
+                        $bankTransferPayments += $payment->amount;
+                        break;
+                    case 'card':
+                        $cardPayments += $payment->amount;
+                        break;
+                }
+            }
+            $creditTotal += $sale->total_due;
+        }
+
+        // Get all returns made today
+        $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
+            ->whereBetween('return_date', [$startDate, $endDate]);
+
+        if ($request->has('customer_id') && $request->customer_id) {
+            $allReturnsQuery->where('customer_id', $request->customer_id);
+        }
+        if ($request->has('location_id') && $request->location_id) {
+            $allReturnsQuery->where('location_id', $request->location_id);
+        }
+
+        $allReturns = $allReturnsQuery->get();
+
+        // Split returns into two groups
+        $todayReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date >= $startDate && $r->sale?->sales_date <= $endDate);
+        $oldSaleReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date < $startDate);
+
+        // Summaries
+        $summaries = [
+            'billTotal' => $sales->sum('final_total'),
+            'discounts' => $sales->sum('discount_amount'),
+            'cashPayments' => $cashPayments,
+            'chequePayments' => $chequePayments,
+            'bankTransfer' => $bankTransferPayments,
+            'cardPayments' => $cardPayments,
+            'salesReturns' => $todayReturns->sum('return_total'),
+            'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
+            'creditTotal' => $creditTotal,
+            'netIncome' => ($sales->sum('final_total') - $todayReturns->sum('return_total')),
+            'cashInHand' => ($cashPayments - $todayReturns->sum('return_total')),
+        ];
+
+        return response()->json([
+            'sales' => $sales,
+            'summaries' => $summaries,
+            'todaySalesReturns' => $todayReturns,
+            'oldSaleReturns' => $oldSaleReturns
+        ], 200);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'An error occurred while fetching sales data.',
+            'details' => $e->getMessage()
+        ], 500);
+    }
+}
 
 
 

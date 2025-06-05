@@ -185,6 +185,30 @@
                 </div>
             </div>
 
+            <!-- Old Sale Returns Section -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <h4>Returns on Previous Day Sales</h4>
+                    <div class="table-responsive">
+                        <table id="oldSalesReturnsTable" class="datatable table table-striped" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Invoice No</th>
+                                    <th>Customer</th>
+                                    <th>Location</th>
+                                    <th>User</th>
+                                    <th>Sale Date</th>
+                                    <th>Return Date</th>
+                                    <th>Return Total</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Summary Cards -->
             <div class="row">
                 <div class="col-md-6">
@@ -816,6 +840,57 @@
                 $('#salesReturns').text(formatNumber(parseFloat(summaries.salesReturns || 0)));
                 $('#netIncome').text(formatNumber(parseFloat(summaries.netIncome || 0)));
                 $('#cashInHand').text(formatNumber(parseFloat(summaries.cashInHand || 0)));
+            }
+
+
+            // Populate "Old Sale Returns" Table
+            function populateOldSaleReturnsTable(oldReturns) {
+                const table = $('#oldSalesReturnsTable').DataTable({
+                    destroy: true,
+                    pageLength: 10,
+                    data: oldReturns.map((r, i) => [
+                        i + 1,
+                        r.sale?.invoice_no || 'N/A',
+                        `${r.customer?.first_name || ''} ${r.customer?.last_name || ''}`.trim(),
+                        r.location?.name || '',
+                        r.sale?.user?.user_name || '',
+                        r.sale?.sales_date ? new Date(r.sale.sales_date).toLocaleDateString() : '',
+                        new Date(r.return_date).toLocaleDateString(),
+                        formatNumber(parseFloat(r.return_total))
+                    ]),
+                    columns: [{
+                            title: "#"
+                        },
+                        {
+                            title: "Invoice No"
+                        },
+                        {
+                            title: "Customer"
+                        },
+                        {
+                            title: "Location"
+                        },
+                        {
+                            title: "User"
+                        },
+                        {
+                            title: "Sale Date"
+                        },
+                        {
+                            title: "Return Date"
+                        },
+                        {
+                            title: "Return Total"
+                        }
+                    ]
+                });
+            }
+
+            const oldReturns = data.oldSaleReturns || [];
+            if (oldReturns.length > 0) {
+                populateOldSaleReturnsTable(oldReturns);
+            } else {
+                $('#oldSalesReturnsTable').DataTable().clear().draw();
             }
         });
     </script>
