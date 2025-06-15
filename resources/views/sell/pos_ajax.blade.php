@@ -2499,80 +2499,97 @@
                 }
 
                 const paymentData = gatherPaymentData();
-                if (!validatePayment(paymentData)) {
-                    return; // Show error if validation fails
+
+                // Calculate sum of all payment rows (what customer gave in total)
+                const amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
+                // Calculate final total (bill)
+                const finalTotal = parseFormattedAmount(document.getElementById('modal-total-payable').textContent);
+                // Calculate change to return
+                let totalPaid = 0;
+                let balanceAmount = 0;
+
+                // Condition: if finalTotal > amountGiven, totalPaid = amountGiven
+                // if finalTotal <= amountGiven, totalPaid = finalTotal (settle only up to bill)
+
+                //1500 > 1600
+                if (finalTotal > amountGiven) {
+                    totalPaid = amountGiven;
+                    balanceAmount = 0;
+                } else {
+                    totalPaid = finalTotal;
+                    balanceAmount = amountGiven - finalTotal;
                 }
 
+                // Attach these to saleData for backend saving
                 saleData.payments = paymentData;
+                saleData.amount_given = amountGiven;
+                saleData.total_paid = totalPaid;
+                saleData.balance_amount = balanceAmount;
+
+                // Log for debugging
+                console.log("Payment Data:", paymentData);
+                console.log("Sale Data:", saleData);
+
+                // if (!validatePayment(paymentData)) {
+                //     return; // Show error if validation fails
+                // }
 
                 // Send to server
                 sendSaleData(saleData);
 
                 // Hide modal
-                let modal = bootstrap.Modal.getInstance(document.getElementById(
-                    "paymentModal"));
+                let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
                 if (modal) modal.hide();
             });
 
             function gatherPaymentData() {
                 const paymentData = [];
-
                 document.querySelectorAll('.payment-row').forEach(row => {
                     const paymentMethod = row.querySelector('.payment-method').value;
                     const paymentDate = row.querySelector('.payment-date').value;
                     const amountInput = row.querySelector('.payment-amount').value;
-                    const amount = parseFormattedAmount(
-                        amountInput); // Use actual entered amount
+                    let amount = parseFormattedAmount(amountInput);
 
                     const conditionalFields = {};
-
-                    // Collect all inputs inside conditional-fields
                     row.querySelectorAll(
                         '.conditional-fields input, .conditional-fields select').forEach(
                         input => {
                             conditionalFields[input.name] = input.value.trim();
                         });
 
-                    paymentData.push({
-                        payment_method: paymentMethod,
-                        payment_date: paymentDate,
-                        amount: amount, // Store actual entered amount
-                        ...conditionalFields
-                    });
+                    if (!isNaN(amount) && amount > 0) {
+                        paymentData.push({
+                            payment_method: paymentMethod,
+                            payment_date: paymentDate,
+                            amount: amount,
+                            ...conditionalFields
+                        });
+                    }
                 });
+
+                // Log each payment row for debugging
+                console.log("Each Payment Row:", paymentData);
 
                 return paymentData;
             }
 
-            function validatePayment(paymentData) {
-                let totalPaid = 0;
+            // function validatePayment(paymentData) {
+            //     let totalPaid = 0;
 
-                for (const payment of paymentData) {
-                    const amount = parseFloat(payment.amount);
+            //     for (const payment of paymentData) {
+            //         const amount = parseFloat(payment.amount);
 
-                    // Validate individual amount
-                    if (isNaN(amount) || amount <= 0) {
-                        toastr.error("Please enter valid amounts for all payments.");
-                        return false;
-                    }
+            //         // Validate individual amount
+            //         if (isNaN(amount) || amount <= 0) {
+            //             toastr.error("Please enter valid amounts for all payments.");
+            //             console.log("Invalid payment amount found:", payment);
+            //             return false;
+            //         }
+            //         totalPaid += amount;
+            //     }
 
-                    totalPaid += amount;
-                }
-
-                const totalPayable = parseFormattedAmount(document.getElementById('modal-total-payable')
-                    .textContent);
-
-                // Allow if totalPaid >= totalPayable
-                if (totalPaid < totalPayable) {
-                    const balance = totalPayable - totalPaid;
-                    toastr.error(
-                        `Please pay the remaining balance of Rs. ${formatAmountWithSeparators(balance.toFixed(2))}`
-                    );
-                    return false;
-                }
-
-                return true;
-            }
+            //     return true;
+            // }
 
             function fetchSuspendedSales() {
                 $.ajax({

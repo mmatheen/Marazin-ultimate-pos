@@ -1,13 +1,28 @@
 <script>
     $(document).ready(function() {
         let productIndex = 1;
-        // Global variable to store filtered product data per location
         let locationFilteredProducts = [];
 
-        // Initialize autocomplete early with empty source
+        // Initialize autocomplete with custom source to match name or SKU
         $('#productSearch').autocomplete({
-            source: [],
+            minLength: 1,
+            source: function(request, response) {
+                const term = $.ui.autocomplete.escapeRegex(request.term);
+                const matcher = new RegExp(term, "i");
+                // Only one suggestion per product, but matches on name or SKU
+                const matches = locationFilteredProducts.filter(data =>
+                    matcher.test(data.product.product_name) ||
+                    matcher.test(data.product.sku)
+                );
+                // Display as "Product Name (SKU)" for clarity
+                response(matches.map(data => ({
+                    label: data.product.product_name + (data.product.sku ? " (" +
+                        data.product.sku + ")" : ""),
+                    value: data.product.product_name
+                })));
+            },
             select: function(event, ui) {
+                // Find the product by name or SKU
                 const selectedProduct = locationFilteredProducts.find(data =>
                     data.product.product_name === ui.item.value ||
                     data.product.sku === ui.item.value
@@ -20,44 +35,42 @@
             }
         });
 
-        // Prevent autocomplete dropdown from causing page scroll/overflow
         $.ui.autocomplete.prototype._resizeMenu = function() {
             var ul = this.menu.element;
             ul.outerWidth(this.element.outerWidth());
-            // Set a max height and enable scroll if needed
             ul.css({
                 "max-height": "250px",
                 "overflow-y": "auto"
             });
         };
 
-        // Extract stock transfer ID from URL
         const pathSegments = window.location.pathname.split('/');
-        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[
-            pathSegments.length - 1] : null;
+        const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ?
+            pathSegments[pathSegments.length - 1] : null;
 
-        // Fetch locations
         fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
         fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
 
-        // Fetch products only after location is selected
         $('#from_location_id').on('change', function() {
             fetchProductsData();
+
+            // Clear the product search input when the location changes
+            $('#productSearch').val('');
+            $('.add-table-items').empty();
+            addTotalRow();
+
         });
 
-        // On page load, if editing a transfer, wait until locations are loaded before fetching products
         if (stockTransferId) {
-            // Delayed check to wait for location dropdowns to populate
             const checkLocationInterval = setInterval(() => {
                 if ($('#from_location_id').val()) {
                     clearInterval(checkLocationInterval);
                     fetchStockTransferData(stockTransferId);
-                    fetchProductsData(); // Now safe to fetch
+                    fetchProductsData();
                 }
             }, 200);
         }
 
-        // Function to fetch and filter products by selected location
         function fetchProductsData() {
             const fromLocationId = $('#from_location_id').val();
             if (!fromLocationId) {
@@ -71,19 +84,15 @@
                 method: 'GET',
                 success: function(response) {
                     if (response.status === 200) {
-                        // Filter products by selected location
                         const filteredProducts = response.data
                             .map(productData => {
-                                // Filter batches to only include those in the selected location with quantity > 0
                                 const validBatches = productData.batches.filter(batch =>
                                     batch.location_batches.some(locBatch =>
                                         locBatch.location_id == fromLocationId && locBatch
                                         .quantity > 0
                                     )
                                 );
-
                                 if (validBatches.length > 0) {
-                                    // Return updated product data with only relevant batches
                                     return {
                                         ...productData,
                                         batches: validBatches
@@ -91,25 +100,15 @@
                                 }
                                 return null;
                             })
-                            .filter(
-                                Boolean); // Remove null entries (products not in selected location)
-
-                        // Save filtered products for later use
+                            .filter(Boolean);
                         locationFilteredProducts = filteredProducts;
-
-                        setupAutocomplete(filteredProducts);
+                        // No need for setupAutocomplete, the source is dynamic and uses locationFilteredProducts
                     }
                 },
                 error: function(error) {
                     console.error('Error fetching products data:', error);
                 }
             });
-        }
-
-        // Setup autocomplete with filtered products
-        function setupAutocomplete(filteredProducts) {
-            const productNames = filteredProducts.map(data => data.product.product_name);
-            $('#productSearch').autocomplete("option", "source", productNames);
         }
 
         // Function to fetch stock transfer data

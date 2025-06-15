@@ -133,14 +133,31 @@
                                 <div style="font-size: 11px; color: #333; font-weight: bold; margin-bottom: 2px;">
                                     SALE DETAILS
                                 </div>
-                                @if ($saleReturn->sale && isset($saleReturn->sale->invoice_no))
+                                @php
+                                    $sale = $saleReturn->sale ?? null;
+                                    $stockType = $sale->stock_type ?? 'with_bill';
+                                    $hasInvoice = isset($sale->invoice_no);
+                                @endphp
+
+                                @if (!$sale)
+                                    <div style="font-size: 10px; color: #888;">
+                                        SALE DETAILS NOT AVAILABLE
+                                    </div>
+                                @elseif ($stockType === 'with_bill' && $hasInvoice)
                                     <div style="font-size: 10px; color: #000;">
                                         <span style="font-weight: 600;">INV #:</span>
-                                        {{ $saleReturn->sale->invoice_no }}
+                                        {{ $sale->invoice_no }}
                                     </div>
                                     <div style="font-size: 10px; color: #000;">
                                         <span style="font-weight: 600;">Date:</span>
-                                        {{ date('d-m-Y', strtotime($saleReturn->sale->sales_date)) }}
+                                        {{ date('d-m-Y', strtotime($sale->sales_date)) }}
+                                    </div>
+                                @elseif ($stockType === 'without_bill')
+                                    <div style="font-size: 10px; color: #000;">
+                                        <span style="font-weight: 600;">Type:</span> Without Bill
+                                    </div>
+                                    <div style="font-size: 10px; color: #888;">
+                                        No Invoice Assigned
                                     </div>
                                 @else
                                     <div style="font-size: 10px; color: #888;">
@@ -229,14 +246,19 @@
         </div>
 
         <hr>
+        @php
+            $products = $saleReturn->returnProducts ?? collect([]);
+            $totalItems = $products->count();
+            $totalQty = $products->sum('quantity');
+        @endphp
+
         <div style="display: flex; text-align: center;">
             <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong style="font-size: 16px;">{{ count($saleReturn->return_products ?? []) }}</strong><br>
+                <strong style="font-size: 16px;">{{ $totalItems }}</strong><br>
                 <span style="font-size: 10px;">TOTAL ITEMS</span>
             </div>
             <div style="flex: 1; border-right: 2px dashed black; padding: 4px;">
-                <strong
-                    style="font-size: 16px;">{{ collect($saleReturn->return_products ?? [])->sum('quantity') }}</strong><br>
+                <strong style="font-size: 16px;">{{ $totalQty }}</strong><br>
                 <span style="font-size: 10px;">TOTAL QTY</span>
             </div>
             <div style="flex: 1; padding: 4px;">

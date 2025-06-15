@@ -186,25 +186,30 @@
             </div>
 
             <!-- Old Sale Returns Section -->
-            <div class="row mt-4">
+            <div class="row mt-4" id="oldSaleReturnsSection" style="display: none;">
                 <div class="col-md-12">
-                    <h4>Returns on Previous Day Sales</h4>
-                    <div class="table-responsive">
-                        <table id="oldSalesReturnsTable" class="datatable table table-striped" style="width:100%">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Invoice No</th>
-                                    <th>Customer</th>
-                                    <th>Location</th>
-                                    <th>User</th>
-                                    <th>Sale Date</th>
-                                    <th>Return Date</th>
-                                    <th>Return Total</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                    <div class="card card-table">
+                        <div class="card-body">
+                            <h4 class="card-title mb-3">Returns on Previous Day Sales</h4>
+                            <div class="table-responsive">
+                                <table id="oldSalesReturnsTable" class="datatable table table-striped"
+                                    style="width:100%">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Invoice No</th>
+                                            <th>Customer</th>
+                                            <th>Location</th>
+                                            <th>User</th>
+                                            <th>Sale Date</th>
+                                            <th>Return Date</th>
+                                            <th>Return Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -309,6 +314,7 @@
             const locationFilter = document.getElementById('locationFilter');
             let allSales = [];
             let allSalesReturns = [];
+            let allOldSaleReturns = [];
             let allSummaries = {};
             let filterTimeout;
 
@@ -342,16 +348,26 @@
                     const data = await response.json();
                     // Only keep sales with status 'final'
                     allSales = (data.sales || []).filter(sale => sale.status === 'final');
-                    allSalesReturns = data.salesReturns || [];
+                    allSalesReturns = data.todaySalesReturns || [];
+                    allOldSaleReturns = data.oldSaleReturns || [];
                     allSummaries = data.summaries || {};
+
+                    // Combine today and previous day returns for the summary
+                    const oldReturnsTotal = allOldSaleReturns.reduce(
+                        (sum, r) => sum + parseFloat(r.return_total || 0), 0
+                    );
+                    allSummaries.salesReturns =
+                        (parseFloat(allSummaries.salesReturns || 0) + oldReturnsTotal);
 
                     populateDropdowns(allSales);
                     populateTable(allSales, allSalesReturns);
+                    populateOldSaleReturnsTable(allOldSaleReturns);
                     updateSummaries(allSummaries);
                 } catch (error) {
                     console.error('Error fetching sales data:', error);
                     populateDropdowns([]);
                     populateTable([], []);
+                    populateOldSaleReturnsTable([]);
                     updateSummaries({});
                 }
             }
@@ -691,6 +707,8 @@
                     ]
                 });
 
+
+
                 function updateDropdownHighlights() {
                     $('#columnVisibilityDropdown a').each(function() {
                         const value = $(this).data('value');
@@ -828,23 +846,26 @@
                 }
             }
 
-            function updateSummaries(summaries) {
-                $('#billTotal').text(formatNumber(parseFloat(summaries.billTotal || 0)));
-                $('#discounts').text(formatNumber(parseFloat(summaries.discounts || 0)));
-                $('#cashPayments').text(formatNumber(parseFloat(summaries.cashPayments || 0)));
-                $('#cardPayments').text(formatNumber(parseFloat(summaries.cardPayments || 0)));
-                $('#chequePayments').text(formatNumber(parseFloat(summaries.chequePayments || 0)));
-                $('#bankTransfer').text(formatNumber(parseFloat(summaries.bankTransfer || 0)));
-                $('#paymentTotal').text(formatNumber(parseFloat(summaries.paymentTotal || 0)));
-                $('#creditTotal').text(formatNumber(parseFloat(summaries.creditTotal || 0)));
-                $('#salesReturns').text(formatNumber(parseFloat(summaries.salesReturns || 0)));
-                $('#netIncome').text(formatNumber(parseFloat(summaries.netIncome || 0)));
-                $('#cashInHand').text(formatNumber(parseFloat(summaries.cashInHand || 0)));
-            }
-
-
-            // Populate "Old Sale Returns" Table
             function populateOldSaleReturnsTable(oldReturns) {
+                // Show/Hide section based on data
+                const section = document.getElementById('oldSaleReturnsSection');
+                if (!oldReturns || oldReturns.length === 0) {
+                    // Hide section if no previous day returns
+                    section.style.display = "none";
+                    if ($.fn.DataTable.isDataTable('#oldSalesReturnsTable')) {
+                        $('#oldSalesReturnsTable').DataTable().clear().draw();
+                    }
+                    // Optionally clear the table body for fallback
+                    $('#oldSalesReturnsTable tbody').html(
+                        '<tr><td colspan="8" class="text-center">No previous day returns found</td></tr>');
+                    return;
+                } else {
+                    // Show section if data exists
+                    section.style.display = "";
+                }
+                if ($.fn.DataTable.isDataTable('#oldSalesReturnsTable')) {
+                    $('#oldSalesReturnsTable').DataTable().clear().destroy();
+                }
                 const table = $('#oldSalesReturnsTable').DataTable({
                     destroy: true,
                     pageLength: 10,
@@ -855,7 +876,7 @@
                         r.location?.name || '',
                         r.sale?.user?.user_name || '',
                         r.sale?.sales_date ? new Date(r.sale.sales_date).toLocaleDateString() : '',
-                        new Date(r.return_date).toLocaleDateString(),
+                        r.return_date ? new Date(r.return_date).toLocaleDateString() : '',
                         formatNumber(parseFloat(r.return_total))
                     ]),
                     columns: [{
@@ -886,12 +907,23 @@
                 });
             }
 
-            const oldReturns = data.oldSaleReturns || [];
-            if (oldReturns.length > 0) {
-                populateOldSaleReturnsTable(oldReturns);
-            } else {
-                $('#oldSalesReturnsTable').DataTable().clear().draw();
+
+            function updateSummaries(summaries) {
+                $('#billTotal').text(formatNumber(parseFloat(summaries.billTotal || 0)));
+                $('#discounts').text(formatNumber(parseFloat(summaries.discounts || 0)));
+                $('#cashPayments').text(formatNumber(parseFloat(summaries.cashPayments || 0)));
+                $('#cardPayments').text(formatNumber(parseFloat(summaries.cardPayments || 0)));
+                $('#chequePayments').text(formatNumber(parseFloat(summaries.chequePayments || 0)));
+                $('#bankTransfer').text(formatNumber(parseFloat(summaries.bankTransfer || 0)));
+                $('#paymentTotal').text(formatNumber(parseFloat(summaries.paymentTotal || 0)));
+                $('#creditTotal').text(formatNumber(parseFloat(summaries.creditTotal || 0)));
+                $('#salesReturns').text(formatNumber(parseFloat(summaries.salesReturns || 0)));
+                $('#netIncome').text(formatNumber(parseFloat(summaries.netIncome || 0)));
+                $('#cashInHand').text(formatNumber(parseFloat(summaries.cashInHand || 0)));
             }
+
+
+
         });
     </script>
 
