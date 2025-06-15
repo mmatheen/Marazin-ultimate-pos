@@ -291,96 +291,60 @@
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase().trim();
-
                     if (!searchTerm) {
-                        // If search term is empty, return nothing or optionally show all products
                         response([]);
                         return;
                     }
 
-                    let exactMatchProducts = [];
-
-                    // Step 1: Check for exact matches on SKU or IMEI
-                    for (const product of allProducts) {
-                        const isExactSkuMatch = product.sku && product.sku.toLowerCase() ===
-                            searchTerm;
-
-                        let isExactImeiMatch = false;
-                        for (const batch of product.batches || []) {
-                            for (const imeiObj of batch.imei_numbers || []) {
-                                if (imeiObj.imei_number?.toLowerCase() === searchTerm) {
-                                    isExactImeiMatch = true;
-                                    break;
-                                }
-                            }
-                            if (isExactImeiMatch) break;
-                        }
-
-                        if (isExactSkuMatch || isExactImeiMatch) {
-                            exactMatchProducts.push(product);
-                        }
-                    }
-
-                    // Step 2: If we found exact matches, use only them
-                    let filteredProducts = [];
-
-                    if (exactMatchProducts.length > 0) {
-                        filteredProducts = exactMatchProducts;
-                    } else {
-                        // Step 3: Else fallback to partial matches (name, sku, imei)
-                        filteredProducts = allProducts.filter(product => {
-                            const matchesNameOrSku = (
-                                (product.product_name && product.product_name
-                                    .toLowerCase().includes(searchTerm)) ||
-                                (product.sku && product.sku.toLowerCase().includes(
-                                    searchTerm))
-                            );
-
-                            const imeiMatch = product.batches?.some(batch =>
-                                batch.imei_numbers?.some(imeiObj =>
-                                    imeiObj.imei_number?.toLowerCase().includes(
-                                        searchTerm)
-                                )
-                            );
-
-                            return (matchesNameOrSku || imeiMatch) && product.total_stock >
-                                0;
-                        });
-                    }
-
-                    // Step 4: Sort alphabetically by product name
-                    filteredProducts.sort((a, b) => {
-                        const nameA = a.product_name?.toLowerCase() || '';
-                        const nameB = b.product_name?.toLowerCase() || '';
-                        return nameA.localeCompare(nameB);
+                    // Step 1: Find exact matches (SKU or IMEI)
+                    const exactMatchProducts = allProducts.filter(product => {
+                        const isSkuMatch = product.sku?.toLowerCase() === searchTerm;
+                        const isImeiMatch = product.batches?.some(batch =>
+                            batch.imei_numbers?.some(imeiObj =>
+                                imeiObj.imei_number?.toLowerCase() === searchTerm
+                            )
+                        );
+                        return isSkuMatch || isImeiMatch;
                     });
 
-                    // Step 5: Map results for UI
+                    // Step 2: Fallback to partial matches if no exact matches
+                    let filteredProducts = exactMatchProducts.length > 0 ?
+                        exactMatchProducts :
+                        allProducts.filter(product => {
+                            const matchesNameOrSku = product.product_name?.toLowerCase()
+                                .includes(searchTerm) ||
+                                product.sku?.toLowerCase().includes(searchTerm);
+                            const imeiMatch = product.batches?.some(batch =>
+                                batch.imei_numbers?.some(imeiObj =>
+                                    imeiObj.imei_number?.toLowerCase().includes(searchTerm)
+                                )
+                            );
+                            return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
+                        });
+
+                    // Step 3: Sort alphabetically by product name
+                    filteredProducts.sort((a, b) =>
+                        (a.product_name || '').localeCompare(b.product_name || '', undefined, {
+                            sensitivity: 'base'
+                        })
+                    );
+
+                    // Step 4: Map results for UI
                     const autoCompleteResults = filteredProducts.length ?
                         filteredProducts.map(p => {
-                            let matchedImei = null;
-
-                            for (const batch of p.batches || []) {
-                                for (const imei of batch.imei_numbers || []) {
-                                    if (imei.imei_number?.toLowerCase().includes(searchTerm)) {
-                                        matchedImei = imei.imei_number;
-                                        break;
-                                    }
-                                }
-                                if (matchedImei) break;
-                            }
-
-                            const label = matchedImei ?
-                                `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]` :
-                                `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`;
-
+                            const matchedImei = p.batches?.flatMap(b => b.imei_numbers || [])
+                                .find(imeiObj => imeiObj.imei_number?.toLowerCase().includes(
+                                    searchTerm))?.imei_number;
                             return {
-                                label: label,
+                                label: matchedImei ?
+                                    `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]` :
+                                    `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
                                 value: p.product_name,
                                 product: p,
                                 imei: matchedImei
                             };
-                        }) : [{
+                        }) :
+                        [{
                             label: "No products found",
                             value: ""
                         }];
@@ -389,10 +353,8 @@
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
-
                     $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product, ui.item
-                        .imei); // You can also pass IMEI if needed
+                    addProductToTable(ui.item.product, ui.item.imei);
                     return false;
                 },
                 focus: function(event, ui) {
@@ -401,7 +363,16 @@
                 },
                 minLength: 1,
                 open: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
+                    const widget = $(this).autocomplete("widget");
+                    widget.find("li").removeClass("ui-state-focus");
+                    const $first = widget.find("li:visible:not(:has([style*='color: red']))")
+                    .first();
+                    if ($first.length) {
+                        $first.addClass("ui-state-focus");
+                        // Set as menu's "active" so that Enter/Tab works
+                        const instance = $(this).autocomplete("instance");
+                        instance.menu.focus(null, $first);
+                    }
                 },
                 close: function() {
                     $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
@@ -421,16 +392,18 @@
                 return $li;
             };
 
+            // Remove aria-live/autocomplete for custom styling
             $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
             $("#productSearchInput").autocomplete("instance").liveRegion.remove();
 
+            // Custom _move to keep focus highlight in sync with up/down keys
             $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
                 if (!this.menu.element.is(":visible")) {
                     this.search(null, event);
                     return;
                 }
-                if (this.menu.isFirstItem() && /^previous/.test(direction) ||
-                    this.menu.isLastItem() && /^next/.test(direction)) {
+                if ((this.menu.isFirstItem() && /^previous/.test(direction)) ||
+                    (this.menu.isLastItem() && /^next/.test(direction))) {
                     this._value(this.term);
                     this.menu.blur();
                     return;
@@ -2501,9 +2474,11 @@
                 const paymentData = gatherPaymentData();
 
                 // Calculate sum of all payment rows (what customer gave in total)
-                const amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay.amount) || 0), 0);
+                const amountGiven = paymentData.reduce((sum, pay) => sum + (parseFloat(pay
+                    .amount) || 0), 0);
                 // Calculate final total (bill)
-                const finalTotal = parseFormattedAmount(document.getElementById('modal-total-payable').textContent);
+                const finalTotal = parseFormattedAmount(document.getElementById(
+                    'modal-total-payable').textContent);
                 // Calculate change to return
                 let totalPaid = 0;
                 let balanceAmount = 0;
@@ -2538,7 +2513,8 @@
                 sendSaleData(saleData);
 
                 // Hide modal
-                let modal = bootstrap.Modal.getInstance(document.getElementById("paymentModal"));
+                let modal = bootstrap.Modal.getInstance(document.getElementById(
+                    "paymentModal"));
                 if (modal) modal.hide();
             });
 

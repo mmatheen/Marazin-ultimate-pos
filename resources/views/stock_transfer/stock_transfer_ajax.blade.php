@@ -210,7 +210,9 @@
                     <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
                 </td>
                 <td class="add-remove text-end">
-                    <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
+                    <a href="javascript:void(0);" class="remove-btn">
+                        <i class="fas fa-trash" style="color: #dc3545;"></i>
+                    </a>
                 </td>
             </tr>
         `;
