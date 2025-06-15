@@ -296,42 +296,52 @@
                         return;
                     }
 
-                    // Step 1: Find exact matches (SKU or IMEI)
-                    const exactMatchProducts = allProducts.filter(product => {
-                        const isSkuMatch = product.sku?.toLowerCase() === searchTerm;
-                        const isImeiMatch = product.batches?.some(batch =>
+                    // Separate matches: name/SKU matches vs. IMEI matches
+                    const nameSkuMatches = [];
+                    const imeiMatches = [];
+
+                    for (const product of allProducts) {
+                        // Only consider available stock
+                        if (product.total_stock <= 0) continue;
+
+                        // Name/SKU matches (exact or partial)
+                        const nameMatch = product.product_name?.toLowerCase().includes(searchTerm);
+                        const skuMatch = product.sku?.toLowerCase().includes(searchTerm);
+
+                        if (nameMatch || skuMatch) {
+                            nameSkuMatches.push(product);
+                            continue; // Don't add to IMEI matches as well
+                        }
+
+                        // IMEI matches (exact or partial)
+                        const hasImeiMatch = product.batches?.some(batch =>
                             batch.imei_numbers?.some(imeiObj =>
-                                imeiObj.imei_number?.toLowerCase() === searchTerm
+                                imeiObj.imei_number?.toLowerCase().includes(searchTerm)
                             )
                         );
-                        return isSkuMatch || isImeiMatch;
-                    });
+                        if (hasImeiMatch) {
+                            imeiMatches.push(product);
+                        }
+                    }
 
-                    // Step 2: Fallback to partial matches if no exact matches
-                    let filteredProducts = exactMatchProducts.length > 0 ?
-                        exactMatchProducts :
-                        allProducts.filter(product => {
-                            const matchesNameOrSku = product.product_name?.toLowerCase()
-                                .includes(searchTerm) ||
-                                product.sku?.toLowerCase().includes(searchTerm);
-                            const imeiMatch = product.batches?.some(batch =>
-                                batch.imei_numbers?.some(imeiObj =>
-                                    imeiObj.imei_number?.toLowerCase().includes(searchTerm)
-                                )
-                            );
-                            return (matchesNameOrSku || imeiMatch) && product.total_stock > 0;
-                        });
-
-                    // Step 3: Sort alphabetically by product name
-                    filteredProducts.sort((a, b) =>
+                    // Sort by product name
+                    nameSkuMatches.sort((a, b) =>
+                        (a.product_name || '').localeCompare(b.product_name || '', undefined, {
+                            sensitivity: 'base'
+                        })
+                    );
+                    imeiMatches.sort((a, b) =>
                         (a.product_name || '').localeCompare(b.product_name || '', undefined, {
                             sensitivity: 'base'
                         })
                     );
 
-                    // Step 4: Map results for UI
-                    const autoCompleteResults = filteredProducts.length ?
-                        filteredProducts.map(p => {
+                    // Combine results: name/SKU matches first, then IMEI matches
+                    const allMatches = [...nameSkuMatches, ...imeiMatches];
+
+                    // Map for UI
+                    const autoCompleteResults = allMatches.length ?
+                        allMatches.map(p => {
                             const matchedImei = p.batches?.flatMap(b => b.imei_numbers || [])
                                 .find(imeiObj => imeiObj.imei_number?.toLowerCase().includes(
                                     searchTerm))?.imei_number;
