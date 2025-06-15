@@ -296,25 +296,42 @@
                         return;
                     }
 
-                    // Only match by product name or SKU (partial or exact)
-                    const nameSkuMatches = allProducts.filter(product => {
+                    // Only match by product name or SKU (partial, case-insensitive)
+                    const matches = allProducts.filter(product => {
                         if (product.total_stock <= 0) return false;
-                        const nameMatch = product.product_name?.toLowerCase().includes(
-                            searchTerm);
-                        const skuMatch = product.sku?.toLowerCase().includes(searchTerm);
-                        return nameMatch || skuMatch;
+                        // Use .includes for partial match, .toLowerCase for case-insensitive
+                        const name = product.product_name?.toLowerCase() || '';
+                        const sku = product.sku?.toLowerCase() || '';
+                        return name.includes(searchTerm) || sku.includes(searchTerm);
                     });
 
-                    // Sort by product name
-                    nameSkuMatches.sort((a, b) =>
-                        (a.product_name || '').localeCompare(b.product_name || '', undefined, {
-                            sensitivity: 'base'
-                        })
-                    );
+                    // Sort: exact match first, then starts-with, then others
+                    matches.sort((a, b) => {
+                        const nameA = a.product_name?.toLowerCase() || '';
+                        const skuA = a.sku?.toLowerCase() || '';
+                        const nameB = b.product_name?.toLowerCase() || '';
+                        const skuB = b.sku?.toLowerCase() || '';
 
-                    // Map for UI
-                    const autoCompleteResults = nameSkuMatches.length ?
-                        nameSkuMatches.map(p => ({
+                        // Prefer exact match first
+                        const aExact = nameA === searchTerm || skuA === searchTerm;
+                        const bExact = nameB === searchTerm || skuB === searchTerm;
+                        if (aExact && !bExact) return -1;
+                        if (!aExact && bExact) return 1;
+
+                        // Then prefer starts-with
+                        const aStarts = nameA.startsWith(searchTerm) || skuA.startsWith(
+                            searchTerm);
+                        const bStarts = nameB.startsWith(searchTerm) || skuB.startsWith(
+                            searchTerm);
+                        if (aStarts && !bStarts) return -1;
+                        if (!aStarts && bStarts) return 1;
+
+                        // Otherwise, alphabetic
+                        return nameA.localeCompare(nameB);
+                    });
+
+                    const autoCompleteResults = matches.length ?
+                        matches.map(p => ({
                             label: `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
                             value: p.product_name,
                             product: p
@@ -344,7 +361,7 @@
                     .first();
                     if ($first.length) {
                         $first.addClass("ui-state-focus");
-                        // Set as menu's "active" so that Enter/Tab works
+                        // Also set as menu's 'active' so Enter/Tab selects it
                         const instance = $(this).autocomplete("instance");
                         instance.menu.focus(null, $first);
                     }
@@ -367,7 +384,7 @@
                 return $li;
             };
 
-            // Remove aria-live/autocomplete for custom styling
+            // Remove aria-live/autocomplete for custom styling compatibility
             $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
             $("#productSearchInput").autocomplete("instance").liveRegion.remove();
 
