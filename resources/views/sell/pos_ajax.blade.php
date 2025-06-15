@@ -296,33 +296,14 @@
                         return;
                     }
 
-                    // Separate matches: name/SKU matches vs. IMEI matches
-                    const nameSkuMatches = [];
-                    const imeiMatches = [];
-
-                    for (const product of allProducts) {
-                        // Only consider available stock
-                        if (product.total_stock <= 0) continue;
-
-                        // Name/SKU matches (exact or partial)
-                        const nameMatch = product.product_name?.toLowerCase().includes(searchTerm);
+                    // Only match by product name or SKU (partial or exact)
+                    const nameSkuMatches = allProducts.filter(product => {
+                        if (product.total_stock <= 0) return false;
+                        const nameMatch = product.product_name?.toLowerCase().includes(
+                            searchTerm);
                         const skuMatch = product.sku?.toLowerCase().includes(searchTerm);
-
-                        if (nameMatch || skuMatch) {
-                            nameSkuMatches.push(product);
-                            continue; // Don't add to IMEI matches as well
-                        }
-
-                        // IMEI matches (exact or partial)
-                        const hasImeiMatch = product.batches?.some(batch =>
-                            batch.imei_numbers?.some(imeiObj =>
-                                imeiObj.imei_number?.toLowerCase().includes(searchTerm)
-                            )
-                        );
-                        if (hasImeiMatch) {
-                            imeiMatches.push(product);
-                        }
-                    }
+                        return nameMatch || skuMatch;
+                    });
 
                     // Sort by product name
                     nameSkuMatches.sort((a, b) =>
@@ -330,30 +311,14 @@
                             sensitivity: 'base'
                         })
                     );
-                    imeiMatches.sort((a, b) =>
-                        (a.product_name || '').localeCompare(b.product_name || '', undefined, {
-                            sensitivity: 'base'
-                        })
-                    );
-
-                    // Combine results: name/SKU matches first, then IMEI matches
-                    const allMatches = [...nameSkuMatches, ...imeiMatches];
 
                     // Map for UI
-                    const autoCompleteResults = allMatches.length ?
-                        allMatches.map(p => {
-                            const matchedImei = p.batches?.flatMap(b => b.imei_numbers || [])
-                                .find(imeiObj => imeiObj.imei_number?.toLowerCase().includes(
-                                    searchTerm))?.imei_number;
-                            return {
-                                label: matchedImei ?
-                                    `${p.product_name} (${p.sku}) [IMEI: ${matchedImei}]` :
-                                    `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
-                                value: p.product_name,
-                                product: p,
-                                imei: matchedImei
-                            };
-                        }) :
+                    const autoCompleteResults = nameSkuMatches.length ?
+                        nameSkuMatches.map(p => ({
+                            label: `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
+                            value: p.product_name,
+                            product: p
+                        })) :
                         [{
                             label: "No products found",
                             value: ""
@@ -364,7 +329,7 @@
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
                     $("#productSearchInput").val("");
-                    addProductToTable(ui.item.product, ui.item.imei);
+                    addProductToTable(ui.item.product);
                     return false;
                 },
                 focus: function(event, ui) {
