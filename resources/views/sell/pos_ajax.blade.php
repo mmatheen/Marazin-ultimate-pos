@@ -335,8 +335,7 @@
                             label: `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
                             value: p.product_name,
                             product: p
-                        })) :
-                        [{
+                        })) : [{
                             label: "No products found",
                             value: ""
                         }];
@@ -357,14 +356,14 @@
                 open: function() {
                     const widget = $(this).autocomplete("widget");
                     widget.find("li").removeClass("ui-state-focus");
-                    const $first = widget.find("li:visible:not(:has([style*='color: red']))")
-                    .first();
-                    if ($first.length) {
-                        $first.addClass("ui-state-focus");
-                        // Also set as menu's 'active' so Enter/Tab selects it
-                        const instance = $(this).autocomplete("instance");
-                        instance.menu.focus(null, $first);
-                    }
+                    // const $first = widget.find("li:visible:not(:has([style*='color: red']))")
+                    // .first();
+                    // if ($first.length) {
+                    //     $first.addClass("ui-state-focus");
+                    //     // Also set as menu's 'active' so Enter/Tab selects it
+                    //     const instance = $(this).autocomplete("instance");
+                    //     instance.menu.focus(null, $first);
+                    // }
                 },
                 close: function() {
                     $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
