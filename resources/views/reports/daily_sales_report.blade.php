@@ -334,31 +334,26 @@
                         startDate = moment(dateRange[0], 'MMMM D, YYYY').format('YYYY-MM-DD');
                         endDate = moment(dateRange[1], 'MMMM D, YYYY').format('YYYY-MM-DD');
                     }
-
                     const params = new URLSearchParams();
                     if (startDate) params.append('start_date', startDate);
                     if (endDate) params.append('end_date', endDate);
                     if (customerFilter?.value) params.append('customer_id', customerFilter.value);
                     if (userFilter?.value) params.append('user_id', userFilter.value);
                     if (locationFilter?.value) params.append('location_id', locationFilter.value);
-
                     const response = await fetch(`/daily-sales-report?${params.toString()}`);
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-
                     const data = await response.json();
                     // Only keep sales with status 'final'
                     allSales = (data.sales || []).filter(sale => sale.status === 'final');
                     allSalesReturns = data.todaySalesReturns || [];
                     allOldSaleReturns = data.oldSaleReturns || [];
                     allSummaries = data.summaries || {};
-
                     // Combine today and previous day returns for the summary
                     const oldReturnsTotal = allOldSaleReturns.reduce(
                         (sum, r) => sum + parseFloat(r.return_total || 0), 0
                     );
                     allSummaries.salesReturns =
                         (parseFloat(allSummaries.salesReturns || 0) + oldReturnsTotal);
-
                     populateDropdowns(allSales);
                     populateTable(allSales, allSalesReturns);
                     populateOldSaleReturnsTable(allOldSaleReturns);

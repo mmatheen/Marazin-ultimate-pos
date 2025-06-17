@@ -276,7 +276,7 @@ class SaleController extends Controller
             $oldSaleReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date < $startDate);
 
             // 5. Summaries
-            $billTotal = $sales->sum('final_total');
+            $billTotal = $sales->sum('final_total'); // Only sales within the selected date range
             $discounts = $sales->sum('discount_amount');
 
             // Calculate total sales returns (today + old)
