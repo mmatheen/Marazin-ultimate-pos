@@ -356,16 +356,7 @@
                 open: function() {
                     const widget = $(this).autocomplete("widget");
                     widget.find("li").removeClass("ui-state-focus");
-                    // const $first = widget.find("li:visible:not(:has([style*='color: red']))")
-                    // .first();
-                    // if ($first.length) {
-                    //     $first.addClass("ui-state-focus");
-                    //     // Also set as menu's 'active' so Enter/Tab selects it
-                    //     const instance = $(this).autocomplete("instance");
-                    //     instance.menu.focus(null, $first);
-                    // }
-                },
-                close: function() {
+                    // const $first = widge             close: function() {
                     $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
                 }
             }).autocomplete("instance")._renderItem = function(ul, item) {
@@ -2413,6 +2404,105 @@
                 let modal = bootstrap.Modal.getInstance(document.getElementById(
                     "suspendModal"));
                 modal.hide();
+            });
+
+            $('#jobTicketButton').on('click', function() {
+                const customerId = $('#customer-id').val();
+                if (!customerId || customerId === "1") {
+                    toastr.error(
+                        'Please select a valid customer (not Walk-In) before creating a job ticket.'
+                    );
+                    return;
+                }
+
+                // Fetch customer details from API using customerId
+                $.ajax({
+                    url: '/customer-get-by-id/' + customerId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 200 && response.customer) {
+                            const customer = response.customer;
+                            // Compose full name with prefix, first_name, last_name
+                            const fullName = [customer.prefix, customer.first_name,
+                                customer.last_name
+                            ].filter(Boolean).join(' ');
+                            $('#customerName').val(fullName || '');
+                            $('#customerMobile').val(customer.mobile_no || '');
+                            $('#customerEmail').val(customer.email || '');
+                            $('#customerAddress').val(customer.address || '');
+                        } else {
+                            toastr.error('Failed to fetch customer details.');
+                            $('#customerName').val('');
+                            $('#customerMobile').val('');
+                            $('#customerEmail').val('');
+                            $('#customerAddress').val('');
+                        }
+
+                        // Populate total amount
+                        const totalAmount = parseFormattedAmount($(
+                            '#final-total-amount').text().trim());
+                        $('#totalAmountInput').val(totalAmount.toFixed(2));
+
+                        // Set default advance amount from #amount-given (if any)
+                        let amountGiven = parseFormattedAmount($('#amount-given')
+                            .val().trim());
+                        $('#advanceAmountInput').val((isNaN(amountGiven) ? 0 :
+                            amountGiven).toFixed(2));
+
+                        // Calculate balance
+                        calculateJobTicketBalance();
+
+                        // Show modal
+                        $('#jobTicketModal').modal('show');
+                    },
+                    error: function() {
+                        toastr.error('Error fetching customer details.');
+                        $('#customerName').val('');
+                        $('#customerMobile').val('');
+                        $('#customerEmail').val('');
+                        $('#customerAddress').val('');
+                    }
+                });
+            });
+
+            // 2. Recalculate balance on Advance Amount change
+            $('#advanceAmountInput').on('input', function() {
+                calculateJobTicketBalance();
+            });
+
+            function calculateJobTicketBalance() {
+                const totalAmount = parseFloat($('#totalAmountInput').val()) || 0;
+                const advanceAmount = parseFloat($('#advanceAmountInput').val()) || 0;
+                const balance = advanceAmount - totalAmount;
+                $('#balanceAmountInput').val(balance.toFixed(2));
+            }
+
+            // 3. Submit Job Ticket (as status: "jobticket")
+            $('#submitJobTicket').on('click', function() {
+                // Gather sale data
+                const saleData = gatherSaleData('jobticket');
+                if (!saleData) {
+                    toastr.error(
+                        'Please add at least one product before submitting the job ticket.');
+                    return;
+                }
+
+                // Attach customer details to saleData (optional, if needed by backend)
+                saleData.customer_name = $('#customerName').val();
+                saleData.customer_mobile = $('#customerMobile').val();
+                saleData.customer_email = $('#customerEmail').val();
+                saleData.customer_address = $('#customerAddress').val();
+
+                // Attach advance and balance
+                saleData.advance_amount = parseFloat($('#advanceAmountInput').val()) || 0;
+                saleData.balance_amount = parseFloat($('#balanceAmountInput').val()) || 0;
+                saleData.jobticket_description = $('#description').val();
+
+                // Send to backend with status "jobticket"
+                sendSaleData(saleData, null, function() {
+                    $('#jobTicketModal').modal('hide');
+                });
             });
 
 

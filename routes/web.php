@@ -246,6 +246,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/customer-store', [CustomerController::class, 'store']);
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+        Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
 
         // Customer Group Routes
         Route::get('/customer-group', [CustomerGroupController::class, 'customerGroup'])->name('customer-group');

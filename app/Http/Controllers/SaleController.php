@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Batch;
-use App\Models\Location;
 use App\Models\Customer;
 use App\Models\Ledger;
 use App\Models\LocationBatch;
@@ -11,10 +10,8 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesProduct;
-use App\Models\SalesPayment;
 use App\Models\SalesReturn;
 use App\Models\StockHistory;
-use App\Models\Transaction;
 use App\Models\SaleImei;
 use App\Models\ImeiNumber;
 use Carbon\Carbon;
@@ -22,9 +19,9 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
+use App\Models\JobTicket;
 
 class SaleController extends Controller
 {
@@ -217,6 +214,7 @@ class SaleController extends Controller
             $startDate = Carbon::parse($startDate)->startOfDay();
             $endDate = Carbon::parse($endDate)->endOfDay();
 
+
             // 1. Fetch today's sales
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->whereBetween('sales_date', [$startDate, $endDate]);
@@ -338,8 +336,11 @@ class SaleController extends Controller
             return redirect()->route('list-sale')->with('error', 'Sale not found.');
         }
     }
+
+
     // public function storeOrUpdate(Request $request, $id = null)
     // {
+
     //     $validator = Validator::make($request->all(), [
     //         'customer_id' => 'required|integer|exists:customers,id',
     //         'location_id' => 'required|integer|exists:locations,id',
@@ -355,7 +356,7 @@ class SaleController extends Controller
     //         'products.*.price_type' => 'required|string|in:retail,wholesale,special',
     //         'products.*.discount' => 'nullable|numeric|min:0',
     //         'products.*.tax' => 'nullable|numeric|min:0',
-    //         'products.*.imei_numbers' => 'nullable|array', // Allow IMEI array
+    //         'products.*.imei_numbers' => 'nullable|array',
     //         'products.*.imei_numbers.*' => 'string|max:255',
     //         'payments' => 'nullable|array',
     //         'payments.*.payment_method' => 'required_with:payments|string',
@@ -383,7 +384,39 @@ class SaleController extends Controller
     //             $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
     //             $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-    //             $invoiceNo = $isUpdate ? $sale->invoice_no : Sale::generateInvoiceNo($request->location_id);
+    //             // Detect status change from draft/quotation to final/suspend
+    //             $statusChangingToFinal = false;
+    //             $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
+    //             $newStatus = $request->status;
+
+    //             // Generate Invoice Number Based on Status and Status Change
+    //             if (!$isUpdate) {
+    //                 if (in_array($newStatus, ['quotation', 'draft'])) {
+    //                     $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
+    //                     $year = now()->format('Y');
+    //                     $lastSale = Sale::whereYear('created_at', now())
+    //                         ->where('invoice_no', 'like', "$prefix$year%")
+    //                         ->latest()
+    //                         ->first();
+    //                     $number = $lastSale ? ((int)substr($lastSale->invoice_no, -4)) + 1 : 1;
+    //                     $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
+    //                 } else {
+    //                     $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+    //                 }
+    //             } else {
+    //                 // If updating and status is changing from draft/quotation to final/suspend, generate new invoice number
+    //                 if (
+    //                     in_array($oldStatus, ['draft', 'quotation']) &&
+    //                     in_array($newStatus, ['final', 'suspend']) &&
+    //                     !preg_match('/^\d+$/', $sale->invoice_no)
+    //                 ) {
+    //                     // Only generate if not already a numeric invoice_no
+    //                     $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+    //                     $statusChangingToFinal = true;
+    //                 } else {
+    //                     $invoiceNo = $sale->invoice_no;
+    //                 }
+    //             }
 
     //             // Calculate amounts
     //             $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
@@ -391,8 +424,6 @@ class SaleController extends Controller
     //             $finalTotal = $request->discount_type === 'percentage'
     //                 ? $subtotal - ($subtotal * $discount / 100)
     //                 : $subtotal - $discount;
-
-
 
     //             // Create the sale record first to get the ID
     //             $sale->fill([
@@ -402,7 +433,7 @@ class SaleController extends Controller
     //                     ->setTimezone('Asia/Colombo')
     //                     ->format('Y-m-d H:i:s'),
     //                 'sale_type' => $request->sale_type ?? 'retail',
-    //                 'status' => $request->status,
+    //                 'status' => $newStatus,
     //                 'invoice_no' => $invoiceNo,
     //                 'reference_no' => $referenceNo,
     //                 'subtotal' => $subtotal,
@@ -416,23 +447,63 @@ class SaleController extends Controller
     //                 'balance_amount' => 0,
     //             ])->save();
 
+
+
+
+    //             if ($sale->status === 'jobticket') {
+    //                 // Get advance and balance from request
+    //                 $advanceAmount = floatval($request->advance_amount ?? 0);
+    //                 $finalTotal = floatval($sale->final_total); // from your earlier calculation
+
+    //                 // Payment logic
+    //                 if ($advanceAmount >= $finalTotal) {
+    //                     // Full payment or excess (change to return)
+    //                     $totalPaid = $finalTotal;
+    //                     $amountGiven = $advanceAmount;
+    //                     $balanceAmount = $advanceAmount - $finalTotal;
+    //                 } else {
+    //                     // Partial payment, balance to be paid later
+    //                     $totalPaid = $advanceAmount;
+    //                     $amountGiven = $advanceAmount;
+    //                     $balanceAmount = $finalTotal - $advanceAmount;
+    //                 }
+
+    //                 // Update sale payment fields accordingly
+    //                 $sale->update([
+    //                     'total_paid'     => $totalPaid,
+    //                     'amount_given'   => $amountGiven,
+    //                     'balance_amount' => $balanceAmount,
+    //                 ]);
+
+    //                 // Create or update the job ticket record
+    //                 $jobTicket = JobTicket::updateOrCreate(
+    //                     ['sale_id' => $sale->id],
+    //                     [
+    //                         'customer_id'      => $sale->customer_id,
+    //                         // job_ticket_no auto-generated in model (see below)
+    //                         'description'      => $request->jobticket_description ?? null,
+    //                         'job_ticket_date'  => Carbon::now('Asia/Colombo'),
+    //                         'status'           => 'open',
+    //                         'advance_amount'   => $advanceAmount,
+    //                         'balance_amount'   => $balanceAmount,
+    //                     ]
+    //                 );
+    //             }
+
     //             // Handle payments
     //             $totalPaid = 0;
     //             if (!empty($request->payments)) {
-
     //                 $totalPaid = $request->has('payments')
     //                     ? array_sum(array_column($request->payments, 'amount'))
     //                     : $sale->final_total;
 
     //                 if ($isUpdate) {
-    //                     // Delete existing payments and ledger entries for updates
     //                     Payment::where('reference_id', $sale->id)->delete();
     //                     Ledger::where('reference_no', $referenceNo)
     //                         ->where('transaction_type', 'payments')
     //                         ->delete();
     //                 }
 
-    //                 // Create new payments
     //                 foreach ($request->payments as $paymentData) {
     //                     $payment = Payment::create([
     //                         'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
@@ -467,17 +538,15 @@ class SaleController extends Controller
     //                     ]);
     //                 }
     //             } elseif ($isUpdate) {
-    //                 $totalPaid = $sale->total_paid; // Keep existing payments if none provided
+    //                 $totalPaid = $sale->total_paid;
     //             }
 
     //             $amountGiven = $request->amount_given ?? $sale->final_total;
-    //             // Calculate balance
-    //             // Update sale with payment totals
     //             $sale->update([
-    //                 'total_paid' => $amountGiven, // Record actual amount given
-    //                 'total_due' => max(0, $sale->final_total - $amountGiven), // Remaining due
-    //                 'amount_given' => $amountGiven, // Actual amount given by customer
-    //                 'balance_amount' => max(0, $amountGiven - $sale->final_total), // Overpayment/refund
+    //                 'total_paid' => $amountGiven,
+    //                 'total_due' => max(0, $sale->final_total - $amountGiven),
+    //                 'amount_given' => $amountGiven,
+    //                 'balance_amount' => max(0, $amountGiven - $sale->final_total),
     //             ]);
 
     //             // Check for partial payments for Walk-In Customer
@@ -488,7 +557,10 @@ class SaleController extends Controller
     //             // Handle products
     //             if ($isUpdate) {
     //                 foreach ($sale->products as $product) {
-    //                     $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+    //                     // Only restore stock if previous status was 'final' or 'suspend'
+    //                     if (in_array($oldStatus, ['final', 'suspend'])) {
+    //                         $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+    //                     }
     //                     $product->delete();
     //                 }
     //             }
@@ -496,10 +568,23 @@ class SaleController extends Controller
     //             foreach ($request->products as $productData) {
     //                 $product = Product::findOrFail($productData['product_id']);
 
+    //                 // Always add sales_product rows for all statuses
     //                 if ($product->stock_alert === 0) {
     //                     $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
     //                 } else {
-    //                     $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
+    //                     // If status is final/suspend, or if status is changing from draft/quotation to final/suspend, deduct stock
+    //                     if (
+    //                         in_array($newStatus, ['final', 'suspend']) &&
+    //                         (
+    //                             !$isUpdate ||
+    //                             in_array($oldStatus, ['draft', 'quotation']) ||
+    //                             $statusChangingToFinal
+    //                         )
+    //                     ) {
+    //                         $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
+    //                     } else {
+    //                         $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
+    //                     }
     //                 }
     //             }
 
@@ -533,10 +618,7 @@ class SaleController extends Controller
     //         $products = SalesProduct::where('sale_id', $sale->id)->get();
     //         $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
 
-    //         // Fetch the user associated with the sale
     //         $user = User::find($sale->user_id);
-
-    //         // Fetch the first location associated with the user
     //         $location = $user ? $user->locations()->first() : null;
 
     //         $html = view('sell.receipt', [
@@ -547,8 +629,8 @@ class SaleController extends Controller
     //             'total_discount' => $request->discount_amount ?? 0,
     //             'amount_given' => $sale->amount_given,
     //             'balance_amount' => $sale->balance_amount,
-    //             'user' => $user, // Pass the user to the view
-    //             'location' => $location, // Pass the user's location to the view
+    //             'user' => $user,
+    //             'location' => $location,
     //         ])->render();
 
     //         return response()->json([
@@ -562,7 +644,6 @@ class SaleController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
-
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
             'location_id' => 'required|integer|exists:locations,id',
@@ -594,6 +675,8 @@ class SaleController extends Controller
             'discount_amount' => 'nullable|numeric|min:0',
             'amount_given' => 'nullable|numeric|min:0',
             'balance_amount' => 'nullable|numeric|min:0',
+            'advance_amount' => 'nullable|numeric|min:0', // add this
+            'jobticket_description' => 'nullable|string', // add this
         ]);
 
         if ($validator->fails()) {
@@ -606,18 +689,26 @@ class SaleController extends Controller
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-                // Detect status change from draft/quotation to final/suspend
-                $statusChangingToFinal = false;
                 $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
                 $newStatus = $request->status;
 
-                // Generate Invoice Number Based on Status and Status Change
-                if (!$isUpdate) {
+                // ----- Invoice No Generation -----
+                if ($newStatus === 'jobticket') {
+                    // Generate J/2025/0001 pattern for job tickets
+                    $prefix = 'J/';
+                    $year = now()->format('Y');
+                    $lastJobTicketSale = Sale::whereYear('created_at', now())
+                        ->where('invoice_no', 'like', "$prefix$year/%")
+                        ->latest()
+                        ->first();
+                    $number = $lastJobTicketSale ? ((int)substr($lastJobTicketSale->invoice_no, -4)) + 1 : 1;
+                    $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
+                } elseif (!$isUpdate) {
                     if (in_array($newStatus, ['quotation', 'draft'])) {
                         $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
                         $year = now()->format('Y');
                         $lastSale = Sale::whereYear('created_at', now())
-                            ->where('invoice_no', 'like', "$prefix$year%")
+                            ->where('invoice_no', 'like', "$prefix$year/%")
                             ->latest()
                             ->first();
                         $number = $lastSale ? ((int)substr($lastSale->invoice_no, -4)) + 1 : 1;
@@ -626,32 +717,54 @@ class SaleController extends Controller
                         $invoiceNo = Sale::generateInvoiceNo($request->location_id);
                     }
                 } else {
-                    // If updating and status is changing from draft/quotation to final/suspend, generate new invoice number
                     if (
                         in_array($oldStatus, ['draft', 'quotation']) &&
                         in_array($newStatus, ['final', 'suspend']) &&
                         !preg_match('/^\d+$/', $sale->invoice_no)
                     ) {
-                        // Only generate if not already a numeric invoice_no
                         $invoiceNo = Sale::generateInvoiceNo($request->location_id);
-                        $statusChangingToFinal = true;
                     } else {
                         $invoiceNo = $sale->invoice_no;
                     }
                 }
 
-                // Calculate amounts
+                // ----- Amount Calculation -----
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
                 $discount = $request->discount_amount ?? 0;
                 $finalTotal = $request->discount_type === 'percentage'
                     ? $subtotal - ($subtotal * $discount / 100)
                     : $subtotal - $discount;
 
-                // Create the sale record first to get the ID
+                // ----- Jobticket Payment Logic -----
+                $advanceAmount = floatval($request->advance_amount ?? 0);
+
+                if ($newStatus === 'jobticket') {
+                    if ($finalTotal > $advanceAmount) {
+                        // Partial Payment
+                        $totalPaid = $advanceAmount;
+                        $totalDue = $finalTotal - $totalPaid;
+                        $amountGiven = $advanceAmount;
+                        $balanceAmount = 0;
+                    } else {
+                        // Full/extra Payment
+                        $totalPaid = $finalTotal;
+                        $totalDue = 0;
+                        $amountGiven = $advanceAmount;
+                        $balanceAmount = $advanceAmount - $finalTotal;
+                    }
+                } else {
+                    // Normal sale logic, default values
+                    $amountGiven = $request->amount_given ?? $finalTotal;
+                    $totalPaid = $amountGiven;
+                    $totalDue = max(0, $finalTotal - $amountGiven);
+                    $balanceAmount = max(0, $amountGiven - $finalTotal);
+                }
+
+                // ----- Save Sale -----
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
-                    'sales_date' => Carbon::parse($sale->created_at)
+                    'sales_date' => Carbon::parse($request->sales_date)
                         ->setTimezone('Asia/Colombo')
                         ->format('Y-m-d H:i:s'),
                     'sale_type' => $request->sale_type ?? 'retail',
@@ -663,80 +776,97 @@ class SaleController extends Controller
                     'discount_type' => $request->discount_type,
                     'discount_amount' => $discount,
                     'user_id' => auth()->id(),
-                    'total_paid' => 0,
-                    'total_due' => $finalTotal,
-                    'amount_given' => 0,
-                    'balance_amount' => 0,
+                    'total_paid' => $totalPaid,
+                    'total_due' => $totalDue,
+                    'amount_given' => $amountGiven,
+                    'balance_amount' => $balanceAmount,
                 ])->save();
 
-                // Handle payments
-                $totalPaid = 0;
-                if (!empty($request->payments)) {
-                    $totalPaid = $request->has('payments')
-                        ? array_sum(array_column($request->payments, 'amount'))
-                        : $sale->final_total;
-
-                    if ($isUpdate) {
-                        Payment::where('reference_id', $sale->id)->delete();
-                        Ledger::where('reference_no', $referenceNo)
-                            ->where('transaction_type', 'payments')
-                            ->delete();
-                    }
-
-                    foreach ($request->payments as $paymentData) {
-                        $payment = Payment::create([
-                            'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-                            'amount' => $paymentData['amount'],
-                            'payment_method' => $paymentData['payment_method'],
-                            'reference_no' => $referenceNo,
-                            'notes' => $paymentData['notes'] ?? '',
-                            'payment_type' => 'sale',
-                            'reference_id' => $sale->id,
-                            'customer_id' => $request->customer_id,
-                            'card_number' => $paymentData['card_number'] ?? null,
-                            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                            'card_security_code' => $paymentData['card_security_code'] ?? null,
-                            'cheque_number' => $paymentData['cheque_number'] ?? null,
-                            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                        ]);
-
-                        Ledger::create([
-                            'transaction_date' => $payment->payment_date,
-                            'reference_no' => $referenceNo,
-                            'transaction_type' => 'payments',
-                            'debit' => $payment->amount,
-                            'credit' => 0,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                            'contact_type' => 'customer',
-                            'user_id' => $request->customer_id,
-                        ]);
-                    }
-                } elseif ($isUpdate) {
-                    $totalPaid = $sale->total_paid;
+                // ----- Job Ticket Logic -----
+                if ($sale->status === 'jobticket') {
+                    $jobTicket = JobTicket::updateOrCreate(
+                        ['sale_id' => $sale->id],
+                        [
+                            'customer_id'      => $sale->customer_id,
+                            // job_ticket_no auto-generated in model
+                            'description'      => $request->jobticket_description ?? null,
+                            'job_ticket_date'  => Carbon::now('Asia/Colombo'),
+                            'status'           => 'open',
+                            'advance_amount'   => $advanceAmount,
+                            'balance_amount'   => $balanceAmount,
+                        ]
+                    );
                 }
 
-                $amountGiven = $request->amount_given ?? $sale->final_total;
-                $sale->update([
-                    'total_paid' => $amountGiven,
-                    'total_due' => max(0, $sale->final_total - $amountGiven),
-                    'amount_given' => $amountGiven,
-                    'balance_amount' => max(0, $amountGiven - $sale->final_total),
-                ]);
+                // ----- Handle Payments (if not jobticket) -----
+                if ($sale->status !== 'jobticket') {
+                    $totalPaid = 0;
+                    if (!empty($request->payments)) {
+                        $totalPaid = $request->has('payments')
+                            ? array_sum(array_column($request->payments, 'amount'))
+                            : $sale->final_total;
+
+                        if ($isUpdate) {
+                            Payment::where('reference_id', $sale->id)->delete();
+                            Ledger::where('reference_no', $referenceNo)
+                                ->where('transaction_type', 'payments')
+                                ->delete();
+                        }
+
+                        foreach ($request->payments as $paymentData) {
+                            $payment = Payment::create([
+                                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                                'amount' => $paymentData['amount'],
+                                'payment_method' => $paymentData['payment_method'],
+                                'reference_no' => $referenceNo,
+                                'notes' => $paymentData['notes'] ?? '',
+                                'payment_type' => 'sale',
+                                'reference_id' => $sale->id,
+                                'customer_id' => $request->customer_id,
+                                'card_number' => $paymentData['card_number'] ?? null,
+                                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                                'card_security_code' => $paymentData['card_security_code'] ?? null,
+                                'cheque_number' => $paymentData['cheque_number'] ?? null,
+                                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                                'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                                'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                            ]);
+
+                            Ledger::create([
+                                'transaction_date' => $payment->payment_date,
+                                'reference_no' => $referenceNo,
+                                'transaction_type' => 'payments',
+                                'debit' => $payment->amount,
+                                'credit' => 0,
+                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                'contact_type' => 'customer',
+                                'user_id' => $request->customer_id,
+                            ]);
+                        }
+                    } elseif ($isUpdate) {
+                        $totalPaid = $sale->total_paid;
+                    }
+
+                    $amountGiven = $request->amount_given ?? $sale->final_total;
+                    $sale->update([
+                        'total_paid' => $amountGiven,
+                        'total_due' => max(0, $sale->final_total - $amountGiven),
+                        'amount_given' => $amountGiven,
+                        'balance_amount' => max(0, $amountGiven - $sale->final_total),
+                    ]);
+                }
 
                 // Check for partial payments for Walk-In Customer
                 if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
                     throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
                 }
 
-                // Handle products
+                // ----- Products Logic (allow multiple for jobticket) -----
                 if ($isUpdate) {
                     foreach ($sale->products as $product) {
-                        // Only restore stock if previous status was 'final' or 'suspend'
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         }
@@ -746,18 +876,14 @@ class SaleController extends Controller
 
                 foreach ($request->products as $productData) {
                     $product = Product::findOrFail($productData['product_id']);
-
-                    // Always add sales_product rows for all statuses
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
-                        // If status is final/suspend, or if status is changing from draft/quotation to final/suspend, deduct stock
                         if (
                             in_array($newStatus, ['final', 'suspend']) &&
                             (
                                 !$isUpdate ||
-                                in_array($oldStatus, ['draft', 'quotation']) ||
-                                $statusChangingToFinal
+                                in_array($oldStatus, ['draft', 'quotation', 'jobticket'])
                             )
                         ) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
@@ -767,7 +893,7 @@ class SaleController extends Controller
                     }
                 }
 
-                // Update sale ledger entry
+                // ----- Ledger -----
                 if ($isUpdate) {
                     Ledger::where('reference_no', $referenceNo)
                         ->where('transaction_type', 'sale')
@@ -1028,7 +1154,7 @@ class SaleController extends Controller
                 ->first();
 
             // For draft/quotation, allow any quantity, even if it exceeds stock
-            if (in_array($newStatus, ['draft', 'quotation'])) {
+            if (in_array($newStatus, ['draft', 'quotation', 'jobticket'])) {
                 $batchDeductions[] = [
                     'batch_id' => $batch->id,
                     'quantity' => $remainingQuantity
@@ -1046,7 +1172,7 @@ class SaleController extends Controller
             }
         } else {
             // For "all" batches, allow any quantity for draft/quotation
-            if (in_array($newStatus, ['draft', 'quotation'])) {
+            if (in_array($newStatus, ['draft', 'quotation', 'jobticket'])) {
                 // Just assign all to a pseudo batch (or null)
                 $batchDeductions[] = [
                     'batch_id' => null,

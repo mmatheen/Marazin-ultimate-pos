@@ -87,7 +87,7 @@ class CustomerController extends Controller
     public function show(int $id)
     {
         $customer = Customer::find($id);
-        return $customer ? response()->json(['status' => 200, 'message' => $customer])
+        return $customer ? response()->json(['status' => 200, 'customer' => $customer])
             : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 

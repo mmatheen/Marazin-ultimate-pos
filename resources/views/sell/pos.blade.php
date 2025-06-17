@@ -534,11 +534,7 @@
             font-weight: bold;
         }
 
-        /* .remove-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            } */
+
 
         .star {
             color: gold;
@@ -572,6 +568,444 @@
             color: #fff !important;
             /* Text color */
             border-radius: 4px;
+        }
+
+
+        /* //new styles */
+        /* --- Product Info, Name, and Badge --- */
+        .product-info {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+            min-width: 0 !important;
+            flex-wrap: wrap !important;
+        }
+
+        .product-name {
+            font-weight: bold !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            flex-wrap: wrap !important;
+            word-break: break-word !important;
+            min-width: 0 !important;
+        }
+
+        .product-name .badge {
+            flex-shrink: 0 !important;
+            max-width: 100% !important;
+            white-space: nowrap !important;
+            margin-left: 4px !important;
+        }
+
+
+
+        /* 768px–1199px: Common fixes for all laptop/tablet */
+        @media (max-width: 1199px) and (min-width: 768px) {
+
+            /* .product-card, */
+            .category-card,
+            .brand-card {
+                min-height: 72px !important;
+                padding: 14px 18px !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 16px !important;
+                justify-content: flex-start !important;
+            }
+
+            /* .product-card img {
+                max-width: 54px !important;
+                max-height: 54px !important;
+                min-width: 36px !important;
+                object-fit: contain !important;
+            } */
+
+            /* .product-card h6, */
+            .category-card h6,
+            .brand-card h6 {
+                font-size: 1.08rem !important;
+                margin-bottom: 5px !important;
+                white-space: normal !important;
+                overflow: visible !important;
+            }
+
+            /* .product-card .badge {
+                font-size: 1rem !important;
+                margin: 5px 0 !important;
+            } */
+
+            .row.g-3.overflow-auto,
+            #posProduct {
+                gap: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Bottom-fixed: 3-column button grid for tablet */
+            .bottom-fixed {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: space-between !important;
+                align-items: flex-start !important;
+                gap: 16px !important;
+                padding: 16px 3vw !important;
+                width: 100vw !important;
+                background: #fff !important;
+                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04) !important;
+                z-index: 100;
+            }
+
+            .bottom-fixed .row {
+                flex-wrap: wrap !important;
+                width: 100vw !important;
+                gap: 0 !important;
+            }
+
+            .bottom-fixed .col-md-5,
+            .bottom-fixed .col-md-7 {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                flex: 0 0 100vw !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Button grid: 3 per row for tablet */
+            .bottom-fixed .d-flex,
+            .bottom-fixed .justify-content-end,
+            .bottom-fixed .gap-2,
+            .bottom-fixed .flex-wrap {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0 !important;
+                justify-content: center !important;
+                width: 100vw !important;
+                margin: 0 !important;
+            }
+
+            .bottom-fixed .btn {
+                width: 31vw !important;
+                max-width: 32vw !important;
+                min-width: 110px !important;
+                flex: 1 1 31vw !important;
+                margin: 10px 1vw !important;
+                font-size: 1.08rem !important;
+                padding: 14px 0 !important;
+                border-radius: 12px !important;
+                text-align: center !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+            }
+
+            .bottom-fixed h4,
+            .bottom-fixed span {
+                font-size: 1.18rem !important;
+                margin-right: 8px !important;
+            }
+
+            .bottom-fixed #cancelButton {
+                margin-left: 10px !important;
+            }
+
+            html,
+            body {
+                overflow-x: hidden !important;
+            }
+        }
+
+        /* 600px–767px: Small tablet, landscape mobile */
+        @media (max-width: 767px) and (min-width: 600px) {
+
+            /* #posProduct>div[class*="col-"],
+            .product-card {
+                flex: 0 0 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin: 0 auto 14px auto !important;
+                box-sizing: border-box;
+            } */
+
+            /* .product-card, */
+            .category-card,
+            .brand-card {
+                min-height: 68px !important;
+                padding: 12px 13px !important;
+                gap: 13px !important;
+            }
+
+            /* .product-card img {
+                max-width: 48px !important;
+                max-height: 48px !important;
+                min-width: 28px !important;
+            } */
+
+            /* .product-card h6, */
+            .category-card h6,
+            .brand-card h6 {
+                font-size: 1.01rem !important;
+                margin-bottom: 4px !important;
+            }
+
+            /* Bottom-fixed: 2-column button grid for mobile/tablet */
+            .bottom-fixed .d-flex,
+            .bottom-fixed .justify-content-end,
+            .bottom-fixed .gap-2,
+            .bottom-fixed .flex-wrap {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0 !important;
+                justify-content: center !important;
+                width: 100vw !important;
+                margin: 0 !important;
+            }
+
+            .bottom-fixed .btn {
+                width: 48vw !important;
+                max-width: 48vw !important;
+                min-width: 90px !important;
+                font-size: 1.01rem !important;
+                padding: 11px 0 !important;
+                border-radius: 10px !important;
+                margin: 8px 1vw !important;
+            }
+        }
+
+        /* 320px–599px: Mobile, portrait tablet */
+        @media (max-width: 599px) {
+            /*
+            #posProduct>div[class*="col-"],
+            .product-card {
+                flex: 0 0 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin: 0 auto 12px auto !important;
+                box-sizing: border-box;
+            }
+
+            .product-card,
+            .category-card,
+            .brand-card {
+                min-height: 62px !important;
+                padding: 10px 8px !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+
+            .product-card img {
+                max-width: 40px !important;
+                max-height: 40px !important;
+                min-width: 20px !important;
+                object-fit: contain !important;
+            }
+
+            .product-card h6,
+            .category-card h6,
+            .brand-card h6 {
+                font-size: 0.98rem !important;
+                margin-bottom: 3px !important;
+            } */
+
+            /* --- UX improvement: Make bottom-fixed NOT sticky on mobile --- */
+            .bottom-fixed {
+                position: static !important;
+                box-shadow: none !important;
+                border-top: 1px solid #eee !important;
+                padding-bottom: 12px !important;
+                margin-bottom: 0 !important;
+                background: #fff !important;
+            }
+
+            html,
+            body {
+                padding-bottom: 0 !important;
+            }
+
+            /* Button grid for mobile */
+            .bottom-fixed .d-flex,
+            .bottom-fixed .justify-content-end,
+            .bottom-fixed .gap-2,
+            .bottom-fixed .flex-wrap {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 0 !important;
+                justify-content: center !important;
+                width: 100vw !important;
+                margin: 0 !important;
+            }
+
+            .bottom-fixed .btn {
+                width: 48vw !important;
+                max-width: 48vw !important;
+                min-width: 80px !important;
+                font-size: 0.95rem !important;
+                padding: 10px 0 !important;
+                border-radius: 9px !important;
+                margin: 7px 1vw !important;
+            }
+        }
+
+        /* Fix for all: remove excessive whitespace on product cards
+        .product-card,
+        .category-card,
+        .brand-card {
+            box-sizing: border-box;
+            background: #fff !important;
+            border: 1px solid #e2e2e2 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+        } */
+
+        @media (max-width: 991px) {
+
+            .bottom-fixed {
+                position: static !important;
+                left: 0 !important;
+                bottom: 0 !important;
+                right: 0 !important;
+                width: 100vw !important;
+                /* padding: 4px 2vw !important; */
+                margin: 0 auto !important;
+                background: #fff !important;
+                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08) !important;
+                display: flex !important;
+                flex-direction: column !important;
+                /* align-items: stretch !important; */
+                z-index: 1000 !important;
+                overflow-x: auto !important;
+            }
+
+            /* Button grid: 2-per-row, wrap if odd number */
+            .bottom-fixed .button-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px 2vw;
+                width: 100%;
+                justify-content: center;
+                margin: 0 auto;
+            }
+
+            .bottom-fixed .button-grid .btn {
+                flex: 1 1 45%;
+                max-width: 48vw;
+                min-width: 80px;
+                margin: 0;
+                font-size: 0.95rem !important;
+                padding: 8px 0 !important;
+                border-radius: 8px !important;
+                text-align: center;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+                margin-bottom: 7px !important;
+            }
+
+            /* Remove extra margin from last row if odd */
+            .bottom-fixed .button-grid .btn:last-child:nth-child(odd) {
+                margin-left: 25vw;
+            }
+
+            /* Total Payable and Cancel should be a row above, large and clear */
+            .bottom-fixed .total-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 12px;
+                gap: 8px;
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .bottom-fixed .total-row h4,
+            .bottom-fixed .total-row span {
+                font-size: 1.11rem !important;
+                margin: 0 5px 0 0;
+            }
+
+            .bottom-fixed .total-row .btn {
+                font-size: 0.95rem !important;
+                padding: 7px 0 !important;
+                min-width: 70px !important;
+                border-radius: 8px !important;
+                margin: 0;
+                white-space: nowrap;
+            }
+
+            /* Scroll area fix for mobile: make whole content scrollable */
+            html,
+            body,
+            .container-fluid {
+                overflow-x: hidden !important;
+                height: 100vh !important;
+                padding-bottom: 100px !important;
+            }
+        }
+
+        /* For very small screens, shrink button font a bit */
+        @media (max-width: 500px) {
+
+            .bottom-fixed .button-grid .btn,
+            .bottom-fixed .total-row .btn,
+            .bottom-fixed .btn {
+                font-size: 0.82rem !important;
+                min-width: 60px !important;
+                padding: 6px 0 !important;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .offcanvas {
+                width: 70vw !important;
+                /* wider for tablet */
+                min-width: 360px !important;
+                max-width: 90vw !important;
+                border-radius: 0 12px 12px 0 !important;
+                box-shadow: 0 2px 24px rgba(0, 0, 0, 0.06) !important;
+            }
+
+            .offcanvas-header,
+            .offcanvas-body {
+                padding-left: 22px !important;
+                padding-right: 22px !important;
+            }
+
+            .offcanvas-title {
+                font-size: 1.32rem !important;
+                font-weight: 500 !important;
+            }
+
+            .offcanvas-body {
+                padding-top: 18px !important;
+                padding-bottom: 18px !important;
+                overflow-y: auto !important;
+                max-height: 85vh !important;
+            }
+
+            .category-container,
+            .brand-container {
+                gap: 16px !important;
+                padding-bottom: 20px !important;
+            }
+
+            .category-card,
+            .brand-card {
+                font-size: 1.06rem !important;
+                padding: 17px !important;
+            }
+        }
+
+        @media (min-width: 1200px) {
+
+            html,
+            body {
+                height: 100%;
+                min-height: 100vh;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
+            body {
+                padding-bottom: 90px;
+                /* Height of .bottom-fixed + some margin */
+            }
         }
     </style>
 </head>
@@ -1009,7 +1443,13 @@
                 <!-- Left Side: Actions (Aligned to Right) -->
                 <div class="col-md-7 text-end">
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
-                        <!-- Quotation Button -->
+
+                        {{-- job ticket --}}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
+                            <i class="fas fa-ticket-alt"></i> Job Ticket
+                        </button>
+
+                        {{-- <!-- Quotation Button --> --}}
                         <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
                             <i class="fas fa-file-alt"></i> Quotation
                         </button>
@@ -1047,6 +1487,7 @@
             </div>
         </div>
     </div>
+
     <!-- Bootstrap Modal with Tabs and Dynamic Table -->
     <div class="modal fade" id="recentTransactionsModal" tabindex="-1" aria-labelledby="recentTransactionsLabel"
         aria-hidden="true">
@@ -1069,6 +1510,10 @@
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#draft"
                                 onclick="loadTableData('draft')">Draft</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#draft"
+                                onclick="loadTableData('jobticket')">Job Tickets</a>
                         </li>
                     </ul>
                     <div class="tab-content mt-3">
@@ -1949,6 +2394,133 @@
     </script>
 
 
+    <!-- Modal -->
+    <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="font-family: 'Roboto', sans-serif;">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="jobTicketModalLabel" style="font-weight: bold;">JOB-TICKET</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4 py-3">
+                    <form id="jobTicketForm">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 13px;">Ticket ID</label>
+                                <input type="text" class="form-control form-control-sm" id="ticketId" readonly>
+                            </div>
+                            <div class="col-6 text-end">
+                                <label class="form-label mb-1" style="font-size: 13px;">Date</label>
+                                <input type="text" class="form-control form-control-sm text-end" id="jobDate"
+                                    readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-12">
+                                <label class="form-label mb-1" style="font-size: 13px;">Description</label>
+                                <textarea class="form-control form-control-sm" id="description" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-4">
+                                <label class="form-label mb-1" style="font-size: 13px;">Advance</label>
+                                <input type="number" class="form-control form-control-sm" id="advanceAmountInput">
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label mb-1" style="font-size: 13px;">Balance</label>
+                                <input type="number" class="form-control form-control-sm" id="balanceAmountInput"
+                                    readonly>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label mb-1" style="font-size: 13px;">Total</label>
+                                <input type="number" class="form-control form-control-sm" id="totalAmountInput"
+                                    readonly>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row mb-2 mt-2">
+                            <div class="col-12">
+                                <div
+                                    style="border: 1px solid #198754; border-radius: 6px; padding: 10px; background: #f8fff8;">
+                                    <div style="font-size: 13px; color: #198754; font-weight: 500;">
+                                        I Certify that the above informations correct &amp; Complete.<br>
+                                        மேலே என்னால் கொடுக்கப்பட்ட தகவல் யாவும் சரியானதும், முற்றும் பெற்றதும் என
+                                        உறுதிப்படுத்துகிறேன்.
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-6">
+                                            <span style="font-size: 12px;">Date</span>
+                                            <div
+                                                style="border-bottom: 1px dotted #888; width: 100px; display: inline-block; margin-left: 10px;">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <span style="font-size: 12px;">Signature/ஒப்பம்</span>
+                                            <div
+                                                style="border-bottom: 1px dotted #888; width: 120px; display: inline-block; margin-left: 10px;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 13px;">Name</label>
+                                <input type="text" class="form-control form-control-sm" id="customerName"
+                                    readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 13px;">Address</label>
+                                <input type="text" class="form-control form-control-sm" id="customerAddress"
+                                    readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 13px;">Mobile</label>
+                                <input type="text" class="form-control form-control-sm" id="customerMobile"
+                                    readonly>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label mb-1" style="font-size: 13px;">E-mail</label>
+                                <input type="email" class="form-control form-control-sm" id="customerEmail"
+                                    readonly>
+                            </div>
+                        </div>
+
+
+                    </form>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="submitJobTicket">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+        #jobTicketModal .form-label {
+            font-weight: 500;
+        }
+
+        #jobTicketModal input[readonly],
+        #jobTicketModal textarea[readonly] {
+            background: #f8f9fa;
+        }
+
+        #jobTicketModal input,
+        #jobTicketModal textarea {
+            font-size: 13px;
+        }
+
+        #jobTicketModal .modal-content {
+            border-radius: 10px;
+        }
+    </style>
 
     <!-- JavaScript for Calculator Functionality -->
     <script>
