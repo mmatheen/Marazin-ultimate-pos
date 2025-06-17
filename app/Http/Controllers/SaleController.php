@@ -214,9 +214,15 @@ class SaleController extends Controller
             $startDate = Carbon::parse($startDate)->startOfDay();
             $endDate = Carbon::parse($endDate)->endOfDay();
 
-            // 1. Fetch today's sales
+            // 1. Fetch sales filtered by sales_date, created_at (Asia/Colombo), or both
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
-                ->whereBetween('sales_date', [$startDate, $endDate]);
+                ->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('sales_date', [$startDate, $endDate])
+                      ->orWhereBetween(
+                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
+                          [$startDate, $endDate]
+                      );
+                });
 
             // Apply filters
             if ($request->has('customer_id') && $request->customer_id) {
@@ -258,9 +264,15 @@ class SaleController extends Controller
                 $creditTotal += $sale->total_due;
             }
 
-            // 3. Get all returns made today (regardless of when the sale happened)
+            // 3. Get all returns filtered by return_date, created_at (Asia/Colombo), or both
             $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
-                ->whereBetween('return_date', [$startDate, $endDate]);
+                ->where(function ($q) use ($startDate, $endDate) {
+                    $q->whereBetween('return_date', [$startDate, $endDate])
+                      ->orWhereBetween(
+                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
+                          [$startDate, $endDate]
+                      );
+                });
 
             if ($request->has('customer_id') && $request->customer_id) {
                 $allReturnsQuery->where('customer_id', $request->customer_id);
