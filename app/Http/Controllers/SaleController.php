@@ -277,7 +277,13 @@ class SaleController extends Controller
 
             // 5. Summaries
             $billTotal = $sales->sum('final_total'); // Only sales within the selected date range
-            $discounts = $sales->sum('discount_amount');
+            // Correctly sum discount values (fixed and percentage)
+            $discounts = $sales->sum(function ($sale) {
+                if ($sale->discount_type === 'percentage') {
+                    return ($sale->subtotal * $sale->discount_amount / 100);
+                }
+                return $sale->discount_amount;
+            });
 
             // Calculate total sales returns (today + old)
             $totalSalesReturns = $todaySalesReturns->sum('return_total') + $oldSaleReturns->sum('return_total');
