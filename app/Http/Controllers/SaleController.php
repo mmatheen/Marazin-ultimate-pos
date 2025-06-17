@@ -271,12 +271,22 @@ class SaleController extends Controller
 
             $allReturns = $allReturnsQuery->get();
 
-            // 4. Split returns into two groups
-            $todaySalesReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date >= $startDate && $r->sale?->sales_date <= $endDate);
-            $oldSaleReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date < $startDate);
+            // 4. Split returns into two groups:
+            // - Returns for sales made today (today's sales returns)
+            // - Returns for sales made before today (old sales, but returned today)
+            $salesIds = $sales->pluck('id')->toArray();
+
+            $todaySalesReturns = $allReturns->filter(function ($r) use ($salesIds) {
+                return in_array($r->sale_id, $salesIds);
+            })->values();
+
+            $oldSaleReturns = $allReturns->filter(function ($r) use ($salesIds) {
+                return !in_array($r->sale_id, $salesIds);
+            })->values();
 
             // 5. Summaries
             $billTotal = $sales->sum('final_total'); // Only sales within the selected date range
+
             // Correctly sum discount values (fixed and percentage)
             $discounts = $sales->sum(function ($sale) {
                 if ($sale->discount_type === 'percentage') {
@@ -285,8 +295,8 @@ class SaleController extends Controller
                 return $sale->discount_amount;
             });
 
-            // Calculate total sales returns (today + old)
-            $totalSalesReturns = $todaySalesReturns->sum('return_total') + $oldSaleReturns->sum('return_total');
+            // Calculate total sales returns (only for sales in the current period)
+            $totalSalesReturns = $todaySalesReturns->sum('return_total');
 
             // Net Income: Bill Total - Total Sales Returns
             $netIncome = $billTotal - $totalSalesReturns;
@@ -314,8 +324,8 @@ class SaleController extends Controller
             return response()->json([
                 'sales' => $sales,
                 'summaries' => $summaries,
-                'todaySalesReturns' => $todaySalesReturns,
-                'oldSaleReturns' => $oldSaleReturns
+                'todaySalesReturns' => $todaySalesReturns->values(),
+                'oldSaleReturns' => $oldSaleReturns->values()
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
