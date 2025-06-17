@@ -214,7 +214,6 @@ class SaleController extends Controller
             $startDate = Carbon::parse($startDate)->startOfDay();
             $endDate = Carbon::parse($endDate)->endOfDay();
 
-
             // 1. Fetch today's sales
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->whereBetween('sales_date', [$startDate, $endDate]);
@@ -277,18 +276,33 @@ class SaleController extends Controller
             $oldSaleReturns = $allReturns->filter(fn($r) => $r->sale?->sales_date < $startDate);
 
             // 5. Summaries
+            $billTotal = $sales->sum('final_total');
+            $discounts = $sales->sum('discount_amount');
+
+            // Calculate total sales returns (today + old)
+            $totalSalesReturns = $todaySalesReturns->sum('return_total') + $oldSaleReturns->sum('return_total');
+
+            // Net Income: Bill Total - Total Sales Returns
+            $netIncome = $billTotal - $totalSalesReturns;
+
+            // Cash in Hand: Cash Payments - Total Sales Returns
+            $cashInHand = $cashPayments - $totalSalesReturns;
+
+            // Payment Total: Sum of all payment methods
+            $paymentTotal = $cashPayments + $chequePayments + $bankTransferPayments + $cardPayments;
+
             $summaries = [
-                'billTotal' => $sales->sum('final_total'),
-                'discounts' => $sales->sum('discount_amount'),
+                'billTotal' => $billTotal,
+                'discounts' => $discounts,
                 'cashPayments' => $cashPayments,
                 'chequePayments' => $chequePayments,
                 'bankTransfer' => $bankTransferPayments,
                 'cardPayments' => $cardPayments,
-                'salesReturns' => $todaySalesReturns->sum('return_total'),
-                'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
+                'salesReturns' => $totalSalesReturns,
+                'paymentTotal' => $paymentTotal,
                 'creditTotal' => $creditTotal,
-                'netIncome' => ($sales->sum('final_total') - $todaySalesReturns->sum('return_total')),
-                'cashInHand' => ($cashPayments - $todaySalesReturns->sum('return_total')),
+                'netIncome' => $netIncome,
+                'cashInHand' => $cashInHand,
             ];
 
             return response()->json([
