@@ -794,7 +794,7 @@ class SaleController extends Controller
                 $sale->fill([
                     'customer_id' => $request->customer_id,
                     'location_id' => $request->location_id,
-                    'sales_date' => Carbon::parse($request->sales_date)
+                    'sales_date' => Carbon::parse($sale->created_at)
                         ->setTimezone('Asia/Colombo')
                         ->format('Y-m-d H:i:s'),
                     'sale_type' => $request->sale_type ?? 'retail',
