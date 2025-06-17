@@ -765,6 +765,8 @@
                 });
 
                 let tableIndex = 0;
+                // Ensure salesReturns is always an array
+                const safeSalesReturns = Array.isArray(salesReturns) ? salesReturns : [];
                 const tableData = sales.map(sale => {
                     let cash = 0,
                         bankTransfer = 0,
@@ -787,7 +789,7 @@
                         }
                     });
 
-                    const saleReturn = salesReturns.find(r => r.sale_id === sale.id);
+                    const saleReturn = safeSalesReturns.find(r => r.sale_id === sale.id);
                     const salesReturnAmount = saleReturn ? parseFloat(saleReturn.return_total) : 0;
 
                     return [
