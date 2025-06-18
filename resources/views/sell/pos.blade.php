@@ -1444,42 +1444,62 @@
                 <div class="col-md-7 text-end">
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
 
-                        {{-- job ticket --}}
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
-                            <i class="fas fa-ticket-alt"></i> Job Ticket
-                        </button>
+                        @can('job ticket')
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
+                                <i class="fas fa-ticket-alt"></i> Job Ticket
+                            </button>
+                        @endcan
 
-                        {{-- <!-- Quotation Button --> --}}
-                        <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
-                            <i class="fas fa-file-alt"></i> Quotation
-                        </button>
+                        @can('quotation')
+                            <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
+                                <i class="fas fa-file-alt"></i> Quotation
+                            </button>
+                        @endcan
 
-                        <!-- Draft Button -->
-                        <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
-                            <i class="fas fa-edit"></i> Draft
-                        </button>
+                        @can('draft')
+                            <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
+                                <i class="fas fa-edit"></i> Draft
+                            </button>
+                        @endcan
 
-                        <!-- Existing Buttons -->
-                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#suspendModal">
-                            <i class="fas fa-pause"></i> Suspend
-                        </button>
-                        <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
-                            <i class="fas fa-check"></i> Credit Sale
-                        </button>
-                        <button class="btn btn-outline-primary btn-sm" id="cardButton">
-                            <i class="fas fa-credit-card"></i> Card
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm" id="chequeButton">
-                            <i class="fas fa-money-check"></i> Cheque
-                        </button>
-                        <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#paymentModal">
-                            <i class="fas fa-list"></i> Multiple Pay
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" id="cashButton">
-                            <i class="fas fa-cash-register"></i> Cash
-                        </button>
+                        @can('suspend')
+                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#suspendModal">
+                                <i class="fas fa-pause"></i> Suspend
+                            </button>
+                        @endcan
+
+                        @can('credit sale')
+                            <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
+                                <i class="fas fa-check"></i> Credit Sale
+                            </button>
+                        @endcan
+
+                        @can('card')
+                            <button class="btn btn-outline-primary btn-sm" id="cardButton">
+                                <i class="fas fa-credit-card"></i> Card
+                            </button>
+                        @endcan
+
+                        @can('cheque')
+                            <button class="btn btn-outline-warning btn-sm" id="chequeButton">
+                                <i class="fas fa-money-check"></i> Cheque
+                            </button>
+                        @endcan
+
+                        @can('multiple pay')
+                            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#paymentModal">
+                                <i class="fas fa-list"></i> Multiple Pay
+                            </button>
+                        @endcan
+
+                        @can('cash')
+                            <button class="btn btn-outline-secondary btn-sm" id="cashButton">
+                                <i class="fas fa-cash-register"></i> Cash
+                            </button>
+                        @endcan
+
                     </div>
                 </div>
 
@@ -1739,15 +1759,16 @@
                             </div>
                         </div>
 
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
-                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
+                            Payment</button>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- Card Payment Modal -->
