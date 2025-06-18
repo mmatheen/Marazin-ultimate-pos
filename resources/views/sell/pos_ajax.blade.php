@@ -291,14 +291,43 @@
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase().trim();
-                    if (!searchTerm) {
+                    if (!searchTerm || !selectedLocationId) {
                         response([]);
                         return;
                     }
 
-                    // Only match by product name or SKU (partial, case-insensitive)
+                    // Only match products that have stock in the selected location
                     const matches = allProducts.filter(product => {
-                        if (product.total_stock <= 0) return false;
+                        // Find the stock entry for this product in the selected location
+                        const stockEntry = stockData.find(stock =>
+                            stock.product.id === product.id &&
+                            stock.batches.some(batch =>
+                                batch.location_batches.some(lb =>
+                                    lb.location_id == selectedLocationId &&
+                                    (lb.quantity > 0 || product.stock_alert === 0)
+                                )
+                            )
+                        );
+                        if (!stockEntry) return false;
+
+                        // Only show if stock is available or unlimited in this location
+                        let locationQty = 0;
+                        stockEntry.batches.forEach(batch => {
+                            batch.location_batches.forEach(lb => {
+                                if (lb.location_id == selectedLocationId) {
+                                    locationQty += lb.quantity;
+                                }
+                            });
+                        });
+                        if (product.stock_alert === 0) {
+                            product.total_stock = 0;
+                        } else {
+                            product.total_stock = locationQty;
+                        }
+                        // Only show if stock > 0 or unlimited
+                        if (product.stock_alert !== 0 && product.total_stock <= 0)
+                        return false;
+
                         // Use .includes for partial match, .toLowerCase for case-insensitive
                         const name = product.product_name?.toLowerCase() || '';
                         const sku = product.sku?.toLowerCase() || '';
@@ -332,11 +361,11 @@
 
                     const autoCompleteResults = matches.length ?
                         matches.map(p => ({
-                            label: `${p.product_name} (${p.sku}) [Total Stock: ${p.total_stock}]`,
+                            label: `${p.product_name} (${p.sku}) [Stock: ${p.stock_alert === 0 ? 'Unlimited' : p.total_stock}]`,
                             value: p.product_name,
                             product: p
                         })) : [{
-                            label: "No products found",
+                            label: "No products found for this location",
                             value: ""
                         }];
 
@@ -356,8 +385,6 @@
                 open: function() {
                     const widget = $(this).autocomplete("widget");
                     widget.find("li").removeClass("ui-state-focus");
-                    // const $first = widge             close: function() {
-                    $(this).autocomplete("widget").find("li").removeClass("ui-state-focus");
                 }
             }).autocomplete("instance")._renderItem = function(ul, item) {
                 const $li = $("<li>").append(
