@@ -40,6 +40,8 @@ class SaleReturnController extends Controller
      */
     public function storeOrUpdate(Request $request, $id = null)
     {
+
+        dd($request->all());
         // Validate the request data
         $validator = Validator::make($request->all(), [
             'sale_id' => 'nullable|exists:sales,id',
@@ -93,7 +95,7 @@ class SaleReturnController extends Controller
                 ['id' => $id],
                 [
                     'sale_id' => $request->sale_id,
-                    'customer_id' => $request->customer_id,
+                    'customer_id' => $request->customer_id ?? ($request->sale_id ? optional(Sale::find($request->sale_id))->customer_id : null),
                     'location_id' => $request->location_id,
                     // Set return_date as created_at in Asia/Colombo timezone
                     'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),

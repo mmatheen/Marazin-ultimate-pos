@@ -22,7 +22,7 @@ class PurchaseController extends Controller
         $this->middleware('permission:view purchase', ['only' => ['listPurchase']]);
         $this->middleware('permission:add purchase', ['only' => ['AddPurchase']]);
         $this->middleware('permission:create purchase', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit purchase', ['only' => ['editPurchase','storeOrUpdate']]);
+        $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'storeOrUpdate']]);
     }
 
     public function listPurchase()
@@ -80,6 +80,7 @@ class PurchaseController extends Controller
                 ['id' => $purchaseId],
                 [
                     'supplier_id' => $request->supplier_id,
+                    'user_id' => auth()->id(),
                     'reference_no' => $purchaseId ? Purchase::find($purchaseId)->reference_no : $this->generateReferenceNo(),
                     'purchase_date' => $request->purchase_date,
                     'purchasing_status' => $request->purchasing_status,
@@ -309,7 +310,7 @@ class PurchaseController extends Controller
         // If the paid amount exceeds total due, adjust it
         $paidAmount = min($request->paid_amount, $totalDue);
 
-         Payment::create([
+        Payment::create([
             'payment_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
             'amount' => $paidAmount,
             'payment_method' => $request->payment_method,
@@ -359,7 +360,7 @@ class PurchaseController extends Controller
     {
         try {
             // Fetch all purchases with related products and payment info
-            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments'])->get();
+            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments','user'])->get();
 
             // $purchases = Purchase::with(['purchaseProducts'])->get();
 
@@ -377,7 +378,7 @@ class PurchaseController extends Controller
         }
     }
 
-    public function getAllPurchasesProduct( $id)
+    public function getAllPurchasesProduct($id)
     {
         $purchase = Purchase::with(['supplier', 'location', 'purchaseProducts.product', 'payments'])->find($id);
 

@@ -198,24 +198,22 @@
                                                                     </div>
 
                                                                     <div class="col-md-6">
-                                                                        <div class="d-flex justify-content-start">
-                                                                            <div class="mb-3">
-                                                                                <label>File To Import</label>
-                                                                                <div class="invoices-upload-btn">
-                                                                                    <input type="file" name="file"
-                                                                                        id="file" class="hide-input">
-                                                                                    <label for="file"
-                                                                                        class="upload btn btn-outline-secondary"><i
-                                                                                            class="far fa-folder-open">
-                                                                                            &nbsp;</i> Browse..</label>
-                                                                                </div>
+                                                                        <div class="mb-3">
+                                                                            <label class="form-label">File To Import</label>
+                                                                            <div class="input-group">
+                                                                                <input type="file" name="file" id="file" class="form-control" style="padding: 0.375rem 0.75rem; max-width: 300px;">
+                                                                                <button type="submit" id="import_btn" class="btn btn-primary" style="min-width: 120px; max-width: 150px;">Upload</button>
                                                                             </div>
-                                                                            <div class="mt-3">
-                                                                                <button type="submit" id="import_btn"
-                                                                                    class="btn btn-outline-primary ms-4 mt-3">Upload</button>
-                                                                            </div>
+                                                                            <small id="selectedFileName" class="form-text text-success mt-1"></small>
                                                                         </div>
                                                                     </div>
+                                                                   
+                                                                    <script>
+                                                                        document.getElementById('file').addEventListener('change', function(e) {
+                                                                            const fileName = e.target.files.length ? e.target.files[0].name : '';
+                                                                            document.getElementById('selectedFileName').textContent = fileName ? fileName : '';
+                                                                        });
+                                                                    </script>
                                                                     <div class="col-md-6 mt-3">
                                                                         <div class="progress mt-3" style="display: none;">
                                                                             <div class="progress-bar" role="progressbar"
@@ -231,6 +229,9 @@
 
 
                                                             </form>
+
+
+
                                                         </div>
                                                     </div>
                                                 </div>

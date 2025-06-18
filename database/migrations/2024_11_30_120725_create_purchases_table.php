@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('purchases', function (Blueprint $table) {
             $table->id(); // Ensure this is an unsignedBigInteger
             $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('reference_no')->unique();
             $table->date('purchase_date');
             $table->enum('purchasing_status', ['Received', 'Pending', 'Ordered'])->default('Received');

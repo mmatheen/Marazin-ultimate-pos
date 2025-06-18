@@ -11,6 +11,7 @@ class Purchase extends Model
 
     protected $fillable = [
         'supplier_id',
+        'user_id',
         'reference_no',
         'purchase_date',
         'purchasing_status',
@@ -63,5 +64,10 @@ class Purchase extends Model
     {
         $this->total_paid = $this->payments()->sum('amount');
         $this->save();
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -16,11 +16,11 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Get the locations' IDs for reference
-        $location_ids = DB::table('locations')->whereIn('name', ['Sammanthurai', 'ARB FASHION','ARB SUPER CENTER',])->pluck('id');
+        // Get all locations and their IDs
+        $allLocations = DB::table('locations')->pluck('id', 'name');
+        $location_ids = $allLocations->only(['Sammanthurai', 'ARB FASHION', 'ARB SUPER CENTER']);
 
         $users = [
-
             [
                 'name_title' => 'Mr',
                 'full_name' => 'ARB',
@@ -29,9 +29,8 @@ class UserSeeder extends Seeder
                 'email' => 'arb@gmail.com',
                 'password' => '1234',
                 'role' => 'Super Admin',
-                'location_id' => $location_ids[0] // Assign the first location ID (Sammanthurai)
+                'locations' => ['Sammanthurai']
             ],
-
             [
                 'name_title' => 'Mr',
                 'full_name' => 'Ahamed',
@@ -40,7 +39,7 @@ class UserSeeder extends Seeder
                 'email' => 'suraif@arbtrading.lk',
                 'password' => '1234',
                 'role' => 'Admin',
-                'location_id' => $location_ids[1] // Assign the first location ID (ARB FASHION)
+                'locations' => ['ARB FASHION']
             ],
             [
                 'name_title' => 'Mr',
@@ -50,7 +49,7 @@ class UserSeeder extends Seeder
                 'email' => 'riskan@arbtrading.lk',
                 'password' => '1234',
                 'role' => 'Admin',
-                'location_id' => $location_ids[1] // Assign the second location ID (ARB FASHION)
+                'locations' => ['ARB FASHION']
             ],
             [
                 'name_title' => 'Mr',
@@ -60,7 +59,7 @@ class UserSeeder extends Seeder
                 'email' => 'ajwath94@gmail.com',
                 'password' => '1234',
                 'role' => 'Super Admin',
-                'location_id' => $location_ids[2] // Assign the third location ID (ARB SUPER CENTER)
+                'locations' => ['ARB SUPER CENTER']
             ],
         ];
 
@@ -71,14 +70,29 @@ class UserSeeder extends Seeder
                 'user_name' => $userData['user_name'],
                 'is_admin' => $userData['is_admin'],
                 'email' => $userData['email'],
-                'password' => Hash::make($userData['password']), // Encrypt password
-                'location_id' => $userData['location_id'],
+                'password' => Hash::make($userData['password']),
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ]);
 
             // Assign Role to User
             $user->assignRole($userData['role']);
+
+            // Attach locations via pivot table
+            if ($userData['role'] === 'Super Admin') {
+                // Super Admin gets access to all locations
+                $user->locations()->attach($allLocations->values());
+            } else {
+                $locationIds = [];
+                foreach ($userData['locations'] as $locName) {
+                    if (isset($location_ids[$locName])) {
+                        $locationIds[] = $location_ids[$locName];
+                    }
+                }
+                if (!empty($locationIds)) {
+                    $user->locations()->attach($locationIds);
+                }
+            }
         }
     }
 }

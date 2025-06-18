@@ -102,7 +102,8 @@
 
                     if (data.status === 200) {
                         data.message.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(location.name);
+                            const option = $('<option></option>').val(location.id).text(
+                                location.name);
                             locationSelect.append(option);
                         });
 
@@ -121,137 +122,144 @@
         }
         let allProducts = []; // Store all product data
 
-function fetchProducts(locationId) {
-    let url = '/products/stocks';
+        function fetchProducts(locationId) {
+            let url = '/products/stocks';
 
-    if (locationId) {
-        url += `?location_id=${locationId}`;
-    }
-
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) return null;
-
-                    return {
-                        id: stock.product.id,
-                        name: stock.product.product_name,
-                        sku: stock.product.sku || "N/A",
-                        quantity: stock.total_stock || 0,
-                        price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
-                        wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
-                        special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
-                        max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
-                        retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
-                        expiry_date: stock.batches?.[0]?.expiry_date || '',
-                        batch_no: stock.batches?.[0]?.batch_no || '',
-                        stock_alert: stock.product.stock_alert || 0
-                    };
-                }).filter(product => product !== null);
-
-                initAutocomplete(allProducts); // Initialize autocomplete with filtered products
-            } else {
-                console.error("Failed to fetch product data:", data);
+            if (locationId) {
+                url += `?location_id=${locationId}`;
             }
-        })
-        .catch(error => console.error("Error fetching products:", error));
-}
 
-$(document).ready(function () {
-    fetchLocations(); // Fetch all locations
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) return null;
 
-    $('#services').on('change', function () {
-        const selectedLocationId = $(this).val();
-        if (selectedLocationId) {
-            fetchProducts(selectedLocationId); // Pass location ID to fetch only relevant products
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || stock.product
+                                    .original_price || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
+                                    .product.whole_sale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || stock.product
+                                    .special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
+                                    .product.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || stock.product
+                                    .retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                stock_alert: stock.product.stock_alert || 0
+                            };
+                        }).filter(product => product !== null);
+
+                        initAutocomplete(allProducts); // Initialize autocomplete with filtered products
+                    } else {
+                        console.error("Failed to fetch product data:", data);
+                    }
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
-    });
-});
 
-function initAutocomplete(products) {
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            const searchTerm = request.term.toLowerCase();
-            const filteredProducts = products.filter(
-                product =>
-                product.name.toLowerCase().includes(searchTerm) ||
-                product.sku.toLowerCase().includes(searchTerm)
-            );
+        $(document).ready(function() {
+            fetchLocations(); // Fetch all locations
 
-            // Filter out products with stock_alert set to 0
-            const filteredAndAlertedProducts = filteredProducts.filter(product => product.stock_alert !== 0);
+            $('#services').on('change', function() {
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(
+                    selectedLocationId); // Pass location ID to fetch only relevant products
+                }
+            });
+        });
 
-            if (filteredAndAlertedProducts.length === 0) {
-                response([{
-                    label: "No products found",
-                    value: ""
-                }]);
-            } else {
-                // Limit to showing only one product
-                response(
-                    filteredAndAlertedProducts.slice(0, 1).map(product => ({
-                        label: `${product.name} (${product.sku})`,
-                        value: product.name,
-                        product: product,
-                    }))
-                );
+        function initAutocomplete(products) {
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    const searchTerm = request.term.toLowerCase();
+                    const filteredProducts = products.filter(
+                        product =>
+                        product.name.toLowerCase().includes(searchTerm) ||
+                        product.sku.toLowerCase().includes(searchTerm)
+                    );
+
+                    // Filter out products with stock_alert set to 0
+                    const filteredAndAlertedProducts = filteredProducts.filter(product => product
+                        .stock_alert !== 0);
+
+                    if (filteredAndAlertedProducts.length === 0) {
+                        response([{
+                            label: "No products found",
+                            value: ""
+                        }]);
+                    } else {
+                        // Limit to showing only one product
+                        response(
+                            filteredAndAlertedProducts.slice(0, 1).map(product => ({
+                                label: `${product.name} (${product.sku})`,
+                                value: product.name,
+                                product: product,
+                            }))
+                        );
+                    }
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    return false;
+                },
+            });
+
+            // Ensure the autocomplete widget is initialized before setting _renderItem
+            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            if (autocompleteInstance) {
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
             }
-        },
-        select: function(event, ui) {
-            if (!ui.item.product) {
-                return false;
-            }
-            addProductToTable(ui.item.product);
-            $("#productSearchInput").val("");
-            return false;
-        },
-    });
-
-    // Ensure the autocomplete widget is initialized before setting _renderItem
-    const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
-    if (autocompleteInstance) {
-        autocompleteInstance._renderItem = function(ul, item) {
-            if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-            }
-            return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-        };
-    }
-}
-
-// Call fetchProducts when the page loads or when needed
-fetchProducts();
-
-function addProductToTable(product, isEditing = false, prices = {}) {
-    const table = $("#purchase_product").DataTable();
-    let existingRow = null;
-
-    $('#purchase_product tbody tr').each(function() {
-        const rowProductId = $(this).data('id');
-        if (rowProductId === product.id) {
-            existingRow = $(this);
-            return false;
         }
-    });
 
-    if (existingRow && !isEditing) {
-        const quantityInput = existingRow.find('.purchase-quantity');
-        const newQuantity = parseFloat(quantityInput.val()) + 1;
-        quantityInput.val(newQuantity).trigger('input');
-    } else {
-        const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-        const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-        const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-        const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-        const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+        // Call fetchProducts when the page loads or when needed
+        fetchProducts();
 
-        const newRow = `
+        function addProductToTable(product, isEditing = false, prices = {}) {
+            const table = $("#purchase_product").DataTable();
+            let existingRow = null;
+
+            $('#purchase_product tbody tr').each(function() {
+                const rowProductId = $(this).data('id');
+                if (rowProductId === product.id) {
+                    existingRow = $(this);
+                    return false;
+                }
+            });
+
+            if (existingRow && !isEditing) {
+                const quantityInput = existingRow.find('.purchase-quantity');
+                const newQuantity = parseFloat(quantityInput.val()) + 1;
+                quantityInput.val(newQuantity).trigger('input');
+            } else {
+                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+
+                const newRow = `
             <tr data-id="${product.id}">
                 <td>${product.id}</td>
                 <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
@@ -275,24 +283,24 @@ function addProductToTable(product, isEditing = false, prices = {}) {
             </tr>
         `;
 
-        const $newRow = $(newRow);
-        table.row.add($newRow).draw();
-        updateRow($newRow);
-        updateFooter();
+                const $newRow = $(newRow);
+                table.row.add($newRow).draw();
+                updateRow($newRow);
+                updateFooter();
 
-        $newRow.find(
-            ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
-        ).on("input", function() {
-            updateRow($newRow);
-            updateFooter();
-        });
+                $newRow.find(
+                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+                ).on("input", function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
 
-        $newRow.find(".delete-product").on("click", function() {
-            table.row($newRow).remove().draw();
-            updateFooter();
-        });
-    }
-}
+                $newRow.find(".delete-product").on("click", function() {
+                    table.row($newRow).remove().draw();
+                    updateFooter();
+                });
+            }
+        }
 
         function updateRow($row) {
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
@@ -747,19 +755,26 @@ function addProductToTable(product, isEditing = false, prices = {}) {
                                     '</td>');
                                 let paymentStatusBadge = '';
                                 if (item.payment_status === 'Due') {
-                                    paymentStatusBadge = '<span class="badge bg-danger">Due</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-danger">Due</span>';
                                 } else if (item.payment_status === 'Partial') {
-                                    paymentStatusBadge = '<span class="badge bg-warning">Partial</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-warning">Partial</span>';
                                 } else if (item.payment_status === 'Paid') {
-                                    paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-success">Paid</span>';
                                 } else {
-                                    paymentStatusBadge = '<span class="badge bg-secondary">' + item.payment_status + '</span>';
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-secondary">' + item
+                                        .payment_status + '</span>';
                                 }
                                 row.append('<td>' + paymentStatusBadge + '</td>');
                                 row.append('<td>' + item.final_total + '</td>');
                                 row.append('<td>' + item.total_due + '</td>');
-                                row.append('<td>' + (item.supplier?.assign_to ||
-                                    '') + '</td>');
+                                // Show user name based on user object
+                                row.append('<td>' + (item.user?.user_name || item
+                                        .user?.user_name || 'Unknown') +
+                                    '</td>');
                                 table.row.add(row).draw(false);
                             });
                         } else {
@@ -779,219 +794,245 @@ function addProductToTable(product, isEditing = false, prices = {}) {
                     }
                 });
             }
-// Show the modal when the button is clicked
-$('#bulkPaymentBtn').click(function() {
-    $('#bulkPaymentModal').modal('show');
-});
-
-// Fetch suppliers and populate the dropdown
-$.ajax({
-    url: '/supplier-get-all',
-    type: 'GET',
-    dataType: 'json',
-    success: function(response) {
-        var supplierSelect = $('#supplierSelect');
-        supplierSelect.empty();
-        supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
-        if (response.message && response.message.length > 0) {
-            response.message.forEach(function(supplier) {
-                supplierSelect.append(
-                    '<option value="' + supplier.id +
-                    '" data-opening-balance="' + supplier.opening_balance + '">' +
-                    supplier.first_name + ' ' + supplier.last_name + '</option>'
-                );
+            // Show the modal when the button is clicked
+            $('#bulkPaymentBtn').click(function() {
+                $('#bulkPaymentModal').modal('show');
             });
-        } else {
-            console.error("No suppliers found or response.message is undefined.");
-        }
-    },
-    error: function(xhr, status, error) {
-        console.error("AJAX error: ", status, error);
-    }
-});
 
-let originalOpeningBalance = 0; // Store the actual supplier opening balance
+            // Fetch suppliers and populate the dropdown
+            $.ajax({
+                url: '/supplier-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    var supplierSelect = $('#supplierSelect');
+                    supplierSelect.empty();
+                    supplierSelect.append(
+                        '<option value="" selected disabled>Select Supplier</option>');
+                    if (response.message && response.message.length > 0) {
+                        response.message.forEach(function(supplier) {
+                            supplierSelect.append(
+                                '<option value="' + supplier.id +
+                                '" data-opening-balance="' + supplier
+                                .opening_balance + '">' +
+                                supplier.first_name + ' ' + supplier.last_name +
+                                '</option>'
+                            );
+                        });
+                    } else {
+                        console.error(
+                            "No suppliers found or response.message is undefined.");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX error: ", status, error);
+                }
+            });
 
-$('#supplierSelect').change(function() {
-    var supplierId = $(this).val();
-    originalOpeningBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
+            let originalOpeningBalance = 0; // Store the actual supplier opening balance
 
-    $('#openingBalance').text(originalOpeningBalance.toFixed(2)); // Display initial balance
+            $('#supplierSelect').change(function() {
+                var supplierId = $(this).val();
+                originalOpeningBalance = parseFloat($(this).find(':selected').data(
+                    'opening-balance')) || 0;
 
-    $.ajax({
-        url: '/get-all-purchases',
-        type: 'GET',
-        dataType: 'json',
-        data: { supplier_id: supplierId }, // Ensure supplier_id is sent
-        success: function(response) {
-            var purchaseTable = $('#purchaseTable').DataTable();
-            purchaseTable.clear(); // Clear the table before adding new data
-            var totalPurchaseAmount = 0, totalPaidAmount = 0, totalDueAmount = 0;
+                $('#openingBalance').text(originalOpeningBalance.toFixed(
+                2)); // Display initial balance
 
-            if (response.purchases && response.purchases.length > 0) {
-                response.purchases.forEach(function(purchase) {
-                    if (purchase.supplier_id == supplierId) { // Filter by supplier ID
-                        var finalTotal = parseFloat(purchase.final_total) || 0;
-                        var totalPaid = parseFloat(purchase.total_paid) || 0;
-                        var totalDue = parseFloat(purchase.total_due) || 0;
+                $.ajax({
+                    url: '/get-all-purchases',
+                    type: 'GET',
+                    dataType: 'json',
+                    data: {
+                        supplier_id: supplierId
+                    }, // Ensure supplier_id is sent
+                    success: function(response) {
+                        var purchaseTable = $('#purchaseTable').DataTable();
+                        purchaseTable
+                    .clear(); // Clear the table before adding new data
+                        var totalPurchaseAmount = 0,
+                            totalPaidAmount = 0,
+                            totalDueAmount = 0;
 
-                        if (totalDue > 0) {
-                            totalPurchaseAmount += finalTotal;
-                            totalPaidAmount += totalPaid;
-                            totalDueAmount += totalDue;
+                        if (response.purchases && response.purchases.length > 0) {
+                            response.purchases.forEach(function(purchase) {
+                                if (purchase.supplier_id ==
+                                    supplierId) { // Filter by supplier ID
+                                    var finalTotal = parseFloat(purchase
+                                        .final_total) || 0;
+                                    var totalPaid = parseFloat(purchase
+                                        .total_paid) || 0;
+                                    var totalDue = parseFloat(purchase
+                                        .total_due) || 0;
 
-                            purchaseTable.row.add([
-                                purchase.id + " (" + purchase.reference_no + ")",
-                                finalTotal.toFixed(2),
-                                totalPaid.toFixed(2),
-                                totalDue.toFixed(2),
-                                '<input type="number" class="form-control purchase-amount" data-purchase-id="' + purchase.id + '">'
-                            ]).draw();
+                                    if (totalDue > 0) {
+                                        totalPurchaseAmount += finalTotal;
+                                        totalPaidAmount += totalPaid;
+                                        totalDueAmount += totalDue;
+
+                                        purchaseTable.row.add([
+                                            purchase.id + " (" +
+                                            purchase.reference_no +
+                                            ")",
+                                            finalTotal.toFixed(2),
+                                            totalPaid.toFixed(2),
+                                            totalDue.toFixed(2),
+                                            '<input type="number" class="form-control purchase-amount" data-purchase-id="' +
+                                            purchase.id + '">'
+                                        ]).draw();
+                                    }
+                                }
+                            });
                         }
+
+                        $('#totalPurchaseAmount').text(totalPurchaseAmount.toFixed(
+                            2));
+                        $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
+                        $('#totalDueAmount').text(totalDueAmount.toFixed(2));
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("AJAX error: ", status, error);
                     }
                 });
+            });
+
+            $('#globalPaymentAmount').on('input', function() {
+                var globalAmount = parseFloat($(this).val()) || 0;
+                var supplierOpeningBalance =
+                originalOpeningBalance; // Always use original balance
+                var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
+                var remainingAmount = globalAmount;
+
+                // Validate global amount
+                if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
+                    $(this).addClass('is-invalid').after(
+                        '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
+                        );
+                    return;
+                } else {
+                    $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
+                }
+
+                // Deduct from opening balance first
+                let newOpeningBalance = supplierOpeningBalance;
+                if (newOpeningBalance > 0) {
+                    if (remainingAmount <= newOpeningBalance) {
+                        newOpeningBalance -= remainingAmount;
+                        remainingAmount = 0;
+                    } else {
+                        remainingAmount -= newOpeningBalance;
+                        newOpeningBalance = 0;
+                    }
+                }
+                $('#openingBalance').text(newOpeningBalance.toFixed(2));
+
+                // Apply the remaining amount to the purchases dynamically
+                $('.purchase-amount').each(function() {
+                    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)')
+                        .text());
+                    if (remainingAmount > 0) {
+                        var paymentAmount = Math.min(remainingAmount, purchaseDue);
+                        $(this).val(paymentAmount);
+                        remainingAmount -= paymentAmount;
+                    } else {
+                        $(this).val(0);
+                    }
+                });
+            });
+
+            // Validate individual payment amounts
+            $(document).on('input', '.purchase-amount', function() {
+                var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+                var paymentAmount = parseFloat($(this).val());
+                if (paymentAmount > purchaseDue) {
+                    $(this).addClass('is-invalid');
+                    $(this).next('.invalid-feedback').remove();
+                    $(this).after(
+                        '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
+                        );
+                } else {
+                    $(this).removeClass('is-invalid');
+                    $(this).next('.invalid-feedback').remove();
+                }
+            });
+
+            // Function to update the opening balance
+            function updateOpeningBalance() {
+                var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
+                var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data(
+                    'opening-balance')) || 0;
+                var totalPayment = 0;
+
+                // Calculate the total payment from individual amounts
+                $('.purchase-amount').each(function() {
+                    totalPayment += parseFloat($(this).val()) || 0;
+                });
+
+                var remainingAmount = globalAmount - totalPayment;
+
+                // Adjust the opening balance based on the remaining amount
+                if (remainingAmount >= 0) {
+                    $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
+                } else {
+                    $('#openingBalance').text("0.00");
+                }
             }
 
-            $('#totalPurchaseAmount').text(totalPurchaseAmount.toFixed(2));
-            $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
-            $('#totalDueAmount').text(totalDueAmount.toFixed(2));
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-        }
-    });
-});
-
-$('#globalPaymentAmount').on('input', function() {
-    var globalAmount = parseFloat($(this).val()) || 0;
-    var supplierOpeningBalance = originalOpeningBalance; // Always use original balance
-    var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
-    var remainingAmount = globalAmount;
-
-    // Validate global amount
-    if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
-        $(this).addClass('is-invalid').after('<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>');
-        return;
-    } else {
-        $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
-    }
-
-    // Deduct from opening balance first
-    let newOpeningBalance = supplierOpeningBalance;
-    if (newOpeningBalance > 0) {
-        if (remainingAmount <= newOpeningBalance) {
-            newOpeningBalance -= remainingAmount;
-            remainingAmount = 0;
-        } else {
-            remainingAmount -= newOpeningBalance;
-            newOpeningBalance = 0;
-        }
-    }
-    $('#openingBalance').text(newOpeningBalance.toFixed(2));
-
-    // Apply the remaining amount to the purchases dynamically
-    $('.purchase-amount').each(function() {
-        var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-        if (remainingAmount > 0) {
-            var paymentAmount = Math.min(remainingAmount, purchaseDue);
-            $(this).val(paymentAmount);
-            remainingAmount -= paymentAmount;
-        } else {
-            $(this).val(0);
-        }
-    });
-});
-
-// Validate individual payment amounts
-$(document).on('input', '.purchase-amount', function() {
-    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-    var paymentAmount = parseFloat($(this).val());
-    if (paymentAmount > purchaseDue) {
-        $(this).addClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-        $(this).after('<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
-    } else {
-        $(this).removeClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-    }
-});
-
-// Function to update the opening balance
-function updateOpeningBalance() {
-    var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
-    var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data('opening-balance')) || 0;
-    var totalPayment = 0;
-
-    // Calculate the total payment from individual amounts
-    $('.purchase-amount').each(function() {
-        totalPayment += parseFloat($(this).val()) || 0;
-    });
-
-    var remainingAmount = globalAmount - totalPayment;
-
-    // Adjust the opening balance based on the remaining amount
-    if (remainingAmount >= 0) {
-        $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
-    } else {
-        $('#openingBalance').text("0.00");
-    }
-}
-
-// Handle global payment amount input
-$('#globalPaymentAmount').change(function() {
-    updateOpeningBalance();
-});
-
-// Initialize DataTable
-$(document).ready(function() {
-    $('#purchaseTable').DataTable();
-});
-
-// Handle payment submission
-$('#submitBulkPayment').click(function() {
-    var supplierId = $('#supplierSelect').val();
-    var paymentMethod = $('#paymentMethod').val();
-    var paymentDate = $('#paidOn').val();
-    var globalPaymentAmount = $('#globalPaymentAmount').val();
-    var purchasePayments = [];
-
-    $('.purchase-amount').each(function() {
-        var purchaseId = $(this).data('purchase-id');
-        var paymentAmount = parseFloat($(this).val());
-        if (paymentAmount > 0) {
-            purchasePayments.push({
-                reference_id: purchaseId,
-                amount: paymentAmount
+            // Handle global payment amount input
+            $('#globalPaymentAmount').change(function() {
+                updateOpeningBalance();
             });
-        }
-    });
 
-    var paymentData = {
-        entity_type: 'supplier',
-        entity_id: supplierId,
-        payment_method: paymentMethod,
-        payment_date: paymentDate,
-        global_amount: globalPaymentAmount,
-        payments: purchasePayments
-    };
+            // Initialize DataTable
+            $(document).ready(function() {
+                $('#purchaseTable').DataTable();
+            });
 
-    $.ajax({
-        url: '/api/submit-bulk-payment',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(paymentData),
-        success: function(response) {
-            toastr.success(response.message, 'Payment Submitted');
-            $('#bulkPaymentModal').modal('hide');
-            $('#bulkPaymentForm')[0].reset(); // Reset the form
-            fetchPurchases();
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-            alert('Failed to submit payment.');
-        }
-    });
-});
+            // Handle payment submission
+            $('#submitBulkPayment').click(function() {
+                var supplierId = $('#supplierSelect').val();
+                var paymentMethod = $('#paymentMethod').val();
+                var paymentDate = $('#paidOn').val();
+                var globalPaymentAmount = $('#globalPaymentAmount').val();
+                var purchasePayments = [];
+
+                $('.purchase-amount').each(function() {
+                    var purchaseId = $(this).data('purchase-id');
+                    var paymentAmount = parseFloat($(this).val());
+                    if (paymentAmount > 0) {
+                        purchasePayments.push({
+                            reference_id: purchaseId,
+                            amount: paymentAmount
+                        });
+                    }
+                });
+
+                var paymentData = {
+                    entity_type: 'supplier',
+                    entity_id: supplierId,
+                    payment_method: paymentMethod,
+                    payment_date: paymentDate,
+                    global_amount: globalPaymentAmount,
+                    payments: purchasePayments
+                };
+
+                $.ajax({
+                    url: '/api/submit-bulk-payment',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(paymentData),
+                    success: function(response) {
+                        toastr.success(response.message, 'Payment Submitted');
+                        $('#bulkPaymentModal').modal('hide');
+                        $('#bulkPaymentForm')[0].reset(); // Reset the form
+                        fetchPurchases();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("AJAX error: ", status, error);
+                        alert('Failed to submit payment.');
+                    }
+                });
+            });
             // Define the openPaymentModal function
             window.openPaymentModal = function(event, purchaseId) {
                 event.preventDefault();
