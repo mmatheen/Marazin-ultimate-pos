@@ -202,7 +202,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'draft',
                 'suspend',
                 'credit sale',
-                'card',
+                'card',  
                 'cheque',
                 'multiple pay',
                 'cash'
@@ -210,7 +210,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         ];
 
-        // Create Each Permission & Assign Group using firstOrCreate
+        // Create Each Permission & Assign Group using firstOrCre cb ate
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
             Permission::firstOrCreate(

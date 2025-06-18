@@ -1777,9 +1777,17 @@
         }
 
         function fetchEditSale(saleId) {
-            fetch(`/api/sales/edit/${saleId}`)
+            fetch(`/sales/edit/${saleId}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
                 .then(response => {
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    const contentType = response.headers.get('Content-Type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Invalid response format. Expected JSON.');
+                    }
                     return response.json();
                 })
                 .then(data => {
