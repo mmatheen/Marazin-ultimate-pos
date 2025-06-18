@@ -177,6 +177,7 @@
                                             <table class="table table-striped table-bordered" id="salesReturnTable">
                                                 <thead>
                                                     <tr>
+                                                        <th>#</th>
                                                         <th>Date</th>
                                                         <th>Invoice No.</th>
                                                         <th>Parent Sale</th>

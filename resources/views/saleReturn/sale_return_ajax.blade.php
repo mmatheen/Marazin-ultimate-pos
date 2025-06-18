@@ -416,6 +416,8 @@
                         const formData = new FormData(form);
                         const jsonData = Object.fromEntries(formData.entries());
 
+                        console.log('Form Data:', jsonData);
+
                         // Adding nested product data
                         jsonData.products = [];
                         $("#productsTableBody tr").each(function(index, row) {
@@ -524,6 +526,7 @@
                                     (salesReturn.location ? salesReturn.location.name : 'N/A');
 
                                 return [
+                                    index + 1,  
                                     new Date(salesReturn.return_date).toLocaleDateString(),
                                     salesReturn.invoice_number,
                                     parentSaleInvoice,
@@ -551,6 +554,10 @@
                                 data: rows,
                                 destroy: true,
                                 columns: [{
+                                  {
+
+                                  }      title: "#"
+                            
                                         title: "Return Date"
                                     },
                                     {
@@ -608,7 +615,7 @@
             $(document).on('click', '.print-return-receipt', function(e) {
                 e.preventDefault();
                 // Get saleReturnId from button click or from modal if inside modal
-                var saleReturnId = $(this).data('id') || $('#saleDetailsModal').attr('data-sale-return-id');    
+                var saleReturnId = $(this).data('id') || $('#saleDetailsModal').attr('data-sale-return-id');
                 fetch(`/sale-return/print/${saleReturnId}`)
                     .then(response => response.json())
                     .then(data => {

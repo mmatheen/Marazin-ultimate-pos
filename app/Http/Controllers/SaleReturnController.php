@@ -40,8 +40,6 @@ class SaleReturnController extends Controller
      */
     public function storeOrUpdate(Request $request, $id = null)
     {
-
-        dd($request->all());
         // Validate the request data
         $validator = Validator::make($request->all(), [
             'sale_id' => 'nullable|exists:sales,id',

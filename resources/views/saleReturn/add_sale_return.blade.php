@@ -53,7 +53,7 @@
                 border-color: #bbb;
             }
 
-            input[type="radio"]:checked + .billing-btn {
+            input[type="radio"]:checked+.billing-btn {
                 background: #007bff;
                 border-color: #007bff;
                 color: white;
@@ -64,42 +64,44 @@
 
         <!-- Common Details Section -->
 
-        <!-- Purchase Return Form -->
+        <!-- Sale Return Form -->
         <div class="card">
             <div class="card-body">
                 <form id="salesReturnForm">
 
                     <div class="card mb-4">
-                    <div class="card-body">
-                        <h4 class="card-title">Common Details</h4>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="date" class="form-label">Date:</label>
-                                    <input type="date" class="form-control" id="date" name="return_date" required>
+                        <div class="card-body">
+                            <h4 class="card-title">Common Details</h4>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="date" class="form-label">Date:</label>
+                                        <input type="date" class="form-control" id="date" name="return_date"
+                                            required>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="locationId" class="form-label">Location:</label>
-                                    <select id="locationId" name="location_id" class="form-select" required>
-                                        <option value="">Select Location</option>
-                                        <!-- Populate with locations -->
-                                    </select>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="locationId" class="form-label">Location:</label>
+                                        <select id="locationId" name="location_id" class="form-select" required>
+                                            <option value="">Select Location</option>
+                                            <!-- Populate with locations -->
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
 
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3 form-check">
-                                    <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective" value="1">
-                                    <label class="form-check-label" for="isDefective">Is Defective</label>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective"
+                                            value="1">
+                                        <label class="form-check-label" for="isDefective">Is Defective</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
                     <!-- Invoice Details Section -->
                     <div class="card mb-4" id="invoiceDetailsSection">
@@ -110,7 +112,8 @@
                                     <p><strong>Parent Sales</strong></p>
                                     <div class="mb-3">
                                         <label for="invoiceNo" class="form-label">Invoice No.:</label>
-                                        <input type="text" class="form-control" id="invoiceNo" name="invoiceNo" placeholder="Enter Invoice Number">
+                                        <input type="text" class="form-control" id="invoiceNo" name="invoiceNo"
+                                            placeholder="Enter Invoice Number">
                                         <input type="hidden" class="form-control" id="sale-id" name="sale_id">
                                         <input type="hidden" class="form-control" id="customer-id" name="customer_id">
                                     </div>
@@ -139,7 +142,8 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <button type="button" class="btn btn-primary mt-4" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                                    <button type="button" class="btn btn-primary mt-4" data-bs-toggle="modal"
+                                        data-bs-target="#addCustomerModal">
                                         Add New Customer
                                     </button>
                                 </div>
@@ -153,7 +157,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="productSearch" class="form-label">Product Search:</label>
-                                <input type="text" class="form-control" id="productSearch" placeholder="Search for a product">
+                                <input type="text" class="form-control" id="productSearch"
+                                    placeholder="Search for a product">
                             </div>
                         </div>
                     </div>
@@ -190,13 +195,15 @@
                             </div>
                             <div class="mb-3">
                                 <label for="discountAmount" class="form-label">Discount Amount:</label>
-                                <input type="number" class="form-control" id="discountAmount" placeholder="Enter discount">
+                                <input type="number" class="form-control" id="discountAmount"
+                                    placeholder="Enter discount">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="returnTotal" class="form-label">Return Total:</label>
-                                <input type="number" class="form-control" id="returnTotal" name="return_total" placeholder="Enter total return amount" required>
+                                <input type="number" class="form-control" id="returnTotal" name="return_total"
+                                    placeholder="Enter total return amount" required>
                             </div>
                         </div>
                     </div>
@@ -206,7 +213,8 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="notes" class="form-label">Notes:</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Enter return reason" required></textarea>
+                                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Enter return reason"
+                                    required></textarea>
                             </div>
                         </div>
                     </div>
@@ -248,7 +256,8 @@
 
     <style>
         /* General table styling */
-        #productsTable th, #productsTable td {
+        #productsTable th,
+        #productsTable td {
             padding: 10px;
             text-align: left;
             vertical-align: middle;
@@ -302,77 +311,87 @@
         .form-check {
             padding-top: 10px;
         }
+
         .ui-autocomplete {
             max-height: 200px;
             overflow-y: auto;
             overflow-x: hidden;
         }
+
         .quantity-error {
             display: none;
             color: red;
         }
     </style>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        function toggleSearchSections() {
-            const withBill = document.getElementById('withBill').checked;
-            const invoiceDetailsSection = document.getElementById('invoiceDetailsSection');
-            const productSearchSection = document.getElementById('productSearchSection');
-            const productsTableBody = document.getElementById('productsTableBody');
-            const stockColumn = document.getElementById('stockColumn');
-            const customerSelectionSection = document.getElementById('customerSelectionSection');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function toggleSearchSections() {
+                const withBill = document.getElementById('withBill').checked;
+                const invoiceDetailsSection = document.getElementById('invoiceDetailsSection');
+                const productSearchSection = document.getElementById('productSearchSection');
+                const productsTableBody = document.getElementById('productsTableBody');
+                const stockColumn = document.getElementById('stockColumn');
+                const customerSelectionSection = document.getElementById('customerSelectionSection');
 
-            if (withBill) {
-                invoiceDetailsSection.style.display = 'block';
-                productSearchSection.style.display = 'none';
-                customerSelectionSection.style.display = 'none';
-                stockColumn.textContent = 'Sales Quantity';
-                setFieldState(true);
-            } else {
-                invoiceDetailsSection.style.display = 'none';
-                productSearchSection.style.display = 'block';
-                customerSelectionSection.style.display = 'block';
-                stockColumn.textContent = 'Current Total Stock';
-                setFieldState(false);
+                if (withBill) {
+                    invoiceDetailsSection.style.display = 'block';
+                    productSearchSection.style.display = 'none';
+                    customerSelectionSection.style.display = 'none';
+                    stockColumn.textContent = 'Sales Quantity';
+                    setFieldState(true);
+
+                    // Only use hidden input for customer_id
+                    document.getElementById('customer-id').setAttribute('name', 'customer_id');
+                    document.getElementById('customerId').removeAttribute('name');
+                } else {
+                    invoiceDetailsSection.style.display = 'none';
+                    productSearchSection.style.display = 'block';
+                    customerSelectionSection.style.display = 'block';
+                    stockColumn.textContent = 'Current Total Stock';
+                    setFieldState(false);
+
+                    // Only use select input for customer_id
+                    document.getElementById('customer-id').removeAttribute('name');
+                    document.getElementById('customerId').setAttribute('name', 'customer_id');
+                }
+
+                // Clear the product table body
+                productsTableBody.innerHTML = '';
             }
 
-            // Clear the product table body
-            productsTableBody.innerHTML = '';
-        }
+            // Function to set the disabled state of input fields
+            function setFieldState(enabled) {
+                document.getElementById('invoiceNo').disabled = !enabled;
+                document.getElementById('sale-id').disabled = !enabled;
+                document.getElementById('productSearch').disabled = enabled;
+            }
 
-        // Function to set the disabled state of input fields
-        function setFieldState(enabled) {
-            document.getElementById('invoiceNo').disabled = !enabled;
-            document.getElementById('sale-id').disabled = !enabled;
-            document.getElementById('productSearch').disabled = enabled;
-        }
+            // Add event listeners to the radio buttons
+            document.getElementById('withBill').addEventListener('change', toggleSearchSections);
+            document.getElementById('withoutBill').addEventListener('change', toggleSearchSections);
 
-        // Add event listeners to the radio buttons
-        document.getElementById('withBill').addEventListener('change', toggleSearchSections);
-        document.getElementById('withoutBill').addEventListener('change', toggleSearchSections);
-
-        // Initial toggle based on the default selected option
-        toggleSearchSections();
-    });
-</script>
-<script>
-   document.addEventListener('DOMContentLoaded', function () {
-        // Set the default date to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('date').value = today;
-
-        // Initialize the date picker
-        $('#date').on('focus', function () {
-            $(this).attr('type', 'date');
+            // Initial toggle based on the default selected option
+            toggleSearchSections();
         });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set the default date to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
 
-        // Show date picker on click anywhere on the input
-        $('#date').on('click', function () {
-            $(this).attr('type', 'date').focus();
+            // Initialize the date picker
+            $('#date').on('focus', function() {
+                $(this).attr('type', 'date');
+            });
+
+            // Show date picker on click anywhere on the input
+            $('#date').on('click', function() {
+                $(this).attr('type', 'date').focus();
+            });
         });
-    });
-</script>
+    </script>
 
-@include("saleReturn.sale_return_ajax")
+    @include('saleReturn.sale_return_ajax')
 @endsection

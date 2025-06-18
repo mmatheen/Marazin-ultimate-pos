@@ -1739,14 +1739,10 @@
                             </div>
                         </div>
 
-                        <!-- Footer Buttons -->
-                        <div class="row mt-4">
-                            <div class="col-12 text-end">
-                                <button type="button" class="btn btn-secondary"
-                                    data-bs-dismiss="modal">Close</button>
-                                <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
-                                    Payment</button>
-                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-success" id="finalize_payment">Finalize Payment</button>
                         </div>
                     </div>
                 </div>
