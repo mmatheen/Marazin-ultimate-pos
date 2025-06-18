@@ -64,6 +64,8 @@ class AuthenticatedSessionController extends Controller
             $userName = Auth::user()->user_name;
             $roleName = Auth::user()->role_name;
 
+          
+
             // Redirect to the intended page after successful login and show the success message with user name
 
             return redirect()->intended(RouteServiceProvider::HOME)
