@@ -2943,7 +2943,7 @@
                     sale.sales_date,
                     sale.final_total,
                     `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
+                @can('edit sale') <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>@endcan`,
                     '' // Extra column if needed
                 ]);
             });

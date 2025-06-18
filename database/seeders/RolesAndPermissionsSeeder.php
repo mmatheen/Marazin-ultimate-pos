@@ -121,6 +121,7 @@ class RolesAndPermissionsSeeder extends Seeder
             '15. sale-management' => [
                 'view sale',
                 'add sale',
+                'edit sale',
                 'pos page'
             ],
             // sale-return management
@@ -194,7 +195,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit product-discount',
                 'delete product-discount'
             ],
-
+        
             // pos button management
             '27. pos-button-management' => [
                 'job ticket',
@@ -205,7 +206,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'card',  
                 'cheque',
                 'multiple pay',
-                'cash'
+                'cash',
+              
             ],
 
         ];

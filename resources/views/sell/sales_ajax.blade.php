@@ -105,8 +105,11 @@
                                     '<ul class="dropdown-menu">' +
                                     '<li><button type="button" value="' + item.id +
                                     '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>' +
+
+                                    
+                                    '@can('edit sale')<li><button type="button" value="' + item.id +
+                                    '"class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>@endcan' +
+
                                     '<li><button type="button" value="' + item.id +
                                     '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>' +
                                     '<li><button type="button" value="' + item.id +

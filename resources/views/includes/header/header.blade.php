@@ -34,7 +34,20 @@
                     <img src="{{ asset('assets/img/payment-terminal.png') }}" alt="" style="width:25px; height:25px; filter: brightness(0) invert(1);"> POS
                 </a>
             @endcan
-                
+
+
+            {{-- Location dropdown code start --}}
+            @php
+                $locations = Auth::user()->locations->pluck('name')->toArray();
+                $locationText = implode(', ', $locations);
+            @endphp
+
+            <!-- Tooltip Button -->
+           <i class="fas fa-map-marker-alt text-primary mx-3 fa-2x" data-bs-toggle="tooltip" data-bs-html="true" title="{{ wordwrap(e($locationText), 50, '<br>') }}"> </i>
+
+            {{-- Location dropdown code end --}}
+
+
             {{-- Notification dropdown --}}
             
             <li class="nav-item dropdown noti-dropdown me-2">
@@ -82,6 +95,7 @@
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
                             <p class="text-muted mb-0">{{ Auth::user()->role_name }}</p>
+                
                         </div>
                     </div>
                     <a class="dropdown-item" href="{{ route('profile.edit') }}">My Profile</a>
