@@ -182,6 +182,7 @@
                                                         <th>Invoice No.</th>
                                                         <th>Parent Sale</th>
                                                         <th>Customer Name</th>
+                                                        <th>User</th>
                                                         <th>Location</th>
                                                         <th>Payment Status</th>
                                                         <th>Total Amount</th>
@@ -194,7 +195,7 @@
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
-                                                        <td colspan="5"></td>
+                                                        <td colspan="6"></td>
                                                         <td>Total:</td>
                                                         <td>0</td>
                                                         <td>0</td>

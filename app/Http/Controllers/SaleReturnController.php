@@ -149,7 +149,7 @@ class SaleReturnController extends Controller
     // Controller method
     public function getAllSaleReturns()
     {
-        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments'])->get();
+        $salesReturns = SalesReturn::with(['sale.customer', 'sale.location', 'customer', 'payments','user'])->get();
         $totalAmount = $salesReturns->sum('return_total');
         $totalDue = $salesReturns->sum('total_due');
 

@@ -510,8 +510,13 @@
                             var totalAmount = response.totalAmount;
                             var totalDue = response.totalDue;
 
+                            // Sort salesReturns by return_date descending (latest first)
+                            salesReturns.sort(function(a, b) {
+                                return new Date(b.return_date) - new Date(a.return_date);
+                            });
+
                             // Prepare table rows
-                            var rows = salesReturns.map(function(salesReturn) {
+                            var rows = salesReturns.map(function(salesReturn, index) {
                                 var parentSaleInvoice = salesReturn.sale ? salesReturn.sale
                                     .invoice_no : 'N/A';
                                 var customerName = salesReturn.sale && salesReturn.sale
@@ -524,14 +529,19 @@
                                     (salesReturn.sale.location ? salesReturn.sale.location
                                         .name : 'N/A') :
                                     (salesReturn.location ? salesReturn.location.name : 'N/A');
+                                var userName = salesReturn.user ? salesReturn.user.user_name :
+                                    'N/A';
 
                                 return [
-                                    index + 1,  
-                                    new Date(salesReturn.return_date).toLocaleDateString(),
+                                    index + 1,
+                                    new Date(salesReturn.return_date).toLocaleDateString() +
+                                    ' ' + new Date(salesReturn.return_date)
+                                    .toLocaleTimeString(),
                                     salesReturn.invoice_number,
                                     parentSaleInvoice,
                                     customerName,
                                     locationName,
+                                    userName, // Show user name here
                                     salesReturn.payment_status,
                                     salesReturn.return_total,
                                     salesReturn.total_due,
@@ -542,7 +552,8 @@
                                         <div class="dropdown-menu dropdown-menu-end">
                                             <a class="dropdown-item view-sale-return" href="#" data-id="${salesReturn.id}"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>
                                             <a class="dropdown-item print-return-receipt" href="#" data-id="${salesReturn.id}"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>
-                                            <a class="dropdown-item edit-link" href="/sale-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>    <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
+                                            <a class="dropdown-item edit-link" href="/sale-return/edit/${salesReturn.id}" data-id="${salesReturn.id}"><i class="far fa-edit me-2"></i>&nbsp;Edit</a>
+                                            <a class="dropdown-item add-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#paymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;Add Payment</a>
                                             <a class="dropdown-item view-payment-btn" href="" data-id="${salesReturn.id}" data-bs-toggle="modal" data-bs-target="#viewPaymentModal"><i class="fas fa-money-bill-wave"></i>&nbsp;&nbsp;View Payment</a>
                                         </div>
                                     </div>`
@@ -554,10 +565,9 @@
                                 data: rows,
                                 destroy: true,
                                 columns: [{
-                                  {
-
-                                  }      title: "#"
-                            
+                                        title: "#"
+                                    },
+                                    {
                                         title: "Return Date"
                                     },
                                     {
@@ -573,6 +583,9 @@
                                         title: "Location"
                                     },
                                     {
+                                        title: "User"
+                                    }, // Add User column
+                                    {
                                         title: "Payment Status"
                                     },
                                     {
@@ -587,20 +600,24 @@
                                         searchable: false
                                     }
                                 ],
+                                // Optionally, you can set default order by Return Date descending
+                                order: [
+                                    [1, 'desc']
+                                ],
                                 footerCallback: function(row, data, start, end, display) {
                                     var api = this.api();
                                     // Calculate total for Return Total and Total Due columns
-                                    var totalReturn = api.column(6).data().reduce(function(
+                                    var totalReturn = api.column(8).data().reduce(function(
                                         a, b) {
                                         return parseFloat(a) + parseFloat(b);
                                     }, 0);
-                                    var totalDue = api.column(7).data().reduce(function(a,
+                                    var totalDue = api.column(9).data().reduce(function(a,
                                         b) {
                                         return parseFloat(a) + parseFloat(b);
                                     }, 0);
 
-                                    $(api.column(6).footer()).html(totalReturn.toFixed(2));
-                                    $(api.column(7).footer()).html(totalDue.toFixed(2));
+                                    $(api.column(8).footer()).html(totalReturn.toFixed(2));
+                                    $(api.column(9).footer()).html(totalDue.toFixed(2));
                                 }
                             });
                         }
@@ -609,9 +626,7 @@
                         console.log('Error fetching sales returns:', error);
                     }
                 });
-            } // Event listener for the view button
-
-            // Attach print event handler for dynamically generated print buttons
+            }
             $(document).on('click', '.print-return-receipt', function(e) {
                 e.preventDefault();
                 // Get saleReturnId from button click or from modal if inside modal
