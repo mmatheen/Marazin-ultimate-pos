@@ -32,7 +32,7 @@ class LocationController extends Controller
            $locations = Location::all();
        } else {
            // Non-admin users can see only their assigned locations
-           $locations = Auth::user()->locations;  // Assuming the 'locations' relation is set up correctly in the User model
+           $locations = Auth::user()->locations;
        }
 
        if ($locations->count() > 0) {

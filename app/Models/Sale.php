@@ -30,11 +30,18 @@ class Sale extends Model
 
     ];
 
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new \App\Scopes\LocationScope);
+    }
+
+
     // Add this method to your Sale model
-        public function user()
-        {
-            return $this->belongsTo(User::class);
-        }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function products()
     {
@@ -79,7 +86,7 @@ class Sale extends Model
         $locationBatch = LocationBatch::where('batch_id', $batchId)
             ->where('location_id', $locationId)
             ->first();
-    
+
         return $locationBatch ? $locationBatch->qty : 0;
     }
 
@@ -92,7 +99,7 @@ class Sale extends Model
                 ->where('batches.product_id', $productId)
                 ->where('location_batches.location_id', $locationId)
                 ->sum('location_batches.qty');
-    
+
             // Get total sold quantity for all batches of the product in this sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
@@ -100,46 +107,46 @@ class Sale extends Model
         } else {
             // Get available stock from the specific batch in the location
             $availableStock = self::getAvailableStock($batchId, $locationId);
-    
+
             // Get sold quantity for this specific batch in this sale
             $soldQuantity = $this->products()
                 ->where('product_id', $productId)
                 ->where('batch_id', $batchId)
                 ->sum('quantity');
         }
-    
+
         return $availableStock + $soldQuantity;
     }
-   public static function generateInvoiceNo($locationId)
-{
-    return DB::transaction(function () use ($locationId) {
-        $location = Location::findOrFail($locationId);
+    public static function generateInvoiceNo($locationId)
+    {
+        return DB::transaction(function () use ($locationId) {
+            $location = Location::findOrFail($locationId);
 
-        $prefix = $location->invoice_prefix;
+            $prefix = $location->invoice_prefix;
 
-        // Lock the sales table for this location
-        $lastSale = self::where('location_id', $locationId)
-            ->lockForUpdate()
-            ->orderByDesc('id')
-            ->first();
+            // Lock the sales table for this location
+            $lastSale = self::where('location_id', $locationId)
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
 
-        $nextNumber = 1;
+            $nextNumber = 1;
 
-        if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
-            $nextNumber = (int)$matches[1] + 1;
-        }
+            if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
+                $nextNumber = (int)$matches[1] + 1;
+            }
 
-        $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-
-        // Ensure the invoice number is unique
-        while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
-            $nextNumber++;
             $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-        }
 
-        return $invoiceNo;
-    });
-}
+            // Ensure the invoice number is unique
+            while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
+                $nextNumber++;
+                $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            }
+
+            return $invoiceNo;
+        });
+    }
     public function payments()
     {
         return $this->hasMany(Payment::class, 'reference_id', 'id')->where('payment_type', 'sale');
@@ -162,17 +169,17 @@ class Sale extends Model
         $this->save();
     }
 
-     // Ensure final_total is calculated correctly before saving
-     protected static function boot()
-     {
-         parent::boot();
+    // Ensure final_total is calculated correctly before saving
+    protected static function boot()
+    {
+        parent::boot();
 
-         static::saving(function ($sale) {
-             $sale->final_total = $sale->calculateFinalTotal();
-         });
-     }
+        static::saving(function ($sale) {
+            $sale->final_total = $sale->calculateFinalTotal();
+        });
+    }
 
-     public function calculateFinalTotal()
+    public function calculateFinalTotal()
     {
         if ($this->discount_type === 'percentage') {
             return $this->subtotal - ($this->subtotal * $this->discount_amount / 100);
@@ -181,8 +188,8 @@ class Sale extends Model
         }
     }
 
-        public function imeis()
-        {
-            return $this->hasMany(SaleImei::class);
-        }
+    public function imeis()
+    {
+        return $this->hasMany(SaleImei::class);
+    }
 }
