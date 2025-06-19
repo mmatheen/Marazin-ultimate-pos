@@ -195,7 +195,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit product-discount',
                 'delete product-discount'
             ],
-
+        
             // pos button management
             '27. pos-button-management' => [
                 'job ticket',
@@ -203,11 +203,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'draft',
                 'suspend',
                 'credit sale',
-                'card',
+                'card',  
                 'cheque',
                 'multiple pay',
                 'cash',
-
+              
             ],
 
         ];
@@ -215,14 +215,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // Create Each Permission & Assign Group using firstOrCre cb ate
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-                Permission::firstOrCreate(
-                    ['name' => $permission],
-                    ['group_name' => $group]
-                );
+            Permission::firstOrCreate(
+                ['name' => $permission],
+                ['group_name' => $group]
+            );
             }
         }
 
-        // Roles & give permissions
+          // Roles & give permissions
         $roles = [
             'Super Admin' => Permission::all()->pluck('name')->toArray(),
             'Manager' => [

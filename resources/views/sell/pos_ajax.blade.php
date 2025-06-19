@@ -2733,7 +2733,7 @@
             // Function to delete a suspended sale
             function deleteSuspendedSale(saleId) {
                 $.ajax({
-                    url: `/api/sales/delete-suspended/${saleId}`,
+                    url: `/sales/delete-suspended/${saleId}`,
                     type: 'DELETE',
                     success: function(response) {
                         toastr.success(response.message);
@@ -2895,20 +2895,32 @@
         $.ajax({
             url: '/sales',
             type: 'GET',
-            dataType: 'json',
-            success: function(data) {
+            dataType: 'text', // Accept as text to handle invalid JSON gracefully
+            success: function(response) {
+                let data;
+                try {
+                    data = response ? JSON.parse(response) : null;
+                } catch (e) {
+                    console.error('Invalid JSON response from /sales:', response);
+                    sales = [];
+                    loadTableData('final');
+                    return;
+                }
                 if (Array.isArray(data)) {
                     sales = data;
-                } else if (data.sales && Array.isArray(data.sales)) {
+                } else if (data && data.sales && Array.isArray(data.sales)) {
                     sales = data.sales;
                 } else {
                     console.error('Unexpected data format:', data);
+                    sales = [];
                 }
                 // Load the default tab data (e.g., 'final')
                 loadTableData('final');
             },
             error: function(xhr, status, error) {
                 console.error('Error fetching sales data:', error);
+                sales = [];
+                loadTableData('final');
             }
         });
     }

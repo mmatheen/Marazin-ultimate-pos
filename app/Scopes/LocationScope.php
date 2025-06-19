@@ -30,8 +30,10 @@ class LocationScope implements Scope
                 });
             }
 
-            // Add user_id based filtering
-            $builder->where('user_id', $user->id);
+            // Add user_id based filtering only if the table has user_id column
+            if (in_array('user_id', $builder->getModel()->getConnection()->getSchemaBuilder()->getColumnListing($builder->getModel()->getTable()))) {
+                $builder->where('user_id', $user->id);
+            }
         }
     }
 }
