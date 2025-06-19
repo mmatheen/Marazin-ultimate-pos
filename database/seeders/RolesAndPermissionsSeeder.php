@@ -195,7 +195,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit product-discount',
                 'delete product-discount'
             ],
-        
+
             // pos button management
             '27. pos-button-management' => [
                 'job ticket',
@@ -203,11 +203,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'draft',
                 'suspend',
                 'credit sale',
-                'card',  
+                'card',
                 'cheque',
                 'multiple pay',
                 'cash',
-              
+
             ],
 
         ];
@@ -215,68 +215,61 @@ class RolesAndPermissionsSeeder extends Seeder
         // Create Each Permission & Assign Group using firstOrCre cb ate
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-            Permission::firstOrCreate(
-                ['name' => $permission],
-                ['group_name' => $group]
-            );
+                Permission::firstOrCreate(
+                    ['name' => $permission],
+                    ['group_name' => $group]
+                );
             }
         }
 
-        // Define Roles & Assign Permissions
-
-        // Super Admin - All Permissions
-        $superAdmin = Role::create(['name' => 'Super Admin']);
-        $superAdmin->givePermissionTo(Permission::all());
-
-        // Manager - Limited Permissions
-        $manager = Role::create(['name' => 'Manager']);
-        $managerPermissions = [
-            'view user',
-            'view role',
-            'view product',
-            'view sale',
-            'add sale',
-            'view purchase',
-            'view daily-report'
+        // Roles & give permissions
+        $roles = [
+            'Super Admin' => Permission::all()->pluck('name')->toArray(),
+            'Manager' => [
+                'view user',
+                'view role',
+                'view product',
+                'view sale',
+                'add sale',
+                'view purchase',
+                'view daily-report'
+            ],
+            'Cashier' => [
+                'pos page',
+                'add sale',
+                'view sale',
+                'add return-sale',
+                'view return-sale',
+                'job ticket',
+                'quotation',
+                'draft',
+                'suspend',
+                'credit sale',
+                'card',
+                'cheque',
+                'multiple pay',
+                'cash'
+            ],
+            'Admin' => [
+                'create user',
+                'edit user',
+                'view user',
+                'delete user',
+                'create role',
+                'edit role',
+                'view role',
+                'delete role',
+                'create product',
+                'edit product',
+                'view product',
+                'delete product',
+                'job ticket'
+            ]
         ];
-        $manager->givePermissionTo($managerPermissions);
 
-        // Cashier - Limited Permissions
-        $cashier = Role::create(['name' => 'Cashier']);
-        $cashierPermissions = [
-            'pos page',
-            'add sale',
-            'view sale',
-            'add return-sale',
-            'view return-sale',
-            'job ticket',
-            'quotation',
-            'draft',
-            'suspend',
-            'credit sale',
-            'card',
-            'cheque',
-            'multiple pay',
-            'cash'
-        ];
-        $cashier->givePermissionTo($cashierPermissions);
-
-        // Admin - Limited Permissions
-        $admin = Role::create(['name' => 'Admin']);
-        $adminPermissions = [
-            'create user',
-            'edit user',
-            'view user',
-            'delete user',
-            'create role',
-            'edit role',
-            'view role',
-            'delete role',
-            'create product',
-            'edit product',
-            'view product',
-            'delete product'
-        ];
-        $admin->givePermissionTo($adminPermissions);
+        foreach ($roles as $roleName => $rolePermissions) {
+            $role = Role::firstOrCreate(['name' => $roleName]);
+            $role->syncPermissions($rolePermissions);
+        }
     }
 }
