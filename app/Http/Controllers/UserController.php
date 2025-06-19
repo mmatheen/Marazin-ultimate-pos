@@ -109,7 +109,7 @@ class UserController extends Controller
                     'id' => $user->id,
                     'name_title' => $user->name_title,
                     'full_name' => $user->full_name,
-                    'user_name' => $user->user_name,
+                    'user_name' => $user->getRoleNames()->first(),
                     'email' => $user->email,
                     'role' => $user->getRoleNames()->first(),
                     'location_ids' => $user->locations->pluck('id')->toArray(),

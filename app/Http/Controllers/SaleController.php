@@ -30,6 +30,7 @@ class SaleController extends Controller
         $this->middleware('permission:view sale', ['only' => ['listSale']]);
         $this->middleware('permission:add sale', ['only' => ['addSale']]);
         $this->middleware('permission:pos page', ['only' => ['pos']]);
+        $this->middleware('permission:edit sale', ['only' => ['editSale']]);
     }
 
 

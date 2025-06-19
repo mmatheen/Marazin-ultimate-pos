@@ -26,7 +26,6 @@
     <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.6/jquery.inputmask.min.css">
 
-
     <style>
         /* General Styles */
         body {
@@ -1018,8 +1017,8 @@
                     <div class="row align-items-center">
                         <!-- Location and Date Section -->
                         <div class="col-md-6 d-flex align-items-center">
-                            {{-- <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6> --}}
-
+                            {{-- <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
+                            --}}
 
                             <div class="row">
                                 <div class="col-md-6">
@@ -1060,9 +1059,6 @@
                                 </div>
                             </div>
 
-
-
-
                             <script>
                                 document.addEventListener('DOMContentLoaded', function() {
                                     const currentTimeButton = document.getElementById('currentTimeButton');
@@ -1076,8 +1072,8 @@
                                             ('0' + now.getSeconds()).slice(-2);
                                         currentTimeButton.textContent = formattedTime;
                                     }, 1000);
-
-                                    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+                                    const popoverTriggerList = [].slice.call(document.querySelectorAll(
+                                        '[data-bs-toggle="popover"]'))
                                     const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
                                         return new bootstrap.Popover(popoverTriggerEl)
                                     })
@@ -1169,8 +1165,7 @@
                                     </div>
                                 </div>
                                 <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
-                                    data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip"
-                                    title="Suspend Sales">
+                                    data-bs-target="#suspendSalesModal" data-bs-toggle="tooltip" title="Suspend Sales">
                                     <i class="fas fa-pause-circle"></i>
                                 </button>
 
@@ -1188,7 +1183,6 @@
                 </div>
             </div>
         </div>
-
 
         <div class="row mt-2">
 
@@ -1261,8 +1255,7 @@
                                             <button type="button" class="btn btn-outline-primary"
                                                 id="percentage-discount-btn">Percentage</button>
                                         </div>
-                                        <input type="hidden" id="discount-type" name="discount_type"
-                                            value="fixed">
+                                        <input type="hidden" id="discount-type" name="discount_type" value="fixed">
                                     </div>
                                 </div>
 
@@ -1270,8 +1263,8 @@
                                     <div class="form-group">
                                         <label>Discount</label>
                                         <div class="input-group">
-                                            <input type="text" id="global-discount" name="discount"
-                                                class="form-control" placeholder="0.00">
+                                            <input type="text" id="global-discount" name="discount" class="form-control"
+                                                placeholder="0.00">
                                             <span class="input-group-text" id="discount-icon">Rs</span>
                                         </div>
                                     </div>
@@ -1285,8 +1278,8 @@
                                 <div class="col-md-3">
                                     <div class="form-group">
                                         <label>Amount Given</label>
-                                        <input type="text" id="amount-given" class="form-control"
-                                            placeholder="0.00" oninput="formatAmount(this)">
+                                        <input type="text" id="amount-given" class="form-control" placeholder="0.00"
+                                            oninput="formatAmount(this)">
                                     </div>
                                 </div>
                             </div>
@@ -1322,8 +1315,6 @@
                 </div>
             </div>
 
-
-
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
                     const fixedDiscountBtn = document.getElementById('fixed-discount-btn');
@@ -1334,11 +1325,9 @@
                     const toggleProductListBtn = document.getElementById('toggleProductList');
                     const productListArea = document.getElementById('productListArea');
                     const mainContent = document.getElementById('mainContent');
-
                     // Set default to fixed discount
                     fixedDiscountBtn.classList.add('active');
                     discountIcon.textContent = 'Rs';
-
                     fixedDiscountBtn.addEventListener('click', function() {
                         fixedDiscountBtn.classList.add('active');
                         percentageDiscountBtn.classList.remove('active');
@@ -1346,7 +1335,6 @@
                         discountTypeInput.value = 'fixed';
                         discountInput.value = ''; // Reset the discount value
                     });
-
                     percentageDiscountBtn.addEventListener('click', function() {
                         percentageDiscountBtn.classList.add('active');
                         fixedDiscountBtn.classList.remove('active');
@@ -1354,7 +1342,6 @@
                         discountTypeInput.value = 'percentage';
                         discountInput.value = ''; // Reset the discount value
                     });
-
                     // Toggle product list area visibility
                     toggleProductListBtn.addEventListener('click', function() {
                         if (productListArea.classList.contains('show')) {
@@ -1415,8 +1402,7 @@
         </div>
 
         <!-- Offcanvas Brand Menu -->
-        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand"
-            aria-labelledby="offcanvasBrandLabel">
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasBrand" aria-labelledby="offcanvasBrandLabel">
             <div class="offcanvas-header">
                 <h5 class="offcanvas-title" id="offcanvasBrandLabel">Brands</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -1445,64 +1431,67 @@
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
 
                         @can('job ticket')
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
-                                <i class="fas fa-ticket-alt"></i> Job Ticket
-                            </button>
+                        {{-- job ticket --}}
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
+                            <i class="fas fa-ticket-alt"></i> Job Ticket
+                        </button>
                         @endcan
 
                         @can('quotation')
-                            <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
-                                <i class="fas fa-file-alt"></i> Quotation
-                            </button>
+                        {{-- <!-- Quotation Button --> --}}
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
+                            <i class="fas fa-file-alt"></i> Quotation
+                        </button>
                         @endcan
 
                         @can('draft')
-                            <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
-                                <i class="fas fa-edit"></i> Draft
-                            </button>
+                        <!-- Draft Button -->
+                        <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
+                            <i class="fas fa-edit"></i> Draft
+                        </button>
                         @endcan
 
                         @can('suspend')
-                            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#suspendModal">
-                                <i class="fas fa-pause"></i> Suspend
-                            </button>
+                        <!-- Existing Buttons -->
+                        <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#suspendModal">
+                            <i class="fas fa-pause"></i> Suspend
+                        </button>
                         @endcan
 
                         @can('credit sale')
-                            <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
-                                <i class="fas fa-check"></i> Credit Sale
-                            </button>
+                        <button class="btn btn-outline-success btn-sm" id="creditSaleButton">
+                            <i class="fas fa-check"></i> Credit Sale
+                        </button>
                         @endcan
 
                         @can('card')
-                            <button class="btn btn-outline-primary btn-sm" id="cardButton">
-                                <i class="fas fa-credit-card"></i> Card
-                            </button>
+                        <button class="btn btn-outline-primary btn-sm" id="cardButton">
+                            <i class="fas fa-credit-card"></i> Card
+                        </button>
                         @endcan
 
                         @can('cheque')
-                            <button class="btn btn-outline-warning btn-sm" id="chequeButton">
-                                <i class="fas fa-money-check"></i> Cheque
-                            </button>
+                        <button class="btn btn-outline-warning btn-sm" id="chequeButton">
+                            <i class="fas fa-money-check"></i> Cheque
+                        </button>
                         @endcan
 
-                        @can('multiple pay')
-                            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
-                                data-bs-target="#paymentModal">
-                                <i class="fas fa-list"></i> Multiple Pay
-                            </button>
-                        @endcan
+                        @can('multiple payment')
+                        <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#paymentModal">
+                            <i class="fas fa-list"></i> Multiple Pay
+                        </button>
 
+                        @endcan
                         @can('cash')
-                            <button class="btn btn-outline-secondary btn-sm" id="cashButton">
-                                <i class="fas fa-cash-register"></i> Cash
-                            </button>
+                        <button class="btn btn-outline-secondary btn-sm" id="cashButton">
+                            <i class="fas fa-cash-register"></i> Cash
+                        </button>
                         @endcan
 
                     </div>
                 </div>
-
 
             </div>
         </div>
@@ -1523,18 +1512,26 @@
                             <a class="nav-link active" data-bs-toggle="tab" href="#final"
                                 onclick="loadTableData('final')">Final</a>
                         </li>
+                         @can('quotation')
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#quotation"
                                 onclick="loadTableData('quotation')">Quotation</a>
                         </li>
+                         @endcan
+
+                        @can('draft')
                         <li class="nav-item">
                             <a class="nav-link" data-bs-toggle="tab" href="#draft"
                                 onclick="loadTableData('draft')">Draft</a>
                         </li>
+                        @endcan
+
+                         @can('job ticket')
                         <li class="nav-item">
-                            <a class="nav-link" data-bs-toggle="tab" href="#draft"
+                            <a class="nav-link" data-bs-toggle="tab" href="#jobticket"
                                 onclick="loadTableData('jobticket')">Job Tickets</a>
                         </li>
+                        @endcan
                     </ul>
                     <div class="tab-content mt-3">
                         <div class="table-responsive">
@@ -1563,8 +1560,6 @@
         </div>
     </div>
 
-
-
     <style>
         .modal-body {
             max-height: 70vh;
@@ -1576,10 +1571,7 @@
         }
     </style>
 
-
-
-    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1598,8 +1590,7 @@
     </div>
 
     <!-- Bootstrap Modal for Suspend -->
-    <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="suspendModal" tabindex="-1" aria-labelledby="suspendModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1651,8 +1642,6 @@
         </div>
     </div>
 
-
-
     <div class="container mt-5">
         <div class="modal fade" id="paymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
             aria-labelledby="paymentModalLabel" aria-hidden="true">
@@ -1660,8 +1649,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="paymentModalLabel">Add Payment</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                            aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row">
@@ -1706,10 +1694,8 @@
                                                                     value="${moment().format('DD-MM-YYYY')}">
                                                             </div>
                                                             <div class="col-md-4">
-                                                                <label for="payAmount"
-                                                                    class="form-label">Amount</label>
-                                                                <input type="text"
-                                                                    class="form-control payment-amount"
+                                                                <label for="payAmount" class="form-label">Amount</label>
+                                                                <input type="text" class="form-control payment-amount"
                                                                     id="payment-amount" name="amount"
                                                                     oninput="validateAmount()">
                                                                 <div class="text-danger amount-error"
@@ -1727,7 +1713,8 @@
                                                 id="addPaymentRow">Add Payment Row</button>
                                             <div class="mb-3">
                                                 <label for="paymentNote" class="form-label">Payment Note</label>
-                                                <textarea class="form-control" id="paymentNote" name="payment_note"></textarea>
+                                                <textarea class="form-control" id="paymentNote"
+                                                    name="payment_note"></textarea>
                                             </div>
                                         </form>
                                     </div>
@@ -1737,7 +1724,8 @@
                             <!-- Right Side (Sticky) -->
                             <div class="col-12 col-md-4">
                                 <div class="card shadow-sm" style="position: sticky; top: 20px; height: fit-content;">
-                                    <div class="card-body bg-warning text-dark rounded" style="padding: 20px;">
+                                    <div style="background-color:#e3c1a6; padding: 20px;"
+                                        class="card-body text-dark rounded" style="padding: 20px;">
                                         <div class="text-start">
                                             <p>Total Items:</p>
                                             <h5><strong id="modal-total-items">0.00</strong></h5>
@@ -1761,8 +1749,8 @@
 
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-success" id="finalize_payment">Finalize
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-outline-primary" id="finalize_payment">Finalize
                             Payment</button>
                     </div>
                 </div>
@@ -1788,8 +1776,7 @@
                         </div>
                         <div class="col-md-6">
                             <label for="cardHolderName" class="form-label">Card Holder Name</label>
-                            <input type="text" class="form-control" name="card_holder_name"
-                                id="card_holder_name">
+                            <input type="text" class="form-control" name="card_holder_name" id="card_holder_name">
                         </div>
                         {{-- <div class="col-md-6">
                             <label for="cardType" class="form-label">Card Type</label>
@@ -1801,18 +1788,15 @@
                         </div> --}}
                         <div class="col-md-6">
                             <label for="expiryMonth" class="form-label">Expiry Month</label>
-                            <input type="text" class="form-control" name="card_expiry_month"
-                                id="card_expiry_month">
+                            <input type="text" class="form-control" name="card_expiry_month" id="card_expiry_month">
                         </div>
                         <div class="col-md-6">
                             <label for="expiryYear" class="form-label">Expiry Year</label>
-                            <input type="text" class="form-control" name="card_expiry_year"
-                                id="card_expiry_year">
+                            <input type="text" class="form-control" name="card_expiry_year" id="card_expiry_year">
                         </div>
                         <div class="col-md-6">
                             <label for="securityCode" class="form-label">Security Code</label>
-                            <input type="text" class="form-control" name="card_security_code"
-                                id="card_security_code">
+                            <input type="text" class="form-control" name="card_security_code" id="card_security_code">
                         </div>
                     </div>
                 </div>
@@ -1840,8 +1824,7 @@
                         </div>
                         <div class="col-md-6">
                             <label for="bankBranch" class="form-label">Bank Branch</label>
-                            <input type="text" class="form-control" name="cheque_bank_branch"
-                                id="cheque_bank_branch">
+                            <input type="text" class="form-control" name="cheque_bank_branch" id="cheque_bank_branch">
                             <div id="bankBranchError" class="text-danger"></div>
                         </div>
                         <div class="col-md-6">
@@ -1870,7 +1853,6 @@
             </div>
         </div>
     </div>
-
 
     <!-- IMEI Selection Modal -->
     <div class="modal fade" id="imeiModal" tabindex="-1" aria-labelledby="imeiModalLabel" aria-hidden="true">
@@ -2205,18 +2187,14 @@
         function formatAmountWithSeparators(amount) {
             return new Intl.NumberFormat().format(amount);
         }
-
         // Parse formatted numbers back to float
         function parseFormattedAmount(formattedAmount) {
             return parseFloat(formattedAmount.replace(/,/g, ''));
         }
-
         let totalPayable = 0;
-
         document.getElementById('addPaymentRow').addEventListener('click', function() {
             const paymentRows = document.getElementById('paymentRows');
             const usedMethods = Array.from(document.querySelectorAll('.payment-method')).map(el => el.value);
-
             const newPaymentRow = document.createElement('div');
             newPaymentRow.className = 'card mb-3 payment-row position-relative';
             newPaymentRow.innerHTML = `
@@ -2246,18 +2224,14 @@
             </div>
             <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2 remove-payment-row" aria-label="Close"></button>
         `;
-
             paymentRows.appendChild(newPaymentRow);
-
             // Initialize date pickers
             initializeDateTimePickers();
-
             // Remove button handler
             newPaymentRow.querySelector('.remove-payment-row').addEventListener('click', function() {
                 this.closest('.payment-row').remove();
                 updatePaymentSummary();
             });
-
             togglePaymentFields(newPaymentRow.querySelector('.payment-method'));
             updatePaymentSummary();
         });
@@ -2266,7 +2240,6 @@
             const paymentMethod = selectElement.value;
             const conditionalFields = selectElement.closest('.payment-row').querySelector('.conditional-fields');
             conditionalFields.innerHTML = '';
-
             if (paymentMethod === 'card') {
                 conditionalFields.innerHTML =
                     `
@@ -2311,30 +2284,28 @@
         function updatePaymentSummary() {
             const totalItems = fetchTotalItems();
             const totalAmount = fetchTotalAmount();
-
             // Apply discount if any
-            const discount = parseFloat(document.getElementById('discount')?.value || 0);
-            const discountType = document.getElementById('discount-type')?.value || 'fixed';
+            const discount = parseFloat(document.getElementById('discount') ? .value || 0);
+            const discountType = document.getElementById('discount-type') ? .value || 'fixed';
             totalPayable = discountType === 'percentage' ?
                 totalAmount - (totalAmount * discount / 100) :
                 totalAmount - discount;
-
             let totalPaying = 0;
             document.querySelectorAll('.payment-amount').forEach(input => {
                 totalPaying += parseFloat(input.value) || 0;
             });
-
             let changeReturn = Math.max(totalPaying - totalPayable, 0);
             let balance = Math.max(totalPayable - totalPaying, 0);
-
             document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
-            document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable.toFixed(
+            document.getElementById('modal-total-payable').textContent = formatAmountWithSeparators(totalPayable
+                .toFixed(
+                    2));
+            document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(
                 2));
-            document.getElementById('modal-total-paying').textContent = formatAmountWithSeparators(totalPaying.toFixed(2));
-            document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn.toFixed(
-                2));
+            document.getElementById('modal-change-return').textContent = formatAmountWithSeparators(changeReturn
+                .toFixed(
+                    2));
             document.getElementById('modal-balance').textContent = formatAmountWithSeparators(balance.toFixed(2));
-
             // Disable add button if balance is zero
             document.getElementById('addPaymentRow').disabled = (balance === 0 && totalPaying >= totalPayable);
         }
@@ -2369,12 +2340,10 @@
                 minDate: moment().add(1, 'days')
             });
         }
-
         document.getElementById('paymentModal').addEventListener('show.bs.modal', function() {
             // Reset form
             document.getElementById('paymentForm').reset();
             document.getElementById('paymentRows').innerHTML = ''; // Clear all rows
-
             // Set default first cash row
             const defaultAmount = fetchTotalAmount();
             const defaultRow = document.createElement('div');
@@ -2404,16 +2373,13 @@
             </div>
         `;
             document.getElementById('paymentRows').appendChild(defaultRow);
-
             initializeDateTimePickers();
             updatePaymentSummary();
         });
     </script>
 
-
     <!-- Modal -->
-    <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel"
-        aria-hidden="true">
+    <div class="modal fade" id="jobTicketModal" tabindex="-1" aria-labelledby="jobTicketModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="font-family: 'Roboto', sans-serif;">
                 <div class="modal-header">
@@ -2429,8 +2395,7 @@
                             </div>
                             <div class="col-6 text-end">
                                 <label class="form-label mb-1" style="font-size: 13px;">Date</label>
-                                <input type="text" class="form-control form-control-sm text-end" id="jobDate"
-                                    readonly>
+                                <input type="text" class="form-control form-control-sm text-end" id="jobDate" readonly>
                             </div>
                         </div>
                         <div class="row mb-2">
@@ -2487,28 +2452,23 @@
                         <div class="row mb-2">
                             <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 13px;">Name</label>
-                                <input type="text" class="form-control form-control-sm" id="customerName"
-                                    readonly>
+                                <input type="text" class="form-control form-control-sm" id="customerName" readonly>
                             </div>
                             <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 13px;">Address</label>
-                                <input type="text" class="form-control form-control-sm" id="customerAddress"
-                                    readonly>
+                                <input type="text" class="form-control form-control-sm" id="customerAddress" readonly>
                             </div>
                         </div>
                         <div class="row mb-2">
                             <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 13px;">Mobile</label>
-                                <input type="text" class="form-control form-control-sm" id="customerMobile"
-                                    readonly>
+                                <input type="text" class="form-control form-control-sm" id="customerMobile" readonly>
                             </div>
                             <div class="col-6">
                                 <label class="form-label mb-1" style="font-size: 13px;">E-mail</label>
-                                <input type="email" class="form-control form-control-sm" id="customerEmail"
-                                    readonly>
+                                <input type="email" class="form-control form-control-sm" id="customerEmail" readonly>
                             </div>
                         </div>
-
 
                     </form>
                 </div>
@@ -2556,12 +2516,10 @@
                 document.getElementById('calcDisplay').value = 'Error';
             }
         }
-
         // Prevent dropdown from closing when clicking inside
         document.getElementById('calculatorDropdown').addEventListener('click', function(event) {
             event.stopPropagation();
         });
-
         // Handle keyboard input, allowing only numbers and operators
         function handleKeyboardInput(event) {
             const allowedKeys = "0123456789+-*/.";
@@ -2572,8 +2530,6 @@
                 calculateResult();
             }
         }
-
-
         document.addEventListener('DOMContentLoaded', function() {
             function handleInvoiceSubmission() {
                 const invoiceNo = document.getElementById('invoiceNo').value.trim().toLowerCase();
@@ -2591,7 +2547,8 @@
                                 window.location.href = `/sale-return/add?invoiceNo=${invoiceNo}`;
                             } else {
                                 // Show toastr message indicating sale not found
-                                toastr.error('Sale not found. Please enter a valid invoice number.');
+                                toastr.error(
+                                'Sale not found. Please enter a valid invoice number.');
                             }
                         },
                         error: function(error) {
@@ -2603,11 +2560,9 @@
                     alert('Please enter an invoice number');
                 }
             }
-
             // Capture the Submit button click
             document.querySelector('.dropdown-menu .btn-primary').addEventListener('click',
                 handleInvoiceSubmission);
-
             // Capture the Enter key press in the input field
             document.getElementById('invoiceNo').addEventListener('keydown', function(event) {
                 if (event.key === 'Enter') {
@@ -2619,13 +2574,10 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
-
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
     @include('contact.customer.customer_ajax')
     @include('contact.customer.add_customer_modal')
-
-
 
 </body>
 
