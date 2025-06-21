@@ -866,32 +866,345 @@ class ProductController extends Controller
         return response()->json(['status' => 200, 'openingStock' => $openingStock], 200);
     }
 
-    public function getAllProductStocks(Request $request)
+
+
+
+
+    // public function getAllProductStocks()
+    // {
+    //     try {
+    //         $productStocks = [];
+    //         $now = now();
+
+    //         // Use chunking for memory efficiency with large datasets
+    //         Product::with([
+    //             // Eager load only required columns for relations and sub-relations
+    //             'batches.locationBatches.location:id,name',
+    //             'locations:id,name',
+    //             'discounts' => function ($query) use ($now) {
+    //                 $query->where('is_active', true)
+    //                     ->where('start_date', '<=', $now);
+    //             },
+    //             'imeinumbers.location:id,name'
+    //         ])
+    //         ->select([
+    //             'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
+    //             'stock_alert', 'alert_quantity', 'product_image', 'description',
+    //             'is_imei_or_serial_no', 'is_for_selling', 'product_type', 'pax',
+    //             'original_price', 'retail_price', 'whole_sale_price', 'special_price', 'max_retail_price'
+    //         ])
+    //         ->chunk(500, function ($products) use (&$productStocks, $now) {
+    //             foreach ($products as $product) {
+    //                 // Only batches with locationBatches
+    //                 $filteredBatches = $product->batches->filter(function ($batch) {
+    //                     return $batch->locationBatches->isNotEmpty();
+    //                 });
+
+    //                 $totalStock = $filteredBatches->sum(fn($batch) => $batch->locationBatches->sum('qty'));
+
+    //                 $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) {
+    //                     return $batch;
+    //                 });
+
+    //                 $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
+    //                     return [
+    //                         'id' => $discount->id,
+    //                         'name' => $discount->name,
+    //                         'description' => $discount->description,
+    //                         'type' => $discount->type,
+    //                         'amount' => $discount->amount,
+    //                         'start_date' => $discount->start_date ? $discount->start_date->format('Y-m-d H:i:s') : null,
+    //                         'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
+    //                         'is_active' => (bool)$discount->is_active,
+    //                         'apply_to_all' => (bool)$discount->apply_to_all,
+    //                         'is_expired' => $discount->end_date && $discount->end_date < $now,
+    //                     ];
+    //                 });
+
+    //                 $productStocks[] = $this->transformProductData(
+    //                     $product,
+    //                     $filteredBatchesWithLocation,
+    //                     $activeDiscounts,
+    //                     $totalStock,
+    //                     null
+    //                 );
+    //             }
+    //         });
+
+    //         return response()->json(['status' => 200, 'data' => $productStocks]);
+    //     } catch (\Exception $e) {
+    //         Log::error('Error fetching product stocks: ' . $e->getMessage());
+    //         return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
+    //     }
+    // }
+
+    // private function transformProductData($product, $filteredBatches, $activeDiscounts, $totalStock, $selectedLocationId)
+    // {
+    //     return [
+    //         'product' => [
+    //             'id' => $product->id,
+    //             'product_name' => $product->product_name,
+    //             'sku' => $product->sku,
+    //             'unit_id' => $product->unit_id,
+    //             'brand_id' => $product->brand_id,
+    //             'main_category_id' => $product->main_category_id,
+    //             'sub_category_id' => $product->sub_category_id,
+    //             'stock_alert' => $product->stock_alert,
+    //             'alert_quantity' => $product->alert_quantity,
+    //             'product_image' => $product->product_image,
+    //             'description' => $product->description,
+    //             'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+    //             'is_for_selling' => $product->is_for_selling,
+    //             'product_type' => $product->product_type,
+    //             'pax' => $product->pax,
+    //             'original_price' => $product->original_price,
+    //             'retail_price' => $product->retail_price,
+    //             'whole_sale_price' => $product->whole_sale_price,
+    //             'special_price' => $product->special_price,
+    //             'max_retail_price' => $product->max_retail_price,
+    //         ],
+    //         'total_stock' => $totalStock,
+    //         'batches' => $filteredBatches->map(function ($batch) use ($selectedLocationId) {
+    //             return [
+    //                 'id' => $batch->id,
+    //                 'batch_no' => $batch->batch_no,
+    //                 'unit_cost' => $batch->unit_cost,
+    //                 'wholesale_price' => $batch->wholesale_price,
+    //                 'special_price' => $batch->special_price,
+    //                 'retail_price' => $batch->retail_price,
+    //                 'max_retail_price' => $batch->max_retail_price,
+    //                 'expiry_date' => $batch->expiry_date,
+    //                 'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+    //                 'location_batches' => $batch->locationBatches->map(fn($locationBatch) => [
+    //                     'batch_id' => $locationBatch->batch_id ?? 'N/A',
+    //                     'location_id' => $locationBatch->location_id ?? 'N/A',
+    //                     'location_name' => $locationBatch->location->name ?? 'N/A',
+    //                     'quantity' => $locationBatch->qty,
+    //                 ]),
+    //             ];
+    //         }),
+    //         'locations' => $selectedLocationId ? [
+    //             [
+    //                 'location_id' => $selectedLocationId,
+    //                 'location_name' => optional($product->locations->firstWhere('id', $selectedLocationId))->name ?? 'Unknown'
+    //             ]
+    //         ] : $product->locations->map(fn($location) => [
+    //             'location_id' => $location->id,
+    //             'location_name' => $location->name,
+    //         ]),
+    //         'has_batches' => $filteredBatches->isNotEmpty(),
+    //         'discounts' => $activeDiscounts,
+    //         'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
+    //             $batch = $product->batches->firstWhere('id', $imei->batch_id);
+
+    //             return [
+    //                 'id' => $imei->id,
+    //                 'imei_number' => $imei->imei_number,
+    //                 'location_id' => $imei->location_id,
+    //                 'location_name' => optional($imei->location)->name ?? 'N/A',
+    //                 'batch_id' => $imei->batch_id,
+    //                 'batch_no' => optional($batch)->batch_no ?? 'N/A',
+    //                 'status' => $imei->status ?? 'available'
+    //             ];
+    //         })
+    //     ];
+    // }
+
+
+
+    // public function getAllProductStocks()
+    // {
+    //     try {
+    //         $now = now();
+
+    //         // Fetch all products with required fields
+    //         $products = Product::select([
+    //                 'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
+    //                 'stock_alert', 'alert_quantity', 'product_image', 'description',
+    //                 'is_imei_or_serial_no', 'is_for_selling', 'product_type', 'pax',
+    //                 'original_price', 'retail_price', 'whole_sale_price', 'special_price', 'max_retail_price'
+    //             ])
+    //             ->with([
+    //                 'locations:id,name',
+    //                 'discounts' => function ($query) use ($now) {
+    //                     $query->where('is_active', true)
+    //                         ->where('start_date', '<=', $now);
+    //                 }
+    //             ])
+    //             ->get();
+
+    //         // Fetch all batches in one query
+    //         $batches = Batch::select([
+    //                 'id', 'batch_no', 'product_id', 'unit_cost', 'wholesale_price', 'special_price',
+    //                 'retail_price', 'max_retail_price', 'expiry_date'
+    //             ])
+    //             ->with(['locationBatches.location:id,name'])
+    //             ->whereIn('product_id', $products->pluck('id'))
+    //             ->get()
+    //             ->groupBy('product_id');
+
+    //         // Fetch all imei numbers in one query
+    //         $imeis = ImeiNumber::select([
+    //                 'id', 'product_id', 'batch_id', 'location_id', 'imei_number', 'status'
+    //             ])
+    //             ->with('location:id,name')
+    //             ->whereIn('product_id', $products->pluck('id'))
+    //             ->get()
+    //             ->groupBy('product_id');
+
+    //         $productStocks = [];
+
+    //         foreach ($products as $product) {
+    //             $productBatches = $batches->get($product->id, collect());
+    //             $filteredBatches = $productBatches->filter(function ($batch) {
+    //                 return $batch->locationBatches->isNotEmpty();
+    //             });
+
+    //             $totalStock = $filteredBatches->sum(function ($batch) {
+    //                 return $batch->locationBatches->sum('qty');
+    //             });
+
+    //             $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
+    //                 return [
+    //                     'id' => $discount->id,
+    //                     'name' => $discount->name,
+    //                     'description' => $discount->description,
+    //                     'type' => $discount->type,
+    //                     'amount' => $discount->amount,
+    //                     'start_date' => $discount->start_date ? $discount->start_date->format('Y-m-d H:i:s') : null,
+    //                     'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
+    //                     'is_active' => (bool)$discount->is_active,
+    //                     'apply_to_all' => (bool)$discount->apply_to_all,
+    //                     'is_expired' => $discount->end_date && $discount->end_date < $now,
+    //                 ];
+    //             });
+
+    //             $productStocks[] = [
+    //                 'product' => [
+    //                     'id' => $product->id,
+    //                     'product_name' => $product->product_name,
+    //                     'sku' => $product->sku,
+    //                     'unit_id' => $product->unit_id,
+    //                     'brand_id' => $product->brand_id,
+    //                     'main_category_id' => $product->main_category_id,
+    //                     'sub_category_id' => $product->sub_category_id,
+    //                     'stock_alert' => $product->stock_alert,
+    //                     'alert_quantity' => $product->alert_quantity,
+    //                     'product_image' => $product->product_image,
+    //                     'description' => $product->description,
+    //                     'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+    //                     'is_for_selling' => $product->is_for_selling,
+    //                     'product_type' => $product->product_type,
+    //                     'pax' => $product->pax,
+    //                     'original_price' => $product->original_price,
+    //                     'retail_price' => $product->retail_price,
+    //                     'whole_sale_price' => $product->whole_sale_price,
+    //                     'special_price' => $product->special_price,
+    //                     'max_retail_price' => $product->max_retail_price,
+    //                 ],
+    //                 'total_stock' => $totalStock,
+    //                 'batches' => $filteredBatches->map(function ($batch) {
+    //                     return [
+    //                         'id' => $batch->id,
+    //                         'batch_no' => $batch->batch_no,
+    //                         'unit_cost' => $batch->unit_cost,
+    //                         'wholesale_price' => $batch->wholesale_price,
+    //                         'special_price' => $batch->special_price,
+    //                         'retail_price' => $batch->retail_price,
+    //                         'max_retail_price' => $batch->max_retail_price,
+    //                         'expiry_date' => $batch->expiry_date,
+    //                         'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+    //                         'location_batches' => $batch->locationBatches->map(function ($locationBatch) {
+    //                             return [
+    //                                 'batch_id' => $locationBatch->batch_id ?? 'N/A',
+    //                                 'location_id' => $locationBatch->location_id ?? 'N/A',
+    //                                 'location_name' => $locationBatch->location->name ?? 'N/A',
+    //                                 'quantity' => $locationBatch->qty,
+    //                             ];
+    //                         }),
+    //                     ];
+    //                 }),
+    //                 'locations' => $product->locations->map(function ($location) {
+    //                     return [
+    //                         'location_id' => $location->id,
+    //                         'location_name' => $location->name,
+    //                     ];
+    //                 }),
+    //                 'has_batches' => $filteredBatches->isNotEmpty(),
+    //                 'discounts' => $activeDiscounts,
+    //                 'imei_numbers' => ($imeis->get($product->id, collect()))->map(function ($imei) use ($productBatches) {
+    //                     $batch = $productBatches->firstWhere('id', $imei->batch_id);
+    //                     return [
+    //                         'id' => $imei->id,
+    //                         'imei_number' => $imei->imei_number,
+    //                         'location_id' => $imei->location_id,
+    //                         'location_name' => optional($imei->location)->name ?? 'N/A',
+    //                         'batch_id' => $imei->batch_id,
+    //                         'batch_no' => optional($batch)->batch_no ?? 'N/A',
+    //                         'status' => $imei->status ?? 'available'
+    //                     ];
+    //                 }),
+    //             ];
+    //         }
+
+    //         return response()->json(['status' => 200, 'data' => $productStocks]);
+    //     } catch (\Exception $e) {
+    //         Log::error('Error fetching product stocks: ' . $e->getMessage());
+    //         return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
+    //     }
+    // }
+
+
+    public function getAllProductStocks()
     {
         try {
-            $productStocks = [];
             $now = now();
 
-            // Use cursor() for memory-efficient iteration
-            $products = Product::with([
-                'batches.locationBatches',
-                'locations',
-                'discounts' => function ($query) use ($now) {
-                    $query->where('is_active', true)
-                        ->where('start_date', '<=', $now);
-                },
-                'imeinumbers'
-            ])->get();
+            // Fetch all products with required fields
+            $products = Product::select([
+                    'id', 'product_name', 'sku', 'unit_id', 'brand_id', 'main_category_id', 'sub_category_id',
+                    'stock_alert', 'alert_quantity', 'product_image', 'description',
+                    'is_imei_or_serial_no', 'is_for_selling', 'product_type', 'pax',
+                    'original_price', 'retail_price', 'whole_sale_price', 'special_price', 'max_retail_price'
+                ])
+                ->with([
+                    'locations:id,name',
+                    'discounts' => function ($query) use ($now) {
+                        $query->where('is_active', true)
+                            ->where('start_date', '<=', $now);
+                    }
+                ])
+                ->get();
+
+            // Fetch all batches in one query
+            $batches = Batch::select([
+                    'id', 'batch_no', 'product_id', 'unit_cost', 'wholesale_price', 'special_price',
+                    'retail_price', 'max_retail_price', 'expiry_date'
+                ])
+                ->with(['locationBatches.location:id,name'])
+                ->whereIn('product_id', $products->pluck('id'))
+                ->get()
+                ->groupBy('product_id');
+
+            // Fetch all imei numbers in one query
+            $imeis = ImeiNumber::select([
+                    'id', 'product_id', 'batch_id', 'location_id', 'imei_number', 'status'
+                ])
+                ->with('location:id,name')
+                ->whereIn('product_id', $products->pluck('id'))
+                ->get()
+                ->groupBy('product_id');
+
+            $productStocks = [];
 
             foreach ($products as $product) {
-                $filteredBatches = $product->batches->filter(function ($batch) {
+                $productBatches = $batches->get($product->id, collect());
+                $filteredBatches = $productBatches->filter(function ($batch) {
                     return $batch->locationBatches->isNotEmpty();
                 });
 
-                $totalStock = $filteredBatches->sum(fn($batch) => $batch->locationBatches->sum('qty'));
-
-                $filteredBatchesWithLocation = $filteredBatches->map(function ($batch) {
-                    return $batch;
+                $totalStock = $filteredBatches->sum(function ($batch) {
+                    return $batch->locationBatches->sum('qty');
                 });
 
                 $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
@@ -901,7 +1214,7 @@ class ProductController extends Controller
                         'description' => $discount->description,
                         'type' => $discount->type,
                         'amount' => $discount->amount,
-                        'start_date' => $discount->start_date->format('Y-m-d H:i:s'),
+                        'start_date' => $discount->start_date ? $discount->start_date->format('Y-m-d H:i:s') : null,
                         'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
                         'is_active' => (bool)$discount->is_active,
                         'apply_to_all' => (bool)$discount->apply_to_all,
@@ -909,13 +1222,72 @@ class ProductController extends Controller
                     ];
                 });
 
-                $productStocks[] = $this->transformProductData(
-                    $product,
-                    $filteredBatchesWithLocation,
-                    $activeDiscounts,
-                    $totalStock,
-                    null
-                );
+                $productStocks[] = [
+                    'product' => [
+                        'id' => $product->id,
+                        'product_name' => $product->product_name,
+                        'sku' => $product->sku,
+                        'unit_id' => $product->unit_id,
+                        'brand_id' => $product->brand_id,
+                        'main_category_id' => $product->main_category_id,
+                        'sub_category_id' => $product->sub_category_id,
+                        'stock_alert' => $product->stock_alert,
+                        'alert_quantity' => $product->alert_quantity,
+                        'product_image' => $product->product_image,
+                        'description' => $product->description,
+                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                        'is_for_selling' => $product->is_for_selling,
+                        'product_type' => $product->product_type,
+                        'pax' => $product->pax,
+                        'original_price' => $product->original_price,
+                        'retail_price' => $product->retail_price,
+                        'whole_sale_price' => $product->whole_sale_price,
+                        'special_price' => $product->special_price,
+                        'max_retail_price' => $product->max_retail_price,
+                    ],
+                    'total_stock' => $totalStock,
+                    'batches' => $filteredBatches->map(function ($batch) {
+                        return [
+                            'id' => $batch->id,
+                            'batch_no' => $batch->batch_no,
+                            'unit_cost' => $batch->unit_cost,
+                            'wholesale_price' => $batch->wholesale_price,
+                            'special_price' => $batch->special_price,
+                            'retail_price' => $batch->retail_price,
+                            'max_retail_price' => $batch->max_retail_price,
+                            'expiry_date' => $batch->expiry_date,
+                            'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+                            'location_batches' => $batch->locationBatches->map(function ($locationBatch) {
+                                return [
+                                    'batch_id' => $locationBatch->batch_id ?? 'N/A',
+                                    'location_id' => $locationBatch->location_id ?? 'N/A',
+                                    'location_name' => $locationBatch->location->name ?? 'N/A',
+                                    'quantity' => $locationBatch->qty,
+                                ];
+                            }),
+                        ];
+                    }),
+                    'locations' => $product->locations->map(function ($location) {
+                        return [
+                            'location_id' => $location->id,
+                            'location_name' => $location->name,
+                        ];
+                    }),
+                    'has_batches' => $filteredBatches->isNotEmpty(),
+                    'discounts' => $activeDiscounts,
+                    'imei_numbers' => ($imeis->get($product->id, collect()))->map(function ($imei) use ($productBatches) {
+                        $batch = $productBatches->firstWhere('id', $imei->batch_id);
+                        return [
+                            'id' => $imei->id,
+                            'imei_number' => $imei->imei_number,
+                            'location_id' => $imei->location_id,
+                            'location_name' => optional($imei->location)->name ?? 'N/A',
+                            'batch_id' => $imei->batch_id,
+                            'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                            'status' => $imei->status ?? 'available'
+                        ];
+                    }),
+                ];
             }
 
             return response()->json(['status' => 200, 'data' => $productStocks]);
@@ -924,115 +1296,22 @@ class ProductController extends Controller
             return response()->json(['status' => 500, 'message' => 'An error occurred while fetching product stocks.']);
         }
     }
-    private function transformProductData($product, $filteredBatches, $activeDiscounts, $totalStock, $selectedLocationId)
-    {
-        return [
-            'product' => [
-                'id' => $product->id,
-                'product_name' => $product->product_name,
-                'sku' => $product->sku,
-                'unit_id' => $product->unit_id,
-                'brand_id' => $product->brand_id,
-                'main_category_id' => $product->main_category_id,
-                'sub_category_id' => $product->sub_category_id,
-                'stock_alert' => $product->stock_alert,
-                'alert_quantity' => $product->alert_quantity,
-                'product_image' => $product->product_image,
-                'description' => $product->description,
-                'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                'is_for_selling' => $product->is_for_selling,
-                'product_type' => $product->product_type,
-                'pax' => $product->pax,
-                'original_price' => $product->original_price,
-                'retail_price' => $product->retail_price,
-                'whole_sale_price' => $product->whole_sale_price,
-                'special_price' => $product->special_price,
-                'max_retail_price' => $product->max_retail_price,
-            ],
-            'total_stock' => $totalStock,
-            'batches' => $filteredBatches->map(function ($batch) use ($selectedLocationId) {
-                return [
-                    'id' => $batch->id,
-                    'batch_no' => $batch->batch_no,
-                    'unit_cost' => $batch->unit_cost,
-                    'wholesale_price' => $batch->wholesale_price,
-                    'special_price' => $batch->special_price,
-                    'retail_price' => $batch->retail_price,
-                    'max_retail_price' => $batch->max_retail_price,
-                    'expiry_date' => $batch->expiry_date,
-                    'total_batch_quantity' => $batch->locationBatches->sum('qty'),
-                    'location_batches' => $batch->locationBatches->map(fn($locationBatch) => [
-                        'batch_id' => $locationBatch->batch_id ?? 'N/A',
-                        'location_id' => $locationBatch->location_id ?? 'N/A',
-                        'location_name' => $locationBatch->location->name ?? 'N/A',
-                        'quantity' => $locationBatch->qty,
-                    ]),
-                ];
-            }),
-            'locations' => $selectedLocationId ? [
-                [
-                    'location_id' => $selectedLocationId,
-                    'location_name' => optional($product->locations->firstWhere('id', $selectedLocationId))->name ?? 'Unknown'
-                ]
-            ] : $product->locations->map(fn($location) => [
-                'location_id' => $location->id,
-                'location_name' => $location->name,
-            ]),
-            'has_batches' => $filteredBatches->isNotEmpty(),
-            'discounts' => $activeDiscounts,
-            'imei_numbers' => $product->imeinumbers->map(function ($imei) use ($product) {
-                $batch = $product->batches->firstWhere('id', $imei->batch_id);
-
-                return [
-                    'id' => $imei->id,
-                    'imei_number' => $imei->imei_number,
-                    'location_id' => $imei->location_id,
-                    'location_name' => optional($imei->location)->name ?? 'N/A',
-                    'batch_id' => $imei->batch_id,
-                    'batch_no' => optional($batch)->batch_no ?? 'N/A',
-                    'status' => $imei->status ?? 'available'
-                ];
-            })
-        ];
-    }
 
 
-
-
-    /**
-     * Fetch all product stocks efficiently and return same structured JSON.
-     */
-    // public function getAllProductStocks(): JsonResponse
+    // public function getAllProductStocks()
     // {
     //     try {
-    //         // Step 1: Get all products + total stock per product
+    //         $now = now();
+
+    //         // 1. Fetch all products with total_stock using efficient SQL aggregation
     //         $products = DB::table('products')
-    //             ->leftJoin('batches', 'products.id', '=', 'batches.product_id')
-    //             ->leftJoin('location_batches', 'batches.id', '=', 'location_batches.batch_id')
-    //             ->select([
-    //                 'products.id as product_id',
-    //                 'products.product_name',
-    //                 'products.sku',
-    //                 'products.unit_id',
-    //                 'products.brand_id',
-    //                 'products.main_category_id',
-    //                 'products.sub_category_id',
-    //                 'products.stock_alert',
-    //                 'products.alert_quantity',
-    //                 'products.product_image',
-    //                 'products.description',
-    //                 'products.is_imei_or_serial_no',
-    //                 'products.is_for_selling',
-    //                 'products.product_type',
-    //                 'products.pax',
-    //                 'products.original_price',
-    //                 'products.retail_price',
-    //                 'products.whole_sale_price',
-    //                 'products.special_price',
-    //                 'products.max_retail_price',
-    //                 DB::raw('SUM(location_batches.qty) as total_stock'),
-    //             ])
-    //             ->groupBy([
+    //             ->leftJoin('batches', 'batches.product_id', '=', 'products.id')
+    //             ->leftJoin('location_batches', 'location_batches.batch_id', '=', 'batches.id')
+    //             ->select(
+    //                 'products.*',
+    //                 DB::raw('COALESCE(SUM(location_batches.qty),0) as total_stock')
+    //             )
+    //             ->groupBy(
     //                 'products.id',
     //                 'products.product_name',
     //                 'products.sku',
@@ -1052,163 +1331,176 @@ class ProductController extends Controller
     //                 'products.retail_price',
     //                 'products.whole_sale_price',
     //                 'products.special_price',
-    //                 'products.max_retail_price'
-    //             ])
+    //                 'products.max_retail_price',
+    //                 'products.created_at',
+    //                 'products.updated_at'
+    //             )
+    //             // ->limit(100) // Uncomment for debugging
     //             ->get();
 
-    //         if ($products->isEmpty()) {
-    //             return response()->json(['status' => 200, 'data' => []]);
-    //         }
-
-    //         $productIds = $products->pluck('product_id')->toArray();
-
-    //         // Step 2: Get batches and their aggregated location batches
+    //         // 2. Fetch batch info for all products, grouped by product_id
     //         $batches = DB::table('batches')
-    //             ->whereIn('product_id', $productIds)
+    //             ->select([
+    //                 'batches.*',
+    //                 DB::raw('COALESCE(SUM(location_batches.qty),0) as total_batch_quantity')
+    //             ])
+    //             ->leftJoin('location_batches', 'location_batches.batch_id', '=', 'batches.id')
+    //             ->groupBy(
+    //                 'batches.id',
+    //                 'batches.product_id',
+    //                 'batches.batch_no',
+    //                 'batches.unit_cost',
+    //                 'batches.wholesale_price',
+    //                 'batches.special_price',
+    //                 'batches.retail_price',
+    //                 'batches.max_retail_price',
+    //                 'batches.expiry_date',
+    //                 'batches.created_at',
+    //                 'batches.updated_at'
+    //             )
     //             ->get()
     //             ->groupBy('product_id');
 
-    //         $batchIds = collect($batches)->flatten(1)->pluck('id')->toArray();
-
-    //         // Step 3: Get location batches
-    //         $locationBatches = DB::table('location_batches')
-    //             ->join('locations', 'location_batches.location_id', '=', 'locations.id')
-    //             ->whereIn('batch_id', $batchIds)
-    //             ->select([
-    //                 'location_batches.batch_id',
-    //                 'location_batches.qty',
-    //                 'locations.id as location_id',
+    //         // 3. Fetch location_batch info, grouped by batch_id
+    //         $location_batches = DB::table('location_batches')
+    //             ->join('locations', 'locations.id', '=', 'location_batches.location_id')
+    //             ->select(
+    //                 'location_batches.*',
     //                 'locations.name as location_name'
-    //             ])
+    //             )
     //             ->get()
     //             ->groupBy('batch_id');
 
-    //         // Step 4: Get active discounts
-    //         $activeDiscounts = DB::table('discount_product')
-    //             ->join('discounts', 'discount_product.discount_id', '=', 'discounts.id')
-    //             ->whereIn('discount_product.product_id', $productIds)
-    //             ->where('discounts.is_active', true)
-    //             ->where('discounts.start_date', '<=', now())
-    //             ->select([
-    //                 'discount_product.product_id',
-    //                 'discounts.id',
-    //                 'discounts.name',
-    //                 'discounts.description',
-    //                 'discounts.type',
-    //                 'discounts.amount',
-    //                 'discounts.start_date',
-    //                 'discounts.end_date',
-    //                 'discounts.is_active',
-    //                 'discounts.apply_to_all'
-    //             ])
+    //         // 4. Fetch locations for all products (unique names by ID)
+    //         $locations = DB::table('locations')->pluck('name', 'id');
+
+    //         // 5. Fetch discounts for all products, grouped by product_id
+    //         $discounts = DB::table('discounts')
+    //             ->where('is_active', true)
+    //             ->where('start_date', '<=', $now)
     //             ->get()
     //             ->groupBy('product_id');
 
-    //         // Step 5: Get IMEI numbers
-    //         $imeinumbers = DB::table('imei_numbers')
-    //             ->join('locations', 'imei_numbers.location_id', '=', 'locations.id')
-    //             ->join('batches', 'imei_numbers.batch_id', '=', 'batches.id')
-    //             ->whereIn('imei_numbers.product_id', $productIds)
-    //             ->select([
-    //                 'imei_numbers.product_id',
-    //                 'imei_numbers.id as imei_id',
-    //                 'imei_numbers.imei_number',
-    //                 'imei_numbers.location_id',
-    //                 'locations.name as location_name',
-    //                 'imei_numbers.batch_id',
-    //                 'batches.batch_no',
-    //                 'imei_numbers.status'
-    //             ])
+    //         // 6. Fetch IMEI numbers for all products, grouped by product_id
+    //         $imeis = DB::table('imei_numbers')
+    //             ->select('id', 'product_id', 'batch_id', 'location_id', 'imei_number', 'status')
     //             ->get()
     //             ->groupBy('product_id');
 
-    //         // Step 6: Build result
-    //         $result = [];
+    //         // 7. Assemble result as per your JSON structure
+    //         $result = $products->map(function ($product) use ($batches, $location_batches, $locations, $discounts, $imeis, $now) {
+    //             $productId = $product->id;
 
-    //         foreach ($products as $product) {
-    //             $productId = $product->product_id;
-
-    //             // Process Batches
-    //             $filteredBatches = collect($batches[$productId] ?? [])
-    //                 ->map(function ($batch) use ($locationBatches) {
-    //                     $batchLocationBatches = collect($locationBatches[$batch->id] ?? []);
+    //             // Batches for this product
+    //             $productBatches = $batches->get($productId, collect())->map(function ($batch) use ($location_batches, $locations) {
+    //                 $batchLocationBatches = $location_batches->get($batch->id, collect())->map(function ($locBatch) {
     //                     return [
-    //                         'id' => $batch->id,
-    //                         'batch_no' => $batch->batch_no,
-    //                         'unit_cost' => $batch->unit_cost,
-    //                         'wholesale_price' => $batch->wholesale_price,
-    //                         'special_price' => $batch->special_price,
-    //                         'retail_price' => $batch->retail_price,
-    //                         'max_retail_price' => $batch->max_retail_price,
-    //                         'expiry_date' => $batch->expiry_date,
-    //                         'total_batch_quantity' => $batchLocationBatches->sum('qty'),
-    //                         'location_batches' => $batchLocationBatches->map(function ($locBatch) {
-    //                             return [
-    //                                 'batch_id' => $locBatch->batch_id ?? null,
-    //                                 'location_id' => $locBatch->location_id ?? null,
-    //                                 'location_name' => $locBatch->location_name ?? 'N/A',
-    //                                 'quantity' => $locBatch->qty ?? 0,
-    //                             ];
-    //                         }),
+    //                         'batch_id'      => $locBatch->batch_id,
+    //                         'location_id'   => $locBatch->location_id,
+    //                         'location_name' => $locBatch->location_name ?? 'N/A',
+    //                         'quantity'      => $locBatch->qty,
     //                     ];
     //                 });
+    //                 return [
+    //                     'id'                  => $batch->id,
+    //                     'batch_no'            => $batch->batch_no,
+    //                     'unit_cost'           => $batch->unit_cost,
+    //                     'wholesale_price'     => $batch->wholesale_price,
+    //                     'special_price'       => $batch->special_price,
+    //                     'retail_price'        => $batch->retail_price,
+    //                     'max_retail_price'    => $batch->max_retail_price,
+    //                     'expiry_date'         => $batch->expiry_date,
+    //                     'total_batch_quantity' => $batch->total_batch_quantity,
+    //                     'location_batches'    => $batchLocationBatches,
+    //                 ];
+    //             });
 
-    //             // Process Discounts
-    //             $productDiscounts = collect($activeDiscounts[$productId] ?? [])
-    //                 ->map(function ($discount) {
+    //             // Locations for this product (unique)
+    //             $uniqueLocations = $productBatches->flatMap(function ($batch) {
+    //                 return $batch['location_batches']->map(function ($lb) {
     //                     return [
-    //                         'id' => $discount->id,
-    //                         'name' => $discount->name,
-    //                         'description' => $discount->description,
-    //                         'type' => $discount->type,
-    //                         'amount' => $discount->amount,
-    //                         'start_date' => $discount->start_date,
-    //                         'end_date' => $discount->end_date,
-    //                         'is_active' => (bool)$discount->is_active,
-    //                         'apply_to_all' => (bool)$discount->apply_to_all,
-    //                         'is_expired' => $discount->end_date && $discount->end_date < now(),
+    //                         'location_id'   => $lb['location_id'],
+    //                         'location_name' => $lb['location_name'],
     //                     ];
     //                 });
+    //             })->unique('location_id')->values();
 
-    //             // Process IMEIs
-    //             $imeiNumbers = collect($imeinumbers[$productId] ?? [])
-    //                 ->map(function ($imei) {
-    //                     return [
-    //                         'id' => $imei->imei_id,
-    //                         'imei_number' => $imei->imei_number,
-    //                         'location_id' => $imei->location_id,
-    //                         'location_name' => $imei->location_name,
-    //                         'batch_id' => $imei->batch_id,
-    //                         'batch_no' => $imei->batch_no,
-    //                         'status' => $imei->status,
-    //                     ];
-    //                 });
+    //             // Discounts for this product
+    //             $productDiscounts = $discounts->get($productId, collect())->map(function ($discount) use ($now) {
+    //                 return [
+    //                     'id'          => $discount->id,
+    //                     'name'        => $discount->name,
+    //                     'description' => $discount->description,
+    //                     'type'        => $discount->type,
+    //                     'amount'      => $discount->amount,
+    //                     'start_date'  => $discount->start_date ? \Carbon\Carbon::parse($discount->start_date)->format('Y-m-d H:i:s') : null,
+    //                     'end_date'    => $discount->end_date ? \Carbon\Carbon::parse($discount->end_date)->format('Y-m-d H:i:s') : null,
+    //                     'is_active'   => (bool)$discount->is_active,
+    //                     'apply_to_all' => (bool)$discount->apply_to_all,
+    //                     'is_expired'  => $discount->end_date && $discount->end_date < $now,
+    //                 ];
+    //             });
 
-    //             // Append to final array
-    //             $result[] = [
-    //                 'product' => (array)$product,
-    //                 'total_stock' => $product->total_stock ?? 0,
-    //                 'batches' => $filteredBatches,
-    //                 'locations' => [],
-    //                 'has_batches' => $filteredBatches->isNotEmpty(),
-    //                 'discounts' => $productDiscounts,
-    //                 'imei_numbers' => $imeiNumbers,
+    //             // IMEIs for this product
+    //             $productImeis = $imeis->get($productId, collect())->map(function ($imei) use ($batches, $locations) {
+    //                 // Find batch_no for IMEI
+    //                 $batch_no = null;
+    //                 if ($imei->batch_id && isset($batches[$imei->product_id])) {
+    //                     $batch_no = $batches[$imei->product_id]->firstWhere('id', $imei->batch_id)->batch_no ?? 'N/A';
+    //                 }
+    //                 return [
+    //                     'id'           => $imei->id,
+    //                     'imei_number'  => $imei->imei_number,
+    //                     'location_id'  => $imei->location_id,
+    //                     'location_name' => $locations[$imei->location_id] ?? 'N/A',
+    //                     'batch_id'     => $imei->batch_id,
+    //                     'batch_no'     => $batch_no,
+    //                     'status'       => $imei->status ?? 'available'
+    //                 ];
+    //             });
+
+    //             return [
+    //                 'product'       => [
+    //                     'id'                 => $product->id,
+    //                     'product_name'       => $product->product_name,
+    //                     'sku'                => $product->sku,
+    //                     'unit_id'            => $product->unit_id,
+    //                     'brand_id'           => $product->brand_id,
+    //                     'main_category_id'   => $product->main_category_id,
+    //                     'sub_category_id'    => $product->sub_category_id,
+    //                     'stock_alert'        => $product->stock_alert,
+    //                     'alert_quantity'     => $product->alert_quantity,
+    //                     'product_image'      => $product->product_image,
+    //                     'description'        => $product->description,
+    //                     'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+    //                     'is_for_selling'     => $product->is_for_selling,
+    //                     'product_type'       => $product->product_type,
+    //                     'pax'                => $product->pax,
+    //                     'original_price'     => $product->original_price,
+    //                     'retail_price'       => $product->retail_price,
+    //                     'whole_sale_price'   => $product->whole_sale_price,
+    //                     'special_price'      => $product->special_price,
+    //                     'max_retail_price'   => $product->max_retail_price,
+    //                 ],
+    //                 'total_stock'   => $product->total_stock,
+    //                 'batches'       => $productBatches,
+    //                 'locations'     => $uniqueLocations,
+    //                 'has_batches'   => $productBatches->isNotEmpty(),
+    //                 'discounts'     => $productDiscounts,
+    //                 'imei_numbers'  => $productImeis,
     //             ];
-    //         }
+    //         });
 
     //         return response()->json(['status' => 200, 'data' => $result]);
-
     //     } catch (\Exception $e) {
     //         Log::error('Error fetching product stocks: ' . $e->getMessage());
     //         return response()->json([
-    //             'status' => 500,
+    //             'status'  => 500,
     //             'message' => 'An error occurred while fetching product stocks.',
-    //             'error' => $e->getMessage()
-    //         ], 500);
+    //             'error'   => $e->getMessage()
+    //         ]);
     //     }
     // }
-
-
 
 
 
@@ -1254,9 +1546,14 @@ class ProductController extends Controller
             ];
         });
 
-        return response()->json(['status' => 200, 'data' => $notifications, 'count' => $notifications->count()]);
+        // Ensure $notifications is always an array for JSON encoding
+        return response()->json([
+            'status' => 200,
+            'data' => $notifications ? $notifications->values() : [],
+            'count' => $notifications ? $notifications->count() : 0
+        ]);
     }
-
+ 
 
     public function markNotificationsAsSeen()
     {

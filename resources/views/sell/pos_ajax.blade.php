@@ -8,6 +8,15 @@
         let stockData = [];
 
 
+        // Global state for lazy loading
+        let currentPage = 1;
+        const productsPerPage = 100;
+        let hasMoreProducts = true;
+        let isLoading = false;
+
+
+
+
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
 
@@ -326,7 +335,7 @@
                         }
                         // Only show if stock > 0 or unlimited
                         if (product.stock_alert !== 0 && product.total_stock <= 0)
-                        return false;
+                            return false;
 
                         // Use .includes for partial match, .toLowerCase for case-insensitive
                         const name = product.product_name?.toLowerCase() || '';
@@ -1778,10 +1787,10 @@
 
         function fetchEditSale(saleId) {
             fetch(`/sales/edit/${saleId}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
                 .then(response => {
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     const contentType = response.headers.get('Content-Type');
@@ -2895,32 +2904,20 @@
         $.ajax({
             url: '/sales',
             type: 'GET',
-            dataType: 'text', // Accept as text to handle invalid JSON gracefully
-            success: function(response) {
-                let data;
-                try {
-                    data = response ? JSON.parse(response) : null;
-                } catch (e) {
-                    console.error('Invalid JSON response from /sales:', response);
-                    sales = [];
-                    loadTableData('final');
-                    return;
-                }
+            dataType: 'json',
+            success: function(data) {
                 if (Array.isArray(data)) {
                     sales = data;
-                } else if (data && data.sales && Array.isArray(data.sales)) {
+                } else if (data.sales && Array.isArray(data.sales)) {
                     sales = data.sales;
                 } else {
                     console.error('Unexpected data format:', data);
-                    sales = [];
                 }
                 // Load the default tab data (e.g., 'final')
                 loadTableData('final');
             },
             error: function(xhr, status, error) {
                 console.error('Error fetching sales data:', error);
-                sales = [];
-                loadTableData('final');
             }
         });
     }
@@ -2955,7 +2952,7 @@
                     sale.sales_date,
                     sale.final_total,
                     `<button class='btn btn-outline-success btn-sm' onclick="printReceipt(${sale.id})">Print</button>
-                @can('edit sale') <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>@endcan`,
+                 <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>`,
                     '' // Extra column if needed
                 ]);
             });
@@ -3030,10 +3027,8 @@
         hotkeys('f4', function(event) {
             event.preventDefault();
             const productSearchInput = document.getElementById('productSearchInput');
-            if (productSearchInput) {
-                productSearchInput.focus();
-                productSearchInput.select();
-            } else {
+            if (productSearc                @can('edit sale') <button class='btn btn-outline-primary btn-sm' onclick="navigateToEdit(${sale.id})">Edit</button>@endcan`,
+{
                 console.warn('No product search input found.');
             }
         });

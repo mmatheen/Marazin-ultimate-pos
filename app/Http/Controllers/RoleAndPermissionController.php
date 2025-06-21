@@ -11,7 +11,7 @@ class RoleAndPermissionController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view role & permission', ['only' => ['groupRoleAndPermissionView','groupRoleAndPermissionList', 'groupRoleAndPermission']]);
+        $this->middleware('permission:view role & permission', ['only' => ['groupRoleAndPermissionView', 'groupRoleAndPermissionList', 'groupRoleAndPermission']]);
         $this->middleware('permission:create role & permission', ['only' => ['store']]);
         $this->middleware('permission:edit role & permission', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role & permission', ['only' => ['destroy']]);
@@ -92,16 +92,16 @@ class RoleAndPermissionController extends Controller
         // Get selected permissions
         $permissions = Permission::whereIn('id', $request->permission_id)->pluck('name')->toArray();
 
-              // Get the current permissions of the role
-            $currentPermissions = $role->permissions->pluck('name')->toArray();
+        // Get the current permissions of the role
+        $currentPermissions = $role->permissions->pluck('name')->toArray();
 
-            // If the role already has all the permissions, do nothing
-            if (empty(array_diff($permissions, $currentPermissions))) {
-                return response()->json([
-                    'status' => 404,
-                    'message' => 'This role already has the selected permissions.'
-                ]);
-            }
+        // If the role already has all the permissions, do nothing
+        if (empty(array_diff($permissions, $currentPermissions))) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'This role already has the selected permissions.'
+            ]);
+        }
 
         // Assign permissions to role using Spatie
         $role->syncPermissions($permissions);
@@ -144,6 +144,7 @@ class RoleAndPermissionController extends Controller
 
     public function update(Request $request, $role_id)
     {
+
         // Validate the request
         $validator = Validator::make($request->all(), [
             'permission_id' => 'required|array',

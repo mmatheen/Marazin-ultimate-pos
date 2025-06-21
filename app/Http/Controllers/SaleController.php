@@ -31,8 +31,20 @@ class SaleController extends Controller
         $this->middleware('permission:add sale', ['only' => ['addSale']]);
         $this->middleware('permission:pos page', ['only' => ['pos']]);
         $this->middleware('permission:edit sale', ['only' => ['editSale']]);
-    }
 
+        // Middleware for sale permissions
+        // If user has 'own sale', restrict to their own sales; otherwise, allow all sales
+        $this->middleware(function ($request, $next) {
+            $user = auth()->user();
+            if ($user && $user->can('own sale') && !$user->can('all sale')) {
+                // Only allow access to own sales
+                Sale::addGlobalScope('own_sale', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
+            }
+            return $next($request);
+        })->only(['index']);
+    }
 
     public function listSale()
     {
@@ -46,14 +58,7 @@ class SaleController extends Controller
 
     public function pos()
     {
-
         return view('sell.pos');
-    }
-
-    public function pos2()
-    {
-
-        return view('sell.pos2');
     }
 
     public function draft()
@@ -67,11 +72,14 @@ class SaleController extends Controller
 
     //draft sales
 
-
-
     public function index()
     {
-        $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')->get();
+
+
+
+        $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+            ->get();
+
         return response()->json(['sales' => $sales], 200);
     }
 
@@ -219,10 +227,10 @@ class SaleController extends Controller
             $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('sales_date', [$startDate, $endDate])
-                      ->orWhereBetween(
-                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
-                          [$startDate, $endDate]
-                      );
+                        ->orWhereBetween(
+                            DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
+                            [$startDate, $endDate]
+                        );
                 });
 
             // Apply filters
@@ -269,10 +277,10 @@ class SaleController extends Controller
             $allReturnsQuery = SalesReturn::with(['customer', 'location', 'returnProducts', 'sale'])
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('return_date', [$startDate, $endDate])
-                      ->orWhereBetween(
-                          DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
-                          [$startDate, $endDate]
-                      );
+                        ->orWhereBetween(
+                            DB::raw("CONVERT_TZ(created_at, '+00:00', '+05:30')"),
+                            [$startDate, $endDate]
+                        );
                 });
 
             if ($request->has('customer_id') && $request->customer_id) {

@@ -119,10 +119,14 @@ class RolesAndPermissionsSeeder extends Seeder
 
             // sale management
             '15. sale-management' => [
+                'all sale',
+                'own sale',
                 'view sale',
                 'add sale',
                 'edit sale',
-                'pos page'
+                'pos page',
+               
+            
             ],
             // sale-return management
             '16. sale-return-management' => [
