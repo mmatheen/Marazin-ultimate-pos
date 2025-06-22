@@ -37,7 +37,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Product <span class="login-danger"></span></label>
-                                    <select class="form-control select" id="productNameFilter">
+                                    <select class="form-control select selectBox" id="productNameFilter">
                                         <option value="">Select Product</option>
                                         <!-- Populate with product options -->
                                     </select>
@@ -46,7 +46,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Category <span class="login-danger"></span></label>
-                                    <select class="form-control select" id="categoryFilter">
+                                    <select class="form-control select selectBox" id="categoryFilter">
                                         <option value="">Select Category</option>
                                         <!-- Populate with category options -->
                                     </select>
@@ -55,7 +55,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Brand <span class="login-danger"></span></label>
-                                    <select class="form-control select" id="brandFilter">
+                                    <select class="form-control select selectBox" id="brandFilter">
                                         <option value="">Select Brand</option>
                                         <!-- Populate with brand options -->
                                     </select>
@@ -64,7 +64,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Location <span class="login-danger"></span></label>
-                                    <select class="form-control select" id="locationFilter">
+                                    <select class="form-control select selectBox" id="locationFilter">
                                         <option value="">Select Location</option>
                                         <!-- Populate with location options -->
                                     </select>
@@ -199,15 +199,21 @@
 
                                                                     <div class="col-md-6">
                                                                         <div class="mb-3">
-                                                                            <label class="form-label">File To Import</label>
+                                                                            <label class="form-label">File To
+                                                                                Import</label>
                                                                             <div class="input-group">
-                                                                                <input type="file" name="file" id="file" class="form-control" style="padding: 0.375rem 0.75rem; max-width: 300px;">
-                                                                                <button type="submit" id="import_btn" class="btn btn-primary" style="min-width: 120px; max-width: 150px;">Upload</button>
+                                                                                <input type="file" name="file"
+                                                                                    id="file" class="form-control"
+                                                                                    style="padding: 0.375rem 0.75rem; max-width: 300px;">
+                                                                                <button type="submit" id="import_btn"
+                                                                                    class="btn btn-primary"
+                                                                                    style="min-width: 120px; max-width: 150px;">Upload</button>
                                                                             </div>
-                                                                            <small id="selectedFileName" class="form-text text-success mt-1"></small>
+                                                                            <small id="selectedFileName"
+                                                                                class="form-text text-success mt-1"></small>
                                                                         </div>
                                                                     </div>
-                                                                   
+
                                                                     <script>
                                                                         document.getElementById('file').addEventListener('change', function(e) {
                                                                             const fileName = e.target.files.length ? e.target.files[0].name : '';
