@@ -5,18 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\CustomLogsActivity;
 
 class Purchase extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, CustomLogsActivity;
 
-    public function getActivitylogOptions(): \Spatie\Activitylog\LogOptions
-    {
-        return \Spatie\Activitylog\LogOptions::defaults()
-            ->logOnly($this->fillable)
-            ->logOnlyDirty()
-            ->useLogName('purchase');
-    }
+    protected static $logName = 'purchase';
+
 
     protected $fillable = [
         'supplier_id',

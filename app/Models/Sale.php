@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
+use App\Traits\CustomLogsActivity;
 
 class Sale extends Model
 {
-    use HasFactory, LocationTrait, LogsActivity;
+    use HasFactory, LocationTrait, LogsActivity, CustomLogsActivity;
+
+    protected string $customLogName = 'sale';
 
     protected $fillable = [
         'customer_id',
@@ -33,43 +35,11 @@ class Sale extends Model
     ];
 
 
-
-
-
     protected static function booted()
     {
         static::addGlobalScope(new \App\Scopes\LocationScope);
     }
 
-
-    // Activity Logs details Start
-
-    // 👇 Define which fields are logged
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logFillable()         // Log all fillable fields
-            ->logOnlyDirty()        // Only log changed attributes
-            ->useLogName('sale');   // Set custom log name
-    }
-
-    // Optional: Customize event description
-    public function getDescriptionForEvent(string $eventName): string
-    {
-        // Use parentheses to ensure correct null coalescing
-        return "A sale has been {$eventName} by user: " . (optional($this->user)->user_name ?? 'Unknown');
-    }
-
-
-    //     public function getActivitylogOptions(): LogOptions
-    // {
-    //     return LogOptions::defaults()
-    //         ->logFillable()
-    //         ->logOnlyDirty()
-    //         ->dontLogIfAttributesChangedOnly(['updated_at'])
-    //         ->setDescriptionForEvent(fn(string $eventName) => "A sale has been {$eventName} by user: " . optional($this->user)->name ?? 'Unknown');
-    // }
-    // Activity Logs details End
 
     // Add this method to your Sale model
     public function user()

@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Traits\CustomLogsActivity;
 
 class StockTransfer extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, CustomLogsActivity;
+
+     protected string $customLogName = 'stock_transfer';
 
     protected $fillable = [
         'from_location_id',
@@ -20,18 +23,6 @@ class StockTransfer extends Model
         'status'
     ];
 
-    public function getActivitylogOptions(): \Spatie\Activitylog\LogOptions
-    {
-        return \Spatie\Activitylog\LogOptions::defaults()
-            ->logOnly($this->fillable)
-            ->useLogName('stock_transfer')
-            ->logOnlyDirty();
-    }
-
-    public function getDescriptionForEvent(string $eventName): string
-    {
-        return "Stock transfer has been {$eventName}";
-    }
 
     public function fromLocation()
     {

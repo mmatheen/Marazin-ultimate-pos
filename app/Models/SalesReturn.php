@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
+use App\Traits\CustomLogsActivity;
 
 class SalesReturn extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, CustomLogsActivity;
+
+     protected string $customLogName = 'sale_return';
+
 
     protected $fillable = [
         'sale_id',
@@ -112,25 +115,5 @@ class SalesReturn extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Customize activity log description.
-     */
-    public function getDescriptionForEvent(string $eventName): string
-    {
-        return "Sales return has been {$eventName}";
-    }
-
-    /**
-     * Spatie activitylog required options method.
-     */
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->useLogName('sales_return')
-            ->logFillable()
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
     }
 }
