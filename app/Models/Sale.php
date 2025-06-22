@@ -42,26 +42,34 @@ class Sale extends Model
     }
 
 
-    // Activity Logs detaisl Start
+    // Activity Logs details Start
 
     // 👇 Define which fields are logged
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->logFillable()         // Log all fillable fields
-            ->logOnlyDirty();       // Only log changed attributes
+            ->logOnlyDirty()        // Only log changed attributes
+            ->useLogName('sale');   // Set custom log name
     }
-
-    // Optional: Customize log name
-    protected static $logName = 'sale';
 
     // Optional: Customize event description
     public function getDescriptionForEvent(string $eventName): string
     {
-        return "A sale has been {$eventName} by user: " . optional($this->user)->name ?? 'Unknown';
+        // Use parentheses to ensure correct null coalescing
+        return "A sale has been {$eventName} by user: " . (optional($this->user)->user_name ?? 'Unknown');
     }
 
-    // Activity Logs detaisl End
+
+    //     public function getActivitylogOptions(): LogOptions
+    // {
+    //     return LogOptions::defaults()
+    //         ->logFillable()
+    //         ->logOnlyDirty()
+    //         ->dontLogIfAttributesChangedOnly(['updated_at'])
+    //         ->setDescriptionForEvent(fn(string $eventName) => "A sale has been {$eventName} by user: " . optional($this->user)->name ?? 'Unknown');
+    // }
+    // Activity Logs details End
 
     // Add this method to your Sale model
     public function user()

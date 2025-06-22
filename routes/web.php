@@ -313,7 +313,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
         // Route::get('/sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
         Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
-    
+
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
@@ -426,5 +426,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         //report routes
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
+        Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
+        Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
     });
 });

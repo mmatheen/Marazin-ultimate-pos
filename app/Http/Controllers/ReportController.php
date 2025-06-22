@@ -1,5 +1,7 @@
 <?php
 namespace App\Http\Controllers;
+use Spatie\Activitylog\Models\Activity;
+use Yajra\DataTables\DataTables;
 
 use Illuminate\Http\Request;
 
@@ -94,4 +96,75 @@ class ReportController extends Controller
         // Return the view with stock history data
         return view('reports.stock_report', compact('stockHistory'));
     }
+
+    /**
+     * Display the activity log page.
+     */
+    public function activityLogPage()
+    {
+        
+        return view('reports.activity_log');
+    }
+
+    /**
+     * Fetch activity logs for DataTables via AJAX.
+     */
+public function fetchActivityLog(Request $request)
+{
+    // Get date range from request or use today as default
+    $from = $request->input('start_date');
+    $to = $request->input('end_date');
+    $subjectType = $request->input('subject_type');
+    $userId = $request->input('causer_id');
+
+    // Default date range: today (Asia/Colombo)
+    $timezone = 'Asia/Colombo';
+    $now = now()->setTimezone($timezone);
+    if (!$from) {
+        $from = $now->copy()->startOfDay()->toDateTimeString();
+    } else {
+        $from = \Carbon\Carbon::parse($from, $timezone)->startOfDay()->toDateTimeString();
+    }
+    if (!$to) {
+        $to = $now->copy()->endOfDay()->toDateTimeString();
+    } else {
+        $to = \Carbon\Carbon::parse($to, $timezone)->endOfDay()->toDateTimeString();
+    }
+
+    // Build query (convert input dates to UTC for DB query)
+    $query = Activity::query()
+        ->whereBetween('created_at', [
+            \Carbon\Carbon::parse($from, $timezone)->setTimezone('UTC'),
+            \Carbon\Carbon::parse($to, $timezone)->setTimezone('UTC')
+        ]);
+
+    if ($subjectType) {
+        $query->where('subject_type', $subjectType);
+    }
+
+    if ($userId) {
+        $query->where('causer_id', $userId);
+    }
+
+    // Fetch all data
+    $logs = $query->orderBy('created_at', 'desc')->get();
+
+    // Get all unique causer_ids from logs
+    $causerIds = $logs->pluck('causer_id')->unique()->filter()->all();
+
+    // Fetch all related users
+    $users = \App\Models\User::whereIn('id', $causerIds)->get()->keyBy('id');
+
+    // Convert created_at to Asia/Colombo and add user details
+    $logs->transform(function ($item) use ($timezone, $users) {
+        $item->created_at_colombo = \Carbon\Carbon::parse($item->created_at)->setTimezone($timezone)->format('Y-m-d H:i:s');
+        $item->user = $users[$item->causer_id] ?? null;
+        return $item;
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $logs
+    ]);
+}
 }
