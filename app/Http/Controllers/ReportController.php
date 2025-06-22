@@ -90,6 +90,8 @@ class ReportController extends Controller
                 'Total unit sold' => 250,
                 'Total Unit Transferred' => 40,
                 'Total Unit Adjusted' => 10,
+
+                
             ],
         ];
 
