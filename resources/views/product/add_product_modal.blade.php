@@ -41,7 +41,7 @@
                                                         <div class="mb-3 ">
                                                             <div class="input-group local-forms d-flex ">
                                                                 <label>Product Unit <span class="login-danger">*</span></label>
-                                                                <select class="form-control form-select" id="edit_unit_id" name="unit_id">
+                                                                <select class="form-control form-select select" id="edit_unit_id" name="unit_id">
                                                                     <option>Select Unit</option>
                                                                 </select>
                                                                 <button type="button" class="btn btn-outline-info" id="addUnitButton">
@@ -109,7 +109,9 @@
                                                         $(document).ready(function () {
                                                             $('.multiple-location').select2({
                                                                 placeholder: "Select Business Locations",
-                                                                allowClear: true
+                                                                allowClear: true,
+                                                                dropdownParent: $('#new_purchase_product'),
+                                                                width: '100%'
                                                             });
                                                         });
                                                     </script>
@@ -184,7 +186,7 @@
                                                             </div>
 
                                                             <div class="my-4 col-md-12 d-flex justify-content-center">
-                                                                <img id="selectedImage" src="/assets/img/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
+                                                                <img id="selectedImage" src="/assets/images/No Product Image Available.png" alt="Selected Image" width="200px" class="img-thumbnail" height="200px">
                                                             </div>
                                                         </div>
                                                     </div>

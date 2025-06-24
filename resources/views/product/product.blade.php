@@ -33,11 +33,11 @@
             <div class="collapse" id="collapseExample">
                 <div class="card card-body mb-4">
                     <div class="student-group-form">
-                        <div class="row">
+                        <div class="row g-3 align-items-end">
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Product <span class="login-danger"></span></label>
-                                    <select class="form-control select selectBox" id="productNameFilter">
+                                    <select class="form-control selectBox select2" id="productNameFilter" style="width: 100%;">
                                         <option value="">Select Product</option>
                                         <!-- Populate with product options -->
                                     </select>
@@ -46,7 +46,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Category <span class="login-danger"></span></label>
-                                    <select class="form-control select selectBox" id="categoryFilter">
+                                    <select class="form-control selectBox select2" id="categoryFilter" style="width: 100%;">
                                         <option value="">Select Category</option>
                                         <!-- Populate with category options -->
                                     </select>
@@ -55,7 +55,7 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Brand <span class="login-danger"></span></label>
-                                    <select class="form-control select selectBox" id="brandFilter">
+                                    <select class="form-control selectBox select2" id="brandFilter" style="width: 100%;">
                                         <option value="">Select Brand</option>
                                         <!-- Populate with brand options -->
                                     </select>
@@ -64,13 +64,20 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Location <span class="login-danger"></span></label>
-                                    <select class="form-control select selectBox" id="locationFilter">
+                                    <select class="form-control selectBox select2" id="locationFilter" style="width: 100%;">
                                         <option value="">Select Location</option>
                                         <!-- Populate with location options -->
                                     </select>
                                 </div>
                             </div>
                         </div>
+                        <script>
+                            $(document).ready(function() {
+                                $('.selectBox.select2').select2({
+                                    width: 'resolve'
+                                });
+                            });
+                        </script>
                     </div>
                 </div>
             </div>

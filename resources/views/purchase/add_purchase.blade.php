@@ -222,7 +222,8 @@
                                             <span class="text-danger small" id="purchase_date_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="purchase-status">Purchase Status <span class="text-danger">*</span></label>
+                                            <label for="purchase-status">Purchase Status <span
+                                                    class="text-danger">*</span></label>
                                             <div class="input-group">
                                                 <select class="form-select" id="purchase-status" name="purchasing_status">
                                                     <option disabled>Please Select</option>
@@ -233,7 +234,7 @@
                                             </div>
                                             <span class="text-danger small" id="purchasing_status_error"></span>
                                         </div>
-                                        
+
                                     </div>
                                     <div class="row mb-4">
                                         <div class="col-lg-3 col-md-6 mb-3">
@@ -365,7 +366,7 @@
                                     </div>
                                     <div class="col-lg-6 col-md-12">
                                         <div class="preview-container p-3 border rounded">
-                                            <img id="selectedImage" src="/assets/img/No Product Image Available.png"
+                                            <img id="selectedImage" src="/assets/images/No Product Image Available.png"
                                                 alt="Selected Image" class="img-thumbnail mb-2"
                                                 style="max-width: 200px; display: block;">
                                             <iframe id="pdfViewer" width="100%" height="200px"
@@ -632,11 +633,13 @@
             </form>
         </div>
 
-        @include('product.add_product_modal')
-        @include('product.product_ajax')
+
+
         @include('purchase.purchase_ajax')
         @include('contact.supplier.supplier_ajax')
         @include('contact.supplier.add_supplier_modal')
+        @include('product.product_ajax')
+        @include('product.add_product_modal')
         @include('brand.brand_modal')
         @include('brand.brand_ajax')
         @include('unit.unit_modal')
@@ -647,40 +650,40 @@
         @include('category.sub_category.sub_category_ajax')
 
         <script>
-              $(document).ready(function() {
+            $(document).ready(function() {
 
 
                 // Prevent form submission on Enter keypress in the product search input
-        $('#productSearchInput').on('keydown', function(e) {
-            if (e.key === 'Enter' || e.keyCode === 13) {
-                e.preventDefault(); // Prevent the default action of the Enter key
-            }
-        });
-        
-        $('#payment-method').on('change', function() {
-            togglePaymentFields();
-        });
+                $('#productSearchInput').on('keydown', function(e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault(); // Prevent the default action of the Enter key
+                    }
+                });
 
-        function togglePaymentFields() {
-            const paymentMethod = $('#payment-method').val();
-            if (paymentMethod === 'card') {
-                $('#creditCardFields').removeClass('d-none');
-                $('#chequeFields').addClass('d-none');
-                $('#bankTransferFields').addClass('d-none');
-            } else if (paymentMethod === 'cheque') {
-                $('#creditCardFields').addClass('d-none');
-                $('#chequeFields').removeClass('d-none');
-                $('#bankTransferFields').addClass('d-none');
-            } else if (paymentMethod === 'bank_transfer') {
-                $('#creditCardFields').addClass('d-none');
-                $('#chequeFields').addClass('d-none');
-                $('#bankTransferFields').removeClass('d-none');
-            } else {
-                $('#creditCardFields').addClass('d-none');
-                $('#chequeFields').addClass('d-none');
-                $('#bankTransferFields').addClass('d-none');
-            }
-        }
-    });
+                $('#payment-method').on('change', function() {
+                    togglePaymentFields();
+                });
+
+                function togglePaymentFields() {
+                    const paymentMethod = $('#payment-method').val();
+                    if (paymentMethod === 'card') {
+                        $('#creditCardFields').removeClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    } else if (paymentMethod === 'cheque') {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').removeClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    } else if (paymentMethod === 'bank_transfer') {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').removeClass('d-none');
+                    } else {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    }
+                }
+            });
         </script>
     @endsection

@@ -14,10 +14,10 @@ class StockTransferController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view stock-transfer', ['only' => ['index','stockTransfer']]);
+        $this->middleware('permission:view stock-transfer', ['only' => ['index', 'stockTransfer']]);
         $this->middleware('permission:add stock-transfer', ['only' => ['addStockTransfer']]);
         $this->middleware('permission:create stock-transfer', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit stock-transfer', ['only' => ['edit','storeOrUpdate']]);
+        $this->middleware('permission:edit stock-transfer', ['only' => ['edit', 'storeOrUpdate']]);
         $this->middleware('permission:delete stock-transfer', ['only' => ['destroy']]);
     }
 
@@ -151,6 +151,8 @@ class StockTransferController extends Controller
         }
     }
 
+    // Edit a stock transfer
+
     public function edit($id)
     {
         $stockTransfer = StockTransfer::with('stockTransferProducts.product.batches', 'fromLocation', 'toLocation')->findOrFail($id);
@@ -164,6 +166,9 @@ class StockTransferController extends Controller
 
         return view('stock_transfer.add_stock_transfer');
     }
+
+
+    // Delete a stock transfer
 
     public function destroy($id)
     {
@@ -181,5 +186,26 @@ class StockTransferController extends Controller
                 'message' => 'Failed to delete stock transfer.',
             ]);
         }
+    }
+
+    // Fetch stock transfer products for a specific transfer
+    public function getStockTransferWithActivityLog($id)
+    {
+        $stockTransfer = StockTransfer::with([
+            'fromLocation',
+            'toLocation',
+            'stockTransferProducts.product.batches'
+        ])->findOrFail($id);
+
+        // Assuming you have an ActivityLog model and a relation or query to fetch logs for this transfer
+        $activityLogs = \Spatie\Activitylog\Models\Activity::forSubject($stockTransfer)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => 200,
+            'stockTransfer' => $stockTransfer,
+            'activityLogs' => $activityLogs,
+        ]);
     }
 }

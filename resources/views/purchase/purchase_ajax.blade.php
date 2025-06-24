@@ -233,9 +233,6 @@
             }
         }
 
-        // Call fetchProducts when the page loads or when needed
-        fetchProducts();
-
         function addProductToTable(product, isEditing = false, prices = {}) {
             const table = $("#purchase_product").DataTable();
             let existingRow = null;

@@ -484,44 +484,516 @@
         }
 
         function populateStockTransferTable(data) {
-            const tableBody = $('#stockTransfer tbody');
-            tableBody.empty();
-            data.forEach(transfer => {
+            // Prepare DataTable data
+            const tableData = data.map((transfer, index) => {
                 const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
                     return sum + (product.quantity * product.unit_price);
                 }, 0);
-                const row = `
-                <tr>
-                    <td>${new Date(transfer.transfer_date).toLocaleDateString()}</td>
-                    <td>${transfer.reference_no}</td>
-                    <td>${transfer.from_location.name}</td>
-                    <td>${transfer.to_location.name}</td>
-                    <td>${transfer.status}</td>
-                    <td>${transfer.shipping_charges || '0.00'}</td>
-                    <td>${totalAmount.toFixed(2)}</td>
-                    <td>${transfer.note || ''}</td>
-                    <td>
-                        @can('edit stock-transfer')
-                            <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                        @endcan
-                        @can('delete stock-transfer')
-                            <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        @endcan
-                    </td>
-                </tr>
-            `;
-                tableBody.append(row);
+
+                // Action buttons HTML
+                let actions = `
+                    <button onclick="viewStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-eye"></i> view
+                    </button>
+                    <button onclick="printStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-print"></i> print
+                    </button>
+                `;
+                @can('edit stock-transfer')
+                    actions += `
+                    <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i> edit
+                    </a>
+                    `;
+                @endcan
+                @can('delete stock-transfer')
+                    actions += `
+                    <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
+                        <i class="fas fa-trash"></i> delete
+                    </button>
+                    `;
+                @endcan
+
+                return {
+                    index: index + 1,
+                    transfer_date: new Date(transfer.transfer_date).toLocaleDateString(),
+                    reference_no: transfer.reference_no,
+                    from_location: transfer.from_location.name,
+                    to_location: transfer.to_location.name,
+                    status: transfer.status,
+                    shipping_charges: transfer.shipping_charges || '0.00',
+                    total_amount: totalAmount.toFixed(2),
+                    note: transfer.note || '',
+                    actions: actions
+                };
             });
+
+            $('#stockTransfer').DataTable({
+                destroy: true,
+                data: tableData,
+                // Improved dom: buttons above, then length (show entries) below
+                dom: '<"row mb-3"<"col-sm-12"B>>' + // Buttons row
+                    '<"row mb-3"<"col-sm-6"l><"col-sm-6"f>>' + // Show entries and search row
+                    'rtip',
+                buttons: [{
+                        extend: 'pdf',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Exclude last column (Actions)
+                        },
+                        title: ' ', // Empty to avoid default title
+                        filename: 'stock_transfer', // Set download filename
+                        customize: function(doc) {
+                            // Centered custom title
+                            doc.content.splice(0, 0, {
+                                text: 'Stock Transfer List',
+                                alignment: 'center',
+                                fontSize: 18,
+                                bold: true,
+                                margin: [0, 0, 0, 12]
+                            });
+                        }
+                    },
+                    {
+                        extend: 'print',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Exclude last column (Actions)
+                        },
+                        title: function() {
+
+                            return '<div style="text-align:center;font-size:20px;font-weight:bold;">Stock Transfer List</div>';
+                        },
+                        customize: function(win) {
+                            // Center the title in the print window
+                            $(win.document.body).find('h1').css('text-align', 'center');
+                        }
+                    }
+                ],
+                columns: [{
+                        data: 'index',
+                        title: '#'
+                    },
+                    {
+                        data: 'transfer_date',
+                        title: 'Transfer Date'
+                    },
+                    {
+                        data: 'reference_no',
+                        title: 'Reference No'
+                    },
+                    {
+                        data: 'from_location',
+                        title: 'From Location'
+                    },
+                    {
+                        data: 'to_location',
+                        title: 'To Location'
+                    },
+                    {
+                        data: 'status',
+                        title: 'Status'
+                    },
+                    {
+                        data: 'shipping_charges',
+                        title: 'Shipping Charges'
+                    },
+                    {
+                        data: 'total_amount',
+                        title: 'Total Amount'
+                    },
+                    {
+                        data: 'note',
+                        title: 'Note'
+                    },
+                    {
+                        data: 'actions',
+                        title: 'Actions',
+                        orderable: false,
+                        searchable: false
+                    }
+                ],
+                order: [
+                    [1, "desc"]
+                ]
+            });
+        }
+
+        // Print function (UI-based design, matches modal style)
+        window.printStockTransfer = function(stockTransferId) {
+            $.ajax({
+                url: `/stock-transfer/get/${stockTransferId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        const stockTransfer = response.stockTransfer;
+
+                        // Build printable HTML (matches modal layout)
+                        let printContent = `
+                <div id="printArea" style="font-family: Arial, sans-serif; color: #222;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2 style="margin:0 0 5px 0;">Stock transfer details <span style="font-size: 15px; font-weight: normal;">(Reference No: <span style="font-weight:bold;">${stockTransfer.reference_no}</span>)</span></h2>
+                    </div>
+                    </div>
+                    <table style="width:100%; margin-bottom: 15px; font-size: 14px;">
+                    <tr>
+                        <td style="vertical-align:top; width:33%;">
+                        <strong>Location (From):</strong><br>
+                        ${stockTransfer.from_location ? stockTransfer.from_location.name : ''}<br>
+                        ${stockTransfer.from_location && stockTransfer.from_location.address ? stockTransfer.from_location.address : ''}
+                        </td>
+                        <td style="vertical-align:top; width:33%;">
+                        <strong>Location (To):</strong><br>
+                        ${stockTransfer.to_location ? stockTransfer.to_location.name : ''}<br>
+                        ${stockTransfer.to_location && stockTransfer.to_location.address ? stockTransfer.to_location.address : ''}
+                        </td>
+                        <td style="vertical-align:top; width:34%;">
+                        <strong>Reference No:</strong> ${stockTransfer.reference_no}<br>
+                        <strong>Date:</strong> ${new Date(stockTransfer.transfer_date).toLocaleDateString()}<br>
+                        <strong>Status:</strong> ${stockTransfer.status}
+                        </td>
+                    </tr>
+                    </table>
+                    <table border="1" cellspacing="0" cellpadding="6" width="100%" style="border-collapse:collapse; margin-bottom: 15px; font-size: 14px;">
+                    <thead style="background:#f8f9fa;">
+                        <tr>
+                        <th style="text-align:center;">#</th>
+                        <th>Product</th>
+                        <th style="text-align:center;">Quantity</th>
+                        <th style="text-align:right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                        stockTransfer.stock_transfer_products.forEach((product, idx) => {
+                            printContent += `
+                    <tr>
+                        <td style="text-align:center;">${idx + 1}</td>
+                        <td>
+                        ${product.product ? product.product.product_name : ''}
+                        <br>
+                        <span style="color:#888; font-size:12px;">${product.product ? product.product.sku : ''}</span>
+                        </td>
+                        <td style="text-align:center;">${product.quantity}</td>
+                        <td style="text-align:right;">${parseFloat(product.sub_total).toFixed(2)}</td>
+                    </tr>
+                    `;
+                        });
+                        printContent += `
+                    </tbody>
+                    </table>
+                    <table style="width:100%; font-size: 14px; margin-bottom: 10px;">
+                    <tr>
+                        <td style="width:60%;"></td>
+                        <td>
+                        <strong>Net Total Amount:</strong>
+                        </td>
+                        <td style="text-align:right;">
+                        $${stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0).toFixed(2)}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                        <strong>Additional Shipping charges:</strong>
+                        </td>
+                        <td style="text-align:right;">
+                        $${stockTransfer.shipping_charges ? parseFloat(stockTransfer.shipping_charges).toFixed(2) : '0.00'}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                        <strong>Purchase Total:</strong>
+                        </td>
+                        <td style="text-align:right;">
+                        $${(
+                            stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0)
+                            + (parseFloat(stockTransfer.shipping_charges) || 0)
+                        ).toFixed(2)}
+                        </td>
+                    </tr>
+                    </table>
+                    <div style="margin-bottom: 15px;">
+                    <strong>Additional Notes:</strong><br>
+                    <div style="border:1px solid #eee; min-height:30px; padding:5px 10px; background:#fafbfc;">
+                        ${stockTransfer.note || '--'}
+                    </div>
+                    </div>
+                `;
+
+                        // Activities
+                        let activities = [];
+                        if (Array.isArray(stockTransfer.activities) && stockTransfer.activities
+                            .length > 0) {
+                            activities = stockTransfer.activities.map(activity => ({
+                                date: activity.date,
+                                action: activity.action,
+                                user: activity.user,
+                                note: activity.note
+                            }));
+                        } else if (Array.isArray(window.activityLogs) && window.activityLogs
+                            .length > 0) {
+                            activities = window.activityLogs.map(log => ({
+                                date: log.created_at,
+                                action: log.description,
+                                user: log.causer,
+                                note: log.properties && log.properties.attributes &&
+                                    log.properties.attributes.note ? log.properties
+                                    .attributes.note : ''
+                            }));
+                        } else if (Array.isArray(window.lastStockTransferActivityLogs) && window
+                            .lastStockTransferActivityLogs.length > 0) {
+                            activities = window.lastStockTransferActivityLogs.map(log => ({
+                                date: log.created_at,
+                                action: log.description,
+                                user: log.causer,
+                                note: log.properties && log.properties.attributes &&
+                                    log.properties.attributes.note ? log.properties
+                                    .attributes.note : ''
+                            }));
+                        } else if (Array.isArray(stockTransfer.activityLogs) && stockTransfer
+                            .activityLogs.length > 0) {
+                            activities = stockTransfer.activityLogs.map(log => ({
+                                date: log.created_at,
+                                action: log.description,
+                                user: log.causer,
+                                note: log.properties && log.properties.attributes &&
+                                    log.properties.attributes.note ? log.properties
+                                    .attributes.note : ''
+                            }));
+                        }
+
+                        printContent += `
+                    <div style="margin-bottom: 10px;">
+                    <strong>Activities:</strong>
+                    <table border="1" cellspacing="0" cellpadding="5" width="100%" style="border-collapse:collapse; font-size: 13px; margin-top: 5px;">
+                        <thead style="background:#f8f9fa;">
+                        <tr>
+                            <th>Date</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th>Note</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                `;
+                        if (activities.length > 0) {
+                            activities.forEach(activity => {
+                                printContent += `
+                        <tr>
+                        <td>${activity.date ? new Date(activity.date).toLocaleString() : ''}</td>
+                        <td>${activity.action || ''}</td>
+                        <td>${activity.user ? (activity.user.name || (activity.user.first_name && activity.user.last_name ? activity.user.first_name + ' ' + activity.user.last_name : '')) : ''}</td>
+                        <td>${activity.note || ''}</td>
+                        </tr>
+                    `;
+                            });
+                        } else {
+                            printContent += `
+                    <tr>
+                        <td colspan="4" style="text-align:center; color:#888;">No activities found.</td>
+                    </tr>
+                    `;
+                        }
+                        printContent += `
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+                `;
+
+                        // Print styles
+                        const style = `<style>
+                    body { background: #fff !important; }
+                    #printArea { margin: 0 auto; max-width: 900px; }
+                    table { border-collapse: collapse; }
+                    th, td { border: 1px solid #ddd; }
+                    th { background: #f8f9fa; }
+                    @media print {
+                    body { background: #fff !important; }
+                    #printArea { margin: 0; }
+                    img { max-height:70px !important; }
+                    .no-print { display: none !important; }
+                    }
+                </style>`;
+
+                        // Save original body
+                        const originalContent = document.body.innerHTML;
+                        document.body.innerHTML = style + printContent;
+                        window.print();
+                        document.body.innerHTML = originalContent;
+                        // location.reload();
+                    } else {
+                        toastr.error('Failed to fetch stock transfer details for printing.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    toastr.error('An error occurred while printing. Please try again.');
+                }
+            });
+        }
+
+
+        // Make viewStockTransfer globally accessible
+        window.viewStockTransfer = function(stockTransferId) {
+            $.ajax({
+                url: `/stock-transfer/get/${stockTransferId}`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        const stockTransfer = response.stockTransfer;
+                        populateStockTransferDetailsModal(stockTransfer);
+                        $('#stockTransferDetailsModal').modal('show');
+                    } else {
+                        console.error('Error fetching stock transfer details:', response
+                            .message);
+                        toastr.error(
+                            'Failed to fetch stock transfer details. Please try again.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching stock transfer details:', error);
+                    toastr.error('An error occurred. Please try again.');
+                }
+            });
+        }
+
+        // Populate the new modal with correct IDs
+        function populateStockTransferDetailsModal(stockTransfer) {
+            // Set header fields
+            $('#std_date').text(new Date(stockTransfer.transfer_date).toLocaleDateString());
+            $('#std_reference_no').text(stockTransfer.reference_no);
+            $('#std_reference_no_2').text(stockTransfer.reference_no);
+            $('#std_status').text(stockTransfer.status);
+
+            // Set location fields
+            $('#std_location_from').text(stockTransfer.from_location ? stockTransfer.from_location.name : '');
+            $('#std_location_to').text(stockTransfer.to_location ? stockTransfer.to_location.name : '');
+            $('#std_location_from_address').text(stockTransfer.from_location && stockTransfer.from_location
+                .address ? stockTransfer.from_location.address : '');
+            $('#std_location_to_address').text(stockTransfer.to_location && stockTransfer.to_location.address ?
+                stockTransfer.to_location.address : '');
+
+            // Set shipping charges and total
+            $('#std_shipping_charges').text(stockTransfer.shipping_charges ? parseFloat(stockTransfer
+                .shipping_charges).toFixed(2) : '0.00');
+
+            // Calculate total amount (sum of sub_totals)
+            const totalAmount = stockTransfer.stock_transfer_products.reduce((sum, product) => {
+                return sum + (parseFloat(product.sub_total) || 0);
+            }, 0);
+            $('#std_total_amount').text(totalAmount.toFixed(2));
+
+            // Calculate purchase total (total + shipping)
+            const purchaseTotal = totalAmount + (parseFloat(stockTransfer.shipping_charges) || 0);
+            $('#std_purchase_total').text(purchaseTotal.toFixed(2));
+
+            // Populate products table
+            const $tbody = $('#std_products_table tbody');
+            $tbody.empty();
+            stockTransfer.stock_transfer_products.forEach((product, idx) => {
+                $tbody.append(`
+                <tr>
+                    <td class="text-center">${idx + 1}</td>
+                    <td>
+                        ${product.product ? product.product.product_name : ''}
+                        <br>
+                        <small class="text-muted">${product.product ? product.product.sku : ''}</small>
+                    </td>
+                    <td class="text-center">${product.quantity}</td>
+                    <td class="text-end">${parseFloat(product.sub_total).toFixed(2)}</td>
+                </tr>
+            `);
+            });
+
+            // Additional notes
+            $('#std_additional_notes').text(stockTransfer.note || '');
+
+            // Populate activities
+            const $activities = $('#std_activities');
+            $activities.empty();
+
+            // Prefer stockTransfer.activities, then window.activityLogs, then response.activityLogs
+            let activities = [];
+            if (Array.isArray(stockTransfer.activities) && stockTransfer.activities.length > 0) {
+                activities = stockTransfer.activities.map(activity => ({
+                    date: activity.date,
+                    action: activity.action,
+                    user: activity.user,
+                    note: activity.note
+                }));
+            } else if (Array.isArray(window.activityLogs) && window.activityLogs.length > 0) {
+                activities = window.activityLogs.map(log => ({
+                    date: log.created_at,
+                    action: log.description,
+                    user: log.causer,
+                    note: log.properties && log.properties.attributes && log.properties.attributes
+                        .note ? log.properties.attributes.note : ''
+                }));
+            } else if (Array.isArray(window.lastStockTransferActivityLogs) && window
+                .lastStockTransferActivityLogs.length > 0) {
+                activities = window.lastStockTransferActivityLogs.map(log => ({
+                    date: log.created_at,
+                    action: log.description,
+                    user: log.causer,
+                    note: log.properties && log.properties.attributes && log.properties.attributes
+                        .note ? log.properties.attributes.note : ''
+                }));
+            } else if (Array.isArray(stockTransfer.activityLogs) && stockTransfer.activityLogs.length > 0) {
+                activities = stockTransfer.activityLogs.map(log => ({
+                    date: log.created_at,
+                    action: log.description,
+                    user: log.causer,
+                    note: log.properties && log.properties.attributes && log.properties.attributes
+                        .note ? log.properties.attributes.note : ''
+                }));
+            }
+
+            if (activities.length > 0) {
+                activities.forEach(activity => {
+                    $activities.append(`
+                    <tr>
+                        <td>${activity.date ? new Date(activity.date).toLocaleString() : ''}</td>
+                        <td>${activity.action || ''}</td>
+                        <td>${activity.user ? (activity.user.name || (activity.user.first_name && activity.user.last_name ? activity.user.first_name + ' ' + activity.user.last_name : '')) : ''}</td>
+                        <td>${activity.note || ''}</td>
+                    </tr>
+                `);
+                });
+            } else if (window.activityLogs && Array.isArray(window.activityLogs) && window.activityLogs.length >
+                0) {
+                window.activityLogs.forEach(log => {
+                    $activities.append(`
+                    <tr>
+                        <td>${log.created_at ? new Date(log.created_at).toLocaleString() : ''}</td>
+                        <td>${log.description || ''}</td>
+                        <td>${log.causer && (log.causer.name || (log.causer.first_name && log.causer.last_name ? log.causer.first_name + ' ' + log.causer.last_name : '')) || ''}</td>
+                        <td>${log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''}</td>
+                    </tr>
+                `);
+                });
+            } else if (window.response && Array.isArray(window.response.activityLogs) && window.response
+                .activityLogs.length > 0) {
+                window.response.activityLogs.forEach(log => {
+                    $activities.append(`
+                    <tr>
+                        <td>${log.created_at ? new Date(log.created_at).toLocaleString() : ''}</td>
+                        <td>${log.description || ''}</td>
+                        <td>${log.causer && (log.causer.name || (log.causer.first_name && log.causer.last_name ? log.causer.first_name + ' ' + log.causer.last_name : '')) || ''}</td>
+                        <td>${log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''}</td>
+                    </tr>
+                `);
+                });
+            } else {
+                $activities.append(
+                    '<tr><td colspan="4" class="text-center text-muted">No activities found.</td></tr>');
+            }
         }
 
         window.deleteStockTransfer = function(id) {
             if (confirm('Are you sure you want to delete this stock transfer?')) {
                 $.ajax({
-                    url: `/stock-transfers/${id}`,
+                    url: `/stock-transfer/delete/${id}`,
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),

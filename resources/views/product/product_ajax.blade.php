@@ -110,19 +110,26 @@
             });
         }
 
-        function populateDropdown(selector, items, displayProperty) {
+        function populateDropdown(selector, items, displayProperty, isEdit = false) {
             const selectElement = $(selector).empty();
+            // Add a placeholder option
+            selectElement.append('<option selected disabled>Select...</option>');
             items.forEach(item => {
                 selectElement.append(new Option(item[displayProperty], item.id));
             });
+            // Only set a selected value if it's edit mode
+            if (!isEdit) {
+                selectElement.val(''); // Ensure nothing is selected initially
+            }
         }
 
         function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, callback) {
-            populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
-            populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
-            populateDropdown('#edit_brand_id', brands, 'name');
-            populateDropdown('#edit_unit_id', units, 'name');
-            populateDropdown('#edit_location_id', locations, 'name');
+            populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName', false);
+            populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname', false);
+            populateDropdown('#edit_brand_id', brands, 'name', false);
+            populateDropdown('#edit_unit_id', units, 'name', false);
+            populateDropdown('#edit_location_id', locations, 'name', false);
+
             if (callback) callback();
         }
 
