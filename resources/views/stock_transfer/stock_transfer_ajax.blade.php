@@ -688,7 +688,7 @@
                         <strong>Net Total Amount:</strong>
                         </td>
                         <td style="text-align:right;">
-                        $${stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0).toFixed(2)}
+                        Rs.${stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0).toFixed(2)}
                         </td>
                     </tr>
                     <tr>
@@ -697,16 +697,16 @@
                         <strong>Additional Shipping charges:</strong>
                         </td>
                         <td style="text-align:right;">
-                        $${stockTransfer.shipping_charges ? parseFloat(stockTransfer.shipping_charges).toFixed(2) : '0.00'}
+                       Rs.${stockTransfer.shipping_charges ? parseFloat(stockTransfer.shipping_charges).toFixed(2) : '0.00'}
                         </td>
                     </tr>
                     <tr>
                         <td></td>
                         <td>
-                        <strong>Purchase Total:</strong>
+                        <strong>Stock Transfer Total:</strong>
                         </td>
                         <td style="text-align:right;">
-                        $${(
+                        Rs.${(
                             stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0)
                             + (parseFloat(stockTransfer.shipping_charges) || 0)
                         ).toFixed(2)}
