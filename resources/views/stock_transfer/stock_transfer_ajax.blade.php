@@ -466,32 +466,32 @@
 
         function fetchStockTransferList() {
             $.ajax({
-            url: '/stock-transfers',
-            method: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                populateStockTransferTable(response.stockTransfers);
-                } else {
-                console.error('Error fetching stock transfers:', response.message);
-                toastr.error('Failed to fetch stock transfers. Please try again.');
+                url: '/stock-transfers',
+                method: 'GET',
+                success: function(response) {
+                    if (response.status === 200) {
+                        populateStockTransferTable(response.stockTransfers);
+                    } else {
+                        console.error('Error fetching stock transfers:', response.message);
+                        toastr.error('Failed to fetch stock transfers. Please try again.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching stock transfers:', error);
+                    toastr.error('An error occurred. Please try again.');
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching stock transfers:', error);
-                toastr.error('An error occurred. Please try again.');
-            }
             });
         }
 
         function populateStockTransferTable(data) {
             // Prepare DataTable data
             const tableData = data.map((transfer, index) => {
-            const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
-                return sum + (product.quantity * product.unit_price);
-            }, 0);
+                const totalAmount = transfer.stock_transfer_products.reduce((sum, product) => {
+                    return sum + (product.quantity * product.unit_price);
+                }, 0);
 
-            // Action buttons HTML
-            let actions = `
+                // Action buttons HTML
+                let actions = `
                 <button onclick="viewStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-info">
                 <i class="fas fa-eye"></i> view
                 </button>
@@ -502,539 +502,521 @@
                 <i class="fas fa-print"></i> A4
                 </button>
             `;
-            @can('edit stock-transfer')
-                actions += `
+                @can('edit stock-transfer')
+                    actions += `
                 <a href="/edit-stock-transfer/${transfer.id}" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-edit"></i> edit
                 </a>
                 `;
-            @endcan
-            @can('delete stock-transfer')
-                actions += `
+                @endcan
+                @can('delete stock-transfer')
+                    actions += `
                 <button onclick="deleteStockTransfer(${transfer.id})" class="btn btn-sm btn-outline-danger">
                 <i class="fas fa-trash"></i> delete
                 </button>
                 `;
-            @endcan
+                @endcan
 
-            return {
-                index: index + 1,
-                transfer_date: new Date(transfer.transfer_date).toLocaleDateString(),
-                reference_no: transfer.reference_no,
-                from_location: transfer.from_location.name,
-                to_location: transfer.to_location.name,
-                status: transfer.status,
-                shipping_charges: transfer.shipping_charges || '0.00',
-                total_amount: totalAmount.toFixed(2),
-                note: transfer.note || '',
-                actions: actions
-            };
+                return {
+                    index: index + 1,
+                    transfer_date: new Date(transfer.transfer_date).toLocaleDateString(),
+                    reference_no: transfer.reference_no,
+                    from_location: transfer.from_location.name,
+                    to_location: transfer.to_location.name,
+                    status: transfer.status,
+                    shipping_charges: transfer.shipping_charges || '0.00',
+                    total_amount: totalAmount.toFixed(2),
+                    note: transfer.note || '',
+                    actions: actions
+                };
             });
 
             $('#stockTransfer').DataTable({
-            destroy: true,
-            data: tableData,
-            // Improved dom: buttons above, then length (show entries) below
-            dom: '<"row mb-3"<"col-sm-12"B>>' + // Buttons row
-                '<"row mb-3"<"col-sm-6"l><"col-sm-6"f>>' + // Show entries and search row
-                'rtip',
-            buttons: [{
-                extend: 'pdf',
-                exportOptions: {
-                    columns: ':not(:last-child)' // Exclude last column (Actions)
-                },
-                title: ' ', // Empty to avoid default title
-                filename: 'stock_transfer', // Set download filename
-                customize: function(doc) {
-                    // Centered custom title
-                    doc.content.splice(0, 0, {
-                    text: 'Stock Transfer List',
-                    alignment: 'center',
-                    fontSize: 18,
-                    bold: true,
-                    margin: [0, 0, 0, 12]
-                    });
-                }
-                },
-                {
-                extend: 'print',
-                exportOptions: {
-                    columns: ':not(:last-child)' // Exclude last column (Actions)
-                },
-                title: function() {
+                destroy: true,
+                data: tableData,
+                // Improved dom: buttons above, then length (show entries) below
+                dom: '<"row mb-3"<"col-sm-12"B>>' + // Buttons row
+                    '<"row mb-3"<"col-sm-6"l><"col-sm-6"f>>' + // Show entries and search row
+                    'rtip',
+                buttons: [{
+                        extend: 'pdf',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Exclude last column (Actions)
+                        },
+                        title: ' ', // Empty to avoid default title
+                        filename: 'stock_transfer', // Set download filename
+                        customize: function(doc) {
+                            // Centered custom title
+                            doc.content.splice(0, 0, {
+                                text: 'Stock Transfer List',
+                                alignment: 'center',
+                                fontSize: 18,
+                                bold: true,
+                                margin: [0, 0, 0, 12]
+                            });
+                        }
+                    },
+                    {
+                        extend: 'print',
+                        exportOptions: {
+                            columns: ':not(:last-child)' // Exclude last column (Actions)
+                        },
+                        title: function() {
 
-                    return '<div style="text-align:center;font-size:20px;font-weight:bold;">Stock Transfer List</div>';
-                },
-                customize: function(win) {
-                    // Center the title in the print window
-                    $(win.document.body).find('h1').css('text-align', 'center');
-                }
-                }
-            ],
-            columns: [{
-                data: 'index',
-                title: '#'
-                },
-                {
-                data: 'transfer_date',
-                title: 'Transfer Date'
-                },
-                {
-                data: 'reference_no',
-                title: 'Reference No'
-                },
-                {
-                data: 'from_location',
-                title: 'From Location'
-                },
-                {
-                data: 'to_location',
-                title: 'To Location'
-                },
-                {
-                data: 'status',
-                title: 'Status'
-                },
-                {
-                data: 'shipping_charges',
-                title: 'Shipping Charges'
-                },
-                {
-                data: 'total_amount',
-                title: 'Total Amount'
-                },
-                {
-                data: 'note',
-                title: 'Note'
-                },
-                {
-                data: 'actions',
-                title: 'Actions',
-                orderable: false,
-                searchable: false
-                }
-            ],
-            order: [
-                [1, "desc"]
-            ]
+                            return '<div style="text-align:center;font-size:20px;font-weight:bold;">Stock Transfer List</div>';
+                        },
+                        customize: function(win) {
+                            // Center the title in the print window
+                            $(win.document.body).find('h1').css('text-align', 'center');
+                        }
+                    }
+                ],
+                columns: [{
+                        data: 'index',
+                        title: '#'
+                    },
+                    {
+                        data: 'transfer_date',
+                        title: 'Transfer Date'
+                    },
+                    {
+                        data: 'reference_no',
+                        title: 'Reference No'
+                    },
+                    {
+                        data: 'from_location',
+                        title: 'From Location'
+                    },
+                    {
+                        data: 'to_location',
+                        title: 'To Location'
+                    },
+                    {
+                        data: 'status',
+                        title: 'Status'
+                    },
+                    {
+                        data: 'shipping_charges',
+                        title: 'Shipping Charges'
+                    },
+                    {
+                        data: 'total_amount',
+                        title: 'Total Amount'
+                    },
+                    {
+                        data: 'note',
+                        title: 'Note'
+                    },
+                    {
+                        data: 'actions',
+                        title: 'Actions',
+                        orderable: false,
+                        searchable: false
+                    }
+                ],
+                order: [
+                    [1, "desc"]
+                ]
             });
         }
 
-        // Print function: supports both A4 and 80mm (thermal) layouts
-        window.printStockTransfer = function(stockTransferId, layout = '80mm') {
-            $.ajax({
-            url: `/stock-transfer/get/${stockTransferId}`,
-            method: 'GET',
-            success: function(response) {
-            if (response.status === 200) {
-            const stockTransfer = response.stockTransfer;
-
-            // --- 80mm (thermal) layout ---
-            let printContent80mm = `
-            <div id="printArea" style="width:80mm; max-width:80mm; font-family: 'monospace', Arial, sans-serif; font-size:12px; color:#222; margin:0 auto; padding:0; box-sizing:border-box;">
-                <div style="text-align:center; margin-bottom:4px;">
-                <strong style="font-size:15px;">Stock Transfer</strong><br>
-                <span style="font-size:11px;">Ref: <b>${stockTransfer.reference_no}</b></span>
-                </div>
-                <div style="border-top:1px dashed #222; margin:4px 0;"></div>
-                <table style="width:100%; font-size:11px; margin-bottom:2px;">
-                <tr>
-                <td style="vertical-align:top; width:50%;">
-                <b>From:</b> ${stockTransfer.from_location ? stockTransfer.from_location.name : ''}<br>
-                <span style="font-size:10px;">${stockTransfer.from_location && stockTransfer.from_location.address ? stockTransfer.from_location.address : ''}</span>
-                </td>
-                <td style="vertical-align:top; width:50%; text-align:right;">
-                <b>To:</b> ${stockTransfer.to_location ? stockTransfer.to_location.name : ''}<br>
-                <span style="font-size:10px;">${stockTransfer.to_location && stockTransfer.to_location.address ? stockTransfer.to_location.address : ''}</span>
-                </td>
-                </tr>
-                <tr>
-                <td colspan="2" style="font-size:10px; padding-top:2px;">
-                <b>Date:</b> ${new Date(stockTransfer.transfer_date).toLocaleDateString()} &nbsp; <b>Status:</b> ${stockTransfer.status}
-                </td>
-                </tr>
-                </table>
-                <div style="border-top:1px dashed #222; margin:4px 0;"></div>
-                <table style="width:100%; font-size:11px;">
-                <thead>
-                <tr>
-                <th style="text-align:left;">#</th>
-                <th style="text-align:left;">Product</th>
-                <th style="text-align:center;">Qty</th>
-                <th style="text-align:right;">Sub</th>
-                </tr>
-                </thead>
-                <tbody>
-            `;
-            stockTransfer.stock_transfer_products.forEach((product, idx) => {
-                printContent80mm += `
-                <tr>
-                <td style="text-align:left;">${idx + 1}</td>
-                <td style="text-align:left;">
-                ${product.product ? product.product.product_name : ''}
-                <div style="font-size:9px; color:#888;">${product.product ? product.product.sku : ''}</div>
-                </td>
-                <td style="text-align:center;">${product.quantity}</td>
-                <td style="text-align:right;">${parseFloat(product.sub_total).toFixed(2)}</td>
-                </tr>
-                `;
-            });
-            printContent80mm += `
-                </tbody>
-                </table>
-                <div style="border-top:1px dashed #222; margin:4px 0;"></div>
-                <table style="width:100%; font-size:11px;">
-                <tr>
-                <td style="text-align:left;">Net Total:</td>
-                <td style="text-align:right;"><b>Rs.${stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0).toFixed(2)}</b></td>
-                </tr>
-                <tr>
-                <td style="text-align:left;">Shipping:</td>
-                <td style="text-align:right;">Rs.${stockTransfer.shipping_charges ? parseFloat(stockTransfer.shipping_charges).toFixed(2) : '0.00'}</td>
-                </tr>
-                <tr>
-                <td style="text-align:left;">Total:</td>
-                <td style="text-align:right;"><b>Rs.${(
-                stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0)
-                + (parseFloat(stockTransfer.shipping_charges) || 0)
-                ).toFixed(2)}</b></td>
-                </tr>
-                </table>
-                <div style="border-top:1px dashed #222; margin:4px 0;"></div>
-                <div style="font-size:10px; margin-bottom:2px;">
-                <b>Notes:</b> ${stockTransfer.note || '--'}
-                </div>
-            `;
-
-            // Activities (compact)
-            let activities = [];
-            if (Array.isArray(stockTransfer.activities) && stockTransfer.activities.length > 0) {
-                activities = stockTransfer.activities.map(activity => ({
-                date: activity.date,
-                action: activity.action,
-                user: activity.user,
-                note: activity.note
-                }));
-            } else if (Array.isArray(window.activityLogs) && window.activityLogs.length > 0) {
-                activities = window.activityLogs.map(log => ({
-                date: log.created_at,
-                action: log.description,
-                user: log.causer,
-                note: log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''
-                }));
-            } else if (Array.isArray(window.lastStockTransferActivityLogs) && window.lastStockTransferActivityLogs.length > 0) {
-                activities = window.lastStockTransferActivityLogs.map(log => ({
-                date: log.created_at,
-                action: log.description,
-                user: log.causer,
-                note: log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''
-                }));
-            } else if (Array.isArray(stockTransfer.activityLogs) && stockTransfer.activityLogs.length > 0) {
-                activities = stockTransfer.activityLogs.map(log => ({
-                date: log.created_at,
-                action: log.description,
-                user: log.causer,
-                note: log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''
-                }));
-            }
-
-            printContent80mm += `
-                <div style="font-size:10px; margin-top:2px;">
-                <b>Activities:</b>
-                <table style="width:100%; font-size:9px; margin-top:2px;">
-                <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Action</th>
-                    <th>By</th>
-                </tr>
-                </thead>
-                <tbody>
-            `;
-            if (activities.length > 0) {
-                activities.forEach(activity => {
-                printContent80mm += `
-                <tr>
-                <td>${activity.date ? new Date(activity.date).toLocaleDateString() : ''}</td>
-                <td>${activity.action || ''}</td>
-                <td>${activity.user ? (activity.user.name || (activity.user.first_name && activity.user.last_name ? activity.user.first_name + ' ' + activity.user.last_name : '')) : ''}</td>
-                </tr>
-                `;
-                });
-            } else {
-                printContent80mm += `
-                <tr>
-                <td colspan="3" style="text-align:center; color:#888;">No activities</td>
-                </tr>
-                `;
-            }
-            printContent80mm += `
-                </tbody>
-                </table>
-                </div>
-                <div style="border-top:1px dashed #222; margin:4px 0 0 0;"></div>
-                <div style="text-align:center; font-size:10px; margin-top:2px;">
-                Thank you!
-                </div>
-            </div>
-            `;
-
-            const style80mm = `<style>
-                @media print {
-                @page {
-                size: 80mm auto;
-                margin: 0.10in !important;
-                }
-                html, body {
-                background: #fff !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 80mm !important;
-                max-width: 80mm !important;
-                }
-                #printArea {
-                width: 80mm !important;
-                max-width: 80mm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-sizing: border-box;
-                }
-                table { border-collapse: collapse; width:100%; }
-                th, td { border: none !important; padding: 0 2px; }
-                .no-print { display: none !important; }
-                }
-                #printArea { width:80mm; max-width:80mm; margin:0 auto; padding:0; box-sizing:border-box; }
-                table { border-collapse: collapse; width:100%; }
-                th, td { border: none !important; padding: 0 2px; }
-            </style>`;
-
-            // --- A4 layout ---
-            let printContentA4 = `
-            <div id="printArea" style="width:210mm; max-width:210mm; font-family: Arial, sans-serif; font-size:13px; color:#222; margin:0 auto; padding:0; box-sizing:border-box;">
-                <div style="text-align:center; margin-bottom:10px;">
-                <strong style="font-size:22px;">Stock Transfer</strong><br>
-                <span style="font-size:14px;">Reference: <b>${stockTransfer.reference_no}</b></span>
-                </div>
-                <table style="width:100%; font-size:13px; margin-bottom:10px;">
-                <tr>
-                <td style="vertical-align:top; width:50%;">
-                <b>From:</b> ${stockTransfer.from_location ? stockTransfer.from_location.name : ''}<br>
-                <span style="font-size:12px;">${stockTransfer.from_location && stockTransfer.from_location.address ? stockTransfer.from_location.address : ''}</span>
-                </td>
-                <td style="vertical-align:top; width:50%; text-align:right;">
-                <b>To:</b> ${stockTransfer.to_location ? stockTransfer.to_location.name : ''}<br>
-                <span style="font-size:12px;">${stockTransfer.to_location && stockTransfer.to_location.address ? stockTransfer.to_location.address : ''}</span>
-                </td>
-                </tr>
-                <tr>
-                <td colspan="2" style="font-size:12px; padding-top:4px;">
-                <b>Date:</b> ${new Date(stockTransfer.transfer_date).toLocaleDateString()} &nbsp; <b>Status:</b> ${stockTransfer.status}
-                </td>
-                </tr>
-                </table>
-                <hr style="margin:8px 0;">
-                <table style="width:100%; font-size:13px; border-collapse:collapse;" border="1">
-                <thead>
-                <tr>
-                <th style="text-align:left;">#</th>
-                <th style="text-align:left;">Product</th>
-                <th style="text-align:left;">SKU</th>
-                <th style="text-align:center;">Qty</th>
-                <th style="text-align:right;">Unit Price</th>
-                <th style="text-align:right;">Sub Total</th>
-                </tr>
-                </thead>
-                <tbody>
-            `;
-            stockTransfer.stock_transfer_products.forEach((product, idx) => {
-                printContentA4 += `
-                <tr>
-                <td style="text-align:left;">${idx + 1}</td>
-                <td style="text-align:left;">${product.product ? product.product.product_name : ''}</td>
-                <td style="text-align:left;">${product.product ? product.product.sku : ''}</td>
-                <td style="text-align:center;">${product.quantity}</td>
-                <td style="text-align:right;">${parseFloat(product.unit_price).toFixed(2)}</td>
-                <td style="text-align:right;">${parseFloat(product.sub_total).toFixed(2)}</td>
-                </tr>
-                `;
-            });
-            printContentA4 += `
-                </tbody>
-                </table>
-                <hr style="margin:8px 0;">
-                <table style="width:100%; font-size:13px;">
-                <tr>
-                <td style="text-align:left;">Net Total:</td>
-                <td style="text-align:right;"><b>Rs.${stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0).toFixed(2)}</b></td>
-                </tr>
-                <tr>
-                <td style="text-align:left;">Shipping:</td>
-                <td style="text-align:right;">Rs.${stockTransfer.shipping_charges ? parseFloat(stockTransfer.shipping_charges).toFixed(2) : '0.00'}</td>
-                </tr>
-                <tr>
-                <td style="text-align:left;">Total:</td>
-                <td style="text-align:right;"><b>Rs.${(
-                stockTransfer.stock_transfer_products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0)
-                + (parseFloat(stockTransfer.shipping_charges) || 0)
-                ).toFixed(2)}</b></td>
-                </tr>
-                </table>
-                <div style="font-size:13px; margin:10px 0;">
-                <b>Notes:</b> ${stockTransfer.note || '--'}
-                </div>
-            `;
-
-            // Activities (detailed)
-            printContentA4 += `
-                <div style="font-size:13px; margin-top:10px;">
-                <b>Activities:</b>
-                <table style="width:100%; font-size:12px; border-collapse:collapse;" border="1">
-                <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Action</th>
-                    <th>By</th>
-                    <th>Note</th>
-                </tr>
-                </thead>
-                <tbody>
-            `;
-            if (activities.length > 0) {
-                activities.forEach(activity => {
-                printContentA4 += `
-                <tr>
-                <td>${activity.date ? new Date(activity.date).toLocaleString() : ''}</td>
-                <td>${activity.action || ''}</td>
-                <td>${activity.user ? (activity.user.name || (activity.user.first_name && activity.user.last_name ? activity.user.first_name + ' ' + activity.user.last_name : '')) : ''}</td>
-                <td>${activity.note || ''}</td>
-                </tr>
-                `;
-                });
-            } else {
-                printContentA4 += `
-                <tr>
-                <td colspan="4" style="text-align:center; color:#888;">No activities</td>
-                </tr>
-                `;
-            }
-            printContentA4 += `
-                </tbody>
-                </table>
-                </div>
-                <div style="text-align:center; font-size:13px; margin-top:10px;">
-                Thank you!
-                </div>
-            </div>
-            `;
-
-            const styleA4 = `<style>
-                @media print {
-                @page {
-                size: A4 portrait;
-                margin: 0.5in !important;
-                }
-                html, body {
-                background: #fff !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 210mm !important;
-                max-width: 210mm !important;
-                }
-                #printArea {
-                width: 210mm !important;
-                max-width: 210mm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-sizing: border-box;
-                }
-                table { border-collapse: collapse; width:100%; }
-                th, td { padding: 4px 6px; }
-                .no-print { display: none !important; }
-                }
-                #printArea { width:210mm; max-width:210mm; margin:0 auto; padding:0; box-sizing:border-box; }
-                table { border-collapse: collapse; width:100%; }
-                th, td { padding: 4px 6px; }
-            </style>`;
-
-            // Print logic
-            const originalContent = document.body.innerHTML;
-            if (layout === 'a4' || layout === 'A4') {
-                document.body.innerHTML = styleA4 + printContentA4;
-            } else {
-                document.body.innerHTML = style80mm + printContent80mm;
-            }
-            window.print();
-            document.body.innerHTML = originalContent;
-            } else {
-            toastr.error('Failed to fetch stock transfer details for printing.');
-            }
-            },
-            error: function(xhr, status, error) {
-            toastr.error('An error occurred while printing. Please try again.');
-            }
-            });
-        }
-
-
-        // Make viewStockTransfer globally accessible
-        window.viewStockTransfer = function(stockTransferId) {
+            window.printStockTransfer = function(stockTransferId, layout = '80mm') {
             $.ajax({
                 url: `/stock-transfer/get/${stockTransferId}`,
                 method: 'GET',
                 success: function(response) {
-                    if (response.status === 200) {
-                        const stockTransfer = response.stockTransfer;
-                        populateStockTransferDetailsModal(stockTransfer);
-                        $('#stockTransferDetailsModal').modal('show');
-                    } else {
-                        console.error('Error fetching stock transfer details:', response
-                            .message);
-                        toastr.error(
-                            'Failed to fetch stock transfer details. Please try again.');
+                    if (response.status !== 200) {
+                        toastr.error('Failed to fetch stock transfer details for printing.');
+                        return;
                     }
+                    const st = response.stockTransfer;
+                    const products = st.stock_transfer_products || [];
+
+                    // Helper: Get latest batch MRP or fallback to product max_retail_price
+                    function getMRP(product) {
+                        if (product && Array.isArray(product.batches) && product.batches.length > 0) {
+                            let latest = product.batches.reduce((a, b) =>
+                                new Date(a.created_at) > new Date(b.created_at) ? a : b
+                            );
+                            if (latest.max_retail_price && +latest.max_retail_price > 0) return parseFloat(latest.max_retail_price).toLocaleString();
+                        }
+                        if (product && product.max_retail_price) return parseFloat(product.max_retail_price).toLocaleString();
+                        return '';
+                    }
+
+                    function getUserName(user) {
+                        if (!user) return '';
+                        if (user.name) return user.name;
+                        if (user.first_name || user.last_name) return (user.first_name ? user.first_name : '') + ' ' + (user.last_name ? user.last_name : '');
+                        return '';
+                    }
+
+                    // Format numbers with thousand separator, no decimals (e.g., 1,000, 10,000, 100,000, 1,200,000)
+                    function formatAmount(num) {
+                        if (isNaN(num) || num === null) return '';
+                        return Math.round(Number(num)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    }
+
+                    let activities = [];
+                    let sources = [st.activities, window.activityLogs, window.lastStockTransferActivityLogs, st.activityLogs];
+                    for (let arr of sources) {
+                        if (Array.isArray(arr) && arr.length > 0) {
+                            activities = arr.map(log => ({
+                                date: log.date || log.created_at,
+                                action: log.action || log.description,
+                                user: log.user || log.causer,
+                                note: log.note || (log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : '')
+                            }));
+                            break;
+                        }
+                    }
+
+                    // Calculate total amount and shipping
+                    const netTotal = products.reduce((sum, p) => sum + (parseFloat(p.sub_total) || 0), 0);
+                    const shipping = st.shipping_charges ? parseFloat(st.shipping_charges) : 0;
+                    const total = netTotal + shipping;
+
+                    // --- 80mm thermal layout (now like A4: name row, then below: MRP, unit price, qty, subtotal) ---
+                    let printContent80mm = `
+                    <div id="printArea" style="width:80mm; font-family: 'monospace', Arial, sans-serif; font-size:13px; color:#111;">
+                        <div style="text-align:center; margin-bottom:6px;">
+                            <strong style="font-size:18px; font-weight:900;">Stock Transfer</strong><br>
+                            <span style="font-size:13px; font-weight:bold;">Ref: <b>${st.reference_no}</b></span>
+                        </div>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px; margin-bottom:4px;">
+                            <tr>
+                                <td style="vertical-align:top; width:50%; font-weight:bold;"><b>From:</b> <span style="font-size:13px; font-weight:600;">${st.from_location?.name || ''}</span><br><span style="font-size:11px;">${st.from_location?.address || ''}</span></td>
+                                <td style="vertical-align:top; width:50%; text-align:right; font-weight:bold;"><b>To:</b> <span style="font-size:13px; font-weight:600;">${st.to_location?.name || ''}</span><br><span style="font-size:11px;">${st.to_location?.address || ''}</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size:12px; padding-top:3px; font-weight:bold;"><b>Date:</b> <span style="font-weight:600;">${new Date(st.transfer_date).toLocaleDateString()}</span> &nbsp; <b>Status:</b> <span style="font-weight:600;">${st.status}</span></td>
+                            </tr>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:left; width:7%; font-size:13px; font-weight:900;">#</th>
+                                    <th style="text-align:left; font-size:13px; font-weight:900;">ITEMS</th>
+                                    <th style="text-align:right; width:17%; font-size:13px; font-weight:900;">RATE</th>
+                                    <th style="text-align:center; width:13%; font-size:13px; font-weight:900;">QTY</th>
+                                    <th style="text-align:right; width:19%; font-size:13px; font-weight:900;">AMOUNT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map((p, i) => {
+                                    let prod = p.product || {};
+                                    let mrp = getMRP(prod);
+                                    let prodName = prod.product_name || '';
+                                    let unitPrice = formatAmount(p.unit_price);
+                                    let subTotal = formatAmount(p.sub_total);
+
+                                    // MRP: strikethrough if different from unit price, else extra bold and clear
+                                    let mrpHtml = '';
+                                    if (mrp && mrp !== unitPrice) {
+                                        mrpHtml = `<span style="text-decoration:line-through; color:#111; font-weight:900; font-size:13px; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;">${mrp}</span>`;
+                                    } else if (mrp) {
+                                        mrpHtml = `<span style="font-weight:900; font-size:13px; color:#111; letter-spacing:1px; background: #ffe; padding:1px 4px; border-radius:2px;">${mrp}</span>`;
+                                    }
+
+                                    // Second row: MRP, unit price, qty, subtotal
+                                    return `
+                                    <tr>
+                                        <td style="vertical-align:top; font-weight:900; font-size:13px;"><b>${i + 1}</b></td>
+                                        <td colspan="4" style="vertical-align:top;">
+                                            <span style="font-weight:900; font-size:13px;">${prodName}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td></td>
+                                        <td>
+                                            ${mrp ? `<span style="font-size:12px; font-weight:900;">MRP: <span style="font-size:13px; font-weight:900;">${mrpHtml}</span></span>` : ''}
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px; font-weight:900;">${unitPrice}</span>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <span style="font-size:12px; font-weight:900;">${formatAmount(p.quantity)}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px; font-weight:900;">${subTotal}</span>
+                                        </td>
+                                    </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Net Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Shipping:</td>
+                                <td style="text-align:right; font-weight:900;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left; font-weight:bold;">Total:</td>
+                                <td style="text-align:right; font-weight:900;"><b>Rs.${formatAmount(total)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="border-top:2px dashed #222; margin:6px 0;"></div>
+                        <div style="font-size:12px; margin-bottom:3px; font-weight:bold;"><b>Notes:</b> <span style="font-weight:normal;">${st.note || '--'}</span></div>
+                        <div style="font-size:12px; margin-top:3px;">
+                            <b style="font-size:13px;">Activities:</b>
+                            <table style="width:100%; font-size:11px; margin-top:3px;">
+                                <thead>
+                                    <tr>
+                                        <th style="font-weight:bold;">Date</th>
+                                        <th style="font-weight:bold;">Action</th>
+                                        <th style="font-weight:bold;">By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${activities.length > 0 ?
+                                        activities.map(a => `
+                                            <tr>
+                                                <td>${a.date ? new Date(a.date).toLocaleDateString() : ''}</td>
+                                                <td>${a.action || ''}</td>
+                                                <td>${getUserName(a.user)}</td>
+                                            </tr>
+                                        `).join('') :
+                                        `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div style="border-top:2px dashed #222; margin:6px 0 0 0;"></div>
+                        <div style="text-align:center; font-size:13px; margin-top:3px; font-weight:900;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const style80mm = `<style>
+                        @media print {
+                            @page { size: 80mm auto; margin: 0.10in !important; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 80mm !important;
+                                max-width: 80mm !important;
+                            }
+                            #printArea { width: 80mm !important; max-width: 80mm !important; }
+                            th, td { padding: 0 2px; }
+                        }
+                        #printArea { width:80mm; max-width:80mm; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 0 2px; }
+                    </style>`;
+
+                    // --- A4 layout (image-style: product name row, then below: MRP, unit price, qty, subtotal) ---
+                    let printContentA4 = `
+                    <div id="printArea" style="width:800px; max-width:800px; margin:0 auto; font-family: Arial, sans-serif; font-size:13px; color:#111;">
+                        <div style="text-align:center; margin-bottom:10px;">
+                            <strong style="font-size:22px;">Stock Transfer</strong><br>
+                            <span style="font-size:14px;">Reference: <b>${st.reference_no}</b></span>
+                        </div>
+                        <table style="width:100%; font-size:13px; margin-bottom:10px;">
+                            <tr>
+                                <td style="vertical-align:top; width:50%;"><b>From:</b> ${st.from_location?.name || ''}<br><span style="font-size:12px;">${st.from_location?.address || ''}</span></td>
+                                <td style="vertical-align:top; width:50%; text-align:right;"><b>To:</b> ${st.to_location?.name || ''}<br><span style="font-size:12px;">${st.to_location?.address || ''}</span></td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="font-size:12px; padding-top:4px;"><b>Date:</b> ${new Date(st.transfer_date).toLocaleDateString()} &nbsp; <b>Status:</b> ${st.status}</td>
+                            </tr>
+                        </table>
+                        <hr style="border:1px solid #222; margin:10px 0;">
+                        <table style="width:100%; font-size:13px; border-collapse:collapse;">
+                            <thead>
+                                <tr style="background:#f3f3f3;">
+                                    <th style="text-align:left; width:5%;">#</th>
+                                    <th style="text-align:left;">ITEMS</th>
+                                    <th style="text-align:right; width:15%;">RATE</th>
+                                    <th style="text-align:center; width:10%;">QTY</th>
+                                    <th style="text-align:right; width:15%;">AMOUNT</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${products.map((p, i) => {
+                                    let prod = p.product || {};
+                                    let mrp = getMRP(prod);
+                                    let prodName = prod.product_name || '';
+                                    let unitPrice = formatAmount(p.unit_price);
+                                    let subTotal = formatAmount(p.sub_total);
+
+                                    // MRP: strikethrough if different from unit price, else normal
+                                    let mrpHtml = '';
+                                    if (mrp && mrp !== unitPrice) {
+                                        mrpHtml = `<span style="text-decoration:line-through; color:#888;">${mrp}</span>`;
+                                    } else if (mrp) {
+                                        mrpHtml = mrp;
+                                    }
+
+                                    // Second row: MRP, unit price, qty, subtotal
+                                    return `
+                                    <tr>
+                                        <td style="vertical-align:top;"><b>${i + 1}</b></td>
+                                        <td colspan="4" style="vertical-align:top;">
+                                            <span style="font-weight:bold;">${prodName}</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td></td>
+                                        <td>
+                                            ${mrp ? `<span style="font-size:12px;">MRP: ${mrpHtml}</span>` : ''}
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px;">${unitPrice}</span>
+                                        </td>
+                                        <td style="text-align:center;">
+                                            <span style="font-size:12px;">${formatAmount(p.quantity)}</span>
+                                        </td>
+                                        <td style="text-align:right;">
+                                            <span style="font-size:12px;">${subTotal}</span>
+                                        </td>
+                                    </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <hr style="border:1px solid #222; margin:10px 0;">
+                        <table style="width:100%; font-size:13px;">
+                            <tr>
+                                <td style="text-align:left;">Net Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(netTotal)}</b></td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Shipping:</td>
+                                <td style="text-align:right;">Rs.${formatAmount(shipping)}</td>
+                            </tr>
+                            <tr>
+                                <td style="text-align:left;">Total:</td>
+                                <td style="text-align:right;"><b>Rs.${formatAmount(total)}</b></td>
+                            </tr>
+                        </table>
+                        <div style="font-size:12px; margin:10px 0;"><b>Notes:</b> ${st.note || '--'}</div>
+                        <div style="font-size:12px; margin-top:10px;">
+                            <b>Activities:</b>
+                            <table style="width:100%; font-size:11px; margin-top:4px; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f3f3f3;">
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                        <th>By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${activities.length > 0 ?
+                                        activities.map(a => `
+                                            <tr>
+                                                <td>${a.date ? new Date(a.date).toLocaleString() : ''}</td>
+                                                <td>${a.action || ''}</td>
+                                                <td>${getUserName(a.user)}</td>
+                                            </tr>
+                                        `).join('') :
+                                        `<tr><td colspan="3" style="text-align:center; color:#888;">No activities</td></tr>`
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <hr style="border:1px solid #222; margin:10px 0 0 0;">
+                        <div style="text-align:center; font-size:13px; margin-top:10px;"><b>Thank you!</b></div>
+                    </div>
+                    `;
+                    const styleA4 = `<style>
+                        @media print {
+                            @page { size: 800px auto; margin: 0.5in; }
+                            html, body {
+                                background: #fff !important;
+                                margin: 0 !important;
+                                padding: 0 !important;
+                                width: 800px !important;
+                                max-width: 800px !important;
+                            }
+                            #printArea { width: 800px !important; max-width: 800px !important; }
+                        }
+                        #printArea { width:800px; max-width:800px; margin:0 auto; padding:0; }
+                        table { border-collapse: collapse; width:100%; }
+                        th, td { border: none !important; padding: 4px 6px; }
+                        hr { border: 1px solid #222; }
+                    </style>`;
+
+                    // Print logic (restore after print)
+                    const originalContent = document.body.innerHTML;
+                    if (layout.toLowerCase() === 'a4') {
+                        document.body.innerHTML = styleA4 + printContentA4;
+                    } else {
+                        document.body.innerHTML = style80mm + printContent80mm;
+                    }
+                    window.print();
+                    document.body.innerHTML = originalContent;
                 },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching stock transfer details:', error);
-                    toastr.error('An error occurred. Please try again.');
+                error: function() {
+                    toastr.error('An error occurred while printing. Please try again.');
                 }
             });
-        }
+          }
 
-        // Populate the new modal with correct IDs
-        function populateStockTransferDetailsModal(stockTransfer) {
-            // Set header fields
-            $('#std_date').text(new Date(stockTransfer.transfer_date).toLocaleDateString());
-            $('#std_reference_no').text(stockTransfer.reference_no);
-            $('#std_reference_no_2').text(stockTransfer.reference_no);
-            $('#std_status').text(stockTransfer.status);
+    // Make viewStockTransfer globally accessible
+    window.viewStockTransfer = function(stockTransferId) {
+        $.ajax({
+            url: `/stock-transfer/get/${stockTransferId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 200) {
+                    const stockTransfer = response.stockTransfer;
+                    populateStockTransferDetailsModal(stockTransfer);
+                    $('#stockTransferDetailsModal').modal('show');
+                } else {
+                    console.error('Error fetching stock transfer details:', response
+                        .message);
+                    toastr.error(
+                        'Failed to fetch stock transfer details. Please try again.');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching stock transfer details:', error);
+                toastr.error('An error occurred. Please try again.');
+            }
+        });
+    }
 
-            // Set location fields
-            $('#std_location_from').text(stockTransfer.from_location ? stockTransfer.from_location.name : '');
-            $('#std_location_to').text(stockTransfer.to_location ? stockTransfer.to_location.name : '');
-            $('#std_location_from_address').text(stockTransfer.from_location && stockTransfer.from_location
-                .address ? stockTransfer.from_location.address : '');
-            $('#std_location_to_address').text(stockTransfer.to_location && stockTransfer.to_location.address ?
-                stockTransfer.to_location.address : '');
+    // Populate the new modal with correct IDs
+    function populateStockTransferDetailsModal(stockTransfer) {
+        // Set header fields
+        $('#std_date').text(new Date(stockTransfer.transfer_date).toLocaleDateString());
+        $('#std_reference_no').text(stockTransfer.reference_no);
+        $('#std_reference_no_2').text(stockTransfer.reference_no);
+        $('#std_status').text(stockTransfer.status);
 
-            // Set shipping charges and total
-            $('#std_shipping_charges').text(stockTransfer.shipping_charges ? parseFloat(stockTransfer
-                .shipping_charges).toFixed(2) : '0.00');
+        // Set location fields
+        $('#std_location_from').text(stockTransfer.from_location ? stockTransfer.from_location.name : '');
+        $('#std_location_to').text(stockTransfer.to_location ? stockTransfer.to_location.name : '');
+        $('#std_location_from_address').text(stockTransfer.from_location && stockTransfer.from_location
+            .address ? stockTransfer.from_location.address : '');
+        $('#std_location_to_address').text(stockTransfer.to_location && stockTransfer.to_location.address ?
+            stockTransfer.to_location.address : '');
 
-            // Calculate total amount (sum of sub_totals)
-            const totalAmount = stockTransfer.stock_transfer_products.reduce((sum, product) => {
-                return sum + (parseFloat(product.sub_total) || 0);
-            }, 0);
-            $('#std_total_amount').text(totalAmount.toFixed(2));
+        // Set shipping charges and total
+        $('#std_shipping_charges').text(stockTransfer.shipping_charges ? parseFloat(stockTransfer
+            .shipping_charges).toFixed(2) : '0.00');
 
-            // Calculate purchase total (total + shipping)
-            const purchaseTotal = totalAmount + (parseFloat(stockTransfer.shipping_charges) || 0);
-            $('#std_purchase_total').text(purchaseTotal.toFixed(2));
+        // Calculate total amount (sum of sub_totals)
+        const totalAmount = stockTransfer.stock_transfer_products.reduce((sum, product) => {
+            return sum + (parseFloat(product.sub_total) || 0);
+        }, 0);
+        $('#std_total_amount').text(totalAmount.toFixed(2));
 
-            // Populate products table
-            const $tbody = $('#std_products_table tbody');
-            $tbody.empty();
-            stockTransfer.stock_transfer_products.forEach((product, idx) => {
-                $tbody.append(`
+        // Calculate purchase total (total + shipping)
+        const purchaseTotal = totalAmount + (parseFloat(stockTransfer.shipping_charges) || 0);
+        $('#std_purchase_total').text(purchaseTotal.toFixed(2));
+
+        // Populate products table
+        const $tbody = $('#std_products_table tbody');
+        $tbody.empty();
+        stockTransfer.stock_transfer_products.forEach((product, idx) => {
+            $tbody.append(`
                 <tr>
                     <td class="text-center">${idx + 1}</td>
                     <td>
@@ -1046,54 +1028,54 @@
                     <td class="text-end">${parseFloat(product.sub_total).toFixed(2)}</td>
                 </tr>
             `);
-            });
+        });
 
-            // Additional notes
-            $('#std_additional_notes').text(stockTransfer.note || '');
+        // Additional notes
+        $('#std_additional_notes').text(stockTransfer.note || '');
 
-            // Populate activities
-            const $activities = $('#std_activities');
-            $activities.empty();
+        // Populate activities
+        const $activities = $('#std_activities');
+        $activities.empty();
 
-            // Prefer stockTransfer.activities, then window.activityLogs, then response.activityLogs
-            let activities = [];
-            if (Array.isArray(stockTransfer.activities) && stockTransfer.activities.length > 0) {
-                activities = stockTransfer.activities.map(activity => ({
-                    date: activity.date,
-                    action: activity.action,
-                    user: activity.user,
-                    note: activity.note
-                }));
-            } else if (Array.isArray(window.activityLogs) && window.activityLogs.length > 0) {
-                activities = window.activityLogs.map(log => ({
-                    date: log.created_at,
-                    action: log.description,
-                    user: log.causer,
-                    note: log.properties && log.properties.attributes && log.properties.attributes
-                        .note ? log.properties.attributes.note : ''
-                }));
-            } else if (Array.isArray(window.lastStockTransferActivityLogs) && window
-                .lastStockTransferActivityLogs.length > 0) {
-                activities = window.lastStockTransferActivityLogs.map(log => ({
-                    date: log.created_at,
-                    action: log.description,
-                    user: log.causer,
-                    note: log.properties && log.properties.attributes && log.properties.attributes
-                        .note ? log.properties.attributes.note : ''
-                }));
-            } else if (Array.isArray(stockTransfer.activityLogs) && stockTransfer.activityLogs.length > 0) {
-                activities = stockTransfer.activityLogs.map(log => ({
-                    date: log.created_at,
-                    action: log.description,
-                    user: log.causer,
-                    note: log.properties && log.properties.attributes && log.properties.attributes
-                        .note ? log.properties.attributes.note : ''
-                }));
-            }
+        // Prefer stockTransfer.activities, then window.activityLogs, then response.activityLogs
+        let activities = [];
+        if (Array.isArray(stockTransfer.activities) && stockTransfer.activities.length > 0) {
+            activities = stockTransfer.activities.map(activity => ({
+                date: activity.date,
+                action: activity.action,
+                user: activity.user,
+                note: activity.note
+            }));
+        } else if (Array.isArray(window.activityLogs) && window.activityLogs.length > 0) {
+            activities = window.activityLogs.map(log => ({
+                date: log.created_at,
+                action: log.description,
+                user: log.causer,
+                note: log.properties && log.properties.attributes && log.properties.attributes
+                    .note ? log.properties.attributes.note : ''
+            }));
+        } else if (Array.isArray(window.lastStockTransferActivityLogs) && window
+            .lastStockTransferActivityLogs.length > 0) {
+            activities = window.lastStockTransferActivityLogs.map(log => ({
+                date: log.created_at,
+                action: log.description,
+                user: log.causer,
+                note: log.properties && log.properties.attributes && log.properties.attributes
+                    .note ? log.properties.attributes.note : ''
+            }));
+        } else if (Array.isArray(stockTransfer.activityLogs) && stockTransfer.activityLogs.length > 0) {
+            activities = stockTransfer.activityLogs.map(log => ({
+                date: log.created_at,
+                action: log.description,
+                user: log.causer,
+                note: log.properties && log.properties.attributes && log.properties.attributes
+                    .note ? log.properties.attributes.note : ''
+            }));
+        }
 
-            if (activities.length > 0) {
-                activities.forEach(activity => {
-                    $activities.append(`
+        if (activities.length > 0) {
+            activities.forEach(activity => {
+                $activities.append(`
                     <tr>
                         <td>${activity.date ? new Date(activity.date).toLocaleString() : ''}</td>
                         <td>${activity.action || ''}</td>
@@ -1101,11 +1083,11 @@
                         <td>${activity.note || ''}</td>
                     </tr>
                 `);
-                });
-            } else if (window.activityLogs && Array.isArray(window.activityLogs) && window.activityLogs.length >
-                0) {
-                window.activityLogs.forEach(log => {
-                    $activities.append(`
+            });
+        } else if (window.activityLogs && Array.isArray(window.activityLogs) && window.activityLogs.length >
+            0) {
+            window.activityLogs.forEach(log => {
+                $activities.append(`
                     <tr>
                         <td>${log.created_at ? new Date(log.created_at).toLocaleString() : ''}</td>
                         <td>${log.description || ''}</td>
@@ -1113,11 +1095,11 @@
                         <td>${log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''}</td>
                     </tr>
                 `);
-                });
-            } else if (window.response && Array.isArray(window.response.activityLogs) && window.response
-                .activityLogs.length > 0) {
-                window.response.activityLogs.forEach(log => {
-                    $activities.append(`
+            });
+        } else if (window.response && Array.isArray(window.response.activityLogs) && window.response
+            .activityLogs.length > 0) {
+            window.response.activityLogs.forEach(log => {
+                $activities.append(`
                     <tr>
                         <td>${log.created_at ? new Date(log.created_at).toLocaleString() : ''}</td>
                         <td>${log.description || ''}</td>
@@ -1125,35 +1107,35 @@
                         <td>${log.properties && log.properties.attributes && log.properties.attributes.note ? log.properties.attributes.note : ''}</td>
                     </tr>
                 `);
-                });
-            } else {
-                $activities.append(
-                    '<tr><td colspan="4" class="text-center text-muted">No activities found.</td></tr>');
-            }
+            });
+        } else {
+            $activities.append(
+                '<tr><td colspan="4" class="text-center text-muted">No activities found.</td></tr>');
         }
+    }
 
-        window.deleteStockTransfer = function(id) {
-            if (confirm('Are you sure you want to delete this stock transfer?')) {
-                $.ajax({
-                    url: `/stock-transfer/delete/${id}`,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                    },
-                    success: function(response) {
-                        if (response.status === 200) {
-                            toastr.success('Stock transfer deleted successfully.');
-                            fetchStockTransferList();
-                        } else {
-                            toastr.error('Failed to delete stock transfer.');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error deleting stock transfer:', error);
-                        toastr.error('An error occurred. Please try again.');
-                    }
-                });
+    window.deleteStockTransfer = function(id) {
+    if (confirm('Are you sure you want to delete this stock transfer?')) {
+        $.ajax({
+            url: `/stock-transfer/delete/${id}`,
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success('Stock transfer deleted successfully.');
+                    fetchStockTransferList();
+                } else {
+                    toastr.error('Failed to delete stock transfer.');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error deleting stock transfer:', error);
+                toastr.error('An error occurred. Please try again.');
             }
-        }
+        });
+    }
+    }
     });
 </script>
