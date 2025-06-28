@@ -8,14 +8,6 @@
         let stockData = [];
 
 
-        // Global state for lazy loading
-        let currentPage = 1;
-        const productsPerPage = 100;
-        let hasMoreProducts = true;
-        let isLoading = false;
-
-
-
 
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);

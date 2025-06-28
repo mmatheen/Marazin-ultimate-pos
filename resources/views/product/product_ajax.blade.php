@@ -205,58 +205,7 @@
             });
         }
 
-        // Format product data into table rows
-        function formatProductData(product) {
-            let locationName = 'N/A';
-            if (product.batches && product.batches.length > 0) {
-                locationName = product.batches[0]?.location_batches?.[0]?.location_name || 'N/A';
-            } else if (product.locations && product.locations.length > 0) {
-                locationName = product.locations[0]?.location_name || 'N/A';
-            }
 
-            // let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
-            //     '/assets/img/No Product Image Available.png';
-            return `
-            <tr data-product-id="${product.id}">
-            <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
-                <td>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
-                            Actions
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
-                            @can('show one product details')
-                                <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
-                            @endcan
-                            @can('edit product')
-                                <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                            @endcan
-                            @can('delete product')
-                                <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
-                            @endcan
-                            @can('Add & Edit Opening Stock product')
-                                <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
-                            @endcan
-                            @can('product Full History')
-                                <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
-                            @endcan
-                            ${product.is_imei_or_serial_no === 1 ? 
-                                `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>` : 
-                                ''}
-                        </ul>
-                    </div>
-                </td>
-               
-                <td>${product.product_name}</td>
-                <td>${product.sku}</td>
-                <td>${locationName}</td>
-                <td>${product.retail_price}</td>
-                <td>${product.total_stock}</td>
-                <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
-                <td>${brandMap[product.brand_id] || 'N/A'}</td>
-                <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
-            </tr>`;
-        };
 
 
 
@@ -412,157 +361,523 @@
             });
         });
 
-        // Fetch product data and populate the table
-        function fetchProductData() {
-            fetchData('/products/stocks', function(response) {
-                if (response.status === 200) {
-                    allProducts = response.data;
-                    populateProductFilter();
+        // // Fetch product data and populate the table
+        // function fetchProductData() {
+        //     fetchData('/products/stocks', function(response) {
+        //         if (response.status === 200) {
+        //             allProducts = response.data;
+        //             populateProductFilter();
 
-                    if ($.fn.DataTable.isDataTable('#productTable')) {
-                        $('#productTable').DataTable().destroy();
-                    }
+        //             if ($.fn.DataTable.isDataTable('#productTable')) {
+        //                 $('#productTable').DataTable().destroy();
+        //             }
 
-                    $('#productTable tbody').empty();
+        //             $('#productTable tbody').empty();
 
-                    response.data.forEach(function(item) {
-                        let product = item.product;
-                        product.total_stock = item.total_stock;
-                        product.batches = item.batches;
-                        product.locations = item.locations;
-                        $('#productTable tbody').append(formatProductData(product));
-                    });
+        //             response.data.forEach(function(item) {
+        //                 let product = item.product;
+        //                 product.total_stock = item.total_stock;
+        //                 product.batches = item.batches;
+        //                 product.locations = item.locations;
+        //                 $('#productTable tbody').append(formatProductData(product));
+        //             });
 
-                    let table = $('#productTable').DataTable({
-                        lengthMenu: [
-                            [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, -1],
-                            [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, "All"]
-                        ],
-                        columnDefs: [{
-                            orderable: false,
-                            targets: [1]
-                        }],
-                        select: {
-                            style: 'multi',
-                            selector: 'td:first-child input[type="checkbox"]',
-                        },
-                    });
+        //             let table = $('#productTable').DataTable({
+        //                 lengthMenu: [
+        //                     [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, -1],
+        //                     [10, 20, 50, 75, 100, 500, 1000, 1500, 2000, "All"]
+        //                 ],
+        //                 columnDefs: [{
+        //                     orderable: false,
+        //                     targets: [1]
+        //                 }],
+        //                 select: {
+        //                     style: 'multi',
+        //                     selector: 'td:first-child input[type="checkbox"]',
+        //                 },
+        //             });
 
-                    $('#selectAll').on('change', function() {
-                        const isChecked = this.checked;
-                        $('.product-checkbox').each(function() {
-                            this.checked = isChecked;
-                            $(this).trigger('change');
-                        });
-                    });
+        //             $('#selectAll').on('change', function() {
+        //                 const isChecked = this.checked;
+        //                 $('.product-checkbox').each(function() {
+        //                     this.checked = isChecked;
+        //                     $(this).trigger('change');
+        //                 });
+        //             });
 
-                    $('#productTable thead').on('click', 'th', function(event) {
-                        event.stopImmediatePropagation();
-                    });
+        //             $('#productTable thead').on('click', 'th', function(event) {
+        //                 event.stopImmediatePropagation();
+        //             });
 
-                    $('#productTable tbody').on('click', '.dropdown-item', function(event) {
-                        event.stopPropagation();
-                    });
+        //             $('#productTable tbody').on('click', '.dropdown-item', function(event) {
+        //                 event.stopPropagation();
+        //             });
 
-                    $('#productTable tbody').on('click', '.view-product', function(event) {
-                        event.preventDefault();
-                        var productId = $(this).data('product-id');
-                        if (productId) {
-                            fetchProductDetails(productId);
-                            $('#viewProductModal').modal('show');
-                        }
-                    });
+        //             $('#productTable tbody').on('click', '.view-product', function(event) {
+        //                 event.preventDefault();
+        //                 var productId = $(this).data('product-id');
+        //                 if (productId) {
+        //                     fetchProductDetails(productId);
+        //                     $('#viewProductModal').modal('show');
+        //                 }
+        //             });
 
-                    // Handle delete product action
-                    $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
-                        event.preventDefault();
-                        var productId = $(this).data('product-id');
-                        if (productId) {
-                            deleteProduct(productId);
-                        }
-                    })
+        //             // Handle delete product action
+        //             $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
+        //                 event.preventDefault();
+        //                 var productId = $(this).data('product-id');
+        //                 if (productId) {
+        //                     deleteProduct(productId);
+        //                 }
+        //             })
 
 
-                    // When clicking on IMEI Entry from dropdown
-                    $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
-                        event.preventDefault();
-                        const productId = $(this).data('product-id');
-                        $('#currentProductId').val(productId);
+        //             // When clicking on IMEI Entry from dropdown
+        //             $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
+        //                 event.preventDefault();
+        //                 const productId = $(this).data('product-id');
+        //                 $('#currentProductId').val(productId);
 
-                        // Clear previous IMEIs
-                        $('#imeiTableBody').empty();
+        //                 // Clear previous IMEIs
+        //                 $('#imeiTableBody').empty();
 
-                        if (!productId) return;
+        //                 if (!productId) return;
 
-                        // Find the product in `allProducts` by ID
-                        const product = allProducts.find(p => p.product.id == productId);
-                        if (!product || !product.imei_numbers || product.imei_numbers.length ===
-                            0) {
-                            $('#imeiTableBody').append(
-                                '<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>'
-                            );
-                            $('#imeiModal').modal('show');
-                            return;
-                        }
+        //                 // Find the product in `allProducts` by ID
+        //                 const product = allProducts.find(p => p.product.id == productId);
+        //                 if (!product || !product.imei_numbers || product.imei_numbers.length ===
+        //                     0) {
+        //                     $('#imeiTableBody').append(
+        //                         '<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>'
+        //                     );
+        //                     $('#imeiModal').modal('show');
+        //                     return;
+        //                 }
 
-                        // Fill the table with IMEI numbers
-                        let counter = 1; // Initialize counter for auto-increment
-                        product.imei_numbers.forEach(imei => {
-                            $('#imeiTableBody').append(`
-                            <tr>
-                                <td>${counter++}</td> <!-- Auto-incremented count -->
-                                <td>
-                                    <input type="text" class="form-control imei-input" 
-                                        data-imei-id="${imei.id}" 
-                                        value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
-                                </td>
-                                <td>${imei.location_name}</td>
-                                <td>${imei.batch_no || 'N/A'}</td>
-                                <td>
-                                    ${imei.status === 'available' ? '<span class="badge bg-success">Available</span>' :
-                                        imei.status === 'unavailable' ? '<span class="badge bg-danger">Unavailable</span>' :
-                                        '<span class="badge bg-warning text-dark">Sold</span>'}
-                                </td>
-                            </tr>
-                        `);
-                        });
+        //                 // Fill the table with IMEI numbers
+        //                 let counter = 1; // Initialize counter for auto-increment
+        //                 product.imei_numbers.forEach(imei => {
+        //                     $('#imeiTableBody').append(`
+        //                     <tr>
+        //                         <td>${counter++}</td> <!-- Auto-incremented count -->
+        //                         <td>
+        //                             <input type="text" class="form-control imei-input" 
+        //                                 data-imei-id="${imei.id}" 
+        //                                 value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
+        //                         </td>
+        //                         <td>${imei.location_name}</td>
+        //                         <td>${imei.batch_no || 'N/A'}</td>
+        //                         <td>
+        //                             ${imei.status === 'available' ? '<span class="badge bg-success">Available</span>' :
+        //                                 imei.status === 'unavailable' ? '<span class="badge bg-danger">Unavailable</span>' :
+        //                                 '<span class="badge bg-warning text-dark">Sold</span>'}
+        //                         </td>
+        //                     </tr>
+        //                 `);
+        //                 });
 
-                        // Display product name and total count of IMEI numbers in the modal header
-                        $('#imeiModalTitle').html(
-                            `<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`
-                        );
+        //                 // Display product name and total count of IMEI numbers in the modal header
+        //                 $('#imeiModalTitle').html(
+        //                     `<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`
+        //                 );
 
-                        $('#imeiModal').modal('show');
-                    });
+        //                 $('#imeiModal').modal('show');
+        //             });
 
-                    $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]',
-                        function(event) {
-                            event.stopPropagation();
-                            event.stopImmediatePropagation();
-                        });
+        //             $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]',
+        //                 function(event) {
+        //                     event.stopPropagation();
+        //                     event.stopImmediatePropagation();
+        //                 });
 
-                    $('#productTable tbody').on('click', 'tr', function(event) {
-                        if ($(event.target).closest('.product-checkbox, input[type="checkbox"]')
-                            .length > 0) {
-                            return;
-                        }
+        //             $('#productTable tbody').on('click', 'tr', function(event) {
+        //                 if ($(event.target).closest('.product-checkbox, input[type="checkbox"]')
+        //                     .length > 0) {
+        //                     return;
+        //                 }
 
-                        if ($(event.target).closest(
-                                '.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
-                            return;
-                        }
+        //                 if ($(event.target).closest(
+        //                         '.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
+        //                     return;
+        //                 }
 
-                        var productId = $(this).data('product-id');
-                        if (productId) {
-                            fetchProductDetails(productId);
-                            $('#viewProductModal').modal('show');
-                        }
-                    });
-                } else {
-                    console.error('Failed to fetch product data.');
-                }
-            });
-        }
+        //                 var productId = $(this).data('product-id');
+        //                 if (productId) {
+        //                     fetchProductDetails(productId);
+        //                     $('#viewProductModal').modal('show');
+        //                 }
+        //             });
+
+        //         } else {
+        //             console.error('Failed to fetch product data.');
+        //         }
+        //     });
+        // }
+
+        // // Format product data into table rows
+        // function formatProductData(product) {
+        //     let locationName = 'N/A';
+        //     if (product.batches && product.batches.length > 0) {
+        //         locationName = product.batches[0]?.location_batches?.[0]?.location_name || 'N/A';
+        //     } else if (product.locations && product.locations.length > 0) {
+        //         locationName = product.locations[0]?.location_name || 'N/A';
+        //     }
+
+        //     // let imagePath = product.product_image ? `/assets/images/${product.product_image}` :
+        //     //     '/assets/img/No Product Image Available.png';
+        //     return `
+        //     <tr data-product-id="${product.id}">
+        //     <td>  <input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
+        //         <td>
+        //             <div class="dropdown">
+        //                 <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
+        //                     Actions
+        //                 </button>
+        //                 <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
+        //                     @can('show one product details')
+        //                         <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+        //                     @endcan
+        //                     @can('edit product')
+        //                         <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+        //                     @endcan
+        //                     @can('delete product')
+        //                         <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+        //                     @endcan
+        //                     @can('Add & Edit Opening Stock product')
+        //                         <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+        //                     @endcan
+        //                     @can('product Full History')
+        //                         <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+        //                     @endcan
+        //                     ${product.is_imei_or_serial_no === 1 ? 
+        //                         `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>` : 
+        //                         ''}
+        //                 </ul>
+        //             </div>
+        //         </td>
+
+        //         <td>${product.product_name}</td>
+        //         <td>${product.sku}</td>
+        //         <td>${locationName}</td>
+        //         <td>${product.retail_price}</td>
+        //         <td>${product.total_stock}</td>
+        //         <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+        //         <td>${brandMap[product.brand_id] || 'N/A'}</td>
+        //         <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+        //     </tr>`;
+        // };
+
+        // function fetchProductData() {
+        //     if ($.fn.DataTable.isDataTable('#productTable')) {
+        //         $('#productTable').DataTable().destroy();
+        //     }
+
+        //     $('#productTable tbody').empty();
+
+        //     $('#productTable').DataTable({
+        //         processing: true,
+        //         serverSide: true,
+        //         ajax: function(data, callback) {
+        //             const page = Math.floor(data.start / data.length) + 1;
+        //             const perPage = data.length;
+
+        //             $.get('/products/stocks', {
+        //                 page: page,
+        //                 per_page: perPage
+        //             }, function(response) {
+        //                 if (response.status === 200) {
+        //                     allProducts = response.data;
+
+        //                     // Prepare data for DataTables
+        //                     const tableData = response.data.map(function(item) {
+        //                         let product = item.product;
+        //                         product.total_stock = item.total_stock;
+        //                         product.batches = item.batches;
+        //                         product.locations = item.locations;
+        //                         product.imei_numbers = item.imei_numbers || [];
+        //                         return product;
+        //                     });
+
+        //                     callback({
+        //                         draw: data.draw,
+        //                         recordsTotal: response.pagination.total,
+        //                         recordsFiltered: response.pagination.total,
+        //                         data: tableData
+        //                     });
+        //                 }
+        //             });
+        //         },
+        //         columns: [{
+        //                 data: null,
+        //                 render: function(data, type, row) {
+        //                     return `<input type="checkbox" class="product-checkbox" data-product-id="${row.id}" style="width: 16px; height: 16px;">`;
+        //                 },
+        //                 orderable: false
+        //             },
+        //             {
+        //                 data: null,
+        //                 render: function(data, type, row) {
+        //                     return `<div class="dropdown">
+        //                         <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${row.id}" data-bs-toggle="dropdown" aria-expanded="false">
+        //                             Actions
+        //                         </button>
+        //                         <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${row.id}">
+        //                             @can('show one product details')
+        //                             <li><a class="dropdown-item view-product" href="#" data-product-id="${row.id}"><i class="fas fa-eye"></i> View</a></li>
+        //                             @endcan
+        //                             @can('edit product')
+        //                             <li><a class="dropdown-item" href="/edit-product/${row.id}"><i class="fas fa-edit"></i> Edit</a></li>
+        //                             @endcan
+        //                             @can('delete product')
+        //                             <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${row.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+        //                             @endcan
+        //                             @can('Add & Edit Opening Stock product')
+        //                             <li><a class="dropdown-item" href="/edit-opening-stock/${row.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+        //                             @endcan
+        //                             @can('product Full History')
+        //                             <li><a class="dropdown-item" href="/products/stock-history/${row.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+        //                             @endcan
+        //                             ${row.is_imei_or_serial_no === 1
+        //                                 ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
+        //                                 : ''}
+        //                         </ul>
+        //                     </div>`;
+        //                 },
+        //                 orderable: false
+        //             },
+        //             {
+        //                 data: "product_name"
+        //             },
+        //             {
+        //                 data: "sku"
+        //             },
+        //             {
+        //                 data: null,
+        //                 render: function(data, type, row) {
+        //                     let locationName = 'N/A';
+        //                     if (row.batches && row.batches.length > 0) {
+        //                         locationName = row.batches[0]?.location_batches?.[0]
+        //                             ?.location_name || 'N/A';
+        //                     } else if (row.locations && row.locations.length > 0) {
+        //                         locationName = row.locations[0]?.location_name || 'N/A';
+        //                     }
+        //                     return locationName;
+        //                 }
+        //             },
+        //             {
+        //                 data: "retail_price",
+        //                 render: function(data) {
+        //                     return data;
+        //                 }
+        //             },
+        //             {
+        //                 data: "total_stock",
+        //                 render: function(data) {
+        //                     return data;
+        //                 }
+        //             },
+        //             {
+        //                 data: "main_category_id",
+        //                 render: function(data) {
+        //                     return categoryMap[data] || 'N/A';
+        //                 }
+        //             },
+        //             {
+        //                 data: "brand_id",
+        //                 render: function(data) {
+        //                     return brandMap[data] || 'N/A';
+        //                 }
+        //             },
+        //             {
+        //                 data: "is_imei_or_serial_no",
+        //                 render: function(data) {
+        //                     return data === 1 ? "True" : "False";
+        //                 }
+        //             }
+        //         ],
+        //         lengthMenu: [
+        //             [10, 25, 50, 100],
+        //             [10, 25, 50, 100]
+        //         ],
+        //         pageLength: 10,
+        //         ordering: false,
+        //          select: {
+        //                     style: 'multi',
+        //                     selector: 'td:first-child input[type="checkbox"]',
+        //                 },
+        //         drawCallback: function() {
+        //             attachEventHandlers();
+        //         },
+
+
+        //     });
+        // }
+
+
+        // // Handle all row events (view, delete, imei modal)
+        // function attachEventHandlers() {
+        //     $('#selectAll').on('change', function() {
+        //         const isChecked = this.checked;
+        //         $('.product-checkbox').each(function() {
+        //             this.checked = isChecked;
+        //             $(this).trigger('change');
+        //         });
+        //     });
+
+        //     $('#productTable thead').on('click', 'th', function(event) {
+        //         event.stopImmediatePropagation();
+        //     });
+
+        //     $('#productTable tbody').on('click', '.dropdown-item', function(event) {
+        //         event.stopPropagation();
+        //     });
+
+        //     $('#productTable tbody').on('click', '.view-product', function(event) {
+        //         event.preventDefault();
+        //         var productId = $(this).data('product-id');
+        //         if (productId) {
+        //             fetchProductDetails(productId);
+        //             $('#viewProductModal').modal('show');
+        //         }
+        //     });
+
+        //     // Handle delete product action
+        //     $('#productTable tbody').on('click', '.btn-delete-product', function(event) {
+        //         event.preventDefault();
+        //         var productId = $(this).data('product-id');
+        //         if (productId) {
+        //             deleteProduct(productId);
+        //         }
+        //     })
+
+
+        //     // When clicking on IMEI Entry from dropdown
+        //     $('#productTable tbody').on('click', '.show-imei-modal', function(event) {
+        //         event.preventDefault();
+        //         const productId = $(this).data('product-id');
+        //         $('#currentProductId').val(productId);
+
+        //         // Clear previous IMEIs
+        //         $('#imeiTableBody').empty();
+
+        //         if (!productId) return;
+
+        //         // Find the product in `allProducts` by ID
+        //         const product = allProducts.find(p => p.product.id == productId);
+        //         if (!product || !product.imei_numbers || product.imei_numbers.length ===
+        //             0) {
+        //             $('#imeiTableBody').append(
+        //                 '<tr><td colspan="4" class="text-center">No IMEI numbers found.</td></tr>'
+        //             );
+        //             $('#imeiModal').modal('show');
+        //             return;
+        //         }
+
+        //         // Fill the table with IMEI numbers
+        //         let counter = 1; // Initialize counter for auto-increment
+        //         product.imei_numbers.forEach(imei => {
+        //             $('#imeiTableBody').append(`
+        //                     <tr>
+        //                         <td>${counter++}</td> <!-- Auto-incremented count -->
+        //                         <td>
+        //                             <input type="text" class="form-control imei-input" 
+        //                                 data-imei-id="${imei.id}" 
+        //                                 value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
+        //                         </td>
+        //                         <td>${imei.location_name}</td>
+        //                         <td>${imei.batch_no || 'N/A'}</td>
+        //                         <td>
+        //                             ${imei.status === 'available' ? '<span class="badge bg-success">Available</span>' :
+        //                                 imei.status === 'unavailable' ? '<span class="badge bg-danger">Unavailable</span>' :
+        //                                 '<span class="badge bg-warning text-dark">Sold</span>'}
+        //                         </td>
+        //                     </tr>
+        //                 `);
+        //         });
+
+        //         // Display product name and total count of IMEI numbers in the modal header
+        //         $('#imeiModalTitle').html(
+        //             `<span class="text-info">${product.product.product_name}</span> (IMEI NO: ${product.imei_numbers.length})`
+        //         );
+
+        //         $('#imeiModal').modal('show');
+        //     });
+
+        //     $('#productTable tbody').on('click', '.product-checkbox, input[type="checkbox"]',
+        //         function(event) {
+        //             event.stopPropagation();
+        //             event.stopImmediatePropagation();
+        //         });
+
+        //     $('#productTable tbody').on('click', 'tr', function(event) {
+        //         if ($(event.target).closest('.product-checkbox, input[type="checkbox"]')
+        //             .length > 0) {
+        //             return;
+        //         }
+
+        //         if ($(event.target).closest(
+        //                 '.dropdown, .dropdown-toggle, .dropdown-menu').length > 0) {
+        //             return;
+        //         }
+
+        //         var productId = $(this).data('product-id');
+        //         if (productId) {
+        //             fetchProductDetails(productId);
+        //             $('#viewProductModal').modal('show');
+        //         }
+        //     });
+        // }
+
+        //     function formatProductData(product) {
+        //         let locationName = 'N/A';
+        //         if (product.batches && product.batches.length > 0) {
+        //             locationName = product.batches[0]?.location_batches?.[0]?.location_name || 'N/A';
+        //         } else if (product.locations && product.locations.length > 0) {
+        //             locationName = product.locations[0]?.location_name || 'N/A';
+        //         }
+
+        //         return `
+        //     <tr data-product-id="${product.id}">
+        //         <td><input type="checkbox" class="product-checkbox" data-product-id="${product.id}" style="width: 16px; height: 16px;"></td>
+        //         <td>
+        //             <div class="dropdown">
+        //                 <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${product.id}" data-bs-toggle="dropdown" aria-expanded="false">
+        //                     Actions
+        //                 </button>
+        //                 <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${product.id}">
+        //                     @can('show one product details')
+        //                     <li><a class="dropdown-item view-product" href="#" data-product-id="${product.id}"><i class="fas fa-eye"></i> View</a></li>
+        //                     @endcan
+        //                     @can('edit product')
+        //                     <li><a class="dropdown-item" href="/edit-product/${product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+        //                     @endcan
+        //                     @can('delete product')
+        //                     <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${product.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+        //                     @endcan
+        //                     @can('Add & Edit Opening Stock product')
+        //                     <li><a class="dropdown-item" href="/edit-opening-stock/${product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+        //                     @endcan
+        //                     @can('product Full History')
+        //                     <li><a class="dropdown-item" href="/products/stock-history/${product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+        //                     @endcan
+        //                     ${product.is_imei_or_serial_no === 1
+        //         ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
+        //         : ''}
+        //                 </ul>
+        //             </div>
+        //         </td>
+        //         <td>${product.product_name}</td>
+        //         <td>${product.sku}</td>
+        //         <td>${locationName}</td>
+        //         <td>${product.retail_price}</td>
+        //         <td>${product.total_stock}</td>
+        //         <td>${categoryMap[product.main_category_id] || 'N/A'}</td>
+        //         <td>${brandMap[product.brand_id] || 'N/A'}</td>
+        //         <td>${product.is_imei_or_serial_no === 1 ? "True" : "False"}</td>
+        //     </tr>
+        // `;
+        //     }
+
 
 
         //Delte product
@@ -599,15 +914,134 @@
 
 
 
-        // Populate product filter dropdowns
-        function populateProductFilter() {
+        // // Populate product filter dropdowns
+        // function populateProductFilter() {
+        //     const productNameFilter = $('#productNameFilter');
+        //     const categoryFilter = $('#categoryFilter');
+        //     const brandFilter = $('#brandFilter');
+
+        //     const productNames = [...new Set(allProducts.map(item => item.product.product_name))];
+        //     const categories = [...new Set(allProducts.map(item => item.product.main_category_id))];
+        //     const brands = [...new Set(allProducts.map(item => item.product.brand_id))];
+
+        //     productNameFilter.empty().append('<option value="">Select Product</option>');
+        //     categoryFilter.empty().append('<option value="">Select Category</option>');
+        //     brandFilter.empty().append('<option value="">Select Brand</option>');
+
+        //     productNames.forEach(name => {
+        //         productNameFilter.append(`<option value="${name}">${name}</option>`);
+        //     });
+
+        //     categories.forEach(category => {
+        //         if (categoryMap[category]) {
+        //             categoryFilter.append(
+        //                 `<option value="${category}">${categoryMap[category]}</option>`);
+        //         }
+        //     });
+
+        //     brands.forEach(brand => {
+        //         if (brandMap[brand]) {
+        //             brandFilter.append(`<option value="${brand}">${brandMap[brand]}</option>`);
+        //         }
+        //     });
+        // }
+
+        // // Filter products based on selected filters
+        // function filterProducts() {
+        //     const selectedProduct = $('#productNameFilter').val();
+        //     const selectedCategory = $('#categoryFilter').val();
+        //     const selectedBrand = $('#brandFilter').val();
+
+        //     const filteredProducts = allProducts.filter(item => {
+        //         const product = item.product;
+        //         const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
+        //             true;
+        //         const matchesCategory = selectedCategory ? product.main_category_id ==
+        //             selectedCategory : true;
+        //         const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
+        //         return matchesProduct && matchesCategory && matchesBrand;
+        //     });
+
+        //     let table = $('#productTable').DataTable();
+        //     table.clear().draw();
+
+        //     filteredProducts.forEach(function(item) {
+        //         let product = item.product;
+        //         product.total_stock = item.total_stock;
+        //         product.batches = item.batches;
+        //         product.locations = item.locations;
+        //         table.row.add($(formatProductData(product))).draw();
+        //     });
+        // }
+
+        // // Fetch main category, sub-category, location, unit, brand details to select box
+        // function fetchCategoriesAndBrands() {
+        //     fetchData('/main-category-get-all', function(response) {
+        //         response.message.forEach(function(category) {
+        //             categoryMap[category.id] = category.mainCategoryName;
+        //         });
+        //     });
+
+        //     fetchData('/brand-get-all', function(response) {
+        //         response.message.forEach(function(brand) {
+        //             brandMap[brand.id] = brand.name;
+        //         });
+        //     });
+
+        //     fetchData('/location-get-all', function(response) {
+        //         if (response.status === 200) {
+        //             response.message.forEach(function(location) {
+        //                 locationMap[location.id] = location
+        //                     .name; // Store location name with ID as key
+        //             });
+        //         } else {
+        //             console.error('Failed to load location data. Status: ' + response.status);
+        //         }
+        //     });
+        // }
+
+        // // Initialize fetching categories and brands
+        // fetchCategoriesAndBrands();
+
+        // // Fetch initial dropdown data and product data on page load
+        // fetchInitialDropdowns(fetchProductData);
+
+        // // Apply filters on change
+        // $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
+
+
+
+        // Fetch and cache category, brand, location data
+        function fetchCategoriesAndBrands(callback) {
+            let loaded = 0;
+            fetchData('/main-category-get-all', function(response) {
+                (response.message || []).forEach(c => {
+                    categoryMap[c.id] = c.mainCategoryName;
+                });
+                if (++loaded === 3) callback();
+            });
+            fetchData('/brand-get-all', function(response) {
+                (response.message || []).forEach(b => {
+                    brandMap[b.id] = b.name;
+                });
+                if (++loaded === 3) callback();
+            });
+            fetchData('/location-get-all', function(response) {
+                (response.message || []).forEach(l => {
+                    locationMap[l.id] = l.name;
+                });
+                if (++loaded === 3) callback();
+            });
+        }
+
+        // Populate filter dropdowns from current page data
+        function populateProductFilter(pageData) {
             const productNameFilter = $('#productNameFilter');
             const categoryFilter = $('#categoryFilter');
             const brandFilter = $('#brandFilter');
-
-            const productNames = [...new Set(allProducts.map(item => item.product.product_name))];
-            const categories = [...new Set(allProducts.map(item => item.product.main_category_id))];
-            const brands = [...new Set(allProducts.map(item => item.product.brand_id))];
+            const productNames = [...new Set(pageData.map(item => item.product.product_name))];
+            const categories = [...new Set(pageData.map(item => item.product.main_category_id))];
+            const brands = [...new Set(pageData.map(item => item.product.brand_id))];
 
             productNameFilter.empty().append('<option value="">Select Product</option>');
             categoryFilter.empty().append('<option value="">Select Category</option>');
@@ -616,83 +1050,297 @@
             productNames.forEach(name => {
                 productNameFilter.append(`<option value="${name}">${name}</option>`);
             });
-
             categories.forEach(category => {
-                if (categoryMap[category]) {
-                    categoryFilter.append(
-                        `<option value="${category}">${categoryMap[category]}</option>`);
-                }
+                if (categoryMap[category]) categoryFilter.append(
+                    `<option value="${category}">${categoryMap[category]}</option>`);
             });
-
             brands.forEach(brand => {
-                if (brandMap[brand]) {
-                    brandFilter.append(`<option value="${brand}">${brandMap[brand]}</option>`);
-                }
+                if (brandMap[brand]) brandFilter.append(
+                    `<option value="${brand}">${brandMap[brand]}</option>`);
             });
         }
 
-        // Filter products based on selected filters
-        function filterProducts() {
-            const selectedProduct = $('#productNameFilter').val();
-            const selectedCategory = $('#categoryFilter').val();
-            const selectedBrand = $('#brandFilter').val();
-
-            const filteredProducts = allProducts.filter(item => {
-                const product = item.product;
-                const matchesProduct = selectedProduct ? product.product_name === selectedProduct :
-                    true;
-                const matchesCategory = selectedCategory ? product.main_category_id ==
-                    selectedCategory : true;
-                const matchesBrand = selectedBrand ? product.brand_id == selectedBrand : true;
-                return matchesProduct && matchesCategory && matchesBrand;
-            });
-
-            let table = $('#productTable').DataTable();
-            table.clear().draw();
-
-            filteredProducts.forEach(function(item) {
-                let product = item.product;
-                product.total_stock = item.total_stock;
-                product.batches = item.batches;
-                product.locations = item.locations;
-                table.row.add($(formatProductData(product))).draw();
-            });
+        function buildActionsDropdown(row) {
+            // You must generate permission logic in PHP and pass as flags, or show all for demo
+            return `
+        <div class="dropdown">
+            <button class="btn btn-outline-info btn-sm dropdown-toggle action-button" type="button" id="actionsDropdown-${row.id}" data-bs-toggle="dropdown" aria-expanded="false">
+                Actions
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${row.id}">
+                <li><a class="dropdown-item view-product" href="#" data-product-id="${row.id}"><i class="fas fa-eye"></i> View</a></li>
+                <li><a class="dropdown-item" href="/edit-product/${row.id}"><i class="fas fa-edit"></i> Edit</a></li>
+                <li><a class="dropdown-item btn-delete-product" href="#" data-product-id="${row.id}"><i class="fas fa-trash-alt"></i> Delete</a></li>
+                <li><a class="dropdown-item" href="/edit-opening-stock/${row.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
+                <li><a class="dropdown-item" href="/products/stock-history/${row.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
+                ${row.is_imei_or_serial_no === 1
+                    ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
+                    : ''}
+            </ul>
+        </div>
+    `;
         }
 
-        // Fetch main category, sub-category, location, unit, brand details to select box
-        function fetchCategoriesAndBrands() {
-            fetchData('/main-category-get-all', function(response) {
-                response.message.forEach(function(category) {
-                    categoryMap[category.id] = category.mainCategoryName;
-                });
-            });
+        function fetchProductData() {
+            if ($.fn.DataTable.isDataTable('#productTable')) {
+                $('#productTable').DataTable().destroy();
+            }
+            $('#productTable tbody').empty();
 
-            fetchData('/brand-get-all', function(response) {
-                response.message.forEach(function(brand) {
-                    brandMap[brand.id] = brand.name;
-                });
-            });
+            $('#productTable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: function(data, callback) {
+                    // DataTables sends search and paging params in 'data'
+                    let params = {
+                        draw: data.draw,
+                        start: data.start,
+                        length: data.length,
+                        // DataTables global search
+                        'search[value]': data.search.value,
+                        // DataTables ordering
+                        'order[0][column]': data.order && data.order.length ? data.order[0].column : 0,
+                        'order[0][dir]': data.order && data.order.length ? data.order[0].dir : 'asc',
+                        // DataTables columns (for ordering)
+                        'columns': data.columns,
+                        // Custom filters
+                        product_name: $('#productNameFilter').val(),
+                        main_category_id: $('#categoryFilter').val(),
+                        brand_id: $('#brandFilter').val()
+                    };
 
-            fetchData('/location-get-all', function(response) {
-                if (response.status === 200) {
-                    response.message.forEach(function(location) {
-                        locationMap[location.id] = location
-                            .name; // Store location name with ID as key
+                    $.ajax({
+                        url: '/products/stocks',
+                        type: 'GET',
+                        data: params,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 200) {
+                                // For dropdowns, only update if it's the first page
+                                if (data.start === 0) populateProductFilter(response.data);
+                                const tableData = response.data.map(function(item) {
+                                    let product = item.product;
+                                    product.total_stock = item.total_stock;
+                                    product.batches = item.batches;
+                                    product.locations = item.locations;
+                                    product.imei_numbers = item.imei_numbers || [];
+                                    product.main_category_id = product.main_category_id;
+                                    product.brand_id = product.brand_id;
+                                    return product;
+                                });
+
+                                callback({
+                                    draw: response.draw,
+                                    recordsTotal: response.recordsTotal,
+                                    recordsFiltered: response.recordsFiltered,
+                                    data: tableData
+                                });
+                            } else {
+                                callback({
+                                    draw: data.draw,
+                                    recordsTotal: 0,
+                                    recordsFiltered: 0,
+                                    data: []
+                                });
+                            }
+                        },
+                        error: function() {
+                            callback({
+                                draw: data.draw,
+                                recordsTotal: 0,
+                                recordsFiltered: 0,
+                                data: []
+                            });
+                        }
                     });
-                } else {
-                    console.error('Failed to load location data. Status: ' + response.status);
+                },
+                columns: [{
+                        data: null,
+                        render: function(data, type, row) {
+                            return `<input type="checkbox" class="product-checkbox" data-product-id="${row.id}" style="width: 16px; height: 16px;">`;
+                        },
+                        orderable: false
+                    },
+                    {
+                        data: null,
+                        render: function(data, type, row) {
+                            return buildActionsDropdown(row);
+                        },
+                        orderable: false
+                    },
+                    {
+                        data: "product_name"
+                    },
+                    {
+                        data: "sku"
+                    },
+                    {
+                        data: null,
+                        render: function(data, type, row) {
+                            let locationName = 'N/A';
+                            if (row.batches && row.batches.length > 0) {
+                                locationName = row.batches[0]?.location_batches?.[0]
+                                    ?.location_name || 'N/A';
+                            } else if (row.locations && row.locations.length > 0) {
+                                locationName = row.locations[0]?.location_name || 'N/A';
+                            }
+                            return locationName;
+                        }
+                    },
+                    {
+                        data: "retail_price"
+                    },
+                    {
+                        data: "total_stock"
+                    },
+                    {
+                        data: "main_category_id",
+                        render: function(data) {
+                            return categoryMap[data] || 'N/A';
+                        }
+                    },
+                    {
+                        data: "brand_id",
+                        render: function(data) {
+                            return brandMap[data] || 'N/A';
+                        }
+                    },
+                    {
+                        data: "is_imei_or_serial_no",
+                        render: function(data) {
+                            return data === 1 ? "True" : "False";
+                        }
+                    }
+                ],
+                lengthMenu: [
+                    [10, 25, 50, 100],
+                    [10, 25, 50, 100]
+                ],
+                pageLength: 10,
+                ordering: false,
+                select: {
+                    style: 'multi',
+                    selector: 'td:first-child input[type="checkbox"]',
+                },
+                drawCallback: function() {
+                    attachEventHandlers();
                 }
             });
         }
 
-        // Initialize fetching categories and brands
-        fetchCategoriesAndBrands();
+        // Attach all event handlers for table actions (call after each draw)
+        function attachEventHandlers() {
+            // Select all checkbox
+            $('#selectAll').off('change').on('change', function() {
+                const isChecked = this.checked;
+                $('.product-checkbox').prop('checked', isChecked).trigger('change');
+            });
 
-        // Fetch initial dropdown data and product data on page load
-        fetchInitialDropdowns(fetchProductData);
+            // Prevent sort on action columns
+            $('#productTable thead').off('click', 'th').on('click', 'th', function(event) {
+                event.stopImmediatePropagation();
+            });
 
-        // Apply filters on change
-        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', filterProducts);
+            // Dropdown item click
+            $('#productTable tbody').off('click', '.dropdown-item').on('click', '.dropdown-item', function(
+                event) {
+                event.stopPropagation();
+            });
+
+            // View product modal
+            $('#productTable tbody').off('click', '.view-product').on('click', '.view-product', function(
+            event) {
+                event.preventDefault();
+                var productId = $(this).data('product-id');
+                if (productId) {
+                    fetchProductDetails(productId);
+                    $('#viewProductModal').modal('show');
+                }
+            });
+
+            // Delete product
+            $('#productTable tbody').off('click', '.btn-delete-product').on('click', '.btn-delete-product',
+                function(event) {
+                    event.preventDefault();
+                    var productId = $(this).data('product-id');
+                    if (productId) {
+                        deleteProduct(productId);
+                    }
+                });
+
+            // IMEI modal
+            $('#productTable tbody').off('click', '.show-imei-modal').on('click', '.show-imei-modal', function(
+                event) {
+                event.preventDefault();
+                const productId = $(this).data('product-id');
+                $('#currentProductId').val(productId);
+                $('#imeiTableBody').empty();
+
+                // Find row data in current table page
+                const table = $('#productTable').DataTable();
+                const rowData = table.rows().data().toArray().find(r => r.id == productId);
+
+                if (!rowData || !rowData.imei_numbers || rowData.imei_numbers.length === 0) {
+                    $('#imeiTableBody').append(
+                        '<tr><td colspan="5" class="text-center">No IMEI numbers found.</td></tr>'
+                    );
+                    $('#imeiModal').modal('show');
+                    return;
+                }
+
+                let counter = 1;
+                rowData.imei_numbers.forEach(imei => {
+                    $('#imeiTableBody').append(`
+                <tr>
+                    <td>${counter++}</td>
+                    <td>
+                        <input type="text" class="form-control imei-input"
+                            data-imei-id="${imei.id}"
+                            value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
+                    </td>
+                    <td>${imei.location_name}</td>
+                    <td>${imei.batch_no || 'N/A'}</td>
+                    <td>
+                        ${imei.status === 'available'
+                            ? '<span class="badge bg-success">Available</span>'
+                            : imei.status === 'unavailable'
+                            ? '<span class="badge bg-danger">Unavailable</span>'
+                            : '<span class="badge bg-warning text-dark">Sold</span>'}
+                    </td>
+                </tr>
+            `);
+                });
+
+                $('#imeiModalTitle').html(
+                    `<span class="text-info">${rowData.product_name}</span> (IMEI NO: ${rowData.imei_numbers.length})`
+                );
+                $('#imeiModal').modal('show');
+            });
+
+            // Prevent row click from triggering on checkbox/dropdown
+            $('#productTable tbody').off('click', 'tr').on('click', 'tr', function(event) {
+                if ($(event.target).closest(
+                        '.product-checkbox, input[type="checkbox"],.dropdown,.dropdown-toggle,.dropdown-menu'
+                        ).length > 0) return;
+                var productId = $(this).find('.product-checkbox').data('product-id');
+                if (productId) {
+                    fetchProductDetails(productId);
+                    $('#viewProductModal').modal('show');
+                }
+            });
+        }
+
+        // On filter change, reload DataTable (triggers ajax with filters)
+        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', function() {
+            if ($.fn.DataTable.isDataTable('#productTable')) {
+                $('#productTable').DataTable().ajax.reload();
+            }
+        });
+
+        // On page load: fetch categories/brands/locations, then initialize DataTable
+        $(document).ready(function() {
+            fetchCategoriesAndBrands(fetchProductData);
+        });
 
         function resetFormAndValidation() {
             $('#addForm')[0].reset();
