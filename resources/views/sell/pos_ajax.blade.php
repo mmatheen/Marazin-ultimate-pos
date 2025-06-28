@@ -487,22 +487,22 @@
                     `${totalQuantity} Pc(s) in stock`;
 
                 const cardHTML = `
-            <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                <div class="product-card"> 
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
-                    <div class="product-card-body">
-                        <h6>${product.product_name} <br>
-                            <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                        </h6>
-                        <h6>
-                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : totalQuantity > 0 ? 'bg-success' : 'bg-warning'}">
-                                ${quantityDisplay}
-                            </span>
-                        </h6>
+                    <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
+                        <div class="product-card"> 
+                            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                            <div class="product-card-body">
+                                <h6>${product.product_name} <br>
+                                    <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                                </h6>
+                                <h6>
+                                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : totalQuantity > 0 ? 'bg-success' : 'bg-warning'}">
+                                        ${quantityDisplay}
+                                    </span>
+                                </h6>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        `;
+                     `;
                 posProduct.insertAdjacentHTML('beforeend', cardHTML);
             });
 
@@ -2518,11 +2518,11 @@
             function calculateJobTicketBalance() {
                 const totalAmount = parseFloat($('#totalAmountInput').val()) || 0;
                 const advanceAmount = parseFloat($('#advanceAmountInput').val()) || 0;
-                const balance = advanceAmount - totalAmount;
+                let balance = totalAmount - advanceAmount;
+                if (balance < 0) balance = 0; // Prevent negative balance
                 $('#balanceAmountInput').val(balance.toFixed(2));
             }
 
-            // 3. Submit Job Ticket (as status: "jobticket")
             $('#submitJobTicket').on('click', function() {
                 // Gather sale data
                 const saleData = gatherSaleData('jobticket');
@@ -2540,7 +2540,13 @@
 
                 // Attach advance and balance
                 saleData.advance_amount = parseFloat($('#advanceAmountInput').val()) || 0;
-                saleData.balance_amount = parseFloat($('#balanceAmountInput').val()) || 0;
+                let balanceAmount = parseFloat($('#balanceAmountInput').val()) || 0;
+                if (balanceAmount < 0) balanceAmount = 0; // Prevent negative balance
+                saleData.balance_amount = balanceAmount;
+                saleData.total_paid = saleData
+                    .advance_amount; // Set total_paid to advance amount
+                saleData.amount_given = saleData
+                    .advance_amount; // <-- Ensure amount_given is set for backend
                 saleData.jobticket_description = $('#description').val();
 
                 // Send to backend with status "jobticket"
@@ -2548,6 +2554,7 @@
                     $('#jobTicketModal').modal('hide');
                 });
             });
+
 
 
 
@@ -2604,21 +2611,13 @@
                 // Calculate final total (bill)
                 const finalTotal = parseFormattedAmount(document.getElementById(
                     'modal-total-payable').textContent);
-                // Calculate change to return
-                let totalPaid = 0;
-                let balanceAmount = 0;
 
-                // Condition: if finalTotal > amountGiven, totalPaid = amountGiven
-                // if finalTotal <= amountGiven, totalPaid = finalTotal (settle only up to bill)
+                // Calculate totalPaid: should not exceed finalTotal
+                let totalPaid = Math.min(amountGiven, finalTotal);
+                let balanceAmount = Math.max(0, amountGiven - finalTotal);
 
-                //1500 > 1600
-                if (finalTotal > amountGiven) {
-                    totalPaid = amountGiven;
-                    balanceAmount = 0;
-                } else {
-                    totalPaid = finalTotal;
-                    balanceAmount = amountGiven - finalTotal;
-                }
+                // If amountGiven is less than finalTotal, balanceAmount is 0 (no change to give)
+                // If amountGiven is more, balanceAmount is the change to give
 
                 // Attach these to saleData for backend saving
                 saleData.payments = paymentData;
@@ -2629,10 +2628,6 @@
                 // Log for debugging
                 console.log("Payment Data:", paymentData);
                 console.log("Sale Data:", saleData);
-
-                // if (!validatePayment(paymentData)) {
-                //     return; // Show error if validation fails
-                // }
 
                 // Send to server
                 sendSaleData(saleData);
@@ -2674,23 +2669,7 @@
                 return paymentData;
             }
 
-            // function validatePayment(paymentData) {
-            //     let totalPaid = 0;
 
-            //     for (const payment of paymentData) {
-            //         const amount = parseFloat(payment.amount);
-
-            //         // Validate individual amount
-            //         if (isNaN(amount) || amount <= 0) {
-            //             toastr.error("Please enter valid amounts for all payments.");
-            //             console.log("Invalid payment amount found:", payment);
-            //             return false;
-            //         }
-            //         totalPaid += amount;
-            //     }
-
-            //     return true;
-            // }
 
             function fetchSuspendedSales() {
                 $.ajax({
