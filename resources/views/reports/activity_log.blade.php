@@ -258,8 +258,7 @@
                                     subjectTypeLabel = item.subject_type || '';
                                 }
                                 // Format date
-                                let date = item.created_at ? moment(item.created_at).format(
-                                    'MM/DD/YYYY HH:mm') : '';
+                                let date = item.created_at ? moment(item.created_at).format('MM/DD/YYYY hh:mm A') : '';
                                 // Format "By" (causer)
                                 let by = '';
                                 if (item.user && item.user.user_name) {
