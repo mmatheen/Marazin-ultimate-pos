@@ -1160,7 +1160,7 @@ class ProductController extends Controller
             $now = now();
 
             // DataTable params
-            $perPage = $request->input('length', 10); // DataTable uses 'length'
+            $perPage = $request->input('length', 100); // DataTable uses 'length'
             $start = $request->input('start', 0);
             $page = intval($start / $perPage) + 1;
 
@@ -1202,7 +1202,11 @@ class ProductController extends Controller
                     'locations:id,name',
                     'discounts' => function ($query) use ($now) {
                         $query->where('is_active', true)
-                            ->where('start_date', '<=', $now);
+                            ->where('start_date', '<=', $now)
+                            ->where(function ($q) use ($now) {
+                                $q->whereNull('end_date')
+                                    ->orWhere('end_date', '>=', $now);
+                            });
                     },
                     'batches' => function ($query) {
                         $query->select([
@@ -1415,6 +1419,42 @@ class ProductController extends Controller
                 'message' => 'An error occurred while fetching product stocks.'
             ], 500);
         }
+    }
+
+
+    public function autocompleteStock(Request $request)
+    {
+        $locationId = $request->input('location_id');
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 15);
+
+        $query = Product::with(['batches.locationBatches' => function ($q) use ($locationId) {
+            $q->where('location_id', $locationId);
+        }]);
+        if ($search) {
+            $query->where('product_name', 'like', "%{$search}%")
+                ->orWhere('sku', 'like', "%{$search}%");
+        }
+
+        $products = $query->take($perPage)->get();
+
+        $results = $products->map(function ($product) use ($locationId) {
+            $totalStock = 0;
+            foreach ($product->batches as $batch) {
+                foreach ($batch->locationBatches as $lb) {
+                    if ($lb->location_id == $locationId) $totalStock += $lb->qty;
+                }
+            }
+            return [
+                'product' => $product,
+                'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
+            ];
+        });
+
+        return response()->json([
+            'status' => 200,
+            'data' => $results,
+        ]);
     }
 
 

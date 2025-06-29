@@ -141,6 +141,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
         Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
+        Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
         // Product Store/Update
         Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
         Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);

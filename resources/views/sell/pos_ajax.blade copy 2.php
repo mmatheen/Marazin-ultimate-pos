@@ -3,11 +3,14 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         let selectedLocationId = null;
-        let currentProductsPage = 1;
-        let hasMoreProducts = true;
-        let isLoadingProducts = false;
-        let allProducts = []; // paginated products for card display
-        let stockData = []; // not used for cards/autocomplete in new version
+        // Global arrays to store products
+        let allProducts = [];
+        let stockData = [];
+
+
+
+        fetchAllLocations();
+        $('#locationSelect').on('change', handleLocationChange);
 
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
@@ -17,14 +20,7 @@
         const allProductsBtn = document.getElementById('allProductsBtn');
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
-        // ---- INIT ----
-        fetchAllLocations();
-        $('#locationSelect').on('change', handleLocationChange);
-        fetchCategories();
-        fetchBrands();
-        initAutocomplete();
-
-        // ---- Loader helpers ----
+        // Utility: Show Loader
         function showLoader() {
             posProduct.innerHTML = `
         <div class="loader-container">
@@ -37,17 +33,31 @@
         </div>`;
         }
 
+        // Utility: Hide Loader
         function hideLoader() {
             posProduct.innerHTML = '';
         }
 
-        // ---- CATEGORY/SUBCATEGORY/BRAND (unchanged) ----
+        allProductsBtn.onclick = function() {
+            fetchAllProducts();
+        };
+
+
+
+        // Fetch and display all products initially
+        fetchAllProducts();
+
+        // Fetch categories and brands from APIs and populate the offcanvas
+        fetchCategories();
+        fetchBrands();
+
         function fetchCategories() {
             fetch('/main-category-get-all')
                 .then(response => response.json())
                 .then(data => {
                     const categories = data.message;
                     const categoryContainer = document.getElementById('categoryContainer');
+
                     if (Array.isArray(categories)) {
                         categories.forEach(category => {
                             const card = document.createElement('div');
@@ -97,7 +107,8 @@
                 .then(data => {
                     const subcategories = data.message;
                     const subcategoryContainer = document.getElementById('subcategoryContainer');
-                    subcategoryContainer.innerHTML = '';
+                    subcategoryContainer.innerHTML = ''; // Clear previous subcategories
+
                     if (Array.isArray(subcategories)) {
                         subcategories.forEach(subcategory => {
                             const card = document.createElement('div');
@@ -124,20 +135,28 @@
                     } else {
                         console.error('Subcategories not found:', subcategories);
                     }
-                    // Show/hide offcanvas
+
+                    // Show the subcategory offcanvas
                     const subcategoryOffcanvas = new bootstrap.Offcanvas(document.getElementById(
                         'offcanvasSubcategory'));
                     subcategoryOffcanvas.show();
+
+                    // Hide the category offcanvas
                     const categoryOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
                         'offcanvasCategory'));
                     categoryOffcanvas.hide();
                 })
                 .catch(error => console.error('Error fetching subcategories:', error));
         }
+
+        // Handle back button click in subcategory offcanvas
         subcategoryBackBtn.addEventListener('click', () => {
+            // Show the category offcanvas
             const categoryOffcanvas = new bootstrap.Offcanvas(document.getElementById(
                 'offcanvasCategory'));
             categoryOffcanvas.show();
+
+            // Hide the subcategory offcanvas
             const subcategoryOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById(
                 'offcanvasSubcategory'));
             subcategoryOffcanvas.hide();
@@ -147,16 +166,19 @@
             fetch('/brand-get-all')
                 .then(response => response.json())
                 .then(data => {
-                    const brands = data.message;
-                    const brandContainer = document.getElementById('brandContainer');
+                    const brands = data.message; // Get the array of brands
+                    const brandContainer = document.getElementById(
+                        'brandContainer'); // Get the container to append brand cards
+
                     if (Array.isArray(brands)) {
+                        // Loop through the brands array and create brand cards
                         brands.forEach(brand => {
                             const brandCard = document.createElement('div');
                             brandCard.classList.add('brand-card');
                             brandCard.setAttribute('data-id', brand.id);
 
                             const brandName = document.createElement('h6');
-                            brandName.textContent = brand.name;
+                            brandName.textContent = brand.name; // Use brand's name
                             brandCard.appendChild(brandName);
 
                             brandCard.addEventListener('click', () => {
@@ -175,14 +197,21 @@
                 });
         }
 
-        // ---- LOCATION ----
+        let isEditing = false;
+
+
+
+        // Fetch all locations via AJAX
         function fetchAllLocations() {
             $.ajax({
                 url: '/location-get-all',
                 method: 'GET',
                 success: function(data) {
-                    if (data.status === 200) populateLocationDropdown(data.message);
-                    else console.error('Error fetching locations:', data.message);
+                    if (data.status === 200) {
+                        populateLocationDropdown(data.message);
+                    } else {
+                        console.error('Error fetching locations:', data.message);
+                    }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('AJAX Error:', textStatus, errorThrown);
@@ -190,246 +219,297 @@
             });
         }
 
+        // Populate dropdown and select first location by default
         function populateLocationDropdown(locations) {
             const locationSelect = $('#locationSelect');
-            locationSelect.empty();
-            locationSelect.append('<option value="" disabled selected>Select Location</option>');
+            locationSelect.empty(); // Clear existing options
+
+            locationSelect.append('<option value="" disabled>Select Location</option>');
+
             locations.forEach((location, index) => {
-                const option = $('<option></option>').val(location.id).text(location.name);
-                if (index === 0) option.attr('selected', 'selected');
+                const option = $('<option></option>')
+                    .val(location.id)
+                    .text(location.name);
+
+                if (index === 0) {
+                    option.attr('selected', 'selected');
+                }
+
                 locationSelect.append(option);
             });
+
+            // Trigger change to load products for the first location
             locationSelect.trigger('change');
         }
 
-        // ---- PAGINATED PRODUCT FETCH ----
         function handleLocationChange(event) {
-            selectedLocationId = $(event.target).val();
-            currentProductsPage = 1;
-            hasMoreProducts = true;
-            allProducts = [];
-            posProduct.innerHTML = '';
-            if (selectedLocationId) fetchPaginatedProducts(true);
-        }
-
-        function fetchPaginatedProducts(reset = false) {
-            if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
-            isLoadingProducts = true;
-            if (reset) showLoader();
-            fetch(`/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`)
-                .then(res => res.json())
-                .then(data => {
-                    hideLoader();
-                    if (data.status !== 200 || !Array.isArray(data.data)) {
-                        if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                        isLoadingProducts = false;
-                        return;
-                    }
-                    if (reset) {
-                        allProducts = [];
-                        posProduct.innerHTML = '';
-                        stockData = []; // Reset stockData on reset
-                    }
-                    data.data.forEach(stock => allProducts.push(stock));
-                    // Always keep stockData in sync with allProducts
-                    stockData = [...allProducts];
-                    displayProducts(allProducts);
-                    if (data.data.length === 0 || data.data.length < 24) hasMoreProducts = false;
-                    else hasMoreProducts = true;
-                    isLoadingProducts = false;
-                    currentProductsPage++;
-                })
-                .catch(e => {
-                    hideLoader();
-                    isLoadingProducts = false;
-                    if (reset) posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                    console.error('Error fetching products:', e);
-                });
-        }
-        // Infinite scroll (using posProduct for lazy loading)
-        function setupLazyLoad() {
-            let productPage = 1;
-            let productLoading = false;
-            posProduct.addEventListener('scroll', () => {
-                // Scroll down: fetch next page
-                if (
-                    hasMoreProducts &&
-                    !productLoading &&
-                    posProduct.scrollTop + posProduct.clientHeight >= posProduct.scrollHeight - 100
-                ) {
-                    productPage += 1;
-                    fetchPaginatedProducts();
+            selectedLocationId = $(event.target).val(); // Update global variable
+            if (selectedLocationId) {
+                if (!isEditing) {
+                    billingBody.innerHTML = '';
                 }
-                // Scroll up: fetch previous page (if needed)
-                // Uncomment below if you want to fetch previous products when scrolling up
-                /*
-                if (
-                    productPage > 1 &&
-                    !productLoading &&
-                    posProduct.scrollTop <= 100
-                ) {
-                    productPage -= 1;
-                    fetchPaginatedProducts(true); // true to reset and load previous page
-                }
-                */
-            });
-        }
-        // Call setupLazyLoad after posProduct is initialized
-        setupLazyLoad();
-        allProductsBtn.onclick = function() {
-            currentProductsPage = 1;
-            hasMoreProducts = true;
-            allProducts = [];
-            posProduct.innerHTML = '';
-            fetchPaginatedProducts(true);
-        };
-
-        // ---- DISPLAY PRODUCTS ----
-        function displayProducts(products) {
-            posProduct.innerHTML = '';
-            if (!selectedLocationId || products.length === 0) {
-                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
-                return;
+                updateTotals();
+                displayProducts(stockData); // Reuse existing stockData
+            } else {
+                console.warn("No location selected");
             }
-            // Only show products with stock in selected location, or unlimited stock
-            const filteredProducts = products.filter(stock =>
-                stock.batches.some(batch =>
-                    batch.location_batches.some(lb =>
-                        lb.location_id == selectedLocationId &&
-                        (lb.quantity > 0 || stock.product.stock_alert === 0)
-                    )
-                )
-            );
-            filteredProducts.forEach(stock => {
-                const product = stock.product;
-                let locationQty = 0;
-                stock.batches.forEach(batch => {
-                    batch.location_batches.forEach(lb => {
-                        if (lb.location_id == selectedLocationId) locationQty += lb
-                            .quantity;
+        }
+
+        function fetchAllProducts() {
+            console.log("Fetching all products for all locations"); // DEBUG
+            showLoader();
+            let url = '/products/stocks'; // No location filter here
+
+            fetch(url).then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            }).then(data => {
+                hideLoader();
+                if (data.status === 200 && Array.isArray(data.data)) {
+                    stockData = data.data; // Store all products
+                    allProducts = stockData.map(stock => {
+                        const firstLocationBatch = stock.batches?.[0]?.location_batches?.[0] ||
+                            null;
+                        return {
+                            ...stock.product,
+                            total_stock: stock.total_stock,
+                            location_id: firstLocationBatch ? firstLocationBatch.location_id :
+                                null
+                        };
                     });
-                });
-                stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
-                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
-                    `${stock.total_stock} Pc(s) in stock`;
-                const cardHTML = `
-            <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                <div class="product-card" data-id="${product.id}">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
-                    <div class="product-card-body">
-                        <h6>${product.product_name} <br>
-                            <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                        </h6>
-                        <h6>
-                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
-                                ${quantityDisplay}
-                            </span>
-                        </h6>
-                    </div>
-                </div>
-            </div>`;
-                posProduct.insertAdjacentHTML('beforeend', cardHTML);
-            });
-            // Add click event to product cards
-            document.querySelectorAll('.product-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const productId = card.getAttribute('data-id');
-                    const productStock = allProducts.find(stock => String(stock.product.id) ===
-                        productId);
-                    if (productStock) addProductToTable(productStock.product);
-                });
+                    displayProducts(stockData); // Display products based on current location
+                    initAutocomplete();
+                } else {
+                    console.error('Invalid data:', data);
+                }
+            }).catch(error => {
+                hideLoader();
+                console.error('Error fetching data:', error);
             });
         }
 
-        // ---- AUTOCOMPLETE (server driven) ----
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
-                    if (!selectedLocationId) return response([]);
-                    $.ajax({
-                        url: '/products/stocks/autocomplete',
-                        data: {
-                            location_id: selectedLocationId,
-                            search: request.term,
-                            per_page: 15
-                        },
-                        success: function(data) {
-                            if (data.status === 200 && Array.isArray(data.data)) {
-                                const results = data.data.map(stock => ({
-                                    label: `${stock.product.product_name} (${stock.product.sku}) [Stock: ${stock.product.stock_alert === 0 ? 'Unlimited' : stock.total_stock}]`,
-                                    value: stock.product.product_name,
-                                    product: stock.product,
-                                    stockData: stock // Pass the full stock data if available
-                                }));
-                                if (results.length === 0) results.push({
-                                    label: "No results found",
-                                    value: ""
-                                });
-                                response(results);
-                            } else {
-                                response([{
-                                    label: "No results found",
-                                    value: ""
-                                }]);
-                            }
-                        },
-                        error: function() {
-                            response([{
-                                label: "No results found",
-                                value: ""
-                            }]);
+                    const searchTerm = request.term.toLowerCase().trim();
+                    if (!searchTerm || !selectedLocationId) {
+                        response([]);
+                        return;
+                    }
+
+                    // Only match products that have stock in the selected location
+                    const matches = allProducts.filter(product => {
+                        // Find the stock entry for this product in the selected location
+                        const stockEntry = stockData.find(stock =>
+                            stock.product.id === product.id &&
+                            stock.batches.some(batch =>
+                                batch.location_batches.some(lb =>
+                                    lb.location_id == selectedLocationId &&
+                                    (lb.quantity > 0 || product.stock_alert === 0)
+                                )
+                            )
+                        );
+                        if (!stockEntry) return false;
+
+                        // Only show if stock is available or unlimited in this location
+                        let locationQty = 0;
+                        stockEntry.batches.forEach(batch => {
+                            batch.location_batches.forEach(lb => {
+                                if (lb.location_id == selectedLocationId) {
+                                    locationQty += lb.quantity;
+                                }
+                            });
+                        });
+                        if (product.stock_alert === 0) {
+                            product.total_stock = 0;
+                        } else {
+                            product.total_stock = locationQty;
                         }
+                        // Only show if stock > 0 or unlimited
+                        if (product.stock_alert !== 0 && product.total_stock <= 0)
+                            return false;
+
+                        // Use .includes for partial match, .toLowerCase for case-insensitive
+                        const name = product.product_name?.toLowerCase() || '';
+                        const sku = product.sku?.toLowerCase() || '';
+                        return name.includes(searchTerm) || sku.includes(searchTerm);
                     });
+
+                    // Sort: exact match first, then starts-with, then others
+                    matches.sort((a, b) => {
+                        const nameA = a.product_name?.toLowerCase() || '';
+                        const skuA = a.sku?.toLowerCase() || '';
+                        const nameB = b.product_name?.toLowerCase() || '';
+                        const skuB = b.sku?.toLowerCase() || '';
+
+                        // Prefer exact match first
+                        const aExact = nameA === searchTerm || skuA === searchTerm;
+                        const bExact = nameB === searchTerm || skuB === searchTerm;
+                        if (aExact && !bExact) return -1;
+                        if (!aExact && bExact) return 1;
+
+                        // Then prefer starts-with
+                        const aStarts = nameA.startsWith(searchTerm) || skuA.startsWith(
+                            searchTerm);
+                        const bStarts = nameB.startsWith(searchTerm) || skuB.startsWith(
+                            searchTerm);
+                        if (aStarts && !bStarts) return -1;
+                        if (!aStarts && bStarts) return 1;
+
+                        // Otherwise, alphabetic
+                        return nameA.localeCompare(nameB);
+                    });
+
+                    const autoCompleteResults = matches.length ?
+                        matches.map(p => ({
+                            label: `${p.product_name} (${p.sku}) [Stock: ${p.stock_alert === 0 ? 'Unlimited' : p.total_stock}]`,
+                            value: p.product_name,
+                            product: p
+                        })) : [{
+                            label: "No products found for this location",
+                            value: ""
+                        }];
+
+                    response(autoCompleteResults);
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) return false;
                     $("#productSearchInput").val("");
-                    // Try to find the stock entry in stockData
-                    let stockEntry = stockData.find(stock => stock.product.id === ui.item.product.id);
-                    if (!stockEntry && ui.item.stockData) {
-                        // If not found, but stockData is present from autocomplete, add it
-                        stockData.push(ui.item.stockData);
-                        allProducts.push(ui.item.stockData);
-                        stockEntry = ui.item.stockData;
-                    }
-                    if (!stockEntry) {
-                        // If still not found, fetch the full stock entry from the server
-                        fetch(`/products/stocks?location_id=${selectedLocationId}&product_id=${ui.item.product.id}`)
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                                    stockData.push(data.data[0]);
-                                    allProducts.push(data.data[0]);
-                                    addProductToTable(data.data[0].product);
-                                } else {
-                                    toastr.error('Stock entry not found for the product', 'Error');
-                                }
-                            })
-                            .catch(() => {
-                                toastr.error('Error fetching product stock data', 'Error');
-                            });
-                        return false;
-                    }
                     addProductToTable(ui.item.product);
                     return false;
                 },
-                minLength: 1
+                focus: function(event, ui) {
+                    $("#productSearchInput").val(ui.item.value);
+                    return false;
+                },
+                minLength: 1,
+                open: function() {
+                    const widget = $(this).autocomplete("widget");
+                    widget.find("li").removeClass("ui-state-focus");
+                }
             }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>")
-                    .append(`<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`)
-                    .appendTo(ul);
+                const $li = $("<li>").append(
+                    `<div style="${item.product ? '' : 'color: red;'}">${item.label}</div>`
+                ).appendTo(ul);
+
+                $li.data("ui-autocomplete-item", item);
+                $li.on("mouseenter", function() {
+                    $(this).addClass("ui-state-focus");
+                }).on("mouseleave", function() {
+                    $(this).removeClass("ui-state-focus");
+                });
+
+                return $li;
+            };
+
+            // Remove aria-live/autocomplete for custom styling compatibility
+            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+            // Custom _move to keep focus highlight in sync with up/down keys
+            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+                if (!this.menu.element.is(":visible")) {
+                    this.search(null, event);
+                    return;
+                }
+                if ((this.menu.isFirstItem() && /^previous/.test(direction)) ||
+                    (this.menu.isLastItem() && /^next/.test(direction))) {
+                    this._value(this.term);
+                    this.menu.blur();
+                    return;
+                }
+                this.menu[direction](event);
+                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                this.menu.active.addClass("ui-state-focus");
             };
         }
-        // Re-init autocomplete when location changes
-        $('#locationSelect').on('change', () => {
-            $("#productSearchInput").val('');
-            // Only destroy if autocomplete is initialized
-            if ($("#productSearchInput").data('ui-autocomplete')) {
-                $("#productSearchInput").autocomplete('destroy');
-            }
-            initAutocomplete();
-        });
 
+        function displayProducts(products) {
+            posProduct.innerHTML = ''; // Clear previous products
+
+            // Filter products to show:
+            // 1. Products with stock_alert === 0 (unlimited stock, even if total_stock is 0)
+            // 2. Products with total_stock > 0 (available stock)
+            // Only show products that have batches with quantity > 0 (or unlimited stock) for the selected location
+            const filteredProducts = products.filter(stock =>
+                selectedLocationId ?
+                stock.batches.some(batch =>
+                    batch.location_batches.some(lb =>
+                        lb.location_id == selectedLocationId && (lb.quantity > 0 || stock.product
+                            .stock_alert === 0)
+                    )
+                ) :
+                false // If no location selected, show nothing
+            );
+
+            // For each product, adjust totalQuantity to show only the quantity for the selected location
+            filteredProducts.forEach(stock => {
+                if (selectedLocationId) {
+                    // Sum all batches' quantities for this location
+                    let locationQty = 0;
+                    stock.batches.forEach(batch => {
+                        batch.location_batches.forEach(lb => {
+                            if (lb.location_id == selectedLocationId) {
+                                locationQty += lb.quantity;
+                            }
+                        });
+                    });
+                    // If stock_alert is 0 (unlimited), keep as is
+                    if (stock.product.stock_alert === 0) {
+                        stock.total_stock = 0;
+                    } else {
+                        stock.total_stock = locationQty;
+                    }
+                }
+            });
+
+            if (filteredProducts.length === 0) {
+                posProduct.innerHTML = '<p class="text-center">No products found.</p>';
+                return;
+            }
+
+            filteredProducts.forEach(stock => {
+                const product = stock.product;
+                const totalQuantity = stock.total_stock;
+                const price = product.retail_price;
+                const batchNo = stock.batches.length > 0 ? stock.batches[0].batch_no : 'N/A';
+
+                // Check if stock_alert is 0, if so, set totalQuantity to "Unlimited"
+                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
+                    `${totalQuantity} Pc(s) in stock`;
+
+                const cardHTML = `
+                    <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
+                        <div class="product-card"> 
+                            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                            <div class="product-card-body">
+                                <h6>${product.product_name} <br>
+                                    <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                                </h6>
+                                <h6>
+                                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : totalQuantity > 0 ? 'bg-success' : 'bg-warning'}">
+                                        ${quantityDisplay}
+                                    </span>
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                     `;
+                posProduct.insertAdjacentHTML('beforeend', cardHTML);
+            });
+
+            // Add click event to product cards
+            const productCards = document.querySelectorAll('.product-card');
+            productCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const productName = card.querySelector('img').getAttribute('alt');
+                    const selectedProduct = stockData.find(stock =>
+                        stock.product.product_name === productName
+                    ).product;
+                    addProductToTable(selectedProduct);
+                });
+            });
+        }
 
         function formatAmountWithSeparators(amount) {
             return new Intl.NumberFormat().format(amount);
@@ -780,7 +860,7 @@
             });
 
             updateTotals();
-            fetchPaginatedProducts(true);
+            fetchAllProducts();
         }
 
         function addNewImeiRow(count, tbody, imeiRows) {
@@ -915,7 +995,7 @@
                         if (data.status === 200) {
                             row.remove();
                             toastr.success("IMEI deleted successfully!");
-                            fetchPaginatedProducts(true);
+                            fetchAllProducts();
                         } else {
                             toastr.error(data.message || "Failed to delete IMEI");
                         }
@@ -2070,7 +2150,7 @@
 
                             // Reset the form and refresh products
                             resetForm();
-                            fetchPaginatedProducts(true);
+                            fetchAllProducts();
                             fetchSalesData();
 
                             if (onComplete) onComplete();
