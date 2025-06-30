@@ -1,31 +1,63 @@
     <script>
         $(document).ready(function() {
             let productToRemove;
-            let productList = []; // Global variable to store all products
 
-            // Load all products once at start
-            loadAllProducts();
-
-            function loadAllProducts() {
-                $.ajax({
-                    url: "/products/stocks",
-                    method: 'GET',
-                    success: function(data) {
-                        productList = data.data.map(product => ({
-                            label: product.product.product_name,
-                            value: product.product.id,
-                            sku: product.product.sku,
-                            retail_price: product.product.retail_price,
-                            total_stock: product.total_stock,
-                        }));
-
-                        initProductAutocomplete();
+            // Use backend autocomplete for product search (supports large datasets)
+            function initProductAutocomplete() {
+                $("#productSearch").autocomplete({
+                    source: function(request, response) {
+                        // Optionally, you can get locationId if you want to filter by location
+                        let locationId = $("#locationId").val();
+                        $.ajax({
+                            url: "/products/stocks/autocomplete",
+                            method: "GET",
+                            data: {
+                                search: request.term,
+                                location_id: locationId, // Uncomment if you want to filter by location
+                                per_page: 15
+                            },
+                            success: function(data) {
+                                if (data.status === 200 && Array.isArray(data.data)) {
+                                    // Map backend response to autocomplete format
+                                    const results = data.data.map(item => ({
+                                        label: item.product.product_name,
+                                        value: item.product.id,
+                                        sku: item.product.sku,
+                                        retail_price: item.product.retail_price,
+                                        total_stock: item.total_stock ?? 0,
+                                    }));
+                                    response(results);
+                                } else {
+                                    response([]);
+                                }
+                            },
+                            error: function() {
+                                response([]);
+                            }
+                        });
                     },
-                    error: function(error) {
-                        console.error('Error fetching products:', error);
+                    minLength: 1,
+                    select: function(event, ui) {
+                        disableInvoiceSearch();
+                        addProductToTable(ui.item);
+                        return false; // Prevent default behavior
                     }
                 });
+
+                // Safely override _renderItem only if instance exists
+                const instance = $("#productSearch").autocomplete("instance");
+                if (instance) {
+                    instance._renderItem = function(ul, item) {
+                        return $("<li>")
+                            .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
+                            .appendTo(ul);
+                    };
+                }
             }
+
+            // Initialize autocomplete on document ready
+            initProductAutocomplete();
+
 
 
             // Fetch and populate locations
@@ -46,6 +78,18 @@
                     }
                 });
             }
+
+
+            $("#locationId").on('change', function() {
+                $("#productsTableBody").empty();
+                // Optionally, reset invoice/product search fields if needed
+                $("#invoiceNo").val('');
+                $("#productSearch").val('');
+                enableProductSearch();
+                enableInvoiceSearch();
+                calculateReturnTotal(); // Recalculate totals if needed
+            });
+
 
             // Fetch and populate customers
             fetchCustomers();
@@ -273,37 +317,6 @@
             }
 
 
-            function initProductAutocomplete() {
-                // Initialize autocomplete if not already initialized
-                if (!$("#productSearch").hasClass("ui-autocomplete-input")) {
-                    $("#productSearch").autocomplete({
-                        source: function(request, response) {
-                            const term = request.term.toLowerCase();
-                            const filtered = productList.filter(p =>
-                                p.label.toLowerCase().includes(term) ||
-                                p.sku.toLowerCase().includes(term)
-                            );
-                            response(filtered);
-                        },
-                        minLength: 1,
-                        select: function(event, ui) {
-                            disableInvoiceSearch();
-                            addProductToTable(ui.item);
-                            return false; // Prevent default behavior
-                        }
-                    });
-                }
-
-                // Safely override _renderItem only if instance exists
-                const instance = $("#productSearch").autocomplete("instance");
-                if (instance) {
-                    instance._renderItem = function(ul, item) {
-                        return $("<li>")
-                            .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
-                            .appendTo(ul);
-                    };
-                }
-            }
 
             function addProductToTable(product) {
                 const newRow = `
@@ -311,7 +324,7 @@
                     <td></td>
                     <td>${product.label} <br> ${product.sku}</td>
                     <td>Rs. ${product.retail_price.toFixed(2)}</td>
-                    <td>${product.total_stock} Pcs</td>
+                    <td>${product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0} Pcs</td>
                     <td>
                         <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" max="${product.total_stock}" data-unit-price="${product.retail_price}" data-product-id="${product.value}" required>
                         <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
