@@ -82,14 +82,19 @@
 
   // Function to reset form and validation errors
         function resetFormAndValidation() {
-            // Reset the form fields
-            $('#addAndLocationUpdateForm')[0].reset();
+            // Reset the form fields only if the form exists
+            var form = $('#addAndLocationUpdateForm')[0];
+            if (form) {
+                form.reset();
+            }
             // Reset the validation messages and states
-            $('#addAndLocationUpdateForm').validate().resetForm();
-            $('#addAndLocationUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndLocationUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
-             // Clear the district dropdown
-           $('#edit_district').html('<option selected disabled>Select District</option>');
+            if ($('#addAndLocationUpdateForm').length) {
+                $('#addAndLocationUpdateForm').validate().resetForm();
+                $('#addAndLocationUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
+                $('#addAndLocationUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            }
+            // Clear the district dropdown
+            $('#edit_district').html('<option selected disabled>Select District</option>');
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -143,7 +148,9 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Location');
             $('#modalButton').text('Update');
-            $('#addAndLocationUpdateForm')[0].reset();
+            if ($('#addAndLocationUpdateForm').length) {
+                $('#addAndLocationUpdateForm')[0].reset();
+            }
             $('.text-danger').text('');
             $('#edit_id').val(id);
 

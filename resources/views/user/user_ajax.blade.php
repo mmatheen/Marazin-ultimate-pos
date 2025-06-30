@@ -103,7 +103,9 @@
         // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndUserUpdateForm')[0].reset();
+            if ($('#addAndUserUpdateForm').length > 0 && $('#addAndUserUpdateForm')[0]) {
+                $('#addAndUserUpdateForm')[0].reset();
+            }
             // Reset the validation messages and states
             $('#addAndUserUpdateForm').validate().resetForm();
             $('#addAndUserUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');

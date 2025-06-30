@@ -121,32 +121,64 @@ class Sale extends Model
 
         return $availableStock + $soldQuantity;
     }
+    // public static function generateInvoiceNo($locationId)
+    // {
+    //     return DB::transaction(function () use ($locationId) {
+    //         $location = Location::findOrFail($locationId);
+
+    //         $prefix = $location->invoice_prefix;
+
+    //         // Lock the sales table for this location
+    //         $lastSale = self::where('location_id', $locationId)
+    //             ->lockForUpdate()
+    //             ->orderByDesc('id')
+    //             ->first();
+
+    //         $nextNumber = 1;
+
+    //         if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
+    //             $nextNumber = (int)$matches[1] + 1;
+    //         }
+
+    //         $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+    //         // Ensure the invoice number is unique
+    //         while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
+    //             $nextNumber++;
+    //             $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+    //         }
+
+    //         return $invoiceNo;
+    //     });
+    // }
+
     public static function generateInvoiceNo($locationId)
     {
         return DB::transaction(function () use ($locationId) {
-            $location = Location::findOrFail($locationId);
+            // Fetch or create the counter for this location
+            $counter = \App\Models\InvoiceCounter::firstOrCreate(
+                ['location_id' => $locationId],
+                ['next_invoice_number' => 1]
+            );
 
+            // Get prefix from Location and adjust for "Arf fashion" to "AFS"
+            $location = \App\Models\Location::findOrFail($locationId);
             $prefix = $location->invoice_prefix;
 
-            // Lock the sales table for this location
-            $lastSale = self::where('location_id', $locationId)
-                ->lockForUpdate()
-                ->orderByDesc('id')
-                ->first();
-
-            $nextNumber = 1;
-
-            if ($lastSale && preg_match("/{$prefix}-(\d+)/", $lastSale->invoice_no, $matches)) {
-                $nextNumber = (int)$matches[1] + 1;
+            // If the prefix is "AFX", change it to "AFS"
+            if (strtoupper($prefix) === 'AFX') {
+                $prefix = 'AFS';
             }
 
-            $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            // Use current value first
+            $invoiceNo = "{$prefix}-" . str_pad($counter->next_invoice_number, 3, '0', STR_PAD_LEFT);
 
-            // Ensure the invoice number is unique
-            while (self::where('location_id', $locationId)->where('invoice_no', $invoiceNo)->exists()) {
-                $nextNumber++;
-                $invoiceNo = "{$prefix}-" . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
-            }
+            // Now increment it only after generating the number
+            DB::table('invoice_counters')
+                ->where('location_id', $locationId)
+                ->increment('next_invoice_number');
+
+            $counter->refresh(); // Optional: refresh if needed later
 
             return $invoiceNo;
         });

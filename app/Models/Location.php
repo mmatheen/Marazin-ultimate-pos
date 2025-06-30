@@ -20,7 +20,7 @@ class Location extends Model
         'email',
         'mobile',
         'telephone_no',
-         'invoice_prefix',
+        'invoice_prefix',
     ];
 
     public function purchaseProducts()
@@ -44,25 +44,38 @@ class Location extends Model
     }
 
     public function getInvoicePrefixAttribute()
-{
-    // Split the location name into words
-    $words = explode(' ', $this->name);
+    {
+        $name = trim($this->name); // Trim extra whitespace
 
-    // Initialize the prefix
-    $prefix = '';
+        if (empty($name)) {
+            return 'LOC'; // Default if name is empty
+        }
 
-    // Handle single-word names (e.g., "Sammanthurai")
-    if (count($words) === 1) {
-        $prefix = strtoupper(substr($words[0], 0, 3)); // Take first 3 letters
-    } else {
-        // Handle multi-word names (e.g., "ARB FASHION")
-        foreach ($words as $word) {
-            if (strlen($prefix) < 3 && !empty($word)) {
-                $prefix .= strtoupper(substr($word, 0, 1)); // Take first letter of each word
+        $words = preg_split('/\s+/', $name); // Split on any whitespace
+        $prefix = '';
+
+        if (count($words) === 1) {
+            // Single word: take first 3 letters, pad with "0" and "C" if needed
+            $word = strtoupper($words[0]);
+            $prefix = substr($word, 0, 3);
+            while (strlen($prefix) < 3) {
+                $prefix .= '0'; // Pad with 0 if needed
+            }
+        } else {
+            // Multiple words: take first letter of each word until we reach 3 chars
+            foreach ($words as $word) {
+                if (strlen($prefix) >= 3) break;
+                if (!empty($word)) {
+                    $prefix .= strtoupper(substr($word, 0, 1));
+                }
+            }
+
+            // If still not enough letters, pad with "X"
+            while (strlen($prefix) < 3) {
+                $prefix .= 'X';
             }
         }
-    }
 
-    return $prefix ?: 'LOC'; 
-}
+        return $prefix;
+    }
 }

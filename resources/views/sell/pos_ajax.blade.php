@@ -8,6 +8,7 @@
         let isLoadingProducts = false;
         let allProducts = []; // paginated products for card display
         let stockData = []; // not used for cards/autocomplete in new version
+        let isEditing = false;
 
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
@@ -210,6 +211,10 @@
             allProducts = [];
             posProduct.innerHTML = '';
             if (selectedLocationId) fetchPaginatedProducts(true);
+            if (!isEditing) {
+                billingBody.innerHTML = '';
+            }
+            updateTotals();
         }
 
         function fetchPaginatedProducts(reset = false) {
@@ -340,8 +345,7 @@
                 });
             });
         }
-
-        // ---- AUTOCOMPLETE (server driven) ----
+        // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
@@ -355,11 +359,19 @@
                         },
                         success: function(data) {
                             if (data.status === 200 && Array.isArray(data.data)) {
-                                const results = data.data.map(stock => ({
-                                    label: `${stock.product.product_name} (${stock.product.sku}) [Stock: ${stock.product.stock_alert === 0 ? 'Unlimited' : stock.total_stock}]`,
+                                // Only show products with stock > 0 for the selected location, or unlimited stock
+                                const filtered = data.data.filter(stock =>
+                                    stock.product &&
+                                    (
+                                        stock.product.stock_alert == 0 ||
+                                        parseInt(stock.total_stock) > 0
+                                    )
+                                );
+                                const results = filtered.map(stock => ({
+                                    label: `${stock.product.product_name} (${stock.product.sku || ''}) [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
                                     value: stock.product.product_name,
                                     product: stock.product,
-                                    stockData: stock // Pass the full stock data if available
+                                    stockData: stock
                                 }));
                                 if (results.length === 0) results.push({
                                     label: "No results found",
@@ -385,7 +397,8 @@
                     if (!ui.item.product) return false;
                     $("#productSearchInput").val("");
                     // Try to find the stock entry in stockData
-                    let stockEntry = stockData.find(stock => stock.product.id === ui.item.product.id);
+                    let stockEntry = stockData.find(stock => stock.product.id === ui.item.product
+                        .id);
                     if (!stockEntry && ui.item.stockData) {
                         // If not found, but stockData is present from autocomplete, add it
                         stockData.push(ui.item.stockData);
@@ -394,15 +407,19 @@
                     }
                     if (!stockEntry) {
                         // If still not found, fetch the full stock entry from the server
-                        fetch(`/products/stocks?location_id=${selectedLocationId}&product_id=${ui.item.product.id}`)
+                        fetch(
+                                `/products/stocks?location_id=${selectedLocationId}&product_id=${ui.item.product.id}`
+                            )
                             .then(res => res.json())
                             .then(data => {
-                                if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
+                                if (data.status === 200 && Array.isArray(data.data) && data.data
+                                    .length > 0) {
                                     stockData.push(data.data[0]);
                                     allProducts.push(data.data[0]);
                                     addProductToTable(data.data[0].product);
                                 } else {
-                                    toastr.error('Stock entry not found for the product', 'Error');
+                                    toastr.error('Stock entry not found for the product',
+                                        'Error');
                                 }
                             })
                             .catch(() => {
@@ -423,7 +440,6 @@
         // Re-init autocomplete when location changes
         $('#locationSelect').on('change', () => {
             $("#productSearchInput").val('');
-            // Only destroy if autocomplete is initialized
             if ($("#productSearchInput").data('ui-autocomplete')) {
                 $("#productSearchInput").autocomplete('destroy');
             }
@@ -488,46 +504,49 @@
 
         function addProductToTable(product) {
             console.log("Product to be added:", product);
+
             if (!stockData || stockData.length === 0) {
                 console.error('stockData is not defined or empty');
                 toastr.error('Stock data is not available', 'Error');
                 return;
             }
+
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
+
             if (!stockEntry) {
                 toastr.error('Stock entry not found for the product', 'Error');
                 return;
             }
+
             const totalQuantity = stockEntry.total_stock;
+
             // Check if product requires IMEI
             if (product.is_imei_or_serial_no === 1) {
                 const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
                 [];
                 console.log("Available IMEIs:", availableImeis);
-                // if (availableImeis.length === 0) {
-                //     toastr.warning("No available IMEIs for this product.");
-                //     return;
-                // }
-                // Check if this product already exists in billing
+
                 const billingBody = document.getElementById('billing-body');
-                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row => {
-                    return row.querySelector('.product-id').textContent == product.id;
-                });
+                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
+                    row.querySelector('.product-id')?.textContent == product.id
+                );
+
                 if (existingRows.length > 0) {
-                    // Product exists - show modal with current selections
                     showImeiSelectionModal(product, stockEntry, availableImeis);
                     return;
                 }
-                // Product doesn't exist - show modal to select IMEIs
+
                 showImeiSelectionModal(product, stockEntry, availableImeis);
                 return;
             }
+
             // If no IMEI required, proceed normally
             if (totalQuantity === 0 && product.stock_alert !== 0) {
                 toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
                 return;
             }
+
             if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
                 locationId = product.location_id || 1;
                 const price = product.retail_price;
@@ -535,32 +554,139 @@
                 addProductToBillingBody(product, stockEntry, price, "all", qty, 'retail');
                 return;
             }
-            // Find batches for the selected location
-            const locationBatches = stockEntry.batches.flatMap(batch => batch.location_batches)
-                .filter(lb => lb.location_id == selectedLocationId && lb.quantity > 0);
+
+            // Filter batches by selected location and available quantity
+            const locationBatches = stockEntry.batches.flatMap(batch =>
+                batch.location_batches.filter(lb => lb.location_id == selectedLocationId && lb.quantity > 0)
+            );
 
             if (locationBatches.length === 0) {
                 toastr.error('No batches with available quantity found', 'Error');
                 return;
             }
 
-            // Use the selected location's batch
-            const batch = stockEntry.batches.find(b => b.location_batches.some(lb => lb.location_id ==
-                selectedLocationId));
-            const locationBatch = batch?.location_batches.find(lb => lb.location_id == selectedLocationId);
-            const quantity = locationBatch ? locationBatch.quantity : 0;
-
-            locationId = selectedLocationId;
-            addProductToBillingBody(
-                product,
-                stockEntry,
-                product.retail_price,
-                "all",
-                quantity,
-                'retail'
+            // Get all batches of this product in the selected location
+            const batchesInLocation = stockEntry.batches.filter(batch =>
+                batch.location_batches.some(lb => lb.location_id == selectedLocationId)
             );
+
+            console.log("Batches in selected location:", batchesInLocation);
+
+            // Get unique retail prices across batches
+            const retailPrices = [...new Set(batchesInLocation.map(batch => batch.retail_price))];
+
+            // If there's only one price, add directly
+            if (retailPrices.length <= 1) {
+                const batch = batchesInLocation[0];
+                const locationBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                const quantity = locationBatch ? locationBatch.quantity : 0;
+
+                locationId = selectedLocationId;
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    batch.retail_price,
+                    batch.id,
+                    quantity,
+                    'retail'
+                );
+            } else {
+                // Multiple prices found → show modal
+                showBatchPriceSelectionModal(product, stockEntry, batchesInLocation);
+            }
         }
 
+
+        function showBatchPriceSelectionModal(product, stockEntry, batches) {
+            const tbody = document.getElementById('batch-price-list');
+            tbody.innerHTML = '';
+            const modalElement = document.getElementById('batchPriceModal');
+            const modal = new bootstrap.Modal(modalElement);
+
+            // Store rows for keyboard access
+            const batchRows = [];
+
+            batches.forEach((batch, index) => {
+                const locationBatch = batch.location_batches.find(lb => lb.location_id ==
+                    selectedLocationId);
+                if (!locationBatch || locationBatch.quantity <= 0) return;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>[${index + 1}]</strong></td>
+                    <td>${batch.batch_no}</td>
+                    <td>Rs ${parseFloat(batch.retail_price).toFixed(2)}</td>
+                    <td>${locationBatch.quantity} PC(s)</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary select-batch-btn"
+                                data-batch-id="${batch.id}"
+                                data-retail-price="${batch.retail_price}"
+                                data-batch-json='${JSON.stringify(batch)}'>
+                            Select
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                batchRows.push(tr); // Save reference for keyboard navigation
+            });
+
+            tbody.addEventListener('click', function(e) {
+                if (e.target.classList.contains('select-batch-btn')) {
+                    const batchJson = e.target.dataset.batchJson;
+                    const selectedBatch = JSON.parse(batchJson);
+                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ==
+                        selectedLocationId);
+                    const qty = locationBatch?.quantity || 0;
+
+                    addProductToBillingBody(
+                        product,
+                        stockEntry,
+                        selectedBatch.retail_price,
+                        selectedBatch.id,
+                        qty,
+                        'retail',
+                        1,
+                        [],
+                        null,
+                        null,
+                        selectedBatch
+                    );
+
+                    modal.hide();
+                }
+            });
+
+            // --- NEW: Keyboard Navigation Support ---
+            const handleKeyDown = function(event) {
+                const key = event.key;
+
+                // Only allow 1-9 keys
+                if (!/^[1-9]$/.test(key)) return;
+
+                const selectedIndex = parseInt(key, 10) - 1;
+
+                if (batchRows[selectedIndex]) {
+                    const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
+                    if (selectBtn) {
+                        selectBtn.click(); // Simulate click on the corresponding button
+                        modal.hide(); // Hide the modal after selection
+                    }
+                }
+            };
+
+            // Show modal and attach global keyboard listener
+            modal.show();
+
+            // Attach keydown listener
+            modalElement.addEventListener('shown.bs.modal', () => {
+                document.addEventListener('keydown', handleKeyDown);
+            });
+
+            // Remove listener when modal is hidden
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                document.removeEventListener('keydown', handleKeyDown);
+            });
+        }
 
 
         let selectedImeisInBilling = [];
@@ -934,14 +1060,14 @@
                 basePrice * (1 - discountAmount / 100) :
                 basePrice - discountAmount;
 
-            let batchOptions = ''; // Initialize as empty in case no valid batches exist
+            let batchOptions = '';
+            let latestBatch = null;
 
             if (stockEntry && Array.isArray(stockEntry.batches)) {
                 // Only show batches for the selected location
-                batchOptions = stockEntry.batches
+                const locationBatches = stockEntry.batches
                     .filter(batch => batch.location_batches && Array.isArray(batch.location_batches))
                     .flatMap(batch => {
-                        // Filter location_batches by selectedLocationId
                         return batch.location_batches
                             .filter(locationBatch => locationBatch.location_id == selectedLocationId)
                             .map(locationBatch => ({
@@ -950,56 +1076,73 @@
                                 retail_price: parseFloat(batch.retail_price),
                                 wholesale_price: parseFloat(batch.wholesale_price),
                                 special_price: parseFloat(batch.special_price),
-                                batch_quantity: locationBatch.quantity
+                                batch_quantity: locationBatch.quantity,
+                                created_at: batch.created_at || null // If available
                             }));
                     })
-                    .filter(batch => batch.batch_quantity > 0)
-                    .map(batch => `
-                <option value="${batch.batch_id}" 
-                        data-retail-price="${batch.retail_price}" 
-                        data-wholesale-price="${batch.wholesale_price}" 
-                        data-special-price="${batch.special_price}" 
-                        data-quantity="${batch.batch_quantity}">
-                  ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
-                  R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
-                  W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
-                  S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
-                </option>
-            `)
-                    .join('');
+                    .filter(batch => batch.batch_quantity > 0);
+
+                // Find latest batch by created_at or by highest batch_id
+                if (locationBatches.length > 0) {
+                    latestBatch = locationBatches.reduce((latest, current) => {
+                        if (current.created_at && latest.created_at) {
+                            return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
+                        }
+                        // fallback: use batch_id as number
+                        return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current : latest;
+                    }, locationBatches[0]);
+                }
+
+                batchOptions = locationBatches.map(batch => `
+                    <option value="${batch.batch_id}" 
+                            data-retail-price="${batch.retail_price}" 
+                            data-wholesale-price="${batch.wholesale_price}" 
+                            data-special-price="${batch.special_price}" 
+                            data-quantity="${batch.batch_quantity}"
+                            ${latestBatch && batch.batch_id == latestBatch.batch_id ? 'selected' : ''}
+                    >
+                      ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
+                      R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
+                      W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
+                      S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
+                    </option>
+                `).join('');
             } else {
                 console.warn("No valid batches found for the product.");
             }
 
             const totalQuantity = stockEntry?.total_stock ?? 0;
 
+            // If latestBatch exists, use its retail price for the "All" option, else fallback to finalPrice
+            let allOptionRetailPrice = latestBatch ? latestBatch.retail_price : finalPrice;
+
             modalBody.innerHTML = `
-        <div class="d-flex align-items-center">
-            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-            <div>
-                <div class="font-weight-bold">${product.product_name}</div>
-                <div class="text-muted">${product.sku}</div>
-                ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-            </div>
-        </div>
-        <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
-            <label class="btn btn-outline-primary active">
-                <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
-            </label>
-            <label class="btn btn-outline-primary">
-                <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
-            </label>
-            <label class="btn btn-outline-primary">
-                <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
-            </label>
-        </div>
-        <select id="modalBatchDropdown" class="form-select mt-3">
-            <option value="all" data-retail-price="${finalPrice}" data-quantity="${totalQuantity}">
-                All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(finalPrice.toFixed(2))}
-            </option>
-            ${batchOptions}
-        </select>
-    `;
+                <div class="d-flex align-items-center">
+                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                    <div>
+                        <div class="font-weight-bold">${product.product_name}</div>
+                        <div class="text-muted">${product.sku}</div>
+                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                    </div>
+                </div>
+                <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
+                    <label class="btn btn-outline-primary active">
+                        <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+                    </label>
+                    <label class="btn btn-outline-primary">
+                        <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+                    </label>
+                    <label class="btn btn-outline-primary">
+                        <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+                    </label>
+                </div>
+                <select id="modalBatchDropdown" class="form-select mt-3">
+                    <option value="all" data-retail-price="${allOptionRetailPrice}" data-quantity="${totalQuantity}">
+                        All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(allOptionRetailPrice.toFixed(2))}
+                    </option>
+                    ${batchOptions}
+                </select>
+            `;
 
             selectedRow = row;
             const modal = new bootstrap.Modal(document.getElementById('productModal'));
@@ -1033,7 +1176,8 @@
         }
 
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
-            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null) {
+            saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
+
             price = parseFloat(price);
             if (isNaN(price)) {
                 console.error('Invalid price for product:', product.product_name);
@@ -1042,61 +1186,54 @@
             }
 
             const billingBody = document.getElementById('billing-body');
+            locationId = selectedLocationId || 1;
 
-            locationId = selectedLocationId || 1; // Default to 1 if not set
-
-            const activeDiscount = stockEntry.discounts && stockEntry.discounts.length > 0 ?
-                stockEntry.discounts.find(d => d.is_active && !d.is_expired) : null;
-
-            const defaultFixedDiscount = product.max_retail_price - product.retail_price;
-
-
-
+            // Use selectedBatch if provided; fallback to stockEntry batch
+            const batch = selectedBatch || stockEntry.batches.find(b => b.id === parseInt(batchId));
+            const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
 
             let finalPrice = price;
             let discountFixed = 0;
             let discountPercent = 0;
 
-            // Discount logic: manual discount (from parameters) takes precedence, then active discount, then default
+            // Helper: Calculate default discount using selected batch's retail price
+            const defaultFixedDiscount = product.max_retail_price - price;
+
+            // Priority order:
+            // 1. Manual discount
+            // 2. Active discount
+            // 3. Default (MRP - batch retail price)
             if (discountType && discountAmount !== null) {
                 if (discountType === 'fixed') {
                     discountFixed = parseFloat(discountAmount);
-                    discountPercent = 0;
                     finalPrice = product.max_retail_price - discountFixed;
                     if (finalPrice < 0) finalPrice = 0;
                 } else if (discountType === 'percentage') {
-                    discountFixed = 0;
                     discountPercent = parseFloat(discountAmount);
-                    finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
                 }
             } else if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {
                     discountPercent = activeDiscount.amount;
-                    discountFixed = 0;
-                    finalPrice = product.max_retail_price * (1 - (discountPercent / 100));
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
                 } else if (activeDiscount.type === 'fixed') {
                     discountFixed = activeDiscount.amount;
-                    discountPercent = 0;
                     finalPrice = product.max_retail_price - discountFixed;
                     if (finalPrice < 0) finalPrice = 0;
                 }
             } else {
                 discountFixed = defaultFixedDiscount;
                 discountPercent = (discountFixed / product.max_retail_price) * 100;
-                finalPrice = product.retail_price;
+                finalPrice = price; // Use selected batch price
             }
 
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
                 adjustedBatchQuantity = stockEntry.total_stock;
-            } else {
-                const selectedBatch = stockEntry.batches.find(batch => batch.id === parseInt(batchId));
-                if (selectedBatch) {
-                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ===
-                        locationId);
-                    if (locationBatch) {
-                        adjustedBatchQuantity = locationBatch.quantity;
-                    }
+            } else if (batch && batch.location_batches) {
+                const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
+                if (locationBatch) {
+                    adjustedBatchQuantity = locationBatch.quantity;
                 }
             }
 
@@ -1106,7 +1243,6 @@
                     const rowBatchId = row.querySelector('.batch-id').textContent;
                     return rowProductId == product.id && rowBatchId == batchId;
                 });
-
                 if (existingRow) {
                     const quantityInput = existingRow.querySelector('.quantity-input');
                     let currentQty = parseInt(quantityInput.value, 10);
@@ -1123,28 +1259,12 @@
                     const updatedSubtotal = newQuantity * finalPrice;
                     subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
 
-                    const quantityDisplay = existingRow.querySelector('.quantity-display');
-                    if (quantityDisplay) {
-                        quantityDisplay.textContent = `${newQuantity} of ${adjustedBatchQuantity} PC(s)`;
-                    }
-
-                    quantityInput.focus();
-                    quantityInput.select();
                     updateTotals();
                     return;
                 }
             }
 
             const row = document.createElement('tr');
-
-            let imeiDisplay = '';
-            if (imeis.length > 0) {
-                imeiDisplay = `
-            <div class="imei-display">
-                <span class="badge bg-info">IMEI: ${imeis[0]}</span>
-            </div>
-        `;
-            }
 
             row.innerHTML = `
         <td>
@@ -1155,72 +1275,71 @@
                         ${product.product_name} 
                         <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
                         ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
-                       
                     </div>
                     <div class="text-muted me-2 product-sku">${product.sku}
-                        
                         <span class="quantity-display ms-2">${saleQuantity} of ${adjustedBatchQuantity} PC(s)</span>
                     </div>
-                     ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info">IMEI: ${imeis[0]}</span>
-                      <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>`: ''}
-                  
+                    ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info">IMEI: ${imeis[0]}</span>
+                      <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
                 </div>
             </div>
         </td>
         <td>
             <div class="d-flex justify-content-center">
                 <button class="btn btn-danger quantity-minus btn">-</button>
-                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''}>
+                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''}">
                 <button class="btn btn-success quantity-plus btn">+</button>
             </div>
         </td>
-        <td>
-            <input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}">
-        </td>
-        <td>
-            <input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}">
-        </td>
-        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0" ${imeis.length > 0 ? 'readonly' : ''}></td>
-        <td class="subtotal text-center mt-2">${formatAmountWithSeparators((saleQuantity * finalPrice).toFixed(2))}</td>
+        <td><input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}"></td>
+        <td><input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}"></td>
+        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0" readonly></td>
+        <td class="subtotal">${formatAmountWithSeparators((saleQuantity * finalPrice).toFixed(2))}</td>
         <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
-        <td class="d-none imei-data">${imeis.length > 0 ? imeis.join(',') : ''}</td>
+        <td class="d-none imei-data">${imeis.join(',') || ''}</td>
     `;
 
-            const qtyDisplayCell = row.querySelector('.quantity-display');
-            if (imeis.length > 0) {
-                qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} PC(s)`;
-            }
+            // Append the row first to ensure elements are available
+            billingBody.insertBefore(row, billingBody.firstChild);
 
+            // Now query the elements after inserting into DOM
+            const qtyDisplayCell = row.querySelector('.quantity-display');
+            const quantityInput = row.querySelector('.quantity-input');
+            const plusBtn = row.querySelector('.quantity-plus');
+            const minusBtn = row.querySelector('.quantity-minus');
+            const showImeiBtn = row.querySelector('.show-imei-btn');
+
+            // Handle IMEI display and input restrictions
             if (imeis.length > 0) {
-                const quantityInput = row.querySelector('.quantity-input');
-                const plusBtn = row.querySelector('.quantity-plus');
-                const minusBtn = row.querySelector('.quantity-minus');
+                if (qtyDisplayCell) {
+                    qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} PC(s)`;
+                }
                 if (quantityInput) quantityInput.readOnly = true;
                 if (plusBtn) plusBtn.disabled = true;
                 if (minusBtn) minusBtn.disabled = true;
             }
 
-            billingBody.insertBefore(row, billingBody.firstChild);
             attachRowEventListeners(row, product, stockEntry);
 
-            const quantityInput = row.querySelector('.quantity-input');
-            quantityInput.focus();
-            quantityInput.select();
+            // Focus search input on Enter key
+            if (quantityInput) {
+                quantityInput.focus();
+                quantityInput.select();
 
-            quantityInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    const searchInput = document.getElementById('productSearchInput');
-                    if (searchInput) {
-                        searchInput.value = '';
-                        searchInput.focus();
+                quantityInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        const searchInput = document.getElementById('productSearchInput');
+                        if (searchInput) {
+                            searchInput.value = '';
+                            searchInput.focus();
+                        }
                     }
-
-                }
-            });
+                });
+            }
 
             disableConflictingDiscounts(row);
             updateTotals();
@@ -1248,125 +1367,6 @@
         }
 
 
-
-        // function attachRowEventListeners(row, product, stockEntry) {
-        //     const quantityInput = row.querySelector('.quantity-input');
-        //     const priceInput = row.querySelector('.price-input');
-        //     const quantityMinus = row.querySelector('.quantity-minus');
-        //     const quantityPlus = row.querySelector('.quantity-plus');
-        //     const removeBtn = row.querySelector('.remove-btn');
-        //     const productImage = row.querySelector('.product-image');
-        //     const productName = row.querySelector('.product-name');
-        //     const fixedDiscountInput = row.querySelector(".fixed_discount");
-        //     const percentDiscountInput = row.querySelector(".percent_discount");
-
-        //     // Handle discount inputs
-        //     if (fixedDiscountInput) {
-        //         fixedDiscountInput.addEventListener('input', () => {
-        //             handleDiscountToggle(fixedDiscountInput);
-        //             updateTotals();
-        //         });
-        //     }
-        //     if (percentDiscountInput) {
-        //         percentDiscountInput.addEventListener('input', () => {
-        //             handleDiscountToggle(percentDiscountInput);
-        //             updateTotals();
-        //         });
-        //     }
-
-
-
-        //     // Price input change → Recalculate discount
-        //     priceInput.addEventListener('input', () => {
-        //         const mrpElement = row.querySelector('.product-name .badge.bg-info');
-        //         const mrpText = mrpElement ? mrpElement.textContent.trim() : '';
-        //         const mrp = parseFloat(mrpText.replace(/[^0-9.-]/g, '')) || 0;
-        //         let priceValue = parseFloat(priceInput.value);
-        //         if (isNaN(priceValue) || priceValue < 0) {
-        //             toastr.error('Invalid price entered.', 'Error');
-        //             priceValue = 0;
-        //             priceInput.value = '0.00';
-        //         }
-        //         const discountAmount = mrp - priceValue;
-        //         fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
-        //         disableConflictingDiscounts(row); // Ensure conflict check
-        //         updateTotals();
-        //     });
-
-        //     const validateAndUpdateQuantity = (newQuantity) => {
-        //         const priceInput = row.querySelector('.price-input');
-        //         const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
-
-        //         if (newQuantity > maxQuantity && product.stock_alert !== 0) {
-        //             showQuantityLimitError(maxQuantity);
-        //             return false;
-        //         }
-
-        //         quantityInput.value = newQuantity;
-        //         updateTotals();
-        //         return true;
-        //     };
-
-        //     // Minus button
-        //     quantityMinus.addEventListener('click', () => {
-        //         const currentQuantity = parseInt(quantityInput.value, 10);
-        //         if (currentQuantity > 1) {
-        //             validateAndUpdateQuantity(currentQuantity - 1);
-        //         }
-        //     });
-
-        //     // Plus button
-        //     quantityPlus.addEventListener('click', () => {
-        //         const currentQuantity = parseInt(quantityInput.value, 10);
-        //         validateAndUpdateQuantity(currentQuantity + 1);
-        //     });
-
-        //     // Input change
-        //     quantityInput.addEventListener('input', () => {
-        //         let quantityValue = parseInt(quantityInput.value, 10);
-        //         if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
-        //         const maxQuantity = parseInt(row.querySelector('.price-input').getAttribute(
-        //             'data-quantity'), 10);
-        //         quantityValue = Math.min(quantityValue, maxQuantity); // Clamp
-        //         validateAndUpdateQuantity(quantityValue);
-        //     });
-
-        //     // Event listener for the remove button
-        //     removeBtn.addEventListener('click', () => {
-        //         row.remove();
-        //         updateTotals();
-        //     });
-
-        //     // Event listener for product image click
-        //     productImage.addEventListener('click', () => {
-        //         showProductModal(product, stockEntry, row);
-        //     });
-
-        //     // Event listener for product name click
-        //     productName.addEventListener('click', () => {
-        //         showProductModal(product, stockEntry, row);
-        //     });
-
-        //     const showImeiBtn = row.querySelector('.show-imei-btn');
-        //     if (showImeiBtn) {
-        //         showImeiBtn.addEventListener('click', function() {
-        //             const imeiDataCell = row.querySelector('.imei-data');
-        //             const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
-        //                 Boolean) : [];
-        //             if (imeis.length === 0) {
-        //                 toastr.warning("No IMEIs found for this product.");
-        //                 return;
-        //             }
-        //             // Re-populate IMEI modal with current IMEIs
-        //             showImeiSelectionModal(product, stockEntry, imeis.map(imei => ({
-        //                 imei_number: imei
-        //             })));
-        //         });
-        //     }
-
-        //     // Newly added: Disable conflicting discounts when product is added
-        //     disableConflictingDiscounts(row);
-        // }
 
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');

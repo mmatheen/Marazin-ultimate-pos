@@ -1099,10 +1099,8 @@
                         // DataTables global search
                         'search[value]': data.search.value,
                         // DataTables ordering
-                        'order[0][column]': data.order && data.order.length ? data.order[0]
-                            .column : 0,
-                        'order[0][dir]': data.order && data.order.length ? data.order[0].dir :
-                            'asc',
+                        'order[0][column]': data.order && data.order.length ? data.order[0].column : 0,
+                        'order[0][dir]': data.order && data.order.length ? data.order[0].dir : 'asc',
                         // DataTables columns (for ordering)
                         'columns': data.columns,
                         // Custom filters
@@ -1119,17 +1117,14 @@
                         success: function(response) {
                             if (response.status === 200) {
                                 // For dropdowns, only update if it's the first page
-                                if (data.start === 0) populateProductFilter(response
-                                    .data);
+                                if (data.start === 0) populateProductFilter(response.data);
                                 const tableData = response.data.map(function(item) {
                                     let product = item.product;
                                     product.total_stock = item.total_stock;
                                     product.batches = item.batches;
                                     product.locations = item.locations;
-                                    product.imei_numbers = item.imei_numbers ||
-                                        [];
-                                    product.main_category_id = product
-                                        .main_category_id;
+                                    product.imei_numbers = item.imei_numbers || [];
+                                    product.main_category_id = product.main_category_id;
                                     product.brand_id = product.brand_id;
                                     return product;
                                 });
@@ -1254,7 +1249,7 @@
 
             // View product modal
             $('#productTable tbody').off('click', '.view-product').on('click', '.view-product', function(
-                event) {
+            event) {
                 event.preventDefault();
                 var productId = $(this).data('product-id');
                 if (productId) {
@@ -1326,7 +1321,7 @@
             $('#productTable tbody').off('click', 'tr').on('click', 'tr', function(event) {
                 if ($(event.target).closest(
                         '.product-checkbox, input[type="checkbox"],.dropdown,.dropdown-toggle,.dropdown-menu'
-                    ).length > 0) return;
+                        ).length > 0) return;
                 var productId = $(this).find('.product-checkbox').data('product-id');
                 if (productId) {
                     fetchProductDetails(productId);

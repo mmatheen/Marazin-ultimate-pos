@@ -41,7 +41,9 @@
   // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
-            $('#addAndRoleUpdateForm')[0].reset();
+            if ($('#addAndRoleUpdateForm').length) {
+                $('#addAndRoleUpdateForm')[0].reset();
+            }
             // Reset the validation messages and states
             $('#addAndRoleUpdateForm').validate().resetForm();
             $('#addAndRoleUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
@@ -99,7 +101,9 @@
             var id = $(this).val();
             $('#modalTitle').text('Edit Role');
             $('#modalButton').text('Update');
-            $('#addAndRoleUpdateForm')[0].reset();
+            if ($('#addAndRoleUpdateForm').length) {
+                $('#addAndRoleUpdateForm')[0].reset();
+            }
             $('.text-danger').text('');
             $('#edit_id').val(id);
 

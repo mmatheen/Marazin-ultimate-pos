@@ -397,7 +397,7 @@
 
 
 
-    @include('product.product_ajax')
+@include('product.product_ajax')
 @include('brand.brand_modal')
 @include('brand.brand_ajax')
 @include('unit.unit_modal')

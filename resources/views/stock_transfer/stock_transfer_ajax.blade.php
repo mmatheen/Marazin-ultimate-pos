@@ -3,44 +3,105 @@
         let productIndex = 1;
         let locationFilteredProducts = [];
 
-        // Initialize autocomplete with custom source to match name or SKU
+        // Initialize autocomplete to search by product name OR SKU, and only show products available in the selected "From" location
         $('#productSearch').autocomplete({
             minLength: 1,
             source: function(request, response) {
-                const term = $.ui.autocomplete.escapeRegex(request.term);
-                const matcher = new RegExp(term, "i");
-                // Only one suggestion per product, but matches on name or SKU
-                const matches = locationFilteredProducts.filter(data =>
-                    matcher.test(data.product.product_name) ||
-                    matcher.test(data.product.sku)
-                );
-                // Display as "Product Name (SKU)" for clarity
-                response(matches.map(data => ({
-                    label: data.product.product_name + (data.product.sku ? " (" +
-                        data.product.sku + ")" : ""),
-                    value: data.product.product_name
-                })));
-            },
-            select: function(event, ui) {
-                // Find the product by name or SKU
-                const selectedProduct = locationFilteredProducts.find(data =>
-                    data.product.product_name === ui.item.value ||
-                    data.product.sku === ui.item.value
-                );
-                if (selectedProduct) {
-                    addProductWithBatches(selectedProduct);
-                    $(this).val('');
+            const fromLocationId = $('#from_location_id').val();
+            if (!fromLocationId) {
+                response([]);
+                return;
+            }
+            $.ajax({
+                url: '/products/stocks/autocomplete',
+                method: 'GET',
+                data: {
+                search: request.term,
+                location_id: fromLocationId, // Only fetch products for selected location
+                per_page: 1000
+                },
+                success: function(res) {
+                if (res.status === 200 && Array.isArray(res.data)) {
+                    // Filter products to only those with stock in the selected location
+                    locationFilteredProducts = res.data.filter(data => {
+                    // Check if any batch in this location has quantity > 0
+                    const batches = Array.isArray(data.batches) ? data.batches : (data.product && Array.isArray(data.product.batches) ? data.product.batches : []);
+                    return batches.some(batch => {
+                        const locationBatches = batch.location_batches || batch.locationBatches || [];
+                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0);
+                    });
+                    });
+                    if (locationFilteredProducts.length === 0) {
+                    response([{
+                        label: "No products found for selected location",
+                        value: ""
+                    }]);
+                    } else {
+                    response(locationFilteredProducts.map(data => ({
+                        label: data.product.product_name + (data.product.sku ? " (" + data.product.sku + ")" : ""),
+                        value: data.product.product_name,
+                        sku: data.product.sku
+                    })));
+                    }
+                } else {
+                    response([{
+                    label: '<span style="color:#888;">No products found for selected location</span>',
+                    value: ''
+                    }]);
                 }
+                },
+                error: function() {
+                response([{
+                    label: '<span style="color:#888;">No products found for selected location</span>',
+                    value: ''
+                }]);
+                }
+            });
+            },
+            focus: function(event, ui) {
+            // Prevent value from being inserted if it's the "no products" message
+            if (ui.item.value === '') {
+                event.preventDefault();
                 return false;
             }
-        });
+            $('#productSearch').val(ui.item.label);
+            return false;
+            },
+            select: function(event, ui) {
+            // Prevent selection if it's the "no products" message
+            if (ui.item.value === '') {
+                event.preventDefault();
+                return false;
+            }
+            // Find the product by name or SKU (case-insensitive)
+            const selectedProduct = locationFilteredProducts.find(data =>
+                (data.product.product_name && data.product.product_name.toLowerCase() === ui.item.value.toLowerCase()) ||
+                (data.product.sku && data.product.sku.toLowerCase() === ui.item.value.toLowerCase())
+            );
+            if (selectedProduct) {
+                addProductWithBatches(selectedProduct);
+                $(this).val('');
+            }
+            return false;
+            }
+        }).autocomplete("instance")._renderItem = function(ul, item) {
+            // Render HTML for "no products" message
+            if (item.value === '') {
+            return $("<li></li>")
+                .append(item.label)
+                .appendTo(ul);
+            }
+            return $("<li></li>")
+            .append($("<div></div>").text(item.label))
+            .appendTo(ul);
+        };
 
         $.ui.autocomplete.prototype._resizeMenu = function() {
             var ul = this.menu.element;
             ul.outerWidth(this.element.outerWidth());
             ul.css({
-                "max-height": "250px",
-                "overflow-y": "auto"
+            "max-height": "250px",
+            "overflow-y": "auto"
             });
         };
 
@@ -52,64 +113,24 @@
         fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
 
         $('#from_location_id').on('change', function() {
-            fetchProductsData();
-
-            // Clear the product search input when the location changes
+            // Clear the product search input and table when the location changes
             $('#productSearch').val('');
             $('.add-table-items').empty();
             addTotalRow();
-
+            // No need to prefetch products, autocomplete will fetch as user types
         });
 
         if (stockTransferId) {
             const checkLocationInterval = setInterval(() => {
-                if ($('#from_location_id').val()) {
-                    clearInterval(checkLocationInterval);
-                    fetchStockTransferData(stockTransferId);
-                    fetchProductsData();
-                }
+            if ($('#from_location_id').val()) {
+                clearInterval(checkLocationInterval);
+                fetchStockTransferData(stockTransferId);
+                // No need to prefetch products, autocomplete will fetch as user types
+            }
             }, 200);
         }
 
-        function fetchProductsData() {
-            const fromLocationId = $('#from_location_id').val();
-            if (!fromLocationId) {
-                console.warn("No 'From Location' selected.");
-                $('#productSearch').autocomplete("option", "source", []);
-                return;
-            }
-
-            $.ajax({
-                url: '/products/stocks',
-                method: 'GET',
-                success: function(response) {
-                    if (response.status === 200) {
-                        const filteredProducts = response.data
-                            .map(productData => {
-                                const validBatches = productData.batches.filter(batch =>
-                                    batch.location_batches.some(locBatch =>
-                                        locBatch.location_id == fromLocationId && locBatch
-                                        .quantity > 0
-                                    )
-                                );
-                                if (validBatches.length > 0) {
-                                    return {
-                                        ...productData,
-                                        batches: validBatches
-                                    };
-                                }
-                                return null;
-                            })
-                            .filter(Boolean);
-                        locationFilteredProducts = filteredProducts;
-                        // No need for setupAutocomplete, the source is dynamic and uses locationFilteredProducts
-                    }
-                },
-                error: function(error) {
-                    console.error('Error fetching products data:', error);
-                }
-            });
-        }
+        // fetchProductsData is no longer needed, autocomplete handles fetching
 
         // Function to fetch stock transfer data
         function fetchStockTransferData(stockTransferId) {
@@ -230,10 +251,10 @@
                 toastr.warning("Please select a 'From' location before adding products.");
                 return;
             }
-
+        
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
-
+        
             if (existingRow.length > 0) {
                 const quantityInput = existingRow.find('.quantity-input');
                 const newQuantity = parseInt(quantityInput.val()) + 1;
@@ -241,20 +262,27 @@
                 existingRow.find('.quantity-input').trigger('change');
                 return;
             }
-
+        
+            // Ensure batches is always an array
+            const batchesArr = Array.isArray(productData.batches)
+                ? productData.batches
+                : (Array.isArray(product.batches) ? product.batches : []);
+        
             // Filter batches to only those in the selected "From" location with quantity > 0
-            const batches = productData.batches.flatMap(batch => {
-                return batch.location_batches
-                    .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
+            const batches = batchesArr.flatMap(batch => {
+                // Support both camelCase and snake_case for location_batches
+                const locationBatches = batch.location_batches || batch.locationBatches || [];
+                return locationBatches
+                    .filter(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0)
                     .map(locationBatch => ({
                         batch_id: batch.id,
                         batch_no: batch.batch_no,
                         batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: locationBatch.quantity,
-                        transfer_quantity: locationBatch.quantity
+                        batch_quantity: locationBatch.quantity ?? locationBatch.qty,
+                        transfer_quantity: locationBatch.quantity ?? locationBatch.qty
                     }));
             });
-
+        
             if (batches.length === 0) {
                 console.warn(`No batches available in selected location for product: ${product.product_name}`);
                 toastr.error(

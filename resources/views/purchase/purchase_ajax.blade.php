@@ -120,118 +120,130 @@
                 }
             });
         }
+       
         let allProducts = []; // Store all product data
 
+        // Use backend autocomplete endpoint for product search
+        function initAutocomplete() {
+            $("#productSearchInput").autocomplete({
+            minLength: 2,
+            source: function(request, response) {
+                const locationId = $('#services').val();
+                $.ajax({
+                url: '/products/stocks/autocomplete',
+                data: {
+                    search: request.term,
+                    location_id: locationId,
+                    per_page: 10
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                    const items = data.data
+                        .filter(item => item.product && item.product.stock_alert !== 0)
+                        .map(item => ({
+                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                        value: item.product.product_name,
+                        product: {
+                            id: item.product.id,
+                            name: item.product.product_name,
+                            sku: item.product.sku || "N/A",
+                            quantity: item.total_stock || 0,
+                            price: item.product.original_price || 0,
+                            wholesale_price: item.product.whole_sale_price || 0,
+                            special_price: item.product.special_price || 0,
+                            max_retail_price: item.product.max_retail_price || 0,
+                            retail_price: item.product.retail_price || 0,
+                            expiry_date: '', // Not available in autocomplete
+                            batch_no: '',    // Not available in autocomplete
+                            stock_alert: item.product.stock_alert || 0
+                        }
+                        }));
+                    if (items.length === 0) {
+                        response([{ label: "No products found", value: "" }]);
+                    } else {
+                        response(items.slice(0, 1)); // Only show one product
+                    }
+                    } else {
+                    response([{ label: "No products found", value: "" }]);
+                    }
+                },
+                error: function() {
+                    response([{ label: "Error fetching products", value: "" }]);
+                }
+                });
+            },
+            select: function(event, ui) {
+                if (!ui.item.product) {
+                return false;
+                }
+                addProductToTable(ui.item.product);
+                $("#productSearchInput").val("");
+                return false;
+            }
+            });
+
+            // Custom render for autocomplete
+            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            if (autocompleteInstance) {
+            autocompleteInstance._renderItem = function(ul, item) {
+                if (!item.product) {
+                return $("<li>")
+                    .append(`<div style="color: red;">${item.label}</div>`)
+                    .appendTo(ul);
+                }
+                return $("<li>")
+                .append(`<div>${item.label}</div>`)
+                .appendTo(ul);
+            };
+            }
+        }
+
+        // Fetch all products for other usages (not autocomplete)
         function fetchProducts(locationId) {
             let url = '/products/stocks';
-
             if (locationId) {
-                url += `?location_id=${locationId}`;
+            url += `?location_id=${locationId}`;
             }
-
             fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        allProducts = data.data.map(stock => {
-                            if (!stock.product) return null;
-
-                            return {
-                                id: stock.product.id,
-                                name: stock.product.product_name,
-                                sku: stock.product.sku || "N/A",
-                                quantity: stock.total_stock || 0,
-                                price: stock.batches?.[0]?.unit_cost || stock.product
-                                    .original_price || 0,
-                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
-                                    .product.whole_sale_price || 0,
-                                special_price: stock.batches?.[0]?.special_price || stock.product
-                                    .special_price || 0,
-                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
-                                    .product.max_retail_price || 0,
-                                retail_price: stock.batches?.[0]?.retail_price || stock.product
-                                    .retail_price || 0,
-                                expiry_date: stock.batches?.[0]?.expiry_date || '',
-                                batch_no: stock.batches?.[0]?.batch_no || '',
-                                stock_alert: stock.product.stock_alert || 0
-                            };
-                        }).filter(product => product !== null);
-
-                        initAutocomplete(allProducts); // Initialize autocomplete with filtered products
-                    } else {
-                        console.error("Failed to fetch product data:", data);
-                    }
-                })
-                .catch(error => console.error("Error fetching products:", error));
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200 && Array.isArray(data.data)) {
+                allProducts = data.data.map(stock => {
+                    if (!stock.product) return null;
+                    return {
+                    id: stock.product.id,
+                    name: stock.product.product_name,
+                    sku: stock.product.sku || "N/A",
+                    quantity: stock.total_stock || 0,
+                    price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
+                    wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
+                    special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
+                    max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
+                    retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
+                    expiry_date: stock.batches?.[0]?.expiry_date || '',
+                    batch_no: stock.batches?.[0]?.batch_no || '',
+                    stock_alert: stock.product.stock_alert || 0
+                    };
+                }).filter(product => product !== null);
+                } else {
+                console.error("Failed to fetch product data:", data);
+                }
+            })
+            .catch(error => console.error("Error fetching products:", error));
         }
 
         $(document).ready(function() {
             fetchLocations(); // Fetch all locations
+            initAutocomplete(); // Initialize backend autocomplete
 
             $('#services').on('change', function() {
-                const selectedLocationId = $(this).val();
-                if (selectedLocationId) {
-                    fetchProducts(
-                    selectedLocationId); // Pass location ID to fetch only relevant products
-                }
+            const selectedLocationId = $(this).val();
+            if (selectedLocationId) {
+                fetchProducts(selectedLocationId);
+            }
             });
         });
-
-        function initAutocomplete(products) {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = products.filter(
-                        product =>
-                        product.name.toLowerCase().includes(searchTerm) ||
-                        product.sku.toLowerCase().includes(searchTerm)
-                    );
-
-                    // Filter out products with stock_alert set to 0
-                    const filteredAndAlertedProducts = filteredProducts.filter(product => product
-                        .stock_alert !== 0);
-
-                    if (filteredAndAlertedProducts.length === 0) {
-                        response([{
-                            label: "No products found",
-                            value: ""
-                        }]);
-                    } else {
-                        // Limit to showing only one product
-                        response(
-                            filteredAndAlertedProducts.slice(0, 1).map(product => ({
-                                label: `${product.name} (${product.sku})`,
-                                value: product.name,
-                                product: product,
-                            }))
-                        );
-                    }
-                },
-                select: function(event, ui) {
-                    if (!ui.item.product) {
-                        return false;
-                    }
-                    addProductToTable(ui.item.product);
-                    $("#productSearchInput").val("");
-                    return false;
-                },
-            });
-
-            // Ensure the autocomplete widget is initialized before setting _renderItem
-            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
-            if (autocompleteInstance) {
-                autocompleteInstance._renderItem = function(ul, item) {
-                    if (!item.product) {
-                        return $("<li>")
-                            .append(`<div style="color: red;">${item.label}</div>`)
-                            .appendTo(ul);
-                    }
-                    return $("<li>")
-                        .append(`<div>${item.label}</div>`)
-                        .appendTo(ul);
-                };
-            }
-        }
 
         function addProductToTable(product, isEditing = false, prices = {}) {
             const table = $("#purchase_product").DataTable();

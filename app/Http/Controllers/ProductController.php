@@ -1202,11 +1202,7 @@ class ProductController extends Controller
                     'locations:id,name',
                     'discounts' => function ($query) use ($now) {
                         $query->where('is_active', true)
-                            ->where('start_date', '<=', $now)
-                            ->where(function ($q) use ($now) {
-                                $q->whereNull('end_date')
-                                    ->orWhere('end_date', '>=', $now);
-                            });
+                            ->where('start_date', '<=', $now);
                     },
                     'batches' => function ($query) {
                         $query->select([
