@@ -1229,7 +1229,6 @@ class ProductController extends Controller
                     $q->where('product_name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%");
-                    // Add more fields if needed
                 });
             }
 
@@ -1417,33 +1416,153 @@ class ProductController extends Controller
         }
     }
 
-
+    // Improved autocompleteStock to return full product stock details like getAllProductStocks
     public function autocompleteStock(Request $request)
     {
         $locationId = $request->input('location_id');
         $search = $request->input('search');
         $perPage = $request->input('per_page', 15);
 
-        $query = Product::with(['batches.locationBatches' => function ($q) use ($locationId) {
-            $q->where('location_id', $locationId);
-        }]);
+        $query = Product::with([
+            'locations:id,name',
+            'discounts' => function ($query) {
+                $query->where('is_active', true);
+            },
+            'batches' => function ($query) {
+                $query->select([
+                    'id',
+                    'batch_no',
+                    'product_id',
+                    'unit_cost',
+                    'wholesale_price',
+                    'special_price',
+                    'retail_price',
+                    'max_retail_price',
+                    'expiry_date'
+                ]);
+            },
+            'batches.locationBatches' => function ($q) use ($locationId) {
+                if ($locationId) {
+                    $q->where('location_id', $locationId);
+                }
+                $q->select(['id', 'batch_id', 'location_id', 'qty'])
+                    ->with('location:id,name');
+            }
+        ]);
+
         if ($search) {
-            $query->where('product_name', 'like', "%{$search}%")
-                ->orWhere('sku', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%");
+            });
         }
 
         $products = $query->take($perPage)->get();
 
-        $results = $products->map(function ($product) use ($locationId) {
-            $totalStock = 0;
-            foreach ($product->batches as $batch) {
-                foreach ($batch->locationBatches as $lb) {
-                    if ($lb->location_id == $locationId) $totalStock += $lb->qty;
-                }
-            }
+        // Get product IDs for IMEI filtering
+        $productIds = $products->pluck('id');
+        $imeis = ImeiNumber::whereIn('product_id', $productIds)
+            ->with(['location:id,name'])
+            ->get()
+            ->groupBy('product_id');
+
+        $results = $products->map(function ($product) use ($locationId, $imeis) {
+            $productBatches = $product->batches;
+
+            // Filter batches with locationBatches
+            $filteredBatches = $productBatches->filter(function ($batch) {
+                return $batch->locationBatches->isNotEmpty();
+            });
+
+            // Calculate total stock (for the location if provided)
+            $totalStock = $filteredBatches->sum(function ($batch) use ($locationId) {
+                return $batch->locationBatches->filter(function ($lb) use ($locationId) {
+                    return !$locationId || $lb->location_id == $locationId;
+                })->sum('qty');
+            });
+
+            // Map active discounts
+            $activeDiscounts = $product->discounts->map(function ($discount) {
+                return [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'description' => $discount->description,
+                    'type' => $discount->type,
+                    'amount' => $discount->amount,
+                    'start_date' => $discount->start_date ? $discount->start_date->format('Y-m-d H:i:s') : null,
+                    'end_date' => $discount->end_date ? $discount->end_date->format('Y-m-d H:i:s') : null,
+                    'is_active' => (bool)$discount->is_active,
+                    'apply_to_all' => (bool)$discount->apply_to_all,
+                    'is_expired' => $discount->end_date && $discount->end_date < now(),
+                ];
+            });
+
+            // Map IMEIs
+            $productImeis = $imeis->get($product->id, collect())->map(function ($imei) use ($productBatches) {
+                $batch = $productBatches->firstWhere('id', $imei->batch_id);
+                return [
+                    'id' => $imei->id,
+                    'imei_number' => $imei->imei_number,
+                    'location_id' => $imei->location_id,
+                    'location_name' => optional($imei->location)->name ?? 'N/A',
+                    'batch_id' => $imei->batch_id,
+                    'batch_no' => optional($batch)->batch_no ?? 'N/A',
+                    'status' => $imei->status ?? 'available'
+                ];
+            });
+
             return [
-                'product' => $product,
+                'product' => [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->sku,
+                    'unit_id' => $product->unit_id,
+                    'brand_id' => $product->brand_id,
+                    'main_category_id' => $product->main_category_id,
+                    'sub_category_id' => $product->sub_category_id,
+                    'stock_alert' => $product->stock_alert,
+                    'alert_quantity' => $product->alert_quantity,
+                    'product_image' => $product->product_image,
+                    'description' => $product->description,
+                    'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
+                    'is_for_selling' => $product->is_for_selling,
+                    'product_type' => $product->product_type,
+                    'pax' => $product->pax,
+                    'original_price' => $product->original_price,
+                    'retail_price' => $product->retail_price,
+                    'whole_sale_price' => $product->whole_sale_price,
+                    'special_price' => $product->special_price,
+                    'max_retail_price' => $product->max_retail_price,
+                ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
+                'batches' => $filteredBatches->map(function ($batch) {
+                    return [
+                        'id' => $batch->id,
+                        'batch_no' => $batch->batch_no,
+                        'unit_cost' => $batch->unit_cost,
+                        'wholesale_price' => $batch->wholesale_price,
+                        'special_price' => $batch->special_price,
+                        'retail_price' => $batch->retail_price,
+                        'max_retail_price' => $batch->max_retail_price,
+                        'expiry_date' => $batch->expiry_date,
+                        'total_batch_quantity' => $batch->locationBatches->sum('qty'),
+                        'location_batches' => $batch->locationBatches->map(function ($lb) {
+                            return [
+                                'batch_id' => $lb->batch_id,
+                                'location_id' => $lb->location_id,
+                                'location_name' => optional($lb->location)->name ?? 'N/A',
+                                'quantity' => $lb->qty
+                            ];
+                        })
+                    ];
+                }),
+                'locations' => $product->locations->map(fn($loc) => [
+                    'location_id' => $loc->id,
+                    'location_name' => $loc->name
+                ]),
+                'has_batches' => $filteredBatches->isNotEmpty(),
+                'discounts' => $activeDiscounts,
+                'imei_numbers' => $productImeis
             ];
         });
 

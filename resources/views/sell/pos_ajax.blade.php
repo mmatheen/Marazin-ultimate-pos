@@ -438,7 +438,7 @@
             };
 
 
-            // Custom _move to keep focus highlight in sync with up/down keys
+             // Custom _move to keep focus highlight in sync with up/down keys
             $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
                 if (!this.menu.element.is(":visible")) {
                     this.search(null, event);
@@ -1104,12 +1104,10 @@
                 if (locationBatches.length > 0) {
                     latestBatch = locationBatches.reduce((latest, current) => {
                         if (current.created_at && latest.created_at) {
-                            return new Date(current.created_at) > new Date(latest.created_at) ?
-                                current : latest;
+                            return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
                         }
                         // fallback: use batch_id as number
-                        return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current :
-                            latest;
+                        return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current : latest;
                     }, locationBatches[0]);
                 }
 
@@ -1209,8 +1207,7 @@
             locationId = selectedLocationId || 1;
 
             // Use selectedBatch if provided; fallback to stockEntry batch
-            const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b
-                .id === parseInt(batchId)) : undefined);
+            const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b.id === parseInt(batchId)) : undefined);
             const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
 
             let finalPrice = price;
