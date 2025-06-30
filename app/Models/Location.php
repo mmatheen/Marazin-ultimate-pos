@@ -45,32 +45,33 @@ class Location extends Model
 
     public function getInvoicePrefixAttribute()
     {
-        $name = trim($this->name); // Trim extra whitespace
+        $name = trim($this->name);
 
-        if (empty($name)) {
-            return 'LOC'; // Default if name is empty
+        // Special case for "ARB Fashion"
+        if (strcasecmp($name, 'ARB Fashion') === 0) {
+            return 'AF';
         }
 
-        $words = preg_split('/\s+/', $name); // Split on any whitespace
+        if (empty($name)) {
+            return 'LOC';
+        }
+
+        $words = preg_split('/\s+/', $name);
         $prefix = '';
 
         if (count($words) === 1) {
-            // Single word: take first 3 letters, pad with "0" and "C" if needed
             $word = strtoupper($words[0]);
             $prefix = substr($word, 0, 3);
             while (strlen($prefix) < 3) {
-                $prefix .= '0'; // Pad with 0 if needed
+                $prefix .= '0';
             }
         } else {
-            // Multiple words: take first letter of each word until we reach 3 chars
             foreach ($words as $word) {
                 if (strlen($prefix) >= 3) break;
                 if (!empty($word)) {
                     $prefix .= strtoupper(substr($word, 0, 1));
                 }
             }
-
-            // If still not enough letters, pad with "X"
             while (strlen($prefix) < 3) {
                 $prefix .= 'X';
             }
