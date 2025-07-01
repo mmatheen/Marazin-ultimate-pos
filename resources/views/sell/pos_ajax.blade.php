@@ -438,7 +438,7 @@
             };
 
 
-             // Custom _move to keep focus highlight in sync with up/down keys
+            // Custom _move to keep focus highlight in sync with up/down keys
             $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
                 if (!this.menu.element.is(":visible")) {
                     this.search(null, event);
@@ -625,11 +625,12 @@
             const batchRows = [];
 
             batches.forEach((batch, index) => {
-            const locationBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
-            if (!locationBatch || locationBatch.quantity <= 0) return;
+                const locationBatch = batch.location_batches.find(lb => lb.location_id ==
+                    selectedLocationId);
+                if (!locationBatch || locationBatch.quantity <= 0) return;
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                 <td><strong>[${index + 1}]</strong></td>
                 <td>${batch.batch_no}</td>
                 <td>Rs ${parseFloat(batch.retail_price).toFixed(2)}</td>
@@ -643,63 +644,64 @@
                 </button>
                 </td>
             `;
-            tbody.appendChild(tr);
-            batchRows.push(tr); // Save reference for keyboard navigation
+                tbody.appendChild(tr);
+                batchRows.push(tr); // Save reference for keyboard navigation
             });
 
             // Prevent double open/close issues
             let isModalOpen = false;
 
             function handleBatchSelect(e) {
-            if (e.target.classList.contains('select-batch-btn')) {
-                const batchJson = e.target.dataset.batchJson;
-                const selectedBatch = JSON.parse(batchJson);
-                const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
-                const qty = locationBatch?.quantity || 0;
+                if (e.target.classList.contains('select-batch-btn')) {
+                    const batchJson = e.target.dataset.batchJson;
+                    const selectedBatch = JSON.parse(batchJson);
+                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ==
+                        selectedLocationId);
+                    const qty = locationBatch?.quantity || 0;
 
-                // Always add only 1 quantity when selecting from modal
-                addProductToBillingBody(
-                product,
-                stockEntry,
-                selectedBatch.retail_price,
-                selectedBatch.id,
-                qty,
-                'retail',
-                1, // Always 1 for modal selection
-                [],
-                null,
-                null,
-                selectedBatch
-                );
+                    // Always add only 1 quantity when selecting from modal
+                    addProductToBillingBody(
+                        product,
+                        stockEntry,
+                        selectedBatch.retail_price,
+                        selectedBatch.id,
+                        qty,
+                        'retail',
+                        1, // Always 1 for modal selection
+                        [],
+                        null,
+                        null,
+                        selectedBatch
+                    );
 
-                if (isModalOpen) {
-                modal.hide();
-                isModalOpen = false;
+                    if (isModalOpen) {
+                        modal.hide();
+                        isModalOpen = false;
+                    }
                 }
-            }
             }
 
             tbody.addEventListener('click', handleBatchSelect);
 
             // --- NEW: Keyboard Navigation Support ---
             const handleKeyDown = function(event) {
-            const key = event.key;
+                const key = event.key;
 
-            // Only allow 1-9 keys
-            if (!/^[1-9]$/.test(key)) return;
+                // Only allow 1-9 keys
+                if (!/^[1-9]$/.test(key)) return;
 
-            const selectedIndex = parseInt(key, 10) - 1;
+                const selectedIndex = parseInt(key, 10) - 1;
 
-            if (batchRows[selectedIndex]) {
-                const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
-                if (selectBtn) {
-                selectBtn.click(); // Simulate click on the corresponding button
-                if (isModalOpen) {
-                    modal.hide();
-                    isModalOpen = false;
+                if (batchRows[selectedIndex]) {
+                    const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
+                    if (selectBtn) {
+                        selectBtn.click(); // Simulate click on the corresponding button
+                        if (isModalOpen) {
+                            modal.hide();
+                            isModalOpen = false;
+                        }
+                    }
                 }
-                }
-            }
             };
 
             // Show modal and attach global keyboard listener
@@ -708,15 +710,19 @@
 
             // Attach keydown listener only when modal is shown
             const shownHandler = () => {
-            document.addEventListener('keydown', handleKeyDown);
+                document.addEventListener('keydown', handleKeyDown);
             };
             const hiddenHandler = () => {
-            document.removeEventListener('keydown', handleKeyDown);
-            isModalOpen = false;
+                document.removeEventListener('keydown', handleKeyDown);
+                isModalOpen = false;
             };
 
-            modalElement.addEventListener('shown.bs.modal', shownHandler, { once: true });
-            modalElement.addEventListener('hidden.bs.modal', hiddenHandler, { once: true });
+            modalElement.addEventListener('shown.bs.modal', shownHandler, {
+                once: true
+            });
+            modalElement.addEventListener('hidden.bs.modal', hiddenHandler, {
+                once: true
+            });
         }
 
 
@@ -1117,10 +1123,12 @@
                 if (locationBatches.length > 0) {
                     latestBatch = locationBatches.reduce((latest, current) => {
                         if (current.created_at && latest.created_at) {
-                            return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
+                            return new Date(current.created_at) > new Date(latest.created_at) ?
+                                current : latest;
                         }
                         // fallback: use batch_id as number
-                        return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current : latest;
+                        return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current :
+                            latest;
                     }, locationBatches[0]);
                 }
 
@@ -1209,18 +1217,27 @@
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
 
+
+
+            const billingBody = document.getElementById('billing-body');
+            locationId = selectedLocationId || 1;
+
+            // Use selectedBatch if provided; fallback to stockEntry batch
+            const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b
+                .id === parseInt(batchId)) : undefined);
+
+            // Use batch retail price if valid, else product retail price, then MRP
+            let batchRetailPrice = batch && parseFloat(batch.retail_price) > 0 ? parseFloat(batch
+                .retail_price) : 0;
+            price = batchRetailPrice || product.retail_price || product.max_retail_price;
             price = parseFloat(price);
+
             if (isNaN(price)) {
                 console.error('Invalid price for product:', product.product_name);
                 toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
                 price = 0;
             }
 
-            const billingBody = document.getElementById('billing-body');
-            locationId = selectedLocationId || 1;
-
-            // Use selectedBatch if provided; fallback to stockEntry batch
-            const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b.id === parseInt(batchId)) : undefined);
             const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
 
             let finalPrice = price;
