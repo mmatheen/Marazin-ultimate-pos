@@ -1316,19 +1316,24 @@
 
             row.innerHTML = `
         <td>
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-start">
                 <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                <div class="product-info">
-                    <div class="font-weight-bold product-name" style="word-wrap: break-word; max-width: 200px;">
-                        ${product.product_name} 
-                        <span class="badge bg-info"> MRP: ${product.max_retail_price}</span>
+                <div class="product-info" style="min-width: 0; flex: 1;">
+                    <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;">
+                        ${product.product_name}
+                        <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
                         ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
                     </div>
-                    <div class="text-muted me-2 product-sku">${product.sku}
-                        <span class="quantity-display ms-2">${saleQuantity} of ${adjustedBatchQuantity} PC(s)</span>
+                    <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
+                        <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
+                            SKU: ${product.sku}
+                        </span>
+                        <span class="quantity-display ms-2" style="font-size: 0.95em;">
+                            ${saleQuantity} of ${adjustedBatchQuantity} PC(s)
+                        </span>
+                        ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI: ${imeis[0]}</span>
+                          <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
                     </div>
-                    ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info">IMEI: ${imeis[0]}</span>
-                      <i class="fas fa-info-circle show-imei-btn" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
                 </div>
             </div>
         </td>
