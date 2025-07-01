@@ -625,85 +625,98 @@
             const batchRows = [];
 
             batches.forEach((batch, index) => {
-                const locationBatch = batch.location_batches.find(lb => lb.location_id ==
-                    selectedLocationId);
-                if (!locationBatch || locationBatch.quantity <= 0) return;
+            const locationBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+            if (!locationBatch || locationBatch.quantity <= 0) return;
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>[${index + 1}]</strong></td>
-                    <td>${batch.batch_no}</td>
-                    <td>Rs ${parseFloat(batch.retail_price).toFixed(2)}</td>
-                    <td>${locationBatch.quantity} PC(s)</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary select-batch-btn"
-                                data-batch-id="${batch.id}"
-                                data-retail-price="${batch.retail_price}"
-                                data-batch-json='${JSON.stringify(batch)}'>
-                            Select
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-                batchRows.push(tr); // Save reference for keyboard navigation
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>[${index + 1}]</strong></td>
+                <td>${batch.batch_no}</td>
+                <td>Rs ${parseFloat(batch.retail_price).toFixed(2)}</td>
+                <td>${locationBatch.quantity} PC(s)</td>
+                <td>
+                <button class="btn btn-sm btn-primary select-batch-btn"
+                    data-batch-id="${batch.id}"
+                    data-retail-price="${batch.retail_price}"
+                    data-batch-json='${JSON.stringify(batch)}'>
+                    Select
+                </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            batchRows.push(tr); // Save reference for keyboard navigation
             });
 
-            tbody.addEventListener('click', function(e) {
-                if (e.target.classList.contains('select-batch-btn')) {
-                    const batchJson = e.target.dataset.batchJson;
-                    const selectedBatch = JSON.parse(batchJson);
-                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ==
-                        selectedLocationId);
-                    const qty = locationBatch?.quantity || 0;
+            // Prevent double open/close issues
+            let isModalOpen = false;
 
-                    addProductToBillingBody(
-                        product,
-                        stockEntry,
-                        selectedBatch.retail_price,
-                        selectedBatch.id,
-                        qty,
-                        'retail',
-                        1,
-                        [],
-                        null,
-                        null,
-                        selectedBatch
-                    );
+            function handleBatchSelect(e) {
+            if (e.target.classList.contains('select-batch-btn')) {
+                const batchJson = e.target.dataset.batchJson;
+                const selectedBatch = JSON.parse(batchJson);
+                const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                const qty = locationBatch?.quantity || 0;
 
-                    modal.hide();
+                // Always add only 1 quantity when selecting from modal
+                addProductToBillingBody(
+                product,
+                stockEntry,
+                selectedBatch.retail_price,
+                selectedBatch.id,
+                qty,
+                'retail',
+                1, // Always 1 for modal selection
+                [],
+                null,
+                null,
+                selectedBatch
+                );
+
+                if (isModalOpen) {
+                modal.hide();
+                isModalOpen = false;
                 }
-            });
+            }
+            }
+
+            tbody.addEventListener('click', handleBatchSelect);
 
             // --- NEW: Keyboard Navigation Support ---
             const handleKeyDown = function(event) {
-                const key = event.key;
+            const key = event.key;
 
-                // Only allow 1-9 keys
-                if (!/^[1-9]$/.test(key)) return;
+            // Only allow 1-9 keys
+            if (!/^[1-9]$/.test(key)) return;
 
-                const selectedIndex = parseInt(key, 10) - 1;
+            const selectedIndex = parseInt(key, 10) - 1;
 
-                if (batchRows[selectedIndex]) {
-                    const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
-                    if (selectBtn) {
-                        selectBtn.click(); // Simulate click on the corresponding button
-                        modal.hide(); // Hide the modal after selection
-                    }
+            if (batchRows[selectedIndex]) {
+                const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
+                if (selectBtn) {
+                selectBtn.click(); // Simulate click on the corresponding button
+                if (isModalOpen) {
+                    modal.hide();
+                    isModalOpen = false;
                 }
+                }
+            }
             };
 
             // Show modal and attach global keyboard listener
             modal.show();
+            isModalOpen = true;
 
-            // Attach keydown listener
-            modalElement.addEventListener('shown.bs.modal', () => {
-                document.addEventListener('keydown', handleKeyDown);
-            });
+            // Attach keydown listener only when modal is shown
+            const shownHandler = () => {
+            document.addEventListener('keydown', handleKeyDown);
+            };
+            const hiddenHandler = () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            isModalOpen = false;
+            };
 
-            // Remove listener when modal is hidden
-            modalElement.addEventListener('hidden.bs.modal', () => {
-                document.removeEventListener('keydown', handleKeyDown);
-            });
+            modalElement.addEventListener('shown.bs.modal', shownHandler, { once: true });
+            modalElement.addEventListener('hidden.bs.modal', hiddenHandler, { once: true });
         }
 
 

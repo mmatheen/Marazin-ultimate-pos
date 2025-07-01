@@ -97,7 +97,7 @@
         // Apply validation to forms
         $('#addForm').validate(addAndUpdateValidationOptions);
 
-        // Helper function to populate a dropdown
+     // Helper function to populate a dropdown
         function fetchData(url, successCallback, errorCallback) {
             $.ajax({
                 url: url,
@@ -718,9 +718,6 @@
                 $('#productTable').DataTable().ajax.reload();
             }
         });
-
-        // Fetch initial dropdown data and product data on page load
-        fetchInitialDropdowns(fetchProductData);
 
         // On page load: fetch categories/brands/locations, then initialize DataTable
         $(document).ready(function() {
