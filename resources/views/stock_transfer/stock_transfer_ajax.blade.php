@@ -84,17 +84,23 @@
             }
             return false;
             }
-        }).autocomplete("instance")._renderItem = function(ul, item) {
-            // Render HTML for "no products" message
-            if (item.value === '') {
-            return $("<li></li>")
-                .append(item.label)
-                .appendTo(ul);
-            }
-            return $("<li></li>")
-            .append($("<div></div>").text(item.label))
-            .appendTo(ul);
-        };
+        });
+
+        // Safely set custom _renderItem if instance exists
+        var autocompleteInstance = $('#productSearch').autocomplete('instance');
+        if (autocompleteInstance) {
+            autocompleteInstance._renderItem = function(ul, item) {
+                // Render HTML for "no products" message
+                if (item.value === '') {
+                    return $("<li></li>")
+                        .append(item.label)
+                        .appendTo(ul);
+                }
+                return $("<li></li>")
+                    .append($("<div></div>").text(item.label))
+                    .appendTo(ul);
+            };
+        }
 
         $.ui.autocomplete.prototype._resizeMenu = function() {
             var ul = this.menu.element;
