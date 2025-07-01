@@ -70,14 +70,14 @@ require __DIR__ . '/auth.php';
 // -------------------- Protected Routes (Auth + Session) --------------------
 Route::middleware(['auth', 'check.session'])->group(function () {
 
-    // -------------------- Dynamic Role Middleware --------------------
-    Route::group(['middleware' => function ($request, $next) {
-        $role = Auth::user()->role_name ?? null;
-        if ($role) {
-            $request->route()->middleware("role:$role");
-        }
-        return $next($request);
-    }], function () {
+        // -------------------- Dynamic Role Middleware --------------------
+        Route::group(['middleware' => function ($request, $next) {
+            $role = Auth::user()->role_name ?? null;
+            if ($role) {
+                $request->route()->middleware("role:$role");
+            }
+            return $next($request);
+        }], function () {
 
         // -------------------- UserController Routes --------------------
         // User Management
