@@ -1020,21 +1020,21 @@
                             {{-- <h6 class="me-3 mb-0">Location: <strong>{{ $location->name ?? 'N/A' }}</strong></h6>
                             --}}
 
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <select id="locationSelect" class="form-control selectBox rounded-start me-2">
-                                        <!-- Options to be dynamically populated -->
-                                        <option value="" selected disabled>Select Location</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 d-flex align-items-center">
-                                    <button class="btn btn-primary text-white border-1 px-2 py-1"
-                                        style="width: auto; height: 30px;" id="currentTimeButton" enabled>
-                                        {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s') }}
-                                    </button>
-                                    <button class="btn btn-info text-white border-1 px-2 py-1 ms-2" id="shortcutButton"
-                                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
-                                        data-bs-content="
+                            <div class="d-flex flex-row align-items-center gap-3 flex-wrap">
+                                <select id="locationSelect" class="form-control selectBox rounded-start" style="max-width: 220px;">
+                                    <option value="" selected disabled>Select Location</option>
+                                </select>
+                                <button class="btn btn-primary text-white border-1 px-3 py-1" style="width: 130px; font-size: 1.15rem;" id="currentDateButton">
+                                    {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
+                                </button>
+                                <span id="currentTimeText" style="color: #1e90ff; font-weight: 600; font-size: 1.08rem;">
+                                    {{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}
+                                </span>
+                                <button class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
+                                    id="shortcutButton"
+                                    style="width: 40px; height: 40px;"
+                                    data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
+                                    data-bs-content="
                                     <div class='row'>
                                         <div class='col-6'><strong>Operation</strong></div>
                                         <div class='col-6'><strong>Keyboard Shortcut</strong></div>
@@ -1053,24 +1053,36 @@
                                         <div class='col-6'>Choose Customer</div>
                                         <div class='col-6'>F9</div>
                                     </div>">
-                                        <i class="fas fa-keyboard"></i>
-                                    </button>
-
-                                </div>
+                                    <i class="fas fa-keyboard fa-lg"></i>
+                                </button>
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        function updateDateTime() {
+                                            const now = new Date();
+                                            const dateStr = now.getFullYear() + '-' +
+                                                ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
+                                                ('0' + now.getDate()).slice(-2);
+                                            const timeStr = ('0' + now.getHours()).slice(-2) + ':' +
+                                                ('0' + now.getMinutes()).slice(-2) + ':' +
+                                                ('0' + now.getSeconds()).slice(-2);
+                                            document.getElementById('currentDateButton').innerText = dateStr;
+                                            document.getElementById('currentTimeText').innerText = timeStr;
+                                        }
+                                        setInterval(updateDateTime, 1000);
+                                        updateDateTime();
+                                    });
+                                </script>
                             </div>
 
                             <script>
                                 document.addEventListener('DOMContentLoaded', function() {
-                                    const currentTimeButton = document.getElementById('currentTimeButton');
+                                    const currentDateButton = document.getElementById('currentDateButton');
                                     setInterval(() => {
                                         const now = new Date();
-                                        const formattedTime = now.getFullYear() + '-' +
+                                        const formattedDate = now.getFullYear() + '-' +
                                             ('0' + (now.getMonth() + 1)).slice(-2) + '-' +
-                                            ('0' + now.getDate()).slice(-2) + ' ' +
-                                            ('0' + now.getHours()).slice(-2) + ':' +
-                                            ('0' + now.getMinutes()).slice(-2) + ':' +
-                                            ('0' + now.getSeconds()).slice(-2);
-                                        currentTimeButton.textContent = formattedTime;
+                                            ('0' + now.getDate()).slice(-2);
+                                        currentDateButton.innerText = formattedDate;
                                     }, 1000);
                                     const popoverTriggerList = [].slice.call(document.querySelectorAll(
                                         '[data-bs-toggle="popover"]'))

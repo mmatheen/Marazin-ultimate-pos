@@ -301,7 +301,14 @@
                 Array.isArray(stock.batches) && stock.batches.some(batch =>
                     Array.isArray(batch.location_batches) && batch.location_batches.some(lb =>
                         lb.location_id == selectedLocationId &&
-                        (lb.quantity > 0 || stock.product.stock_alert === 0)
+                        (
+                            // If allow_decimal, check for > 0 as float (including decimals)
+                            (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
+                                ? parseFloat(lb.quantity) > 0
+                                : parseInt(lb.quantity) > 0
+                            )
+                            || stock.product.stock_alert === 0
+                        )
                     )
                 )
             );
@@ -315,8 +322,11 @@
                     });
                 });
                 stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
-                const quantityDisplay = product.stock_alert === 0 ? 'Unlimited' :
-                    `${stock.total_stock} Pc(s) in stock`;
+                // Show unit name (e.g., "Pc(s)", "kg", etc.) based on product.unit
+                const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
+                const quantityDisplay = product.stock_alert === 0 ?
+                    `Unlimited` :
+                    `${stock.total_stock} ${unitName} in stock`;
                 const cardHTML = `
             <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
                 <div class="product-card" data-id="${product.id}">
@@ -359,12 +369,16 @@
                         },
                         success: function(data) {
                             if (data.status === 200 && Array.isArray(data.data)) {
-                                // Only show products with stock > 0 for the selected location, or unlimited stock
+                                // Only show products with stock > 0 (including decimals if allow_decimal) for the selected location, or unlimited stock
                                 const filtered = data.data.filter(stock =>
                                     stock.product &&
                                     (
                                         stock.product.stock_alert == 0 ||
-                                        parseInt(stock.total_stock) > 0
+                                        (
+                                            stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
+                                                ? parseFloat(stock.total_stock) > 0
+                                                : parseInt(stock.total_stock) > 0
+                                        )
                                     )
                                 );
                                 const results = filtered.map(stock => ({
@@ -1099,10 +1113,11 @@
 
             let batchOptions = '';
             let latestBatch = null;
+            let locationBatches = [];
 
             if (stockEntry && Array.isArray(stockEntry.batches)) {
                 // Only show batches for the selected location
-                const locationBatches = stockEntry.batches
+                locationBatches = stockEntry.batches
                     .filter(batch => batch.location_batches && Array.isArray(batch.location_batches))
                     .flatMap(batch => {
                         return batch.location_batches
@@ -1132,56 +1147,99 @@
                     }, locationBatches[0]);
                 }
 
-                batchOptions = locationBatches.map(batch => `
-                    <option value="${batch.batch_id}" 
-                            data-retail-price="${batch.retail_price}" 
-                            data-wholesale-price="${batch.wholesale_price}" 
-                            data-special-price="${batch.special_price}" 
-                            data-quantity="${batch.batch_quantity}"
-                            ${latestBatch && batch.batch_id == latestBatch.batch_id ? 'selected' : ''}
-                    >
-                      ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
-                      R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
-                      W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
-                      S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
-                    </option>
-                `).join('');
-            } else {
-                console.warn("No valid batches found for the product.");
-            }
+                // If there are multiple batches with different retail prices, do not show "All" option
+                const uniqueRetailPrices = [...new Set(locationBatches.map(b => b.retail_price))];
+                let showAllOption = uniqueRetailPrices.length <= 1;
 
-            const totalQuantity = stockEntry?.total_stock ?? 0;
+                batchOptions = locationBatches.map((batch, idx) => `
+                <option value="${batch.batch_id}" 
+                data-retail-price="${batch.retail_price}" 
+                data-wholesale-price="${batch.wholesale_price}" 
+                data-special-price="${batch.special_price}" 
+                data-quantity="${batch.batch_quantity}"
+                ${(!showAllOption && idx === 0 ? 'selected' : '')}
+                >
+                  ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
+                  R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
+                  W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
+                  S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
+                </option>
+            `).join('');
 
-            // If latestBatch exists, use its retail price for the "All" option, else fallback to finalPrice
-            let allOptionRetailPrice = latestBatch ? latestBatch.retail_price : finalPrice;
+                // Calculate total quantity for all batches in the selected location
+                let totalQuantity = 0;
+                if (stockEntry && Array.isArray(stockEntry.batches)) {
+                    totalQuantity = stockEntry.batches.reduce((sum, batch) => {
+                        if (Array.isArray(batch.location_batches)) {
+                            return sum + batch.location_batches
+                                .filter(lb => lb.location_id == selectedLocationId)
+                                .reduce((s, lb) => s + (parseFloat(lb.quantity) || 0), 0);
+                        }
+                        return sum;
+                    }, 0);
+                }
 
-            modalBody.innerHTML = `
+                // If only one price, show "All" option and select it by default
+                if (showAllOption) {
+                    let allOptionRetailPrice = latestBatch ? latestBatch.retail_price : finalPrice;
+                    modalBody.innerHTML = `
                 <div class="d-flex align-items-center">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-                    <div>
-                        <div class="font-weight-bold">${product.product_name}</div>
-                        <div class="text-muted">${product.sku}</div>
-                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-                    </div>
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                <div>
+                <div class="font-weight-bold">${product.product_name}</div>
+                <div class="text-muted">${product.sku}</div>
+                ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                </div>
                 </div>
                 <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
-                    <label class="btn btn-outline-primary active">
-                        <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
-                    </label>
-                    <label class="btn btn-outline-primary">
-                        <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
-                    </label>
-                    <label class="btn btn-outline-primary">
-                        <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
-                    </label>
+                <label class="btn btn-outline-primary active">
+                <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+                </label>
+                <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+                </label>
+                <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+                </label>
                 </div>
                 <select id="modalBatchDropdown" class="form-select mt-3">
-                    <option value="all" data-retail-price="${allOptionRetailPrice}" data-quantity="${totalQuantity}">
-                        All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(allOptionRetailPrice.toFixed(2))}
-                    </option>
-                    ${batchOptions}
+                <option value="all" data-retail-price="${allOptionRetailPrice}" data-quantity="${totalQuantity}" selected>
+                All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(allOptionRetailPrice.toFixed(2))}
+                </option>
+                ${batchOptions}
                 </select>
-            `;
+                `;
+                } else {
+                    // Multiple prices: do not show "All", select first batch by default
+                    modalBody.innerHTML = `
+                <div class="d-flex align-items-center">
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                <div>
+                <div class="font-weight-bold">${product.product_name}</div>
+                <div class="text-muted">${product.sku}</div>
+                ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                </div>
+                </div>
+                <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
+                <label class="btn btn-outline-primary active">
+                <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+                </label>
+                <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+                </label>
+                <label class="btn btn-outline-primary">
+                <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+                </label>
+                </div>
+                <select id="modalBatchDropdown" class="form-select mt-3">
+                ${batchOptions}
+                </select>
+                `;
+                }
+            } else {
+                // No valid batches
+                modalBody.innerHTML = `<div>No valid batches found for the product.</div>`;
+            }
 
             selectedRow = row;
             const modal = new bootstrap.Modal(document.getElementById('productModal'));
@@ -1217,25 +1275,23 @@
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
 
-
-
             const billingBody = document.getElementById('billing-body');
             locationId = selectedLocationId || 1;
 
             // Use selectedBatch if provided; fallback to stockEntry batch
             const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b
-                .id === parseInt(batchId)) : undefined);
+            .id === parseInt(batchId)) : undefined);
 
             // Use batch retail price if valid, else product retail price, then MRP
             let batchRetailPrice = batch && parseFloat(batch.retail_price) > 0 ? parseFloat(batch
-                .retail_price) : 0;
+            .retail_price) : 0;
             price = batchRetailPrice || product.retail_price || product.max_retail_price;
             price = parseFloat(price);
 
             if (isNaN(price)) {
-                console.error('Invalid price for product:', product.product_name);
-                toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
-                price = 0;
+            console.error('Invalid price for product:', product.product_name);
+            toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+            price = 0;
             }
 
             const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
@@ -1252,64 +1308,99 @@
             // 2. Active discount
             // 3. Default (MRP - batch retail price)
             if (discountType && discountAmount !== null) {
-                if (discountType === 'fixed') {
-                    discountFixed = parseFloat(discountAmount);
-                    finalPrice = product.max_retail_price - discountFixed;
-                    if (finalPrice < 0) finalPrice = 0;
-                } else if (discountType === 'percentage') {
-                    discountPercent = parseFloat(discountAmount);
-                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
-                }
+            if (discountType === 'fixed') {
+                discountFixed = parseFloat(discountAmount);
+                finalPrice = product.max_retail_price - discountFixed;
+                if (finalPrice < 0) finalPrice = 0;
+            } else if (discountType === 'percentage') {
+                discountPercent = parseFloat(discountAmount);
+                finalPrice = product.max_retail_price * (1 - discountPercent / 100);
+            }
             } else if (activeDiscount) {
-                if (activeDiscount.type === 'percentage') {
-                    discountPercent = activeDiscount.amount;
-                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
-                } else if (activeDiscount.type === 'fixed') {
-                    discountFixed = activeDiscount.amount;
-                    finalPrice = product.max_retail_price - discountFixed;
-                    if (finalPrice < 0) finalPrice = 0;
-                }
+            if (activeDiscount.type === 'percentage') {
+                discountPercent = activeDiscount.amount;
+                finalPrice = product.max_retail_price * (1 - discountPercent / 100);
+            } else if (activeDiscount.type === 'fixed') {
+                discountFixed = activeDiscount.amount;
+                finalPrice = product.max_retail_price - discountFixed;
+                if (finalPrice < 0) finalPrice = 0;
+            }
             } else {
-                discountFixed = defaultFixedDiscount;
-                discountPercent = (discountFixed / product.max_retail_price) * 100;
-                finalPrice = price; // Use selected batch price
+            discountFixed = defaultFixedDiscount;
+            discountPercent = (discountFixed / product.max_retail_price) * 100;
+            finalPrice = price; // Use selected batch price
             }
 
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
-                adjustedBatchQuantity = stockEntry.total_stock;
+            adjustedBatchQuantity = stockEntry.total_stock;
             } else if (batch && batch.location_batches) {
-                const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
-                if (locationBatch) {
-                    adjustedBatchQuantity = locationBatch.quantity;
-                }
+            const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
+            if (locationBatch) {
+                adjustedBatchQuantity = parseFloat(locationBatch.quantity);
+            }
             }
 
+            // Get unit name and allow_decimal from product.unit (if available)
+            const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
+            const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
+
+            // Format adjustedBatchQuantity based on allowDecimal
+            if (allowDecimal) {
+            adjustedBatchQuantity = parseFloat(adjustedBatchQuantity).toFixed(4).replace(/\.?0+$/, '');
+            } else {
+            adjustedBatchQuantity = parseInt(adjustedBatchQuantity, 10);
+            }
+
+            // If allowDecimal, use step="any" and allow decimal input, else step="1"
+            const qtyInputStep = allowDecimal ? 'any' : '1';
+            const qtyInputPattern = allowDecimal ? '[0-9]+([.][0-9]{1,4})?' : '[0-9]*';
+
+            // Determine initial quantity value for input
+            let initialQuantityValue;
+            if (imeis.length > 0) {
+            initialQuantityValue = imeis.length;
+            } else if (allowDecimal) {
+            // For decimal units, use the available stock as default if less than 1, else 1
+            let availableQty = parseFloat(adjustedBatchQuantity);
+            if (availableQty < 1 && availableQty > 0) {
+                initialQuantityValue = availableQty.toFixed(4).replace(/\.?0+$/, '');
+            } else {
+                initialQuantityValue = '1.0000';
+            }
+            } else {
+            initialQuantityValue = 1;
+            }
+
+            // If not IMEI, try to merge row
             if (imeis.length === 0) {
-                const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                    const rowProductId = row.querySelector('.product-id').textContent;
-                    const rowBatchId = row.querySelector('.batch-id').textContent;
-                    return rowProductId == product.id && rowBatchId == batchId;
-                });
-                if (existingRow) {
-                    const quantityInput = existingRow.querySelector('.quantity-input');
-                    let currentQty = parseInt(quantityInput.value, 10);
-                    let newQuantity = currentQty + saleQuantity;
+            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                const rowProductId = row.querySelector('.product-id').textContent;
+                const rowBatchId = row.querySelector('.batch-id').textContent;
+                return rowProductId == product.id && rowBatchId == batchId;
+            });
+            if (existingRow) {
+                const quantityInput = existingRow.querySelector('.quantity-input');
+                let currentQty = allowDecimal ? parseFloat(quantityInput.value) : parseInt(quantityInput
+                .value, 10);
+                let newQuantity = currentQty + saleQuantity;
 
-                    if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
-                        toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
-                            'Warning');
-                        return;
-                    }
-
-                    quantityInput.value = newQuantity;
-                    const subtotalElement = existingRow.querySelector('.subtotal');
-                    const updatedSubtotal = newQuantity * finalPrice;
-                    subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
-
-                    updateTotals();
-                    return;
+                // Use parseFloat for decimal allowed, parseInt for integer
+                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
+                    'Warning');
+                return;
                 }
+
+                quantityInput.value = allowDecimal ? newQuantity.toFixed(4).replace(/\.?0+$/, '') :
+                newQuantity;
+                const subtotalElement = existingRow.querySelector('.subtotal');
+                const updatedSubtotal = newQuantity * finalPrice;
+                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+                updateTotals();
+                return;
+            }
             }
 
             const row = document.createElement('tr');
@@ -1317,44 +1408,45 @@
             row.innerHTML = `
         <td>
             <div class="d-flex align-items-start">
-                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
-                <div class="product-info" style="min-width: 0; flex: 1;">
-                    <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;">
-                        ${product.product_name}
-                        <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
-                        ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
-                        <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
-                            SKU: ${product.sku}
-                        </span>
-                        <span class="quantity-display ms-2" style="font-size: 0.95em;">
-                            ${saleQuantity} of ${adjustedBatchQuantity} PC(s)
-                        </span>
-                        ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI: ${imeis[0]}</span>
-                          <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
-                    </div>
-                </div>
+            <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
+            <div class="product-info" style="min-width: 0; flex: 1;">
+            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;">
+            ${product.product_name}
+            <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
+            ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
+            </div>
+            <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
+            <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
+            SKU: ${product.sku}
+            </span>
+            <span class="quantity-display ms-2" style="font-size: 0.95em;">
+             ${adjustedBatchQuantity} ${unitName}
+            </span>
+            ${product.is_imei_or_serial_no === 1 ? `<span class="badge bg-info ms-2">IMEI: ${imeis[0]}</span>
+              <i class="fas fa-info-circle show-imei-btn ms-1" style="cursor: pointer;" title="View/Edit IMEI"></i>` : ''}
+            </div>
+            </div>
             </div>
         </td>
         <td>
             <div class="d-flex justify-content-center">
-                <button class="btn btn-danger quantity-minus btn">-</button>
-                <input type="number" value="${saleQuantity}" min="1" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''}">
-                <button class="btn btn-success quantity-plus btn">+</button>
+            <button class="btn btn-danger quantity-minus btn">-</button>
+            <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}">
+            <button class="btn btn-success quantity-plus btn">+</button>
             </div>
+            <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
         <td><input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}"></td>
         <td><input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}"></td>
         <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" data-quantity="${adjustedBatchQuantity}" min="0" readonly></td>
-        <td class="subtotal">${formatAmountWithSeparators((saleQuantity * finalPrice).toFixed(2))}</td>
+        <td class="subtotal">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
         <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
         <td class="batch-id d-none">${batchId}</td>
         <td class="discount-data d-none">${JSON.stringify(activeDiscount || {})}</td>
         <td class="d-none imei-data">${imeis.join(',') || ''}</td>
-    `;
+        `;
 
             // Append the row first to ensure elements are available
             billingBody.insertBefore(row, billingBody.firstChild);
@@ -1368,30 +1460,30 @@
 
             // Handle IMEI display and input restrictions
             if (imeis.length > 0) {
-                if (qtyDisplayCell) {
-                    qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} PC(s)`;
-                }
-                if (quantityInput) quantityInput.readOnly = true;
-                if (plusBtn) plusBtn.disabled = true;
-                if (minusBtn) minusBtn.disabled = true;
+            if (qtyDisplayCell) {
+                qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} ${unitName}`;
+            }
+            if (quantityInput) quantityInput.readOnly = true;
+            if (plusBtn) plusBtn.disabled = true;
+            if (minusBtn) minusBtn.disabled = true;
             }
 
             attachRowEventListeners(row, product, stockEntry);
 
             // Focus search input on Enter key
             if (quantityInput) {
-                quantityInput.focus();
-                quantityInput.select();
+            quantityInput.focus();
+            quantityInput.select();
 
-                quantityInput.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter') {
-                        const searchInput = document.getElementById('productSearchInput');
-                        if (searchInput) {
-                            searchInput.value = '';
-                            searchInput.focus();
-                        }
-                    }
-                });
+            quantityInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                const searchInput = document.getElementById('productSearchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.focus();
+                }
+                }
+            });
             }
 
             disableConflictingDiscounts(row);
@@ -1419,8 +1511,6 @@
             }
         }
 
-
-
         function attachRowEventListeners(row, product, stockEntry) {
             const quantityInput = row.querySelector('.quantity-input');
             const priceInput = row.querySelector('.price-input');
@@ -1431,6 +1521,21 @@
             const productName = row.querySelector('.product-name');
             const fixedDiscountInput = row.querySelector(".fixed_discount");
             const percentDiscountInput = row.querySelector(".percent_discount");
+
+            // Get allowDecimal for this product
+            const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit
+                .allow_decimal === 1);
+
+            // Set input attributes for decimal support
+            if (allowDecimal) {
+                quantityInput.setAttribute('step', 'any');
+                quantityInput.setAttribute('pattern', '[0-9]+([.][0-9]{1,4})?');
+                quantityInput.setAttribute('inputmode', 'decimal');
+            } else {
+                quantityInput.setAttribute('step', '1');
+                quantityInput.setAttribute('pattern', '[0-9]*');
+                quantityInput.setAttribute('inputmode', 'numeric');
+            }
 
             // Handle discount inputs
             if (fixedDiscountInput) {
@@ -1463,43 +1568,141 @@
                 updateTotals();
             });
 
-            // Allow user to freely type any quantity (no validation here)
+            // quantityInput.addEventListener('blur', () => {
+            //     let value = quantityInput.value;
+            //     let quantityValue = parseFloat(value);
+
+            //     if (isNaN(quantityValue)) {
+            //         quantityValue = allowDecimal ? 0.01 : 1;
+            //     } else {
+            //         // Clamp min value
+            //         if (allowDecimal && quantityValue < 0.01) quantityValue = 0.01;
+            //         if (!allowDecimal && quantityValue < 1) quantityValue = 1;
+
+            //         // Clamp max value
+            //         const maxQuantity = parseFloat(priceInput.getAttribute('data-quantity'));
+            //         if (quantityValue > maxQuantity && product.stock_alert !== 0) {
+            //             showQuantityLimitError(maxQuantity);
+            //             quantityValue = maxQuantity;
+            //         }
+            //     }
+
+            //     quantityInput.value = allowDecimal ?
+            //         quantityValue.toFixed(4).replace(/\.?0+$/, '') :
+            //         quantityValue;
+            //     quantityInput.classList.remove('is-invalid');
+
+            //     updateTotals();
+            // });
+
+
             quantityInput.addEventListener('input', () => {
-                let quantityValue = parseInt(quantityInput.value, 10);
-                if (isNaN(quantityValue) || quantityValue < 1) quantityValue = 1;
+                const value = quantityInput.value.trim();
+                const maxQuantity = parseFloat(priceInput.getAttribute('data-quantity'));
 
-                // Clamp max value temporarily to prevent too high values (optional UX improvement)
-                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
-                quantityInput.setAttribute('max', maxQuantity);
+                if (allowDecimal) {
+                    const validDecimalPattern = /^\d*\.?\d{0,4}$/;
 
-                // Still allow typing more than available stock, but show warning
-                if (quantityValue > maxQuantity && product.stock_alert !== 0) {
-                    toastr.warning(
-                        `You are entering more than available stock for ${product.product_name}.`);
+                    if (value === '' || validDecimalPattern.test(value)) {
+                        quantityInput.classList.remove('is-invalid');
+
+                        updateTotals();
+
+                        if (value !== '' && !value.endsWith('.')) {
+                            const quantityValue = parseFloat(value);
+                            if (!isNaN(quantityValue)) {
+                                if (quantityValue > maxQuantity && product.stock_alert !== 0) {
+                                    toastr.warning(
+                                        `You are entering more than available stock for ${product.product_name}.`
+                                    );
+                                }
+
+                                const subtotalElement = row.querySelector('.subtotal');
+                                const price = parseFloat(priceInput.value);
+                                subtotalElement.textContent = formatAmountWithSeparators((price *
+                                    quantityValue).toFixed(2));
+
+                                updateTotals();
+                            }
+                        }
+                    } else {
+                        quantityInput.classList.add('is-invalid');
+                    }
+                } else {
+                    // Integer-only validation
+                    const validIntegerPattern = /^\d+$/;
+
+                    if (value === '' || validIntegerPattern.test(value)) {
+                        quantityInput.classList.remove('is-invalid');
+                        updateTotals();
+
+                        const quantityValue = parseInt(value, 10);
+                        if (!isNaN(quantityValue)) {
+                            if (quantityValue > maxQuantity && product.stock_alert !== 0) {
+                                toastr.warning(
+                                    `You are entering more than available stock for ${product.product_name}.`
+                                );
+                            }
+
+                            const subtotalElement = row.querySelector('.subtotal');
+                            const price = parseFloat(priceInput.value);
+                            subtotalElement.textContent = formatAmountWithSeparators((price *
+                                quantityValue).toFixed(2));
+
+                            updateTotals();
+                        }
+                    } else {
+                        quantityInput.classList.add('is-invalid');
+                    }
                 }
-
-                quantityInput.value = quantityValue;
-                updateTotals();
             });
+
+
+
+
 
             // Minus button
             quantityMinus.addEventListener('click', () => {
-                const currentQuantity = parseInt(quantityInput.value, 10);
-                if (currentQuantity > 1) {
-                    quantityInput.value = currentQuantity - 1;
-                    updateTotals();
+                let currentQuantity = allowDecimal ? parseFloat(quantityInput.value) : parseInt(
+                    quantityInput.value, 10);
+                if (allowDecimal) {
+                    if (currentQuantity > 0.01) {
+                        currentQuantity = parseFloat((currentQuantity - 0.01).toFixed(4));
+                        if (currentQuantity < 0.01) currentQuantity = 0.01;
+                        quantityInput.value = currentQuantity.toFixed(4).replace(/\.?0+$/, '');
+                        updateTotals();
+                    }
+                } else {
+                    if (currentQuantity > 1) {
+                        currentQuantity = currentQuantity - 1;
+                        if (currentQuantity < 1) currentQuantity = 1;
+                        quantityInput.value = currentQuantity;
+                        updateTotals();
+                    }
                 }
             });
 
             // Plus button
             quantityPlus.addEventListener('click', () => {
-                const currentQuantity = parseInt(quantityInput.value, 10);
-                const maxQuantity = parseInt(priceInput.getAttribute('data-quantity'), 10);
-                if (currentQuantity < maxQuantity || product.stock_alert === 0) {
-                    quantityInput.value = currentQuantity + 1;
-                    updateTotals();
+                let currentQuantity = allowDecimal ? parseFloat(quantityInput.value) : parseInt(
+                    quantityInput.value, 10);
+                const maxQuantity = parseFloat(priceInput.getAttribute('data-quantity'));
+                if (allowDecimal) {
+                    if (currentQuantity < maxQuantity || product.stock_alert === 0) {
+                        currentQuantity = parseFloat((currentQuantity + 0.01).toFixed(4));
+                        quantityInput.value = currentQuantity.toFixed(4).replace(/\.?0+$/, '');
+                        updateTotals();
+                    } else {
+                        showQuantityLimitError(maxQuantity);
+                    }
                 } else {
-                    showQuantityLimitError(maxQuantity);
+                    if (currentQuantity < maxQuantity || product.stock_alert === 0) {
+                        currentQuantity = currentQuantity + 1;
+                        quantityInput.value = currentQuantity;
+                        updateTotals();
+                    } else {
+                        showQuantityLimitError(maxQuantity);
+                    }
                 }
             });
 
@@ -1546,7 +1749,7 @@
             const selectedBatch = document.getElementById('modalBatchDropdown').selectedOptions[0];
             const price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
             const batchId = selectedBatch.value;
-            const batchQuantity = parseInt(selectedBatch.getAttribute('data-quantity'), 10);
+            const batchQuantity = parseFloat(selectedBatch.getAttribute('data-quantity'));
 
             if (selectedRow) {
                 const quantityInput = selectedRow.querySelector('.quantity-input');
@@ -1574,7 +1777,8 @@
                 disableConflictingDiscounts(selectedRow);
 
                 // Update subtotal
-                const subtotal = parseFloat(quantityInput.value) * price;
+                const qtyVal = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
+                const subtotal = qtyVal * price;
                 selectedRow.querySelector('.subtotal').textContent = formatAmountWithSeparators(subtotal
                     .toFixed(2));
 
@@ -1664,7 +1868,10 @@
                 const priceInput = row.querySelector('.price-input');
                 const fixedDiscountInput = row.querySelector('.fixed_discount');
                 const percentDiscountInput = row.querySelector('.percent_discount');
-                const quantity = parseInt(quantityInput.value, 10) || 0;
+                let quantity = 0;
+                if (quantityInput) {
+                    quantity = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
+                }
                 const basePrice = parseFloat(priceInput.value) || 0;
 
                 // Recalculate subtotal based on unit price
@@ -1698,8 +1905,30 @@
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
 
             // Update UI
-            document.getElementById('items-count').textContent = `${totalItems} Pc(s)`;
-            document.getElementById('modal-total-items').textContent = totalItems.toFixed(2);
+            // Calculate total quantity and build unit summary for all products in billing
+            let unitSummary = {};
+            billingBody.querySelectorAll('tr').forEach(row => {
+                const productId = row.querySelector('.product-id')?.textContent;
+                const quantityInput = row.querySelector('.quantity-input');
+                let quantity = quantityInput ? parseFloat(quantityInput.value) : 0;
+                if (productId && quantity > 0) {
+                    // Find the product in stockData or allProducts
+                    let stock = stockData.find(s => String(s.product.id) === productId) || allProducts.find(s =>
+                        String(s.product.id) === productId);
+                    if (stock && stock.product && stock.product.unit) {
+                        // Prefer short_name, fallback to name, fallback to 'pcs'
+                        let unitShort = stock.product.unit.short_name || stock.product.unit.name || 'pcs';
+                        if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
+                        unitSummary[unitShort] += quantity;
+                    }
+                }
+            });
+            // Build display string like "4 kg, 2 pcs, 1 pack"
+            let unitDisplay = Object.entries(unitSummary)
+                .map(([unit, qty]) => `${qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '')} ${unit}`)
+                .join(', ');
+            document.getElementById('items-count').textContent = unitDisplay || totalItems.toFixed(2);
+            document.getElementById('modal-total-items').textContent = unitDisplay || totalItems.toFixed(2);
             document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
                 .toFixed(2));
             document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
@@ -2043,8 +2272,28 @@
                         product_id: parseInt(productRow.find('.product-id').text().trim(),
                             10),
                         location_id: parseInt(locationId, 10),
-                        quantity: isImeiProduct ? 1 : parseInt(productRow.find(
-                            '.quantity-input').val().trim(), 10),
+                        quantity: isImeiProduct ?
+                            1 : (() => {
+                                // Find the product in stockData or allProducts
+                                const productId = parseInt(productRow.find(
+                                    '.product-id').text().trim(), 10);
+                                let stock = stockData.find(s => String(s.product.id) ===
+                                        String(productId)) ||
+                                    allProducts.find(s => String(s.product.id) ===
+                                        String(productId));
+                                const allowDecimal = stock && stock.product && (stock
+                                    .product.unit?.allow_decimal === true || stock
+                                    .product.unit?.allow_decimal === 1);
+                                const qtyVal = productRow.find('.quantity-input').val()
+                                    .trim();
+                                if (allowDecimal) {
+                                    const parsed = parseFloat(qtyVal);
+                                    return isNaN(parsed) ? 0 : parsed;
+                                } else {
+                                    const parsed = parseInt(qtyVal, 10);
+                                    return isNaN(parsed) ? 0 : parsed;
+                                }
+                            })(),
                         price_type: priceType,
                         unit_price: parseFormattedAmount(productRow.find('.price-input')
                             .val().trim()),

@@ -34,16 +34,13 @@
                             <div class="form-group local-forms">
                                 <label>Allow decimal<span class="login-danger"></span></label>
                                 <select id="edit_allow_decimal" name="allow_decimal" class="form-control form-select select">
-                                    <option selected disabled>Please Select </option>
-                                    <option value="yes">yes</option>
-                                    <option value="no">no</option>
+                                    <option selected disabled>Please Select</option>
+                                    <option value="1">Yes</option>
+                                    <option value="0">No</option>
                                 </select>
                                 <span class="text-danger" id="allow_decimal_error"></span>
                             </div>
-
-                        </div>
-
-                        <div class="modal-footer">
+                        </div>   <div class="modal-footer">
                             <button type="submit" id="modalButton" class="btn btn-outline-primary">Save</button>
                             <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
                         </div>

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('batch_no')->nullable();
             $table->unsignedBigInteger('product_id');
-            $table->integer('qty');
+            $table->decimal('qty', 15, 4);
             $table->decimal('unit_cost', 10, 2);
             $table->decimal('wholesale_price', 10, 2);
             $table->decimal('special_price', 10, 2);

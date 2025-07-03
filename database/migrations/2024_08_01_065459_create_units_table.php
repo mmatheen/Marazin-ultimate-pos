@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('short_name')->nullable();
             $table->unsignedBigInteger('location_id')->nullable();
-            $table->text('allow_decimal')->nullable();
+            $table->boolean('allow_decimal')->default(false);
             $table->timestamps();
 
             // ForeignKey

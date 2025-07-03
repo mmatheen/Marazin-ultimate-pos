@@ -99,14 +99,14 @@
             <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
         </div>
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
-            @if($location)
-                @if($location->address)
+            @if ($location)
+                @if ($location->address)
                     <div>{{ $location->address }}</div>
                 @endif
-                @if($location->mobile)
+                @if ($location->mobile)
                     <div>{{ $location->mobile }}</div>
                 @endif
-                @if($location->email)
+                @if ($location->email)
                     <div>{{ $location->email }}</div>
                 @endif
             @else
@@ -149,55 +149,56 @@
                     <th colspan="5">
                         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
                     </th>
+                    {{-- Group products by product_id and batch_id --}}
+                    @foreach ($products->groupBy(function ($item) {
+        return $item->product_id . '-' . ($item->batch_id ?? '0');
+    }) as $groupKey => $group)
+                        @php
+                            $firstProduct = $group->first();
+                            $totalQuantity = $group->sum('quantity');
+                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
+                        @endphp
+
+                <tr>
+                    <td>{{ $loop->iteration }}</td>
+                    <td colspan="4" valign="top">
+                        {{ $firstProduct->product->product_name }}
+                        @if ($firstProduct->batch_id)
+                            <span style="font-size:10px;">
+                                ({{ $firstProduct->batch_no ?? ($firstProduct->batch->batch_no ?? 'N/A') }})
+                            </span>
+                        @endif
+                        @if ($firstProduct->price_type == 'retail')
+                            <span style="font-weight: bold;">*</span>
+                        @elseif($firstProduct->price_type == 'wholesale')
+                            <span style="font-weight: bold;">**</span>
+                        @elseif($firstProduct->price_type == 'special')
+                            <span style="font-weight: bold;">***</span>
+                        @endif
+                    </td>
                 </tr>
 
-
-               {{-- Group products by product_id --}}
-@foreach ($products->groupBy('product_id') as $productId => $group)
-    @php
-        // Get the first item in the group to access common fields
-        $firstProduct = $group->first();
-        // Sum total quantity for this product
-        $totalQuantity = $group->sum('quantity');
-        // Calculate total amount for this product
-        $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-    @endphp
-
-    <tr>
-        <td>{{ $loop->iteration }}</td>
-        <td colspan="4" valign="top">
-            {{ $firstProduct->product->product_name }}
-            @if ($firstProduct->price_type == 'retail')
-                <span style="font-weight: bold;">*</span>
-            @elseif($firstProduct->price_type == 'wholesale')
-                <span style="font-weight: bold;">**</span>
-            @elseif($firstProduct->price_type == 'special')
-                <span style="font-weight: bold;">***</span>
-            @endif
-        </td>
-    </tr>
-
-    <tr>
-        <td valign="top">&nbsp;</td>
-        <td valign="top">
-            <span style="text-decoration: line-through">
-                {{ number_format($firstProduct->product->max_retail_price, 0, '.', ',') }}
-            </span>
-            ({{ number_format($firstProduct->product->max_retail_price - $firstProduct->price, 0, '.', ',') }})
-        </td>
-        <td align="left" valign="top">
-            <span>{{ number_format($firstProduct->price, 0, '.', ',') }}</span>
-        </td>
-        <td align="left" valign="top" class="quantity-with-pcs">
-            <span>&times; {{ $totalQuantity }} pcs</span>
-        </td>
-        <td valign="top" align="right">
-            <span style="font-weight: bold;">
-                {{ number_format($totalAmount, 0, '.', ',') }}
-            </span>
-        </td>
-    </tr>
-@endforeach
+                <tr>
+                    <td valign="top">&nbsp;</td>
+                    <td valign="top">
+                        <span style="text-decoration: line-through">
+                            {{ number_format($firstProduct->product->max_retail_price, 0, '.', ',') }}
+                        </span>
+                        ({{ number_format($firstProduct->product->max_retail_price - $firstProduct->price, 0, '.', ',') }})
+                    </td>
+                    <td align="left" valign="top">
+                        <span>{{ number_format($firstProduct->price, 0, '.', ',') }}</span>
+                    </td>
+                    <td align="left" valign="top" class="quantity-with-pcs">
+                        <span>&times; {{ $totalQuantity }} pcs</span>
+                    </td>
+                    <td valign="top" align="right">
+                        <span style="font-weight: bold;">
+                            {{ number_format($totalAmount, 0, '.', ',') }}
+                        </span>
+                    </td>
+                </tr>
+                @endforeach
 
             </tbody>
         </table>
@@ -212,25 +213,25 @@
                         <td width="80" align="right" style="font-weight: bold;">
                             {{ number_format($sale->subtotal, 0, '.', ',') }}</td>
                     </tr>
-                    @if($sale->discount_amount > 0)
-                    <tr>
-                        <td align="right">
-                            <strong>DISCOUNT 
-                            @if($sale->discount_type == 'percentage')
-                                ({{ $sale->discount_amount }}%)
-                            @else
-                                (RS)
-                            @endif
-                            </strong>
-                        </td>
-                        <td width="80" align="right">
-                            @if($sale->discount_type == 'percentage')
-                                -{{ number_format(($sale->subtotal * $sale->discount_amount / 100), 0, '.', ',') }}
-                            @else
-                                -{{ number_format($sale->discount_amount, 0, '.', ',') }}
-                            @endif
-                        </td>
-                    </tr>
+                    @if ($sale->discount_amount > 0)
+                        <tr>
+                            <td align="right">
+                                <strong>DISCOUNT
+                                    @if ($sale->discount_type == 'percentage')
+                                        ({{ $sale->discount_amount }}%)
+                                    @else
+                                        (RS)
+                                    @endif
+                                </strong>
+                            </td>
+                            <td width="80" align="right">
+                                @if ($sale->discount_type == 'percentage')
+                                    -{{ number_format(($sale->subtotal * $sale->discount_amount) / 100, 0, '.', ',') }}
+                                @else
+                                    -{{ number_format($sale->discount_amount, 0, '.', ',') }}
+                                @endif
+                            </td>
+                        </tr>
                     @endif
                     <tr>
                         <td align="right"><strong>TOTAL</strong></td>
@@ -271,17 +272,17 @@
                     return ($product->product->max_retail_price - $product->price) *
                         ($product->quantity > 1 ? 1 : $product->quantity);
                 });
-                
+
                 // Calculate bill discount if exists
                 $bill_discount = 0;
-                if($sale->discount_amount > 0) {
-                    if($sale->discount_type == 'percentage') {
-                        $bill_discount = $sale->subtotal * $sale->discount_amount / 100;
+                if ($sale->discount_amount > 0) {
+                    if ($sale->discount_type == 'percentage') {
+                        $bill_discount = ($sale->subtotal * $sale->discount_amount) / 100;
                     } else {
                         $bill_discount = $sale->discount_amount;
                     }
                 }
-                
+
                 // Total all discounts (product discounts + bill discount)
                 $total_all_discounts = $total_discount + $bill_discount;
             @endphp
@@ -304,19 +305,18 @@
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
         <div style="font-size: 12px; display: block; text-align: center; color: #000; margin-bottom: 8px;">
-            <p><strong>PAYMENT METHOD:</strong> 
-            @if ($payments->count() > 1)
-            Multiple <br>
-            <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
-            @else
-            {{ $payments->first()->payment_method ?? 'N/A' }}
-            @endif
+            <p><strong>PAYMENT METHOD:</strong>
+                @if ($payments->count() > 1)
+                    Multiple <br>
+                    <span style="font-size: 10px;">({{ $payments->pluck('payment_method')->join(', ') }})</span>
+                @else
+                    {{ $payments->first()->payment_method ?? 'N/A' }}
+                @endif
             </p>
         </div>
 
         <hr style="margin: 8px 0; border-top-style: dashed; border-width: 1px;">
-        <div class="attribute"
-            style="font-size: 8px; color: #000; font-weight: normal !important; text-align: center;">
+        <div class="attribute" style="font-size: 8px; color: #000; font-weight: normal !important; text-align: center;">
             SOFTWARE: MARAZIN PVT.LTD | WWW.MARAZIN.LK | +94 70 123 0959
         </div>
     </div>

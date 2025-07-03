@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('batch_id');
             $table->unsignedBigInteger('location_id');
-            $table->integer('qty');
+            $table->decimal('qty', 15, 4);
             $table->timestamps();
 
             $table->foreign('batch_id')->references('id')->on('batches')->onDelete('cascade');

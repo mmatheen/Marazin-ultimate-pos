@@ -120,82 +120,99 @@
                 }
             });
         }
-       
+
         let allProducts = []; // Store all product data
 
         // Use backend autocomplete endpoint for product search
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
-            minLength: 2,
-            source: function(request, response) {
-                const locationId = $('#services').val();
-                $.ajax({
-                url: '/products/stocks/autocomplete',
-                data: {
-                    search: request.term,
-                    location_id: locationId,
-                    per_page: 10
-                },
-                dataType: 'json',
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                    const items = data.data
-                        .filter(item => item.product && item.product.stock_alert !== 0)
-                        .map(item => ({
-                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
-                        value: item.product.product_name,
-                        product: {
-                            id: item.product.id,
-                            name: item.product.product_name,
-                            sku: item.product.sku || "N/A",
-                            quantity: item.total_stock || 0,
-                            price: item.product.original_price || 0,
-                            wholesale_price: item.product.whole_sale_price || 0,
-                            special_price: item.product.special_price || 0,
-                            max_retail_price: item.product.max_retail_price || 0,
-                            retail_price: item.product.retail_price || 0,
-                            expiry_date: '', // Not available in autocomplete
-                            batch_no: '',    // Not available in autocomplete
-                            stock_alert: item.product.stock_alert || 0
+                minLength: 2,
+                source: function(request, response) {
+                    const locationId = $('#services').val();
+                    $.ajax({
+                        url: '/products/stocks/autocomplete',
+                        data: {
+                            search: request.term,
+                            location_id: locationId,
+                            per_page: 10
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.status === 200 && Array.isArray(data.data)) {
+                                const items = data.data
+                                    .filter(item => item.product && item.product
+                                        .stock_alert !== 0)
+                                    .map(item => ({
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                                        value: item.product.product_name,
+                                        product: {
+                                            id: item.product.id,
+                                            name: item.product.product_name,
+                                            sku: item.product.sku || "N/A",
+                                            quantity: item.total_stock || 0,
+                                            price: item.product
+                                                .original_price || 0,
+                                            wholesale_price: item.product
+                                                .whole_sale_price || 0,
+                                            special_price: item.product
+                                                .special_price || 0,
+                                            max_retail_price: item.product
+                                                .max_retail_price || 0,
+                                            retail_price: item.product
+                                                .retail_price || 0,
+                                            expiry_date: '', // Not available in autocomplete
+                                            batch_no: '', // Not available in autocomplete
+                                            stock_alert: item.product
+                                                .stock_alert || 0
+                                        }
+                                    }));
+                                if (items.length === 0) {
+                                    response([{
+                                        label: "No products found",
+                                        value: ""
+                                    }]);
+                                } else {
+                                    response(items.slice(0,
+                                    1)); // Only show one product
+                                }
+                            } else {
+                                response([{
+                                    label: "No products found",
+                                    value: ""
+                                }]);
+                            }
+                        },
+                        error: function() {
+                            response([{
+                                label: "Error fetching products",
+                                value: ""
+                            }]);
                         }
-                        }));
-                    if (items.length === 0) {
-                        response([{ label: "No products found", value: "" }]);
-                    } else {
-                        response(items.slice(0, 1)); // Only show one product
-                    }
-                    } else {
-                    response([{ label: "No products found", value: "" }]);
-                    }
+                    });
                 },
-                error: function() {
-                    response([{ label: "Error fetching products", value: "" }]);
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    return false;
                 }
-                });
-            },
-            select: function(event, ui) {
-                if (!ui.item.product) {
-                return false;
-                }
-                addProductToTable(ui.item.product);
-                $("#productSearchInput").val("");
-                return false;
-            }
             });
 
             // Custom render for autocomplete
             const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
             if (autocompleteInstance) {
-            autocompleteInstance._renderItem = function(ul, item) {
-                if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-                }
-                return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-            };
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
             }
         }
 
@@ -203,34 +220,39 @@
         function fetchProducts(locationId) {
             let url = '/products/stocks';
             if (locationId) {
-            url += `?location_id=${locationId}`;
+                url += `?location_id=${locationId}`;
             }
             fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) return null;
-                    return {
-                    id: stock.product.id,
-                    name: stock.product.product_name,
-                    sku: stock.product.sku || "N/A",
-                    quantity: stock.total_stock || 0,
-                    price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
-                    wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
-                    special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
-                    max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
-                    retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
-                    expiry_date: stock.batches?.[0]?.expiry_date || '',
-                    batch_no: stock.batches?.[0]?.batch_no || '',
-                    stock_alert: stock.product.stock_alert || 0
-                    };
-                }).filter(product => product !== null);
-                } else {
-                console.error("Failed to fetch product data:", data);
-                }
-            })
-            .catch(error => console.error("Error fetching products:", error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) return null;
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || stock.product
+                                    .original_price || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
+                                    .product.whole_sale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || stock.product
+                                    .special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
+                                    .product.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || stock.product
+                                    .retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                stock_alert: stock.product.stock_alert || 0
+                            };
+                        }).filter(product => product !== null);
+                    } else {
+                        console.error("Failed to fetch product data:", data);
+                    }
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
 
         $(document).ready(function() {
@@ -238,10 +260,10 @@
             initAutocomplete(); // Initialize backend autocomplete
 
             $('#services').on('change', function() {
-            const selectedLocationId = $(this).val();
-            if (selectedLocationId) {
-                fetchProducts(selectedLocationId);
-            }
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(selectedLocationId);
+                }
             });
         });
 
@@ -285,7 +307,7 @@
                 <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
                 <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
                 <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
                 <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
@@ -846,7 +868,7 @@
                     'opening-balance')) || 0;
 
                 $('#openingBalance').text(originalOpeningBalance.toFixed(
-                2)); // Display initial balance
+                    2)); // Display initial balance
 
                 $.ajax({
                     url: '/get-all-purchases',
@@ -858,7 +880,7 @@
                     success: function(response) {
                         var purchaseTable = $('#purchaseTable').DataTable();
                         purchaseTable
-                    .clear(); // Clear the table before adding new data
+                            .clear(); // Clear the table before adding new data
                         var totalPurchaseAmount = 0,
                             totalPaidAmount = 0,
                             totalDueAmount = 0;
@@ -908,7 +930,7 @@
             $('#globalPaymentAmount').on('input', function() {
                 var globalAmount = parseFloat($(this).val()) || 0;
                 var supplierOpeningBalance =
-                originalOpeningBalance; // Always use original balance
+                    originalOpeningBalance; // Always use original balance
                 var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
                 var remainingAmount = globalAmount;
 
@@ -916,7 +938,7 @@
                 if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
                     $(this).addClass('is-invalid').after(
                         '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
-                        );
+                    );
                     return;
                 } else {
                     $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
@@ -958,7 +980,7 @@
                     $(this).next('.invalid-feedback').remove();
                     $(this).after(
                         '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
-                        );
+                    );
                 } else {
                     $(this).removeClass('is-invalid');
                     $(this).next('.invalid-feedback').remove();

@@ -1200,6 +1200,7 @@ class ProductController extends Controller
             ])
                 ->with([
                     'locations:id,name',
+                    'unit:id,name,short_name,allow_decimal', // Eager load unit
                     'discounts' => function ($query) use ($now) {
                         $query->where('is_active', true)
                             ->where('start_date', '<=', $now);
@@ -1331,6 +1332,12 @@ class ProductController extends Controller
                         'product_name' => $product->product_name,
                         'sku' => $product->sku,
                         'unit_id' => $product->unit_id,
+                        'unit' => $product->unit ? [
+                            'id' => $product->unit->id,
+                            'name' => $product->unit->name,
+                            'short_name' => $product->unit->short_name,
+                            'allow_decimal' => (bool) ($product->unit->allow_decimal ?? 0),
+                        ] : null,
                         'brand_id' => $product->brand_id,
                         'main_category_id' => $product->main_category_id,
                         'sub_category_id' => $product->sub_category_id,
@@ -1425,28 +1432,29 @@ class ProductController extends Controller
 
         $query = Product::with([
             'locations:id,name',
+            'unit:id,name,short_name,allow_decimal', // Eager load unit with all relevant fields
             'discounts' => function ($query) {
-                $query->where('is_active', true);
+            $query->where('is_active', true);
             },
             'batches' => function ($query) {
-                $query->select([
-                    'id',
-                    'batch_no',
-                    'product_id',
-                    'unit_cost',
-                    'wholesale_price',
-                    'special_price',
-                    'retail_price',
-                    'max_retail_price',
-                    'expiry_date'
-                ]);
+            $query->select([
+                'id',
+                'batch_no',
+                'product_id',
+                'unit_cost',
+                'wholesale_price',
+                'special_price',
+                'retail_price',
+                'max_retail_price',
+                'expiry_date'
+            ]);
             },
             'batches.locationBatches' => function ($q) use ($locationId) {
-                if ($locationId) {
-                    $q->where('location_id', $locationId);
-                }
-                $q->select(['id', 'batch_id', 'location_id', 'qty'])
-                    ->with('location:id,name');
+            if ($locationId) {
+                $q->where('location_id', $locationId);
+            }
+            $q->select(['id', 'batch_id', 'location_id', 'qty'])
+                ->with('location:id,name');
             }
         ]);
 
@@ -1517,6 +1525,12 @@ class ProductController extends Controller
                     'product_name' => $product->product_name,
                     'sku' => $product->sku,
                     'unit_id' => $product->unit_id,
+                    'unit' => $product->unit ? [
+                        'id' => $product->unit->id,
+                        'name' => $product->unit->name,
+                        'short_name' => $product->unit->short_name,
+                        'allow_decimal' => (bool) $product->unit->allow_decimal,
+                    ] : null,
                     'brand_id' => $product->brand_id,
                     'main_category_id' => $product->main_category_id,
                     'sub_category_id' => $product->sub_category_id,
