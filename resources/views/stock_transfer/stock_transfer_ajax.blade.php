@@ -174,75 +174,83 @@
             const product = productData.product;
             const existingRow = $(`tr[data-product-id="${product.id}"]`);
             if (existingRow.length > 0) {
-                // Update the quantity if the product already exists in the table
-                const quantityInput = existingRow.find('.quantity-input');
-                const newQuantity = parseInt(quantityInput.val()) + productData.quantity;
-                quantityInput.val(newQuantity);
-                existingRow.find('.quantity-input').trigger('change');
-                return;
+            // Update the quantity if the product already exists in the table
+            const quantityInput = existingRow.find('.quantity-input');
+            const newQuantity = parseFloat(quantityInput.val()) + productData.quantity;
+            quantityInput.val(newQuantity);
+            existingRow.find('.quantity-input').trigger('change');
+            return;
             }
 
             // Filter batches to only include those in the selected "From" location
             const fromLocationId = $('#from_location_id').val();
             // Only use batches from the selected "From" location
             const batches = product.batches.flatMap(batch => {
-                return batch.location_batches
-                    .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
-                    .map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_no: batch.batch_no,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: locationBatch.quantity,
-                        transfer_quantity: productData.quantity
-                    }));
+            return batch.location_batches
+                .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
+                .map(locationBatch => ({
+                batch_id: batch.id,
+                batch_no: batch.batch_no,
+                batch_price: parseFloat(batch.retail_price),
+                batch_quantity: locationBatch.quantity,
+                transfer_quantity: productData.quantity
+                }));
             });
 
             if (batches.length === 0) {
-                console.error('No batches available for product:', product.product_name);
-                return;
+            console.error('No batches available for product:', product.product_name);
+            return;
+            }
+
+            // Determine if decimals are allowed for this product
+            const allowDecimal = product.unit && product.unit.allow_decimal;
+
+            const quantityInput = isEditing ? `
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly ${allowDecimal ? 'step="0.01"' : 'step="1"'}>
+            ` : `
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required ${allowDecimal ? 'step="0.01"' : 'step="1"'}>
+            `;
+
+            // Format quantity for display: show decimals only if allowed
+            function formatQty(qty) {
+            return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
             }
 
             const batchOptions = batches.map(batch => `
             <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}" data-transfer-quantity="${batch.transfer_quantity}">
-                Batch ${batch.batch_no} - Current Qty: ${batch.batch_quantity} - Transfer Qty: ${batch.transfer_quantity} - Price: ${batch.batch_price}
+                Batch ${batch.batch_no} - Current Qty: ${formatQty(batch.batch_quantity)} - Transfer Qty: ${formatQty(batch.transfer_quantity)} - Price: ${batch.batch_price}
             </option>
-        `).join('');
-
-            const quantityInput = isEditing ? `
-            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required readonly>
-        ` : `
-            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
-        `;
+            `).join('');
 
             const newRow = `
             <tr class="add-row" data-product-id="${product.id}">
                 <td>
-                    ${product.product_name}
-                    <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+                ${product.product_name}
+                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
                 </td>
                 <td>
-                    <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                        ${batchOptions}
-                    </select>
-                    <div class="error-message batch-error"></div>
+                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                    ${batchOptions}
+                </select>
+                <div class="error-message batch-error"></div>
                 </td>
                 <td>
-                    ${quantityInput}
-                    <div class="error-message quantity-error text-danger"></div>
+                ${quantityInput}
+                <div class="error-message quantity-error text-danger"></div>
                 </td>
                 <td>
-                    <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
+                <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
                 </td>
                 <td>
-                    <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
+                <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
                 </td>
                 <td class="add-remove text-end">
-                    <a href="javascript:void(0);" class="remove-btn">
-                        <i class="fas fa-trash" style="color: #dc3545;"></i>
-                    </a>
+                <a href="javascript:void(0);" class="remove-btn">
+                    <i class="fas fa-trash" style="color: #dc3545;"></i>
+                </a>
                 </td>
             </tr>
-        `;
+            `;
 
             $(".add-table-items").find("tr:last").remove();
             $(".add-table-items").append(newRow);
@@ -254,85 +262,97 @@
         function addProductWithBatches(productData) {
             const fromLocationId = $('#from_location_id').val();
             if (!fromLocationId) {
-                toastr.warning("Please select a 'From' location before adding products.");
-                return;
-            }
-        
-            const product = productData.product;
-            const existingRow = $(`tr[data-product-id="${product.id}"]`);
-        
-            if (existingRow.length > 0) {
-                const quantityInput = existingRow.find('.quantity-input');
-                const newQuantity = parseInt(quantityInput.val()) + 1;
-                quantityInput.val(newQuantity);
-                existingRow.find('.quantity-input').trigger('change');
-                return;
-            }
-        
-            // Ensure batches is always an array
-            const batchesArr = Array.isArray(productData.batches)
-                ? productData.batches
-                : (Array.isArray(product.batches) ? product.batches : []);
-        
-            // Filter batches to only those in the selected "From" location with quantity > 0
-            const batches = batchesArr.flatMap(batch => {
-                // Support both camelCase and snake_case for location_batches
-                const locationBatches = batch.location_batches || batch.locationBatches || [];
-                return locationBatches
-                    .filter(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0)
-                    .map(locationBatch => ({
-                        batch_id: batch.id,
-                        batch_no: batch.batch_no,
-                        batch_price: parseFloat(batch.retail_price),
-                        batch_quantity: locationBatch.quantity ?? locationBatch.qty,
-                        transfer_quantity: locationBatch.quantity ?? locationBatch.qty
-                    }));
-            });
-        
-            if (batches.length === 0) {
-                console.warn(`No batches available in selected location for product: ${product.product_name}`);
-                toastr.error(
-                    `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
-                );
-                return;
+            toastr.warning("Please select a 'From' location before adding products.");
+            return;
             }
 
+            const product = productData.product;
+            const existingRow = $(`tr[data-product-id="${product.id}"]`);
+
+            if (existingRow.length > 0) {
+            const quantityInput = existingRow.find('.quantity-input');
+            const newQuantity = parseFloat(quantityInput.val()) + 1;
+            quantityInput.val(newQuantity);
+            existingRow.find('.quantity-input').trigger('change');
+            return;
+            }
+
+            // Ensure batches is always an array
+            const batchesArr = Array.isArray(productData.batches)
+            ? productData.batches
+            : (Array.isArray(product.batches) ? product.batches : []);
+
+            // Determine if decimals are allowed for this product
+            const allowDecimal = product.unit && product.unit.allow_decimal;
+
+            // Format quantity for display: show decimals only if allowed
+            function formatQty(qty) {
+            return allowDecimal ? parseFloat(qty).toFixed(2) : parseInt(qty);
+            }
+
+            // Filter batches to only those in the selected "From" location with quantity > 0
+            const batches = batchesArr.flatMap(batch => {
+            // Support both camelCase and snake_case for location_batches
+            const locationBatches = batch.location_batches || batch.locationBatches || [];
+            return locationBatches
+                .filter(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0)
+                .map(locationBatch => ({
+                batch_id: batch.id,
+                batch_no: batch.batch_no,
+                batch_price: parseFloat(batch.retail_price),
+                batch_quantity: locationBatch.quantity ?? locationBatch.qty,
+                transfer_quantity: locationBatch.quantity ?? locationBatch.qty
+                }));
+            });
+
+            if (batches.length === 0) {
+            console.warn(`No batches available in selected location for product: ${product.product_name}`);
+            toastr.error(
+                `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+            );
+            return;
+            }
+
+            const quantityInput = `
+            <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required ${allowDecimal ? 'step="0.01"' : 'step="1"'}>
+            <div class="error-message quantity-error text-danger"></div>
+            `;
+
             const batchOptions = batches.map(batch => `
-        <option value="${batch.batch_id}" 
+            <option value="${batch.batch_id}" 
                 data-price="${batch.batch_price}" 
                 data-quantity="${batch.batch_quantity}"
                 data-transfer-quantity="${batch.transfer_quantity}">
-            Batch ${batch.batch_no} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price}
-        </option>
-    `).join('');
+                Batch ${batch.batch_no} - Qty: ${formatQty(batch.batch_quantity)} - Price: ${batch.batch_price}
+            </option>
+            `).join('');
 
             const newRow = `
-        <tr class="add-row" data-product-id="${product.id}">
-            <td>
+            <tr class="add-row" data-product-id="${product.id}">
+                <td>
                 ${product.product_name}
                 <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-            </td>
-            <td>
+                </td>
+                <td>
                 <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
                     ${batchOptions}
                 </select>
                 <div class="error-message batch-error"></div>
-            </td>
-            <td>
-                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="${batches[0].transfer_quantity}" required>
-                <div class="error-message quantity-error text-danger"></div>
-            </td>
-            <td>
+                </td>
+                <td>
+                ${quantityInput}
+                </td>
+                <td>
                 <input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price}" readonly>
-            </td>
-            <td>
+                </td>
+                <td>
                 <input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${(batches[0].batch_price * batches[0].transfer_quantity).toFixed(2)}" readonly>
-            </td>
-            <td class="add-remove text-end">
+                </td>
+                <td class="add-remove text-end">
                 <a href="javascript:void(0);" class="remove-btn"><i class="fas fa-trash"></i></a>
-            </td>
-        </tr>
-    `;
+                </td>
+            </tr>
+            `;
 
             $(".add-table-items").find("tr:last").remove();
             $(".add-table-items").append(newRow);
@@ -362,10 +382,10 @@
             const transferQuantity = parseFloat(selectedBatch.data("transfer-quantity"));
 
             if (quantity > (availableQuantity + transferQuantity)) {
-                row.find(".quantity-error").text("The quantity exceeds the available batch quantity.");
-                row.find(".quantity-input").val(availableQuantity + transferQuantity);
+            row.find(".quantity-error").text("The quantity exceeds the available batch quantity.");
+            row.find(".quantity-input").val(availableQuantity + transferQuantity);
             } else {
-                row.find(".quantity-error").text("");
+            row.find(".quantity-error").text("");
             }
 
             const subtotal = quantity * unitPrice;
@@ -387,15 +407,15 @@
                 <td id="totalRow">Total : 0.00</td>
                 <td></td>
             </tr>
-        `;
+            `;
             $(".add-table-items").append(totalRow);
         }
 
         function updateTotalAmount() {
             let total = 0;
             $(".add-row").each(function() {
-                const subtotal = parseFloat($(this).find('input[name$="[sub_total]"]').val());
-                total += subtotal;
+            const subtotal = parseFloat($(this).find('input[name$="[sub_total]"]').val());
+            total += subtotal;
             });
             $('#totalRow').text(`Total : ${total.toFixed(2)}`);
         }

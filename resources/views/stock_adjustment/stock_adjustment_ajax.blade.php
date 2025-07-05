@@ -12,54 +12,49 @@
         fetchDropdownData('/location-get-all', $('#location_id'), "Select Location");
 
         // Fetch products data for autocomplete (now uses backend autocompleteStock)
-        function fetchProductsData(searchTerm = '', locationId = null) {
-            // Use selected location if not provided
+        function fetchProductsData(searchTerm = '', locationId = null, callback = null) {
             locationId = locationId || $('#location_id').val();
             if (!locationId) {
-                productsData = [];
-                setupAutocomplete([]);
-                return;
+            productsData = [];
+            if (callback) callback([]);
+            else setupAutocomplete([]);
+            return;
             }
             $.ajax({
-                url: '/products/stocks/autocomplete',
-                method: 'GET',
-                data: {
-                    search: searchTerm,
-                    location_id: locationId,
-                    per_page: 100
-                },
-                success: function(response) {
-                    if (response.status === 200) {
-                        // The backend returns [{product, total_stock}, ...]
-                        productsData = response.data.map(item => {
-                            // Ensure batches/location_batches structure for compatibility
-                            const product = item.product;
-                            return {
-                                ...item,
-                                product: product,
-                                batches: (product.batches || []).map(batch => ({
-                                    ...batch,
-                                    location_batches: (batch.location_batches ||
-                                        batch.locationBatches || [])
-                                })),
-                                locations: (product.locations || []).map(loc => ({
-                                    location_id: loc.id || loc.location_id,
-                                    location_name: loc.name || loc.location_name
-                                }))
-                            };
-                        });
-                        setupAutocomplete(productsData);
-                    } else {
-                        productsData = [];
-                        setupAutocomplete([]);
-                        toastr.error('Failed to fetch products for autocomplete.');
-                    }
-                },
-                error: function(error) {
-                    productsData = [];
-                    setupAutocomplete([]);
-                    toastr.error('Failed to fetch products for autocomplete.');
+            url: '/products/stocks/autocomplete',
+            method: 'GET',
+            data: {
+                search: searchTerm,
+                location_id: locationId,
+                per_page: 100
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                // Filter out products with 0 total_stock (unless Unlimited)
+                const filteredData = response.data.filter(item => {
+                    if (item.total_stock === 'Unlimited') return true;
+                    return parseFloat(item.total_stock) > 0;
+                });
+                productsData = filteredData;
+                if (filteredData.length === 0 && searchTerm) {
+                    toastr.error(
+                    'No product found for this search in the selected location.');
                 }
+                if (callback) callback(productsData);
+                else setupAutocomplete(productsData);
+                } else {
+                productsData = [];
+                if (callback) callback([]);
+                else setupAutocomplete([]);
+                toastr.error('Failed to fetch products for autocomplete.');
+                }
+            },
+            error: function(error) {
+                productsData = [];
+                if (callback) callback([]);
+                else setupAutocomplete([]);
+                toastr.error('Failed to fetch products for autocomplete.');
+            }
             });
         }
 
@@ -69,14 +64,14 @@
 
             // Destroy only if previously initialized
             if ($input.data('ui-autocomplete')) {
-                $input.autocomplete("destroy");
+            $input.autocomplete("destroy");
             }
 
             // Prepare suggestions
             const productSuggestions = customProducts.map(data => ({
-                label: `${data.product.product_name} (${data.product.sku})`,
-                value: data.product.product_name,
-                sku: data.product.sku
+            label: `${data.product.product_name} (${data.product.sku})`,
+            value: data.product.product_name,
+            sku: data.product.sku
             }));
 
             // Store the latest search term to avoid race conditions
@@ -85,132 +80,69 @@
 
             // Initialize autocomplete
             $input.autocomplete({
-                minLength: 1,
-                source: function(request, response) {
-                    const term = $.trim(request.term).toLowerCase();
-                    latestSearchTerm = term;
+            minLength: 1,
+            source: function(request, response) {
+                const term = $.trim(request.term).toLowerCase();
+                latestSearchTerm = term;
 
-                    // If the search term is empty, show all products for the location
-                    if (!term) {
-                        response(productSuggestions);
-                        return;
-                    }
-
-                    // Debounce backend fetch and only update source after AJAX completes
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        fetchProductsData(term, $('#location_id').val(), function(
-                            fetchedProducts) {
-                            // Only update if the search term hasn't changed during the AJAX call
-                            if (latestSearchTerm === term) {
-                                const matches = fetchedProducts.map(data => ({
-                                    label: `${data.product.product_name} (${data.product.sku})`,
-                                    value: data.product.product_name,
-                                    sku: data.product.sku
-                                })).filter(item =>
-                                    item.value.toLowerCase().includes(term) ||
-                                    (item.sku && item.sku.toLowerCase()
-                                        .includes(term))
-                                );
-                                response(matches);
-                            }
-                        });
-                    }, 250);
-                },
-                select: function(event, ui) {
-                    const selectedProduct = productsData.find(data =>
-                        data.product.product_name === ui.item.value ||
-                        data.product.sku === ui.item.sku
-                    );
-                    addOrUpdateProductInTable(selectedProduct);
-                    $(this).val('');
-                    return false;
-                },
-                focus: function(event, ui) {
-                    $('#productSearchInput').val(ui.item.label);
-                    return false;
-                },
-                open: function() {
-                    $('.ui-autocomplete').css({
-                        'max-height': '200px',
-                        'overflow-y': 'auto',
-                        'overflow-x': 'hidden',
-                        'z-index': 1050
-                    });
+                // If the search term is empty, show all products for the location
+                if (!term) {
+                response(productSuggestions);
+                return;
                 }
+
+                // Debounce backend fetch and only update source after AJAX completes
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                fetchProductsData(term, $('#location_id').val(), function(
+                    fetchedProducts) {
+                    // Only update if the search term hasn't changed during the AJAX call
+                    if (latestSearchTerm === term) {
+                    const matches = fetchedProducts.map(data => ({
+                        label: `${data.product.product_name} (${data.product.sku})`,
+                        value: data.product.product_name,
+                        sku: data.product.sku
+                    })).filter(item =>
+                        item.value.toLowerCase().includes(term) ||
+                        (item.sku && item.sku.toLowerCase()
+                        .includes(term))
+                    );
+                    response(matches);
+                    }
+                });
+                }, 250);
+            },
+            select: function(event, ui) {
+                const selectedProduct = productsData.find(data =>
+                data.product.product_name === ui.item.value ||
+                data.product.sku === ui.item.sku
+                );
+                addOrUpdateProductInTable(selectedProduct);
+                $(this).val('');
+                return false;
+            },
+            focus: function(event, ui) {
+                $('#productSearchInput').val(ui.item.label);
+                return false;
+            },
+            open: function() {
+                $('.ui-autocomplete').css({
+                'max-height': '200px',
+                'overflow-y': 'auto',
+                'overflow-x': 'hidden',
+                'z-index': 1050
+                });
+            }
             }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>")
-                    .append(
-                        `<div><strong>${item.value}</strong> <small class="autocomplete-sku">(${item.sku})</small></div>`
-                    )
-                    .appendTo(ul);
+            return $("<li>")
+                .append(
+                `<div><strong>${item.value}</strong> <small class="autocomplete-sku">(${item.sku})</small></div>`
+                )
+                .appendTo(ul);
             };
 
             // Remove the old input event handler (handled by autocomplete source now)
             $input.off('input.autocomplete');
-        }
-
-        // Modified fetchProductsData to accept a callback for autocomplete
-        // Now filters out products with 0 total_stock for the selected location
-        function fetchProductsData(searchTerm = '', locationId = null, callback = null) {
-            locationId = locationId || $('#location_id').val();
-            if (!locationId) {
-                productsData = [];
-                if (callback) callback([]);
-                else setupAutocomplete([]);
-                return;
-            }
-            $.ajax({
-                url: '/products/stocks/autocomplete',
-                method: 'GET',
-                data: {
-                    search: searchTerm,
-                    location_id: locationId,
-                    per_page: 100
-                },
-                success: function(response) {
-                    if (response.status === 200) {
-                        // Filter out products with 0 total_stock
-                        const filteredData = response.data.filter(item => {
-                            // If total_stock is present and > 0, keep it
-                            return parseFloat(item.total_stock) > 0;
-                        }).map(item => {
-                            const product = item.product;
-                            return {
-                                ...item,
-                                product: product,
-                                batches: (product.batches || []).map(batch => ({
-                                    ...batch,
-                                    location_batches: (batch.location_batches ||
-                                        batch.locationBatches || [])
-                                })),
-                                locations: (product.locations || []).map(loc => ({
-                                    location_id: loc.id || loc.location_id,
-                                    location_name: loc.name || loc.location_name
-                                }))
-                            };
-                        });
-                        productsData = filteredData;
-                        if (filteredData.length === 0 && searchTerm) {
-                            toastr.error(
-                                'No product found for this search in the selected location.');
-                        }
-                        if (callback) callback(productsData);
-                        else setupAutocomplete(productsData);
-                    } else {
-                        productsData = [];
-                        if (callback) callback([]);
-                        else setupAutocomplete([]);
-                        toastr.error('Failed to fetch products for autocomplete.');
-                    }
-                },
-                error: function(error) {
-                    productsData = [];
-                    if (callback) callback([]);
-                    else setupAutocomplete([]);
-                    toastr.error('Failed to fetch products for autocomplete.');
-                }
-            });
         }
 
         // When location changes, refetch products for autocomplete
@@ -341,22 +273,36 @@
                 return;
             }
 
+            console.log('Adding/updating product:', productData);
+
+
+
             const selectedLocationId = $('#location_id').val();
             const product = productData.product;
 
-            // Filter batches by selected location
+            // Determine if decimals are allowed for this product's unit
+            const allowDecimal = product.unit && product.unit.allow_decimal;
+
+            // Filter batches by selected location and ensure batch_quantity > 0
             const batches = [].concat.apply([], (productData.batches || []).map(batch =>
                 (batch.location_batches || batch.locationBatches || [])
-                .filter(locationBatch => locationBatch.location_id == selectedLocationId)
-                .map(locationBatch => ({
-                    batch_id: batch.id,
-                    batch_price: parseFloat(batch.retail_price),
-                    batch_quantity: locationBatch.quantity || locationBatch.qty,
-                    batch_no: batch.batch_no || batch.batch_number,
-                }))
+                .filter(locationBatch => String(locationBatch.location_id) == String(
+                    selectedLocationId))
+                .map(locationBatch => {
+                    const batch_quantity = parseFloat(locationBatch.quantity || locationBatch.qty);
+                    return (!isNaN(batch_quantity) && batch_quantity > 0) ? {
+                        batch_id: locationBatch.batch_id || batch.id,
+                        batch_price: parseFloat(batch.retail_price),
+                        batch_quantity: batch_quantity,
+                        batch_no: batch.batch_no || batch.batch_number,
+                    } : null;
+                })
+                .filter(Boolean)
             ));
 
-            if (batches.length === 0) {
+            console.log('Filtered batches:', batches);
+
+            if (!batches || batches.length === 0) {
                 toastr.warning(`No available batches for this product at the selected location.`);
                 return;
             }
@@ -370,10 +316,12 @@
                 const selectedBatchId = batchSelect.val();
                 const selectedBatch = batches.find(b => b.batch_id == selectedBatchId) || batches[0];
                 const maxAvailable = selectedBatch.batch_quantity;
-                let currentQuantity = parseInt(quantityInput.val(), 10) || 0;
+                let currentQuantity = parseFloat(quantityInput.val()) || 0;
 
                 if (currentQuantity < maxAvailable) {
-                    quantityInput.val(currentQuantity + 1).trigger('change');
+                    let newQty = allowDecimal ? (currentQuantity + 1) : (parseInt(currentQuantity, 10) + 1);
+                    if (newQty > maxAvailable) newQty = maxAvailable;
+                    quantityInput.val(newQty).trigger('change');
                 } else {
                     toastr.info('Maximum available quantity reached for this batch.');
                 }
@@ -383,31 +331,47 @@
             // Build batch options
             const batchOptions = batches.map(batch => `
             <option value="${batch.batch_id}" data-price="${batch.batch_price}" data-quantity="${batch.batch_quantity}">
-                 ${batch.batch_no} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
+             ${batch.batch_no} - Qty: ${batch.batch_quantity} - Price: ${batch.batch_price.toFixed(2)}
             </option>
             `).join('');
+
+            // Set input attributes based on allowDecimal
+            const step = allowDecimal ? "0.01" : "1";
+            const inputType = "number";
+            const min = allowDecimal ? "0.01" : "1";
+            const pattern = allowDecimal ? "[0-9]+([\\.,][0-9]+)?" : "[0-9]+";
 
             // Add new row to table
             const newRow = `
             <tr class="add-row" data-product-id="${product.id}">
-                <td>${product.product_name}
-                <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
-                </td>
-                <td>
-                <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
-                    ${batchOptions}
-                </select>
-                <div class="error-message batch-error"></div>
-                </td>
-                <td>
-                <input type="number" class="form-control quantity-input" name="products[${productIndex}][quantity]" min="1" value="1" max="${batches[0].batch_quantity}" required>
-                <div class="error-message quantity-error text-danger"></div>
-                </td>
-                <td><input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price.toFixed(2)}" readonly></td>
-                <td><input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${batches[0].batch_price.toFixed(2)}" readonly></td>
-                <td class="add-remove text-end">
-                <a href="javascript:void(0);" class="remove-btn text-danger"><i class="fas fa-trash"></i></a>
-                </td>
+            <td>${product.product_name}
+            <input type="hidden" name="products[${productIndex}][product_id]" value="${product.id}">
+            </td>
+            <td>
+            <select class="form-control batch-select" name="products[${productIndex}][batch_id]" required>
+                ${batchOptions}
+            </select>
+            <div class="error-message batch-error"></div>
+            </td>
+            <td>
+            <input 
+                type="${inputType}" 
+                class="form-control quantity-input" 
+                name="products[${productIndex}][quantity]" 
+                min="${min}" 
+                step="${step}" 
+                pattern="${pattern}"
+                value="1"
+                max="${batches[0].batch_quantity}" 
+                required
+            >
+            <div class="error-message quantity-error text-danger"></div>
+            </td>
+            <td><input type="text" class="form-control unit-price" name="products[${productIndex}][unit_price]" value="${batches[0].batch_price.toFixed(2)}" readonly></td>
+            <td><input type="text" class="form-control sub_total" name="products[${productIndex}][sub_total]" value="${batches[0].batch_price.toFixed(2)}" readonly></td>
+            <td class="add-remove text-end">
+            <a href="javascript:void(0);" class="remove-btn text-danger"><i class="fas fa-trash"></i></a>
+            </td>
             </tr>
             `;
             $('#productTableBody').append(newRow);
@@ -425,17 +389,29 @@
                     const row = $(this).closest('tr');
                     const selectedBatch = row.find('.batch-select option:selected');
                     const unitPrice = parseFloat(selectedBatch.data('price'));
-                    const quantity = parseFloat(row.find('.quantity-input').val());
+                    let quantity = parseFloat(row.find('.quantity-input').val());
                     const maxQty = parseFloat(selectedBatch.data('quantity'));
 
                     // Ensure quantity does not exceed max available
                     if (quantity > maxQty) {
-                        row.find('.quantity-input').val(maxQty);
+                        quantity = maxQty;
+                        row.find('.quantity-input').val(quantity);
                         toastr.info('Maximum available quantity reached for this batch.');
                     }
 
-                    const finalQty = Math.min(quantity, maxQty);
-                    const subtotal = parseFloat(unitPrice * finalQty).toFixed(2);
+                    // If not allowDecimal, force integer
+                    if (!allowDecimal) {
+                        quantity = Math.floor(quantity);
+                        row.find('.quantity-input').val(quantity);
+                    }
+
+                    // Prevent less than min
+                    if (quantity < parseFloat(min)) {
+                        quantity = parseFloat(min);
+                        row.find('.quantity-input').val(quantity);
+                    }
+
+                    const subtotal = parseFloat(unitPrice * quantity).toFixed(2);
                     row.find('.unit-price').val(unitPrice.toFixed(2));
                     row.find('.sub_total').val(subtotal);
                     updateTotalAmount();

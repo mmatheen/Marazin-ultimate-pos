@@ -162,20 +162,24 @@
                         $("#customer-id").val(data.customer_id); // Set the customer ID
 
                         data.products.forEach((product, index) => {
+                            // Always allow decimal input (step="any")
+                            const inputAttrs =
+                                `type="number" step="any" inputmode="decimal" autocomplete="off"`;
+
                             const row = `
-                            <tr data-index="${index}">
-                                <td>${index + 1}</td>
-                                <td>${product.product.product_name}<br><small class="text-muted">${product.product.sku}</small></td>
-                                <td>Rs. ${parseFloat(product.price).toFixed(2)}</td>
-                                <td><del>${product.quantity}</del>  ${product.current_quantity} Pc(s)</td>
-                                <td>
-                                    <input type="number" class="form-control return-quantity" name="products[${index}][quantity]" placeholder="Enter qty" max="${product.current_quantity}" data-unit-price="${product.price}" data-product-id="${product.product.id}" data-batch-id="${product.batch_id}" required>
-                                    <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
-                                </td>
-                                <td class="return-subtotal">Rs. 0.00</td>
-                                <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
-                            </tr>
-                        `;
+                                            <tr data-index="${index}">
+                                                <td>${index + 1}</td>
+                                                <td>${product.product.product_name}<br><small class="text-muted">${product.product.sku}</small></td>
+                                                <td>Rs. ${parseFloat(product.price).toFixed(2)}</td>
+                                                <td><del>${product.quantity}</del>  ${product.current_quantity} ${product.unit ? product.unit.short_name : 'Pc(s)'}</td>
+                                                <td>
+                                                    <input ${inputAttrs} class="form-control return-quantity" name="products[${index}][quantity]" placeholder="Enter qty" max="${product.current_quantity}" data-unit-price="${product.price}" data-product-id="${product.product.id}" data-batch-id="${product.batch_id}" required>
+                                                    <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
+                                                </td>
+                                                <td class="return-subtotal">Rs. 0.00</td>
+                                                <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
+                                            </tr>
+                                        `;
                             productsTableBody.append(row);
                         });
 
@@ -187,15 +191,42 @@
                         fetchCustomerDetails(data.customer_id);
                         setLocationId(data.location_id);
 
-                        $(".return-quantity").on('input', function() {
-                            const max = parseInt($(this).attr('max'));
-                            let quantity = parseInt($(this).val());
-                            const unitPrice = parseFloat($(this).data('unit-price'));
-                            const errorDiv = $(this).siblings('.quantity-error');
+                        // Improved input handler for decimals and cursor position
+                        $(".return-quantity").on('input', function(e) {
+                            const $input = $(this);
+                            let value = $input.val();
+
+                            // Allow only numbers and one decimal point, but allow leading "0." or "."
+                            value = value.replace(/[^0-9.]/g, '');
+
+                            // Prevent multiple decimals
+                            const parts = value.split('.');
+                            if (parts.length > 2) {
+                                value = parts[0] + '.' + parts[1];
+                            }
+
+                            // If user types just ".", convert to "0."
+                            if (value === '.') {
+                                value = '0.';
+                            }
+
+                            // If value starts with "0" and not "0." (e.g. "01"), remove leading zero
+                            if (value.length > 1 && value.startsWith('0') && value[1] !== '.') {
+                                value = value.replace(/^0+/, '');
+                                if (value === '') value = '0';
+                            }
+
+                            // Set value back and keep cursor at end
+                            $input.val(value);
+
+                            const max = parseFloat($input.attr('max'));
+                            let quantity = parseFloat(value) || 0;
+                            const unitPrice = parseFloat($input.data('unit-price'));
+                            const errorDiv = $input.siblings('.quantity-error');
 
                             if (quantity > max) {
                                 quantity = max;
-                                $(this).val(quantity);
+                                $input.val(quantity);
                                 errorDiv.html('Quantity cannot exceed<br>the available amount.')
                                     .show();
                             } else {
@@ -203,7 +234,7 @@
                             }
 
                             const returnSubtotal = quantity * unitPrice;
-                            $(this).closest('tr').find('.return-subtotal').text(
+                            $input.closest('tr').find('.return-subtotal').text(
                                 `Rs. ${returnSubtotal.toFixed(2)}`);
                             calculateReturnTotal();
                         });
@@ -220,6 +251,7 @@
             }
 
             function fetchCustomerDetails(customerId) {
+
                 $.ajax({
                     url: `/customer-get-all`,
                     method: 'GET',

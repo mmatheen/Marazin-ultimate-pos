@@ -126,93 +126,86 @@
         // Use backend autocomplete endpoint for product search
         function initAutocomplete() {
             $("#productSearchInput").autocomplete({
-                minLength: 2,
-                source: function(request, response) {
-                    const locationId = $('#services').val();
-                    $.ajax({
-                        url: '/products/stocks/autocomplete',
-                        data: {
-                            search: request.term,
-                            location_id: locationId,
-                            per_page: 10
-                        },
-                        dataType: 'json',
-                        success: function(data) {
-                            if (data.status === 200 && Array.isArray(data.data)) {
-                                const items = data.data
-                                    .filter(item => item.product && item.product
-                                        .stock_alert !== 0)
-                                    .map(item => ({
-                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
-                                        value: item.product.product_name,
-                                        product: {
-                                            id: item.product.id,
-                                            name: item.product.product_name,
-                                            sku: item.product.sku || "N/A",
-                                            quantity: item.total_stock || 0,
-                                            price: item.product
-                                                .original_price || 0,
-                                            wholesale_price: item.product
-                                                .whole_sale_price || 0,
-                                            special_price: item.product
-                                                .special_price || 0,
-                                            max_retail_price: item.product
-                                                .max_retail_price || 0,
-                                            retail_price: item.product
-                                                .retail_price || 0,
-                                            expiry_date: '', // Not available in autocomplete
-                                            batch_no: '', // Not available in autocomplete
-                                            stock_alert: item.product
-                                                .stock_alert || 0
-                                        }
-                                    }));
-                                if (items.length === 0) {
-                                    response([{
-                                        label: "No products found",
-                                        value: ""
-                                    }]);
-                                } else {
-                                    response(items.slice(0,
-                                    1)); // Only show one product
-                                }
-                            } else {
-                                response([{
-                                    label: "No products found",
-                                    value: ""
-                                }]);
-                            }
-                        },
-                        error: function() {
-                            response([{
-                                label: "Error fetching products",
-                                value: ""
-                            }]);
-                        }
-                    });
+            minLength: 2,
+            source: function(request, response) {
+                const locationId = $('#services').val();
+                $.ajax({
+                url: '/products/stocks/autocomplete',
+                data: {
+                    search: request.term,
+                    location_id: locationId,
+                    per_page: 10
                 },
-                select: function(event, ui) {
-                    if (!ui.item.product) {
-                        return false;
+                dataType: 'json',
+                success: function(data) {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                    const items = data.data
+                        .filter(item => item.product && item.product.stock_alert !== 0)
+                        .map(item => ({
+                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                        value: item.product.product_name,
+                        product: {
+                            id: item.product.id,
+                            name: item.product.product_name,
+                            sku: item.product.sku || "N/A",
+                            quantity: item.total_stock || 0,
+                            price: item.product.original_price || 0,
+                            wholesale_price: item.product.whole_sale_price || 0,
+                            special_price: item.product.special_price || 0,
+                            max_retail_price: item.product.max_retail_price || 0,
+                            retail_price: item.product.retail_price || 0,
+                            expiry_date: '', // Not available in autocomplete
+                            batch_no: '', // Not available in autocomplete
+                            stock_alert: item.product.stock_alert || 0,
+                            allow_decimal: item.product.unit?.allow_decimal || false // Pass allow_decimal
+                        }
+                        }));
+                    if (items.length === 0) {
+                        response([{
+                        label: "No products found",
+                        value: ""
+                        }]);
+                    } else {
+                        response(items.slice(0, 1)); // Only show one product
                     }
-                    addProductToTable(ui.item.product);
-                    $("#productSearchInput").val("");
-                    return false;
+                    } else {
+                    response([{
+                        label: "No products found",
+                        value: ""
+                    }]);
+                    }
+                },
+                error: function() {
+                    response([{
+                    label: "Error fetching products",
+                    value: ""
+                    }]);
                 }
+                });
+            },
+            select: function(event, ui) {
+                if (!ui.item.product) {
+                return false;
+                }
+                addProductToTable(ui.item.product);
+                $("#productSearchInput").val("");
+                return false;
+            }
             });
 
             // Custom render for autocomplete
             const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
             if (autocompleteInstance) {
-                autocompleteInstance._renderItem = function(ul, item) {
-                    if (!item.product) {
-                        return $("<li>")
-                            .append(`<div style="color: red;">${item.label}</div>`)
-                            .appendTo(ul);
-                    }
-                    return $("<li>")
-                        .append(`<div>${item.label}</div>`)
-                        .appendTo(ul);
-                };
+            autocompleteInstance._renderItem = function(ul, item) {
+                if (!item.product) {
+                return $("<li>")
+                    .append(`<div style="color: red;">${item.label}</div>`)
+                    .appendTo(ul);
+                }
+                return $("<li>")
+                .append(`<div>${item.label}</div>`)
+                .appendTo(ul);
+            };
             }
         }
 
@@ -220,39 +213,35 @@
         function fetchProducts(locationId) {
             let url = '/products/stocks';
             if (locationId) {
-                url += `?location_id=${locationId}`;
+            url += `?location_id=${locationId}`;
             }
             fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        allProducts = data.data.map(stock => {
-                            if (!stock.product) return null;
-                            return {
-                                id: stock.product.id,
-                                name: stock.product.product_name,
-                                sku: stock.product.sku || "N/A",
-                                quantity: stock.total_stock || 0,
-                                price: stock.batches?.[0]?.unit_cost || stock.product
-                                    .original_price || 0,
-                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
-                                    .product.whole_sale_price || 0,
-                                special_price: stock.batches?.[0]?.special_price || stock.product
-                                    .special_price || 0,
-                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
-                                    .product.max_retail_price || 0,
-                                retail_price: stock.batches?.[0]?.retail_price || stock.product
-                                    .retail_price || 0,
-                                expiry_date: stock.batches?.[0]?.expiry_date || '',
-                                batch_no: stock.batches?.[0]?.batch_no || '',
-                                stock_alert: stock.product.stock_alert || 0
-                            };
-                        }).filter(product => product !== null);
-                    } else {
-                        console.error("Failed to fetch product data:", data);
-                    }
-                })
-                .catch(error => console.error("Error fetching products:", error));
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 200 && Array.isArray(data.data)) {
+                allProducts = data.data.map(stock => {
+                    if (!stock.product) return null;
+                    return {
+                    id: stock.product.id,
+                    name: stock.product.product_name,
+                    sku: stock.product.sku || "N/A",
+                    quantity: stock.total_stock || 0,
+                    price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
+                    wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
+                    special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
+                    max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
+                    retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
+                    expiry_date: stock.batches?.[0]?.expiry_date || '',
+                    batch_no: stock.batches?.[0]?.batch_no || '',
+                    stock_alert: stock.product.stock_alert || 0,
+                    allow_decimal: stock.product.unit?.allow_decimal || false // Pass allow_decimal
+                    };
+                }).filter(product => product !== null);
+                } else {
+                console.error("Failed to fetch product data:", data);
+                }
+            })
+            .catch(error => console.error("Error fetching products:", error));
         }
 
         $(document).ready(function() {
@@ -260,10 +249,10 @@
             initAutocomplete(); // Initialize backend autocomplete
 
             $('#services').on('change', function() {
-                const selectedLocationId = $(this).val();
-                if (selectedLocationId) {
-                    fetchProducts(selectedLocationId);
-                }
+            const selectedLocationId = $(this).val();
+            if (selectedLocationId) {
+                fetchProducts(selectedLocationId);
+            }
             });
         });
 
@@ -272,64 +261,73 @@
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
-                const rowProductId = $(this).data('id');
-                if (rowProductId === product.id) {
-                    existingRow = $(this);
-                    return false;
-                }
+            const rowProductId = $(this).data('id');
+            if (rowProductId === product.id) {
+                existingRow = $(this);
+                return false;
+            }
             });
 
-            if (existingRow && !isEditing) {
-                const quantityInput = existingRow.find('.purchase-quantity');
-                const newQuantity = parseFloat(quantityInput.val()) + 1;
-                quantityInput.val(newQuantity).trigger('input');
-            } else {
-                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+            // Determine if decimal is allowed for this product
+            const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
+            const quantityStep = allowDecimal ? "0.01" : "1";
+            const quantityMin = allowDecimal ? "0.01" : "1";
+            const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
 
-                const newRow = `
+            if (existingRow && !isEditing) {
+            const quantityInput = existingRow.find('.purchase-quantity');
+            let currentVal = parseFloat(quantityInput.val());
+            let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
+            quantityInput.val(newQuantity).trigger('input');
+            } else {
+            const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
+            const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+            const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+            const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+            const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+
+            const newRow = `
             <tr data-id="${product.id}">
-                <td>${product.id}</td>
-                <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
-                <td><input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="1"></td>
-                <td>
-                    <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
-                </td>
-                <td>
-                    <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
-                </td>
-                <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
-                <td class="sub-total">0</td>
-                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
-                <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
-                <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
-                <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+            <td>${product.id}</td>
+            <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
+            <td>
+                <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
+            </td>
+            <td>
+                <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
+            </td>
+            <td>
+                <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
+            </td>
+            <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
+            <td class="sub-total">0</td>
+            <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+            <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
+            <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
+            <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
+            <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
 
-                const $newRow = $(newRow);
-                table.row.add($newRow).draw();
+            const $newRow = $(newRow);
+            table.row.add($newRow).draw();
+            updateRow($newRow);
+            updateFooter();
+
+            $newRow.find(
+                ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+            ).on("input", function() {
                 updateRow($newRow);
                 updateFooter();
+            });
 
-                $newRow.find(
-                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
-                ).on("input", function() {
-                    updateRow($newRow);
-                    updateFooter();
-                });
-
-                $newRow.find(".delete-product").on("click", function() {
-                    table.row($newRow).remove().draw();
-                    updateFooter();
-                });
+            $newRow.find(".delete-product").on("click", function() {
+                table.row($newRow).remove().draw();
+                updateFooter();
+            });
             }
         }
 
@@ -354,11 +352,11 @@
             let netTotalAmount = 0;
 
             $('#purchase_product tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
+            const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+            const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
 
-                totalItems += quantity;
-                netTotalAmount += subTotal;
+            totalItems += quantity;
+            netTotalAmount += subTotal;
             });
 
             $('#total-items').text(totalItems.toFixed(2));
@@ -370,18 +368,18 @@
             let discountAmount = 0;
 
             if (discountType === 'fixed') {
-                discountAmount = discountInput;
+            discountAmount = discountInput;
             } else if (discountType === 'percentage') {
-                discountAmount = (netTotalAmount * discountInput) / 100;
+            discountAmount = (netTotalAmount * discountInput) / 100;
             }
 
             const taxType = $('#tax-type').val();
             let taxAmount = 0;
 
             if (taxType === 'vat10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
+            taxAmount = (netTotalAmount - discountAmount) * 0.10;
             } else if (taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
+            taxAmount = (netTotalAmount - discountAmount) * 0.10;
             }
 
             const finalTotal = netTotalAmount - discountAmount + taxAmount;

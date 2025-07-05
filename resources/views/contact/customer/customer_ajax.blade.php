@@ -300,5 +300,14 @@
             updateDueAmount(dueAmount);
         });
 
+
+
+        // 🔐 Make only selected functions globally available
+        window.customerFunctions = {
+            fetchCustomerData: fetchCustomerData,
+            // other functions NOT exposed unless added here
+        };
+
+
     });
 </script>

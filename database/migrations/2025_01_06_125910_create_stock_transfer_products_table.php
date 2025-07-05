@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('stock_transfer_id');
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('batch_id');
-            $table->integer('quantity');
+            $table->decimal('quantity', 15, 4);
             $table->decimal('unit_price', 10, 2);
             $table->decimal('sub_total', 10, 2);
             $table->timestamps();

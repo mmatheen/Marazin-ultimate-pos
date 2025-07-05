@@ -303,11 +303,12 @@
                         lb.location_id == selectedLocationId &&
                         (
                             // If allow_decimal, check for > 0 as float (including decimals)
-                            (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
-                                ? parseFloat(lb.quantity) > 0
-                                : parseInt(lb.quantity) > 0
-                            )
-                            || stock.product.stock_alert === 0
+                            (stock.product.unit && (stock.product.unit.allow_decimal === true || stock
+                                    .product.unit.allow_decimal === 1) ?
+                                parseFloat(lb.quantity) > 0 :
+                                parseInt(lb.quantity) > 0
+                            ) ||
+                            stock.product.stock_alert === 0
                         )
                     )
                 )
@@ -324,24 +325,32 @@
                 stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
                 // Show unit name (e.g., "Pc(s)", "kg", etc.) based on product.unit
                 const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
-                const quantityDisplay = product.stock_alert === 0 ?
-                    `Unlimited` :
-                    `${stock.total_stock} ${unitName} in stock`;
+                // Format quantity: decimal if allowed, else integer
+                let quantityDisplay;
+                if (product.stock_alert === 0) {
+                    quantityDisplay = `Unlimited`;
+                } else if (product.unit && (product.unit.allow_decimal === true || product.unit
+                        .allow_decimal === 1)) {
+                    quantityDisplay =
+                        `${parseFloat(stock.total_stock).toFixed(4).replace(/\.?0+$/, '')} ${unitName} in stock`;
+                } else {
+                    quantityDisplay = `${parseInt(stock.total_stock, 10)} ${unitName} in stock`;
+                }
                 const cardHTML = `
             <div class="col-xxl-3 col-xl-4 col-lg-4 col-md-6 col-sm-3">
-                <div class="product-card" data-id="${product.id}">
-                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
-                    <div class="product-card-body">
-                        <h6>${product.product_name} <br>
-                            <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
-                        </h6>
-                        <h6>
-                            <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
-                                ${quantityDisplay}
-                            </span>
-                        </h6>
-                    </div>
+            <div class="product-card" data-id="${product.id}">
+                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" alt="${product.product_name}">
+                <div class="product-card-body">
+                <h6>${product.product_name} <br>
+                    <span class="badge text-dark">SKU: ${product.sku || 'N/A'}</span>
+                </h6>
+                <h6>
+                    <span class="badge ${product.stock_alert === 0 ? 'bg-info' : stock.total_stock > 0 ? 'bg-success' : 'bg-warning'}">
+                    ${quantityDisplay}
+                    </span>
+                </h6>
                 </div>
+            </div>
             </div>`;
                 posProduct.insertAdjacentHTML('beforeend', cardHTML);
             });
@@ -375,9 +384,12 @@
                                     (
                                         stock.product.stock_alert == 0 ||
                                         (
-                                            stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
-                                                ? parseFloat(stock.total_stock) > 0
-                                                : parseInt(stock.total_stock) > 0
+                                            stock.product.unit && (stock.product
+                                                .unit.allow_decimal === true ||
+                                                stock.product.unit.allow_decimal ===
+                                                1) ?
+                                            parseFloat(stock.total_stock) > 0 :
+                                            parseInt(stock.total_stock) > 0
                                         )
                                     )
                                 );
@@ -1280,18 +1292,18 @@
 
             // Use selectedBatch if provided; fallback to stockEntry batch
             const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b
-            .id === parseInt(batchId)) : undefined);
+                .id === parseInt(batchId)) : undefined);
 
             // Use batch retail price if valid, else product retail price, then MRP
             let batchRetailPrice = batch && parseFloat(batch.retail_price) > 0 ? parseFloat(batch
-            .retail_price) : 0;
+                .retail_price) : 0;
             price = batchRetailPrice || product.retail_price || product.max_retail_price;
             price = parseFloat(price);
 
             if (isNaN(price)) {
-            console.error('Invalid price for product:', product.product_name);
-            toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
-            price = 0;
+                console.error('Invalid price for product:', product.product_name);
+                toastr.error(`Invalid price for ${product.product_name}. Using default price.`, 'Error');
+                price = 0;
             }
 
             const activeDiscount = stockEntry.discounts?.find(d => d.is_active && !d.is_expired) || null;
@@ -1308,48 +1320,49 @@
             // 2. Active discount
             // 3. Default (MRP - batch retail price)
             if (discountType && discountAmount !== null) {
-            if (discountType === 'fixed') {
-                discountFixed = parseFloat(discountAmount);
-                finalPrice = product.max_retail_price - discountFixed;
-                if (finalPrice < 0) finalPrice = 0;
-            } else if (discountType === 'percentage') {
-                discountPercent = parseFloat(discountAmount);
-                finalPrice = product.max_retail_price * (1 - discountPercent / 100);
-            }
+                if (discountType === 'fixed') {
+                    discountFixed = parseFloat(discountAmount);
+                    finalPrice = product.max_retail_price - discountFixed;
+                    if (finalPrice < 0) finalPrice = 0;
+                } else if (discountType === 'percentage') {
+                    discountPercent = parseFloat(discountAmount);
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
+                }
             } else if (activeDiscount) {
-            if (activeDiscount.type === 'percentage') {
-                discountPercent = activeDiscount.amount;
-                finalPrice = product.max_retail_price * (1 - discountPercent / 100);
-            } else if (activeDiscount.type === 'fixed') {
-                discountFixed = activeDiscount.amount;
-                finalPrice = product.max_retail_price - discountFixed;
-                if (finalPrice < 0) finalPrice = 0;
-            }
+                if (activeDiscount.type === 'percentage') {
+                    discountPercent = activeDiscount.amount;
+                    finalPrice = product.max_retail_price * (1 - discountPercent / 100);
+                } else if (activeDiscount.type === 'fixed') {
+                    discountFixed = activeDiscount.amount;
+                    finalPrice = product.max_retail_price - discountFixed;
+                    if (finalPrice < 0) finalPrice = 0;
+                }
             } else {
-            discountFixed = defaultFixedDiscount;
-            discountPercent = (discountFixed / product.max_retail_price) * 100;
-            finalPrice = price; // Use selected batch price
+                discountFixed = defaultFixedDiscount;
+                discountPercent = (discountFixed / product.max_retail_price) * 100;
+                finalPrice = price; // Use selected batch price
             }
 
             let adjustedBatchQuantity = batchQuantity;
             if (batchId === "all") {
-            adjustedBatchQuantity = stockEntry.total_stock;
+                adjustedBatchQuantity = stockEntry.total_stock;
             } else if (batch && batch.location_batches) {
-            const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
-            if (locationBatch) {
-                adjustedBatchQuantity = parseFloat(locationBatch.quantity);
-            }
+                const locationBatch = batch.location_batches.find(lb => lb.location_id === locationId);
+                if (locationBatch) {
+                    adjustedBatchQuantity = parseFloat(locationBatch.quantity);
+                }
             }
 
             // Get unit name and allow_decimal from product.unit (if available)
             const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
-            const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
+            const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit
+                .allow_decimal === 1);
 
             // Format adjustedBatchQuantity based on allowDecimal
             if (allowDecimal) {
-            adjustedBatchQuantity = parseFloat(adjustedBatchQuantity).toFixed(4).replace(/\.?0+$/, '');
+                adjustedBatchQuantity = parseFloat(adjustedBatchQuantity).toFixed(4).replace(/\.?0+$/, '');
             } else {
-            adjustedBatchQuantity = parseInt(adjustedBatchQuantity, 10);
+                adjustedBatchQuantity = parseInt(adjustedBatchQuantity, 10);
             }
 
             // If allowDecimal, use step="any" and allow decimal input, else step="1"
@@ -1359,48 +1372,48 @@
             // Determine initial quantity value for input
             let initialQuantityValue;
             if (imeis.length > 0) {
-            initialQuantityValue = imeis.length;
+                initialQuantityValue = imeis.length;
             } else if (allowDecimal) {
-            // For decimal units, use the available stock as default if less than 1, else 1
-            let availableQty = parseFloat(adjustedBatchQuantity);
-            if (availableQty < 1 && availableQty > 0) {
-                initialQuantityValue = availableQty.toFixed(4).replace(/\.?0+$/, '');
+                // For decimal units, use the available stock as default if less than 1, else 1
+                let availableQty = parseFloat(adjustedBatchQuantity);
+                if (availableQty < 1 && availableQty > 0) {
+                    initialQuantityValue = availableQty.toFixed(4).replace(/\.?0+$/, '');
+                } else {
+                    initialQuantityValue = '1.0000';
+                }
             } else {
-                initialQuantityValue = '1.0000';
-            }
-            } else {
-            initialQuantityValue = 1;
+                initialQuantityValue = 1;
             }
 
             // If not IMEI, try to merge row
             if (imeis.length === 0) {
-            const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                const rowProductId = row.querySelector('.product-id').textContent;
-                const rowBatchId = row.querySelector('.batch-id').textContent;
-                return rowProductId == product.id && rowBatchId == batchId;
-            });
-            if (existingRow) {
-                const quantityInput = existingRow.querySelector('.quantity-input');
-                let currentQty = allowDecimal ? parseFloat(quantityInput.value) : parseInt(quantityInput
-                .value, 10);
-                let newQuantity = currentQty + saleQuantity;
+                const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
+                    const rowProductId = row.querySelector('.product-id').textContent;
+                    const rowBatchId = row.querySelector('.batch-id').textContent;
+                    return rowProductId == product.id && rowBatchId == batchId;
+                });
+                if (existingRow) {
+                    const quantityInput = existingRow.querySelector('.quantity-input');
+                    let currentQty = allowDecimal ? parseFloat(quantityInput.value) : parseInt(quantityInput
+                        .value, 10);
+                    let newQuantity = currentQty + saleQuantity;
 
-                // Use parseFloat for decimal allowed, parseInt for integer
-                if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
-                toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
-                    'Warning');
-                return;
+                    // Use parseFloat for decimal allowed, parseInt for integer
+                    if (newQuantity > adjustedBatchQuantity && product.stock_alert !== 0) {
+                        toastr.error(`You cannot add more than ${adjustedBatchQuantity} units of this product.`,
+                            'Warning');
+                        return;
+                    }
+
+                    quantityInput.value = allowDecimal ? newQuantity.toFixed(4).replace(/\.?0+$/, '') :
+                        newQuantity;
+                    const subtotalElement = existingRow.querySelector('.subtotal');
+                    const updatedSubtotal = newQuantity * finalPrice;
+                    subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
+
+                    updateTotals();
+                    return;
                 }
-
-                quantityInput.value = allowDecimal ? newQuantity.toFixed(4).replace(/\.?0+$/, '') :
-                newQuantity;
-                const subtotalElement = existingRow.querySelector('.subtotal');
-                const updatedSubtotal = newQuantity * finalPrice;
-                subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
-
-                updateTotals();
-                return;
-            }
             }
 
             const row = document.createElement('tr');
@@ -1460,30 +1473,30 @@
 
             // Handle IMEI display and input restrictions
             if (imeis.length > 0) {
-            if (qtyDisplayCell) {
-                qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} ${unitName}`;
-            }
-            if (quantityInput) quantityInput.readOnly = true;
-            if (plusBtn) plusBtn.disabled = true;
-            if (minusBtn) minusBtn.disabled = true;
+                if (qtyDisplayCell) {
+                    qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} ${unitName}`;
+                }
+                if (quantityInput) quantityInput.readOnly = true;
+                if (plusBtn) plusBtn.disabled = true;
+                if (minusBtn) minusBtn.disabled = true;
             }
 
             attachRowEventListeners(row, product, stockEntry);
 
             // Focus search input on Enter key
             if (quantityInput) {
-            quantityInput.focus();
-            quantityInput.select();
+                quantityInput.focus();
+                quantityInput.select();
 
-            quantityInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                const searchInput = document.getElementById('productSearchInput');
-                if (searchInput) {
-                    searchInput.value = '';
-                    searchInput.focus();
-                }
-                }
-            });
+                quantityInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        const searchInput = document.getElementById('productSearchInput');
+                        if (searchInput) {
+                            searchInput.value = '';
+                            searchInput.focus();
+                        }
+                    }
+                });
             }
 
             disableConflictingDiscounts(row);
@@ -1913,11 +1926,13 @@
                 let quantity = quantityInput ? parseFloat(quantityInput.value) : 0;
                 if (productId && quantity > 0) {
                     // Find the product in stockData or allProducts
-                    let stock = stockData.find(s => String(s.product.id) === productId) || allProducts.find(s =>
-                        String(s.product.id) === productId);
+                    let stock = stockData.find(s => String(s.product.id) === productId) || allProducts
+                        .find(s =>
+                            String(s.product.id) === productId);
                     if (stock && stock.product && stock.product.unit) {
                         // Prefer short_name, fallback to name, fallback to 'pcs'
-                        let unitShort = stock.product.unit.short_name || stock.product.unit.name || 'pcs';
+                        let unitShort = stock.product.unit.short_name || stock.product.unit.name ||
+                            'pcs';
                         if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
                         unitSummary[unitShort] += quantity;
                     }
@@ -2006,13 +2021,11 @@
                         // Set the locationId based on the sale's location_id
                         if (saleDetails.sale && saleDetails.sale.location_id) {
                             locationId = saleDetails.sale.location_id;
-                            selectedLocationId = saleDetails.sale
-                                .location_id; // Ensure global variable is updated
+                            selectedLocationId = saleDetails.sale.location_id; // Ensure global variable is updated
                             // Update the location dropdown
                             const locationSelect = document.getElementById('locationSelect');
                             if (locationSelect) {
-                                locationSelect.value = saleDetails.sale.location_id
-                                    .toString(); // Ensure value matches option value type
+                                locationSelect.value = saleDetails.sale.location_id.toString(); // Ensure value matches option value type
                                 console.log('Location ID set to:', saleDetails.sale.location_id);
                                 // Manually trigger the change event to refresh products
                                 $(locationSelect).trigger('change'); // Use jQuery to trigger the event
@@ -2121,43 +2134,31 @@
                             }
                         });
 
-                        // Fetch and populate customer data
-                        fetch('/customer-get-all')
-                            .then(response => response.json())
-                            .then(customerData => {
-                                if (customerData && customerData.status === 200 && Array.isArray(
-                                        customerData.message)) {
-                                    const customerSelect = $('#customer-id');
-                                    customerSelect.empty();
-                                    const sortedCustomers = customerData.message.sort((a, b) => {
-                                        if (a.first_name === 'Walk-in') return -1;
-                                        if (b.first_name === 'Walk-in') return 1;
-                                        return 0;
-                                    });
-                                    sortedCustomers.forEach(customer => {
-                                        const option = $('<option></option>');
-                                        option.val(customer.id);
-                                        option.text(
-                                            `${customer.first_name} ${customer.last_name} (${customer.mobile_no})`
-                                        );
-                                        option.data('due', customer.current_due);
-                                        customerSelect.append(option);
-                                    });
-                                    const walkingCustomer = sortedCustomers.find(customer => customer
-                                        .first_name === 'Walk-in');
-                                    if (walkingCustomer) {
-                                        customerSelect.val(walkingCustomer.id);
-                                        updateDueAmount(walkingCustomer.current_due);
+                        // If the sale has a customer_id, trigger customer data fetch
+                        if (saleDetails.sale && saleDetails.sale.customer_id) {
+                            console.log('Fetching customer data for customer_id:', saleDetails.sale.customer_id);
+                            const $customerSelect = $('#customer-id');
+                            if ($customerSelect.length) {
+                                $customerSelect.val(saleDetails.sale.customer_id.toString());
+
+                                // Wait for the customer select2 to finish loading (if async), then trigger change
+                                setTimeout(() => {
+                                    $customerSelect.trigger('change'); // Use jQuery to trigger the event
+
+                                    // Now call fetchCustomerData if available
+                                    if (window.customerFunctions && typeof window.customerFunctions.fetchCustomerData === 'function') {
+                                        window.customerFunctions.fetchCustomerData().then(() => {
+                                            // After fetching, set the value and trigger change again to ensure due is updated
+                                            $customerSelect.val(saleDetails.sale.customer_id.toString());
+                                            $customerSelect.trigger('change');
+                                            console.log('Customer select and fetchCustomerData triggered for customer_id:', saleDetails.sale.customer_id);
+                                        });
+                                    } else {
+                                        console.log('Customer select and fetchCustomerData triggered for customer_id:', saleDetails.sale.customer_id);
                                     }
-                                    if (saleDetails.sale) {
-                                        customerSelect.val(saleDetails.sale.customer_id);
-                                        customerSelect.trigger('change');
-                                    }
-                                } else {
-                                    console.error('Failed to fetch customer data:', customerData ?
-                                        customerData.message : 'No data received');
-                                }
-                            });
+                                }, 200); // Adjust delay if needed for your UI
+                            }
+                        }
 
                         // Set global discount values
                         const discountElement = document.getElementById('global-discount');
@@ -2181,18 +2182,6 @@
                     toastr.error('An error occurred while fetching sale data.', 'Error');
                 });
         }
-
-        function updateDueAmount(dueAmount) {
-            // Ensure dueAmount is a valid number before calling toFixed
-            dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
-            $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
-        }
-
-        $('#customer-id').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const dueAmount = selectedOption.data('due');
-            updateDueAmount(dueAmount);
-        });
 
 
 

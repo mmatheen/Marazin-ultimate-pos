@@ -50,7 +50,24 @@ class SaleReturnController extends Controller
             'notes' => 'nullable|string',
             'is_defective' => 'nullable|boolean',
             'products.*.product_id' => 'required|exists:products,id',
-            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.quantity' => [
+                'required',
+                'numeric',
+                'min:0.0001',
+                function ($attribute, $value, $fail) use ($request) {
+                    // Extract the index from the attribute, e.g., products.0.quantity => 0
+                    if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
+                        $index = $matches[1];
+                        $productData = $request->input("products.$index");
+                        if ($productData && isset($productData['product_id'])) {
+                            $product = \App\Models\Product::find($productData['product_id']);
+                            if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                $fail("The quantity must be an integer for this unit.");
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.original_price' => 'required|numeric',
             'products.*.return_price' => 'required|numeric',
             'products.*.subtotal' => 'required|numeric',

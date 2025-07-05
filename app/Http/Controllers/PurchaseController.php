@@ -53,7 +53,24 @@ class PurchaseController extends Controller
             'payment_status' => 'nullable|in:Paid,Due,Partial',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.quantity' => [
+                'required',
+                'numeric',
+                'min:0.0001',
+                function ($attribute, $value, $fail) use ($request) {
+                    // Extract the index from the attribute, e.g., products.0.quantity => 0
+                    if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
+                        $index = $matches[1];
+                        $productData = $request->input("products.$index");
+                        if ($productData && isset($productData['product_id'])) {
+                            $product = \App\Models\Product::find($productData['product_id']);
+                            if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                $fail("The quantity must be an integer for this unit.");
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.unit_cost' => 'required|numeric|min:0',
             'products.*.wholesale_price' => 'required|numeric|min:0',
             'products.*.special_price' => 'required|numeric|min:0',
@@ -360,7 +377,7 @@ class PurchaseController extends Controller
     {
         try {
             // Fetch all purchases with related products and payment info
-            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments','user'])->get();
+            $purchases = Purchase::with(['supplier', 'location', 'purchaseProducts', 'payments', 'user'])->get();
 
             // $purchases = Purchase::with(['purchaseProducts'])->get();
 
@@ -403,7 +420,7 @@ class PurchaseController extends Controller
     public function getPurchaseProductsBySupplier($supplierId)
     {
         try {
-            $purchases = Purchase::with(['purchaseProducts.product', 'purchaseProducts.batch'])
+            $purchases = Purchase::with(['purchaseProducts.product.unit', 'purchaseProducts.batch'])
                 ->where('supplier_id', $supplierId)
                 ->get();
 
@@ -419,6 +436,7 @@ class PurchaseController extends Controller
                     if (!isset($products[$productId])) {
                         $products[$productId] = [
                             'product' => $purchaseProduct->product,
+                            'unit' => $purchaseProduct->product->unit ?? null,
                             'purchases' => []
                         ];
                     }

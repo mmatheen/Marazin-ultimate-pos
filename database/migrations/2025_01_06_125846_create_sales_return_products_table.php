@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('batch_id')->nullable(); // Track stock by batch if applicable
             $table->unsignedBigInteger('location_id');
-            $table->integer('quantity'); // Quantity returned
+            $table->decimal('quantity', 15, 4); // Quantity returned
             $table->enum('price_type', ['retail', 'wholesale', 'special']);
             $table->decimal('original_price', 8, 2); // Price at the time of sale
             $table->decimal('return_price', 8, 2); // Price for the return (may differ for special customers)

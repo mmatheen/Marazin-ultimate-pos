@@ -142,8 +142,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <button type="button" class="btn btn-primary mt-4" data-bs-toggle="modal"
-                                        data-bs-target="#addCustomerModal">
+                                    <button type="button" class="btn btn-primary mt-4" id="addCustomerButton">
                                         Add New Customer
                                     </button>
                                 </div>
@@ -393,5 +392,7 @@
         });
     </script>
 
+    @include('contact.customer.add_customer_modal')
+    @include('contact.customer.customer_ajax')
     @include('saleReturn.sale_return_ajax')
 @endsection

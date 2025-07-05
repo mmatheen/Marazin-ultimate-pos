@@ -65,7 +65,24 @@ class StockTransferController extends Controller
             'products' => 'required|array',
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.batch_id' => 'required|exists:batches,id',
-            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.quantity' => [
+                'required',
+                'numeric',
+                'min:0.0001',
+                function ($attribute, $value, $fail) use ($request) {
+                    // Extract the index from the attribute, e.g., products.0.quantity => 0
+                    if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
+                        $index = $matches[1];
+                        $productData = $request->input("products.$index");
+                        if ($productData && isset($productData['product_id'])) {
+                            $product = \App\Models\Product::find($productData['product_id']);
+                            if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                $fail("The quantity must be an integer for this unit.");
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.unit_price' => 'required|numeric|min:0',
             'products.*.sub_total' => 'required|numeric|min:0',
         ]);

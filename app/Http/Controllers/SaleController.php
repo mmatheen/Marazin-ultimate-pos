@@ -1368,15 +1368,27 @@ class SaleController extends Controller
 
     public function getSaleByInvoiceNo($invoiceNo)
     {
-        $sale = Sale::with('products.product')->where('invoice_no', $invoiceNo)->first();
+        $sale = Sale::with([
+            'products.product.unit' // eager load product and its unit
+        ])->where('invoice_no', $invoiceNo)->first();
 
         if (!$sale) {
             return response()->json(['error' => 'Sale not found'], 404);
         }
 
         $products = $sale->products->map(function ($product) use ($sale) {
-            $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id); // Fixed line
+            $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id);
             $product->current_quantity = $currentQuantity;
+
+            // Add unit details if available
+            $unit = optional(optional($product->product)->unit);
+            $product->unit = $unit ? $unit->only([
+                'id',
+                'name',
+                'short_name',
+                'allow_decimal'
+            ]) : null;
+
             return $product;
         });
 
@@ -1413,10 +1425,14 @@ class SaleController extends Controller
     public function editSale($id)
     {
         try {
-            // Fetch sale details with related models
-            $sale = Sale::with(['products.product', 'products.batch', 'customer', 'location'])
-                ->findOrFail($id);
-            // Prepare detailed response
+            // Fetch sale details with related models, including product.unit
+            $sale = Sale::with([
+                'products.product.unit', // eager load unit relation
+                'products.batch',
+                'customer',
+                'location'
+            ])->findOrFail($id);
+
             $saleDetails = [
                 'sale' => $sale->only([
                     'id',
@@ -1437,7 +1453,6 @@ class SaleController extends Controller
                     'updated_at'
                 ]),
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
-                    // Handle unlimited stock products
                     // IMEI Numbers from SaleImei model
                     $imeiDetails = $product->imeis->map(function ($imei) {
                         return [
@@ -1449,12 +1464,22 @@ class SaleController extends Controller
                             'updated_at' => $imei->updated_at,
                         ];
                     });
-                    if ($product->product->stock_alert === 0) {
+
+                    // Get unit details if available
+                    $unit = optional(optional($product->product)->unit);
+                    $unitDetails = $unit ? $unit->only([
+                        'id',
+                        'name',
+                        'short_name',
+                        'allow_decimal'
+                    ]) : null;
+
+                    if ($product->product && $product->product->stock_alert === 0) {
                         return [
                             'id' => $product->id,
                             'sale_id' => $product->sale_id,
                             'product_id' => $product->product_id,
-                            'batch_id' => 'all', // No batches for unlimited stock
+                            'batch_id' => 'all',
                             'location_id' => $product->location_id,
                             'quantity' => $product->quantity,
                             'price_type' => $product->price_type,
@@ -1464,8 +1489,8 @@ class SaleController extends Controller
                             'tax' => $product->tax,
                             'created_at' => $product->created_at,
                             'updated_at' => $product->updated_at,
-                            'total_quantity' => 'Unlimited', // Indicate unlimited stock
-                            'current_stock' => 'Unlimited',  // Indicate unlimited stock
+                            'total_quantity' => 'Unlimited',
+                            'current_stock' => 'Unlimited',
                             'product' => optional($product->product)->only([
                                 'id',
                                 'product_name',
@@ -1488,20 +1513,19 @@ class SaleController extends Controller
                                 'special_price',
                                 'max_retail_price'
                             ]),
-                            'batch' => null, // No batch data for unlimited stock
+                            'unit' => $unitDetails,
+                            'batch' => null,
                             'imei_numbers' => $product->imeis->pluck('imei_number')->toArray(),
-                            'imeis' => $imeiDetails, // Full IMEI details
+                            'imeis' => $imeiDetails,
                         ];
                     }
-                    // Handle regular products
+
                     $batchId = $product->batch_id ?? 'all';
-                    // Calculate the total allowed quantity (current stock + sold in this sale)
                     $totalAllowedQuantity = $sale->getBatchQuantityPlusSold(
                         $batchId,
                         $product->location_id,
                         $product->product_id
                     );
-                    // Get current stock without the sold quantity for reference
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
                         ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
@@ -1509,6 +1533,7 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
+
                     return [
                         'id' => $product->id,
                         'sale_id' => $product->sale_id,
@@ -1523,8 +1548,8 @@ class SaleController extends Controller
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
                         'updated_at' => $product->updated_at,
-                        'total_quantity' => $totalAllowedQuantity, // Stock + sold in this sale
-                        'current_stock' => $currentStock,   // Just current stock
+                        'total_quantity' => $totalAllowedQuantity,
+                        'current_stock' => $currentStock,
                         'product' => optional($product->product)->only([
                             'id',
                             'product_name',
@@ -1547,6 +1572,7 @@ class SaleController extends Controller
                             'special_price',
                             'max_retail_price'
                         ]),
+                        'unit' => $unitDetails,
                         'batch' => optional($product->batch)->only([
                             'id',
                             'batch_no',
@@ -1587,7 +1613,7 @@ class SaleController extends Controller
                     'telephone_no'
                 ])
             ];
-            // Handle API or AJAX requests
+
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
                     'status' => 200,
@@ -1651,11 +1677,6 @@ class SaleController extends Controller
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {
                 return $carry + ($product['discount'] ?? 0);
             }, 0);
-
-            // Fetch amount_given and balance_amount from the sale
-            $amount_given = $sale->amount_given;
-            $balance_amount = $sale->balance_amount;
-
 
             // Fetch the user associated with the sale
             $user = User::find($sale->user_id);
