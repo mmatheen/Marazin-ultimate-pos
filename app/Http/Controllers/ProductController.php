@@ -1432,36 +1432,37 @@ class ProductController extends Controller
 
         $query = Product::with([
             'locations:id,name',
-            'unit:id,name,short_name,allow_decimal', // Eager load unit with all relevant fields
+            'unit:id,name,short_name,allow_decimal',
             'discounts' => function ($query) {
-            $query->where('is_active', true);
+                $query->where('is_active', true);
             },
             'batches' => function ($query) {
-            $query->select([
-                'id',
-                'batch_no',
-                'product_id',
-                'unit_cost',
-                'wholesale_price',
-                'special_price',
-                'retail_price',
-                'max_retail_price',
-                'expiry_date'
-            ]);
+                $query->select([
+                    'id',
+                    'batch_no',
+                    'product_id',
+                    'unit_cost',
+                    'wholesale_price',
+                    'special_price',
+                    'retail_price',
+                    'max_retail_price',
+                    'expiry_date'
+                ]);
             },
             'batches.locationBatches' => function ($q) use ($locationId) {
-            if ($locationId) {
-                $q->where('location_id', $locationId);
-            }
-            $q->select(['id', 'batch_id', 'location_id', 'qty'])
-                ->with('location:id,name');
+                if ($locationId) {
+                    $q->where('location_id', $locationId);
+                }
+                $q->select(['id', 'batch_id', 'location_id', 'qty'])
+                    ->with('location:id,name');
             }
         ]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
