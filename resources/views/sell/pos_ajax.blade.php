@@ -610,29 +610,31 @@
             }
 
             // Get all batches of this product in the selected location
-            const batchesInLocation = stockEntry.batches.filter(batch =>
-                batch.location_batches.some(lb => lb.location_id == selectedLocationId)
-            );
-
-            console.log("Batches in selected location:", batchesInLocation);
-
-            // Convert batchesInLocation to array if it's an object (handle both array/object cases)
-            let batchesArray = Array.isArray(batchesInLocation)
-                ? batchesInLocation
-                : Object.values(batchesInLocation);
-
+            let batchesArray = [];
+            if (Array.isArray(stockEntry.batches)) {
+                batchesArray = stockEntry.batches.filter(batch =>
+                    batch.location_batches.some(lb => lb.location_id == selectedLocationId)
+                );
+            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
+                batchesArray = Object.values(stockEntry.batches).filter(batch =>
+                    batch.location_batches.some(lb => lb.location_id == selectedLocationId)
+                );
+            }
+            
+            console.log("Batches in selected location:", batchesArray);
+            
             // Sort batches by id descending (latest batch first)
             batchesArray = batchesArray.sort((a, b) => parseInt(b.id) - parseInt(a.id));
-
+            
             // Get unique retail prices across batches
             const retailPrices = [...new Set(batchesArray.map(batch => parseFloat(batch.retail_price)))];
-
+            
             // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
                 const latestBatch = batchesArray[0];
                 const locationBatch = latestBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
                 const quantity = locationBatch ? locationBatch.quantity : 0;
-
+            
                 locationId = selectedLocationId;
                 addProductToBillingBody(
                     product,
