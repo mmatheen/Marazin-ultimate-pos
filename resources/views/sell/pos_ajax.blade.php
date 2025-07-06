@@ -1154,39 +1154,47 @@
             let batchOptions = '';
             let locationBatches = [];
 
-            // Always treat batches as array, and filter by selectedLocationId
-            if (stockEntry && Array.isArray(stockEntry.batches)) {
+            // Normalize batches to array if it's an object
+            let batchesArray = [];
+            if (stockEntry && stockEntry.batches) {
+                if (Array.isArray(stockEntry.batches)) {
+                    batchesArray = stockEntry.batches;
+                } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
+                    batchesArray = Object.values(stockEntry.batches);
+                }
+            }
+
             // Only show batches for the selected location
-            locationBatches = stockEntry.batches
+            locationBatches = batchesArray
                 .filter(batch =>
-                Array.isArray(batch.location_batches) &&
-                batch.location_batches.some(lb => String(lb.location_id) == String(selectedLocationId))
+                    Array.isArray(batch.location_batches) &&
+                    batch.location_batches.some(lb => String(lb.location_id) == String(selectedLocationId))
                 )
                 .map(batch => {
-                // Find the location batch for the selected location
-                const locationBatch = batch.location_batches.find(lb => String(lb.location_id) == String(selectedLocationId));
-                return {
-                    batch_id: batch.id,
-                    batch_no: batch.batch_no,
-                    retail_price: parseFloat(batch.retail_price),
-                    wholesale_price: parseFloat(batch.wholesale_price),
-                    special_price: parseFloat(batch.special_price),
-                    batch_quantity: locationBatch ? parseFloat(locationBatch.quantity) : 0,
-                    created_at: batch.created_at || null // If available
-                };
+                    // Find the location batch for the selected location
+                    const locationBatch = batch.location_batches.find(lb => String(lb.location_id) == String(selectedLocationId));
+                    return {
+                        batch_id: batch.id,
+                        batch_no: batch.batch_no,
+                        retail_price: parseFloat(batch.retail_price),
+                        wholesale_price: parseFloat(batch.wholesale_price),
+                        special_price: parseFloat(batch.special_price),
+                        batch_quantity: locationBatch ? parseFloat(locationBatch.quantity) : 0,
+                        created_at: batch.created_at || null // If available
+                    };
                 })
                 .filter(batch => batch.batch_quantity > 0);
 
             // Calculate total quantity for all batches in the selected location
             let totalQuantity = 0;
-            if (stockEntry && Array.isArray(stockEntry.batches)) {
-                totalQuantity = stockEntry.batches.reduce((sum, batch) => {
-                if (Array.isArray(batch.location_batches)) {
-                    return sum + batch.location_batches
-                    .filter(lb => String(lb.location_id) == String(selectedLocationId))
-                    .reduce((s, lb) => s + (parseFloat(lb.quantity) || 0), 0);
-                }
-                return sum;
+            if (batchesArray.length > 0) {
+                totalQuantity = batchesArray.reduce((sum, batch) => {
+                    if (Array.isArray(batch.location_batches)) {
+                        return sum + batch.location_batches
+                            .filter(lb => String(lb.location_id) == String(selectedLocationId))
+                            .reduce((s, lb) => s + (parseFloat(lb.quantity) || 0), 0);
+                    }
+                    return sum;
                 }, 0);
             }
 
@@ -1194,62 +1202,63 @@
             let latestBatch = null;
             if (locationBatches.length > 0) {
                 latestBatch = locationBatches.reduce((latest, current) => {
-                if (current.created_at && latest.created_at) {
-                    return new Date(current.created_at) > new Date(latest.created_at) ?
-                    current : latest;
-                }
-                // fallback: use batch_id as number
-                return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current :
-                    latest;
+                    if (current.created_at && latest.created_at) {
+                        return new Date(current.created_at) > new Date(latest.created_at) ?
+                            current : latest;
+                    }
+                    // fallback: use batch_id as number
+                    return (parseInt(current.batch_id) > parseInt(latest.batch_id)) ? current :
+                        latest;
                 }, locationBatches[0]);
             }
 
             // Always show "All" option, default selected, with latest batch price
             let allOptionRetailPrice = latestBatch ? latestBatch.retail_price : finalPrice;
 
-            batchOptions = locationBatches.map((batch, idx) => `
-                <option value="${batch.batch_id}" 
-                data-retail-price="${batch.retail_price}" 
-                data-wholesale-price="${batch.wholesale_price}" 
-                data-special-price="${batch.special_price}" 
-                data-quantity="${batch.batch_quantity}">
-                ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
-                R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
-                W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
-                S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
-                </option>
-            `).join('');
+            if (locationBatches.length > 0) {
+                batchOptions = locationBatches.map((batch, idx) => `
+                    <option value="${batch.batch_id}" 
+                    data-retail-price="${batch.retail_price}" 
+                    data-wholesale-price="${batch.wholesale_price}" 
+                    data-special-price="${batch.special_price}" 
+                    data-quantity="${batch.batch_quantity}">
+                    ${batch.batch_no} - Qty: ${formatAmountWithSeparators(batch.batch_quantity)} - 
+                    R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))} - 
+                    W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))} - 
+                    S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}
+                    </option>
+                `).join('');
 
-            modalBody.innerHTML = `
-                <div class="d-flex align-items-center">
-                <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
-                <div>
-                    <div class="font-weight-bold">${product.product_name}</div>
-                    <div class="text-muted">${product.sku}</div>
-                    ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
-                </div>
-                </div>
-                <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
-                <label class="btn btn-outline-primary active">
-                    <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
-                </label>
-                <label class="btn btn-outline-primary">
-                    <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
-                </label>
-                <label class="btn btn-outline-primary">
-                    <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
-                </label>
-                </div>
-                <select id="modalBatchDropdown" class="form-select mt-3">
-                <option value="all" data-retail-price="${allOptionRetailPrice}" data-quantity="${totalQuantity}" selected>
-                    All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(allOptionRetailPrice.toFixed(2))}
-                </option>
-                ${batchOptions}
-                </select>
-            `;
+                modalBody.innerHTML = `
+                    <div class="d-flex align-items-center">
+                    <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;"/>
+                    <div>
+                        <div class="font-weight-bold">${product.product_name}</div>
+                        <div class="text-muted">${product.sku}</div>
+                        ${product.description ? `<div class="text-muted small">${product.description}</div>` : ''}
+                    </div>
+                    </div>
+                    <div class="btn-group btn-group-toggle mt-3" data-toggle="buttons">
+                    <label class="btn btn-outline-primary active">
+                        <input type="radio" name="modal-price-type" value="retail" checked hidden> <i class="fas fa-star"></i> R
+                    </label>
+                    <label class="btn btn-outline-primary">
+                        <input type="radio" name="modal-price-type" value="wholesale" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i> W
+                    </label>
+                    <label class="btn btn-outline-primary">
+                        <input type="radio" name="modal-price-type" value="special" hidden> <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i> S
+                    </label>
+                    </div>
+                    <select id="modalBatchDropdown" class="form-select mt-3">
+                    <option value="all" data-retail-price="${allOptionRetailPrice}" data-quantity="${totalQuantity}" selected>
+                        All - Qty: ${formatAmountWithSeparators(totalQuantity)} - Price: ${formatAmountWithSeparators(allOptionRetailPrice.toFixed(2))}
+                    </option>
+                    ${batchOptions}
+                    </select>
+                `;
             } else {
-            // No valid batches
-            modalBody.innerHTML = `<div>No valid batches found for the product in this location.</div>`;
+                // No valid batches
+                modalBody.innerHTML = `<div>No valid batches found for the product in this location.</div>`;
             }
 
             selectedRow = row;
@@ -1258,28 +1267,28 @@
 
             const radioButtons = document.querySelectorAll('input[name="modal-price-type"]');
             radioButtons.forEach(radio => {
-            radio.addEventListener('change', function () {
-                document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
-                .classList.remove('active'));
-                this.parentElement.classList.add('active');
-            });
+                radio.addEventListener('change', function () {
+                    document.querySelectorAll('.btn-group-toggle .btn').forEach(btn => btn
+                        .classList.remove('active'));
+                    this.parentElement.classList.add('active');
+                });
             });
 
             // Attach change handler on dropdown to update max quantity
             const batchDropdown = document.getElementById('modalBatchDropdown');
             if (batchDropdown) {
-            batchDropdown.addEventListener('change', () => {
-                const selectedOption = batchDropdown.selectedOptions[0];
-                if (!selectedOption) return;
+                batchDropdown.addEventListener('change', () => {
+                    const selectedOption = batchDropdown.selectedOptions[0];
+                    if (!selectedOption) return;
 
-                const maxQty = parseFloat(selectedOption.getAttribute('data-quantity'));
-                const qtyInput = selectedRow?.querySelector('.quantity-input');
+                    const maxQty = parseFloat(selectedOption.getAttribute('data-quantity'));
+                    const qtyInput = selectedRow?.querySelector('.quantity-input');
 
-                if (qtyInput) {
-                qtyInput.setAttribute('max', maxQty);
-                qtyInput.setAttribute('title', `Available: ${maxQty}`);
-                }
-            });
+                    if (qtyInput) {
+                        qtyInput.setAttribute('max', maxQty);
+                        qtyInput.setAttribute('title', `Available: ${maxQty}`);
+                    }
+                });
             }
         }
 
