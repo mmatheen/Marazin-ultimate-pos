@@ -25,10 +25,20 @@
                     // Filter products to only those with stock in the selected location
                     locationFilteredProducts = res.data.filter(data => {
                     // Check if any batch in this location has quantity > 0
-                    const batches = Array.isArray(data.batches) ? data.batches : (data.product && Array.isArray(data.product.batches) ? data.product.batches : []);
+                    // Convert batches object to array if needed
+                    let batches = [];
+                    if (Array.isArray(data.batches)) {
+                        batches = data.batches;
+                    } else if (data.batches && typeof data.batches === 'object') {
+                        batches = Object.values(data.batches);
+                    } else if (data.product && Array.isArray(data.product.batches)) {
+                        batches = data.product.batches;
+                    } else if (data.product && data.product.batches && typeof data.product.batches === 'object') {
+                        batches = Object.values(data.product.batches);
+                    }
                     return batches.some(batch => {
                         const locationBatches = batch.location_batches || batch.locationBatches || [];
-                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0);
+                        return locationBatches.some(locBatch => locBatch.location_id == fromLocationId && parseFloat(locBatch.quantity ?? locBatch.qty) > 0);
                     });
                     });
                     if (locationFilteredProducts.length === 0) {
