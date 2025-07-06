@@ -194,21 +194,42 @@
 
             // Filter batches to only include those in the selected "From" location
             const fromLocationId = $('#from_location_id').val();
+
+            // --- FIX: Support batches as object or array, and location_batches as string/number ---
+            let batchesArr = [];
+            if (Array.isArray(productData.batches)) {
+            batchesArr = productData.batches;
+            } else if (productData.batches && typeof productData.batches === 'object') {
+            batchesArr = Object.values(productData.batches);
+            } else if (Array.isArray(product.batches)) {
+            batchesArr = product.batches;
+            } else if (product.batches && typeof product.batches === 'object') {
+            batchesArr = Object.values(product.batches);
+            }
+
             // Only use batches from the selected "From" location
-            const batches = product.batches.flatMap(batch => {
-            return batch.location_batches
-                .filter(locBatch => locBatch.location_id == fromLocationId && locBatch.quantity > 0)
+            const batches = batchesArr.flatMap(batch => {
+            // Support both camelCase and snake_case for location_batches
+            const locationBatches = batch.location_batches || batch.locationBatches || [];
+            return locationBatches
+                .filter(locBatch => 
+                locBatch.location_id == fromLocationId && 
+                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                )
                 .map(locationBatch => ({
                 batch_id: batch.id,
                 batch_no: batch.batch_no,
                 batch_price: parseFloat(batch.retail_price),
-                batch_quantity: locationBatch.quantity,
+                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
                 transfer_quantity: productData.quantity
                 }));
             });
 
             if (batches.length === 0) {
             console.error('No batches available for product:', product.product_name);
+            toastr.error(
+                `No batches available in "${$('#from_location_id option:selected').text()}" for "${product.product_name}".`
+            );
             return;
             }
 
@@ -287,10 +308,17 @@
             return;
             }
 
-            // Ensure batches is always an array
-            const batchesArr = Array.isArray(productData.batches)
-            ? productData.batches
-            : (Array.isArray(product.batches) ? product.batches : []);
+            // --- FIX: Support batches as object or array, and location_batches as string/number ---
+            let batchesArr = [];
+            if (Array.isArray(productData.batches)) {
+            batchesArr = productData.batches;
+            } else if (productData.batches && typeof productData.batches === 'object') {
+            batchesArr = Object.values(productData.batches);
+            } else if (Array.isArray(product.batches)) {
+            batchesArr = product.batches;
+            } else if (product.batches && typeof product.batches === 'object') {
+            batchesArr = Object.values(product.batches);
+            }
 
             // Determine if decimals are allowed for this product
             const allowDecimal = product.unit && product.unit.allow_decimal;
@@ -305,13 +333,16 @@
             // Support both camelCase and snake_case for location_batches
             const locationBatches = batch.location_batches || batch.locationBatches || [];
             return locationBatches
-                .filter(locBatch => locBatch.location_id == fromLocationId && (locBatch.quantity ?? locBatch.qty) > 0)
+                .filter(locBatch => 
+                locBatch.location_id == fromLocationId && 
+                parseFloat(locBatch.quantity ?? locBatch.qty) > 0
+                )
                 .map(locationBatch => ({
                 batch_id: batch.id,
                 batch_no: batch.batch_no,
                 batch_price: parseFloat(batch.retail_price),
-                batch_quantity: locationBatch.quantity ?? locationBatch.qty,
-                transfer_quantity: locationBatch.quantity ?? locationBatch.qty
+                batch_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty),
+                transfer_quantity: parseFloat(locationBatch.quantity ?? locationBatch.qty)
                 }));
             });
 
