@@ -746,10 +746,14 @@
                         return '';
                     }
 
-                    // Format numbers with thousand separator, no decimals (e.g., 1,000, 10,000, 100,000, 1,200,000)
+                    // Format numbers with thousand separator, show decimals only if needed (e.g., 1,000.25, 10,000, 1,200,000.50)
                     function formatAmount(num) {
                         if (isNaN(num) || num === null) return '';
-                        return Math.round(Number(num)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        // Show up to 2 decimals if not integer, else no decimals
+                        return Number(num).toLocaleString('en-US', {
+                            minimumFractionDigits: (Math.floor(num) !== Number(num)) ? 2 : 0,
+                            maximumFractionDigits: 2
+                        });
                     }
 
                     let activities = [];
