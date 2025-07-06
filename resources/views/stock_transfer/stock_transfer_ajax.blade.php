@@ -416,17 +416,17 @@
 
         $(document).on("change", ".quantity-input", function() {
             const row = $(this).closest("tr");
-            const quantity = parseFloat(row.find(".quantity-input").val());
+            let quantity = parseFloat(row.find(".quantity-input").val());
             const selectedBatch = row.find(".batch-select option:selected");
             const unitPrice = parseFloat(selectedBatch.data("price"));
             const availableQuantity = parseFloat(selectedBatch.data("quantity"));
-            const transferQuantity = parseFloat(selectedBatch.data("transfer-quantity"));
 
-            if (quantity > (availableQuantity + transferQuantity)) {
-            row.find(".quantity-error").text("The quantity exceeds the available batch quantity.");
-            row.find(".quantity-input").val(availableQuantity + transferQuantity);
+            if (quantity > availableQuantity) {
+                row.find(".quantity-error").text("The quantity exceeds the available batch quantity.");
+                row.find(".quantity-input").val(availableQuantity);
+                quantity = availableQuantity;
             } else {
-            row.find(".quantity-error").text("");
+                row.find(".quantity-error").text("");
             }
 
             const subtotal = quantity * unitPrice;
