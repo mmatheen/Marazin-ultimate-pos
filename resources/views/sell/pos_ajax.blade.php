@@ -550,103 +550,97 @@
             console.log("Product to be added:", product);
 
             if (!stockData || stockData.length === 0) {
-                console.error('stockData is not defined or empty');
-                toastr.error('Stock data is not available', 'Error');
-                return;
+            console.error('stockData is not defined or empty');
+            toastr.error('Stock data is not available', 'Error');
+            return;
             }
 
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
 
             if (!stockEntry) {
-                toastr.error('Stock entry not found for the product', 'Error');
-                return;
+            toastr.error('Stock entry not found for the product', 'Error');
+            return;
             }
 
             const totalQuantity = stockEntry.total_stock;
 
             // Check if product requires IMEI
             if (product.is_imei_or_serial_no === 1) {
-                const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
-                [];
-                console.log("Available IMEIs:", availableImeis);
+            const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") || [];
+            console.log("Available IMEIs:", availableImeis);
 
-                const billingBody = document.getElementById('billing-body');
-                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
-                    row.querySelector('.product-id')?.textContent == product.id
-                );
+            const billingBody = document.getElementById('billing-body');
+            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
+                row.querySelector('.product-id')?.textContent == product.id
+            );
 
-                if (existingRows.length > 0) {
-                    showImeiSelectionModal(product, stockEntry, availableImeis);
-                    return;
-                }
-
+            if (existingRows.length > 0) {
                 showImeiSelectionModal(product, stockEntry, availableImeis);
                 return;
             }
 
-            // If no IMEI required, proceed normally
-            if (totalQuantity === 0 && product.stock_alert !== 0) {
-                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-                return;
+            showImeiSelectionModal(product, stockEntry, availableImeis);
+            return;
             }
 
-            if (!Array.isArray(stockEntry.batches) || stockEntry.batches.length === 0) {
-                locationId = product.location_id || 1;
-                const price = product.retail_price;
-                const qty = product.stock_alert === 0 ? Infinity : totalQuantity;
-                addProductToBillingBody(product, stockEntry, price, "all", qty, 'retail');
-                return;
+            // If no IMEI required, proceed normally
+            if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product.stock_alert !== 0) {
+            toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+            return;
+            }
+
+            // Ensure batches is always an array
+            let batchesArray = [];
+            if (Array.isArray(stockEntry.batches)) {
+            batchesArray = stockEntry.batches;
+            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
+            batchesArray = Object.values(stockEntry.batches);
             }
 
             // Filter batches by selected location and available quantity
-            const locationBatches = stockEntry.batches.flatMap(batch =>
-                batch.location_batches.filter(lb => lb.location_id == selectedLocationId && lb.quantity > 0)
+            batchesArray = batchesArray.filter(batch =>
+            Array.isArray(batch.location_batches) &&
+            batch.location_batches.some(lb =>
+                String(lb.location_id) == String(selectedLocationId) &&
+                parseFloat(lb.quantity) > 0
+            )
             );
 
-            if (locationBatches.length === 0) {
-                toastr.error('No batches with available quantity found', 'Error');
-                return;
+            if (batchesArray.length === 0) {
+            toastr.error('No batches with available quantity found in this location', 'Error');
+            return;
             }
 
-            // Get all batches of this product in the selected location
-            let batchesArray = [];
-            if (Array.isArray(stockEntry.batches)) {
-                batchesArray = stockEntry.batches.filter(batch =>
-                    batch.location_batches.some(lb => lb.location_id == selectedLocationId)
-                );
-            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-                batchesArray = Object.values(stockEntry.batches).filter(batch =>
-                    batch.location_batches.some(lb => lb.location_id == selectedLocationId)
-                );
-            }
-            
-            console.log("Batches in selected location:", batchesArray);
-            
             // Sort batches by id descending (latest batch first)
             batchesArray = batchesArray.sort((a, b) => parseInt(b.id) - parseInt(a.id));
-            
-            // Get unique retail prices across batches
-            const retailPrices = [...new Set(batchesArray.map(batch => parseFloat(batch.retail_price)))];
-            
+
+            // Get unique retail prices across batches in this location
+            const retailPrices = [
+            ...new Set(
+                batchesArray.map(batch => parseFloat(batch.retail_price))
+            )
+            ];
+
             // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-                const latestBatch = batchesArray[0];
-                const locationBatch = latestBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
-                const quantity = locationBatch ? locationBatch.quantity : 0;
-            
-                locationId = selectedLocationId;
-                addProductToBillingBody(
-                    product,
-                    stockEntry,
-                    latestBatch.retail_price,
-                    latestBatch.id,
-                    quantity,
-                    'retail'
-                );
+            const latestBatch = batchesArray[0];
+            // Find the location batch for the selected location
+            const locationBatch = latestBatch.location_batches.find(lb => String(lb.location_id) == String(selectedLocationId));
+            const quantity = locationBatch ? parseFloat(locationBatch.quantity) : 0;
+
+            locationId = selectedLocationId;
+            addProductToBillingBody(
+                product,
+                stockEntry,
+                latestBatch.retail_price,
+                latestBatch.id,
+                quantity,
+                'retail'
+            );
             } else {
-                // Multiple prices found → show modal
-                showBatchPriceSelectionModal(product, stockEntry, batchesArray);
+            // Multiple prices found → show modal
+            showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
 
