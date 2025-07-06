@@ -616,27 +616,35 @@
 
             console.log("Batches in selected location:", batchesInLocation);
 
-            // Get unique retail prices across batches
-            const retailPrices = [...new Set(batchesInLocation.map(batch => batch.retail_price))];
+            // Convert batchesInLocation to array if it's an object (handle both array/object cases)
+            let batchesArray = Array.isArray(batchesInLocation)
+                ? batchesInLocation
+                : Object.values(batchesInLocation);
 
-            // If there's only one price, add directly
+            // Sort batches by id descending (latest batch first)
+            batchesArray = batchesArray.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+            // Get unique retail prices across batches
+            const retailPrices = [...new Set(batchesArray.map(batch => parseFloat(batch.retail_price)))];
+
+            // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-                const batch = batchesInLocation[0];
-                const locationBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                const latestBatch = batchesArray[0];
+                const locationBatch = latestBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
                 const quantity = locationBatch ? locationBatch.quantity : 0;
 
                 locationId = selectedLocationId;
                 addProductToBillingBody(
                     product,
                     stockEntry,
-                    batch.retail_price,
-                    batch.id,
+                    latestBatch.retail_price,
+                    latestBatch.id,
                     quantity,
                     'retail'
                 );
             } else {
                 // Multiple prices found → show modal
-                showBatchPriceSelectionModal(product, stockEntry, batchesInLocation);
+                showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
 
@@ -651,83 +659,107 @@
             const batchRows = [];
 
             batches.forEach((batch, index) => {
-                const locationBatch = batch.location_batches.find(lb => lb.location_id ==
-                    selectedLocationId);
-                if (!locationBatch || locationBatch.quantity <= 0) return;
+            const locationBatch = batch.location_batches.find(lb => lb.location_id == selectedLocationId);
+            if (!locationBatch || locationBatch.quantity <= 0) return;
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
+            // Use batch.max_retail_price if available, else fallback to product.max_retail_price
+            const batchMrp = batch.max_retail_price !== undefined && batch.max_retail_price !== null
+                ? parseFloat(batch.max_retail_price)
+                : (product.max_retail_price !== undefined ? parseFloat(product.max_retail_price) : 0);
+
+            const batchRetailPrice = batch.retail_price !== undefined && batch.retail_price !== null
+                ? parseFloat(batch.retail_price)
+                : (product.retail_price !== undefined ? parseFloat(product.retail_price) : 0);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
                 <td><strong>[${index + 1}]</strong></td>
                 <td>${batch.batch_no}</td>
-                <td>Rs ${parseFloat(batch.retail_price).toFixed(2)}</td>
+                <td>MRP: Rs ${batchMrp.toFixed(2)}<br>Retail: Rs ${batchRetailPrice.toFixed(2)}</td>
                 <td>${locationBatch.quantity} PC(s)</td>
                 <td>
                 <button class="btn btn-sm btn-primary select-batch-btn"
                     data-batch-id="${batch.id}"
-                    data-retail-price="${batch.retail_price}"
+                    data-retail-price="${batchRetailPrice}"
+                    data-max-retail-price="${batchMrp}"
                     data-batch-json='${JSON.stringify(batch)}'>
                     Select
                 </button>
                 </td>
             `;
-                tbody.appendChild(tr);
-                batchRows.push(tr); // Save reference for keyboard navigation
+            tbody.appendChild(tr);
+            batchRows.push(tr); // Save reference for keyboard navigation
             });
 
             // Prevent double open/close issues
             let isModalOpen = false;
 
             function handleBatchSelect(e) {
-                if (e.target.classList.contains('select-batch-btn')) {
-                    const batchJson = e.target.dataset.batchJson;
-                    const selectedBatch = JSON.parse(batchJson);
-                    const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id ==
-                        selectedLocationId);
-                    const qty = locationBatch?.quantity || 0;
+            if (e.target.classList.contains('select-batch-btn')) {
+                const batchJson = e.target.dataset.batchJson;
+                const selectedBatch = JSON.parse(batchJson);
+                const locationBatch = selectedBatch.location_batches.find(lb => lb.location_id == selectedLocationId);
+                const qty = locationBatch?.quantity || 0;
 
-                    // Always add only 1 quantity when selecting from modal
-                    addProductToBillingBody(
-                        product,
-                        stockEntry,
-                        selectedBatch.retail_price,
-                        selectedBatch.id,
-                        qty,
-                        'retail',
-                        1, // Always 1 for modal selection
-                        [],
-                        null,
-                        null,
-                        selectedBatch
-                    );
+                // Use batch-specific retail and max_retail_price
+                const batchRetailPrice = selectedBatch.retail_price !== undefined && selectedBatch.retail_price !== null
+                ? parseFloat(selectedBatch.retail_price)
+                : (product.retail_price !== undefined ? parseFloat(product.retail_price) : 0);
 
-                    if (isModalOpen) {
-                        modal.hide();
-                        isModalOpen = false;
-                    }
+                const batchMrp = selectedBatch.max_retail_price !== undefined && selectedBatch.max_retail_price !== null
+                ? parseFloat(selectedBatch.max_retail_price)
+                : (product.max_retail_price !== undefined ? parseFloat(product.max_retail_price) : 0);
+
+                // Clone product and override prices for this batch
+                const productWithBatchPrices = {
+                ...product,
+                retail_price: batchRetailPrice,
+                max_retail_price: batchMrp
+                };
+
+                // Always add only 1 quantity when selecting from modal
+                addProductToBillingBody(
+                productWithBatchPrices,
+                stockEntry,
+                batchRetailPrice,
+                selectedBatch.id,
+                qty,
+                'retail',
+                1, // Always 1 for modal selection
+                [],
+                null,
+                null,
+                selectedBatch
+                );
+
+                if (isModalOpen) {
+                modal.hide();
+                isModalOpen = false;
                 }
+            }
             }
 
             tbody.addEventListener('click', handleBatchSelect);
 
             // --- NEW: Keyboard Navigation Support ---
             const handleKeyDown = function(event) {
-                const key = event.key;
+            const key = event.key;
 
-                // Only allow 1-9 keys
-                if (!/^[1-9]$/.test(key)) return;
+            // Only allow 1-9 keys
+            if (!/^[1-9]$/.test(key)) return;
 
-                const selectedIndex = parseInt(key, 10) - 1;
+            const selectedIndex = parseInt(key, 10) - 1;
 
-                if (batchRows[selectedIndex]) {
-                    const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
-                    if (selectBtn) {
-                        selectBtn.click(); // Simulate click on the corresponding button
-                        if (isModalOpen) {
-                            modal.hide();
-                            isModalOpen = false;
-                        }
-                    }
+            if (batchRows[selectedIndex]) {
+                const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
+                if (selectBtn) {
+                selectBtn.click(); // Simulate click on the corresponding button
+                if (isModalOpen) {
+                    modal.hide();
+                    isModalOpen = false;
                 }
+                }
+            }
             };
 
             // Show modal and attach global keyboard listener
@@ -736,18 +768,18 @@
 
             // Attach keydown listener only when modal is shown
             const shownHandler = () => {
-                document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keydown', handleKeyDown);
             };
             const hiddenHandler = () => {
-                document.removeEventListener('keydown', handleKeyDown);
-                isModalOpen = false;
+            document.removeEventListener('keydown', handleKeyDown);
+            isModalOpen = false;
             };
 
             modalElement.addEventListener('shown.bs.modal', shownHandler, {
-                once: true
+            once: true
             });
             modalElement.addEventListener('hidden.bs.modal', hiddenHandler, {
-                once: true
+            once: true
             });
         }
 
