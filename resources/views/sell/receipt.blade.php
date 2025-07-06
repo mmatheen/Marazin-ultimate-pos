@@ -151,23 +151,18 @@
                     </th>
                     {{-- Group products by product_id and batch_id --}}
                     @foreach ($products->groupBy(function ($item) {
-        return $item->product_id . '-' . ($item->batch_id ?? '0');
-    }) as $groupKey => $group)
-                        @php
-                            $firstProduct = $group->first();
-                            $totalQuantity = $group->sum('quantity');
-                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-                        @endphp
+                        return $item->product_id . '-' . ($item->batch_id ?? '0');
+                    }) as $groupKey => $group)
+                                        @php
+                                            $firstProduct = $group->first();
+                                            $totalQuantity = $group->sum('quantity');
+                                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
+                                        @endphp
 
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td colspan="4" valign="top">
                         {{ $firstProduct->product->product_name }}
-                        @if ($firstProduct->batch_id)
-                            <span style="font-size:10px;">
-                                ({{ $firstProduct->batch_no ?? ($firstProduct->batch->batch_no ?? 'N/A') }})
-                            </span>
-                        @endif
                         @if ($firstProduct->price_type == 'retail')
                             <span style="font-weight: bold;">*</span>
                         @elseif($firstProduct->price_type == 'wholesale')
