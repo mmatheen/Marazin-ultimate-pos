@@ -550,68 +550,68 @@
             console.log("Product to be added:", product);
 
             if (!stockData || stockData.length === 0) {
-            console.error('stockData is not defined or empty');
-            toastr.error('Stock data is not available', 'Error');
-            return;
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
             }
 
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
 
             if (!stockEntry) {
-            toastr.error('Stock entry not found for the product', 'Error');
-            return;
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
             }
 
             const totalQuantity = stockEntry.total_stock;
 
             // Check if product requires IMEI
             if (product.is_imei_or_serial_no === 1) {
-            const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
-            [];
-            console.log("Available IMEIs:", availableImeis);
+                const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
+                [];
+                console.log("Available IMEIs:", availableImeis);
 
-            const billingBody = document.getElementById('billing-body');
-            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
-                row.querySelector('.product-id')?.textContent == product.id
-            );
+                const billingBody = document.getElementById('billing-body');
+                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
+                    row.querySelector('.product-id')?.textContent == product.id
+                );
 
-            if (existingRows.length > 0) {
+                if (existingRows.length > 0) {
+                    showImeiSelectionModal(product, stockEntry, availableImeis);
+                    return;
+                }
+
                 showImeiSelectionModal(product, stockEntry, availableImeis);
                 return;
             }
 
-            showImeiSelectionModal(product, stockEntry, availableImeis);
-            return;
-            }
-
             // If no IMEI required, proceed normally
             if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product
-            .stock_alert !== 0) {
-            toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-            return;
+                .stock_alert !== 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
             }
 
             // Ensure batches is always an array
             let batchesArray = [];
             if (Array.isArray(stockEntry.batches)) {
-            batchesArray = stockEntry.batches;
+                batchesArray = stockEntry.batches;
             } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-            batchesArray = Object.values(stockEntry.batches);
+                batchesArray = Object.values(stockEntry.batches);
             }
 
             // Filter batches by selected location and available quantity
             batchesArray = batchesArray.filter(batch =>
-            Array.isArray(batch.location_batches) &&
-            batch.location_batches.some(lb =>
-                String(lb.location_id) == String(selectedLocationId) &&
-                parseFloat(lb.quantity) > 0
-            )
+                Array.isArray(batch.location_batches) &&
+                batch.location_batches.some(lb =>
+                    String(lb.location_id) == String(selectedLocationId) &&
+                    parseFloat(lb.quantity) > 0
+                )
             );
 
             if (batchesArray.length === 0) {
-            toastr.error('No batches with available quantity found in this location', 'Error');
-            return;
+                toastr.error('No batches with available quantity found in this location', 'Error');
+                return;
             }
 
             // Sort batches by id descending (latest batch first)
@@ -619,37 +619,31 @@
 
             // Get unique retail prices across batches in this location
             const retailPrices = [
-            ...new Set(
-                batchesArray.map(batch => parseFloat(batch.retail_price))
-            )
+                ...new Set(
+                    batchesArray.map(batch => parseFloat(batch.retail_price))
+                )
             ];
 
             // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-            // Default: select "All" batch (not a real batch, but for all available)
-            // Calculate total quantity for all batches in this location
-            let totalQty = 0;
-            batchesArray.forEach(batch => {
-                batch.location_batches.forEach(lb => {
-                if (String(lb.location_id) == String(selectedLocationId)) {
-                    totalQty += parseFloat(lb.quantity);
-                }
-                });
-            });
-            // Use latest batch's retail price for "All"
-            const latestBatch = batchesArray[0];
-            locationId = selectedLocationId;
-            addProductToBillingBody(
-                product,
-                stockEntry,
-                latestBatch.retail_price,
-                "all", // batchId is "all"
-                totalQty,
-                'retail'
-            );
+                const latestBatch = batchesArray[0];
+                // Find the location batch for the selected location
+                const locationBatch = latestBatch.location_batches.find(lb => String(lb.location_id) == String(
+                    selectedLocationId));
+                const quantity = locationBatch ? parseFloat(locationBatch.quantity) : 0;
+
+                locationId = selectedLocationId;
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    latestBatch.retail_price,
+                    latestBatch.id,
+                    quantity,
+                    'retail'
+                );
             } else {
-            // Multiple prices found → show modal (user must select batch)
-            showBatchPriceSelectionModal(product, stockEntry, batchesArray);
+                // Multiple prices found → show modal
+                showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
 
@@ -2042,12 +2036,12 @@
                         if (saleDetails.sale && saleDetails.sale.location_id) {
                             locationId = saleDetails.sale.location_id;
                             selectedLocationId = saleDetails.sale
-                                .location_id; // Ensure global variable is updated
+                            .location_id; // Ensure global variable is updated
                             // Update the location dropdown
                             const locationSelect = document.getElementById('locationSelect');
                             if (locationSelect) {
                                 locationSelect.value = saleDetails.sale.location_id
-                                    .toString(); // Ensure value matches option value type
+                            .toString(); // Ensure value matches option value type
                                 console.log('Location ID set to:', saleDetails.sale.location_id);
                                 // Manually trigger the change event to refresh products
                                 $(locationSelect).trigger('change'); // Use jQuery to trigger the event
@@ -2167,7 +2161,7 @@
                                 // Wait for the customer select2 to finish loading (if async), then trigger change
                                 setTimeout(() => {
                                     $customerSelect.trigger(
-                                        'change'); // Use jQuery to trigger the event
+                                    'change'); // Use jQuery to trigger the event
 
                                     // Now call fetchCustomerData if available
                                     if (window.customerFunctions && typeof window.customerFunctions
