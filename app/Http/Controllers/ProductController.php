@@ -1289,11 +1289,21 @@ class ProductController extends Controller
                     return $batch->locationBatches->isNotEmpty();
                 });
 
-                // Calculate total stock
+                // Determine if allow_decimal is true for this product's unit
+                $allowDecimal = $product->unit && $product->unit->allow_decimal;
+
+                // Calculate total stock (decimal or integer based on allow_decimal)
                 $totalStock = $filteredBatches->sum(
                     fn($batch) =>
-                    $batch->locationBatches->sum('qty')
+                        $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
+                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                        })
                 );
+                if ($allowDecimal) {
+                    $totalStock = round($totalStock, 2);
+                } else {
+                    $totalStock = (int)$totalStock;
+                }
 
                 // Map active discounts
                 $activeDiscounts = $product->discounts->map(function ($discount) use ($now) {
@@ -1356,7 +1366,7 @@ class ProductController extends Controller
                         'max_retail_price' => $product->max_retail_price,
                     ],
                     'total_stock' => $totalStock,
-                    'batches' => $filteredBatches->map(function ($batch) {
+                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
                         return [
                             'id' => $batch->id,
                             'batch_no' => $batch->batch_no,
@@ -1366,13 +1376,15 @@ class ProductController extends Controller
                             'retail_price' => $batch->retail_price,
                             'max_retail_price' => $batch->max_retail_price,
                             'expiry_date' => $batch->expiry_date,
-                            'total_batch_quantity' => $batch->locationBatches->sum('qty'),
-                            'location_batches' => $batch->locationBatches->map(function ($lb) {
+                            'total_batch_quantity' => $allowDecimal
+                                ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
+                                : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
+                            'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $lb->qty
+                                    'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
                                 ];
                             })
                         ];
@@ -1483,12 +1495,22 @@ class ProductController extends Controller
                 return $batch->locationBatches->isNotEmpty();
             });
 
+            // Determine if allow_decimal is true for this product's unit
+            $allowDecimal = $product->unit && $product->unit->allow_decimal;
+
             // Calculate total stock (for the location if provided)
-            $totalStock = $filteredBatches->sum(function ($batch) use ($locationId) {
+            $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
                 return $batch->locationBatches->filter(function ($lb) use ($locationId) {
                     return !$locationId || $lb->location_id == $locationId;
-                })->sum('qty');
+                })->sum(function ($lb) use ($allowDecimal) {
+                    return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                });
             });
+            if ($allowDecimal) {
+                $totalStock = round($totalStock, 2);
+            } else {
+                $totalStock = (int)$totalStock;
+            }
 
             // Map active discounts
             $activeDiscounts = $product->discounts->map(function ($discount) {
@@ -1550,7 +1572,7 @@ class ProductController extends Controller
                     'max_retail_price' => $product->max_retail_price,
                 ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
-                'batches' => $filteredBatches->map(function ($batch) {
+                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -1560,13 +1582,15 @@ class ProductController extends Controller
                         'retail_price' => $batch->retail_price,
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
-                        'total_batch_quantity' => $batch->locationBatches->sum('qty'),
-                        'location_batches' => $batch->locationBatches->map(function ($lb) {
+                        'total_batch_quantity' => $allowDecimal
+                            ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
+                            : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
+                        'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
                             return [
                                 'batch_id' => $lb->batch_id,
                                 'location_id' => $lb->location_id,
                                 'location_name' => optional($lb->location)->name ?? 'N/A',
-                                'quantity' => $lb->qty
+                                'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
                             ];
                         })
                     ];
