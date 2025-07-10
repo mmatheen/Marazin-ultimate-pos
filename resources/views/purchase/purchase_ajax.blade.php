@@ -144,8 +144,8 @@
                 data: {
                     search: searchTermRaw,
                     location_id: locationId,
-                    per_page: 10,
-                    page: currentPage
+                    per_page: 50, // fetch more for better filtering
+                    page: 1
                 },
                 dataType: 'json',
                 success: function(data) {
@@ -171,52 +171,21 @@
                         }
                         }));
 
-                    // Normalize for matching
-                    const normalizedSearch = searchTerm;
-                    // Find exact SKU match (normalized)
-                    const exactSkuMatch = items.find(item =>
-                        normalizeString(item.product.sku) === normalizedSearch
-                    );
-
-                    if (exactSkuMatch) {
-                        response([exactSkuMatch]);
-                    } else if (items.length > 0) {
-                        // Sort by: SKU contains, Name startsWith, Name contains
-                        const skuContains = [];
-                        const nameStartsWith = [];
-                        const nameContains = [];
-
-                        items.forEach(item => {
+                    // Strict filter: only show products that match search term in name or sku (anywhere)
+                    const filtered = items.filter(item => {
                         const normSku = normalizeString(item.product.sku);
                         const normName = normalizeString(item.product.name);
+                        return normSku.includes(searchTerm) || normName.includes(searchTerm);
+                    });
 
-                        if (normSku.includes(normalizedSearch)) {
-                            skuContains.push(item);
-                        } else if (normName.startsWith(normalizedSearch)) {
-                            nameStartsWith.push(item);
-                        } else if (normName.includes(normalizedSearch)) {
-                            nameContains.push(item);
-                        }
-                        });
-
-                        // Combine: SKU contains > Name startsWith > Name contains
-                        const sortedResults = [...skuContains, ...nameStartsWith, ...nameContains];
-
-                        // Return top 10 only (or adjust as needed)
-                        response(sortedResults.slice(0, 10));
+                    if (filtered.length > 0) {
+                        response(filtered.slice(0, 10));
                     } else {
                         response([{
                         label: "No products found",
                         value: "",
                         product: null
                         }]);
-                    }
-
-                    // Infinite scroll control
-                    if (currentPage === 1 && data.data.length < 10) {
-                        hasMore = false;
-                    } else {
-                        hasMore = true;
                     }
                     } else {
                     response([{
@@ -263,17 +232,6 @@
                 .append(`<div>${item.label}</div>`)
                 .appendTo(ul);
             };
-
-            // Handle scroll for infinite loading
-            autocompleteInstance.menu.bindings.on('scroll', function() {
-                const menu = $(this);
-                if (menu.scrollTop() + menu.innerHeight() >= menu[0].scrollHeight - 5) {
-                if (hasMore) {
-                    currentPage++;
-                    $input.autocomplete("search", $input.val());
-                }
-                }
-            });
             }
         }
 
