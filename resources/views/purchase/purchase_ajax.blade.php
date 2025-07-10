@@ -133,105 +133,115 @@
             const $input = $("#productSearchInput");
 
             $input.autocomplete({
-            minLength: 1,
-            source: function(request, response) {
-                const locationId = $('#services').val();
-                const searchTermRaw = request.term.trim();
-                const searchTerm = normalizeString(searchTermRaw);
+                minLength: 1,
+                source: function(request, response) {
+                    const locationId = $('#services').val();
+                    const searchTermRaw = request.term.trim();
+                    const searchTerm = normalizeString(searchTermRaw);
 
-                $.ajax({
-                url: '/products/stocks/autocomplete',
-                data: {
-                    search: searchTermRaw,
-                    location_id: locationId,
-                    per_page: 50, // fetch more for better filtering
-                    page: 1
-                },
-                dataType: 'json',
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                    let items = data.data
-                        .map(item => ({
-                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
-                        value: item.product.product_name,
-                        product: {
-                            id: item.product.id,
-                            name: item.product.product_name,
-                            sku: item.product.sku || "N/A",
-                            quantity: item.total_stock || 0,
-                            price: item.product.original_price || 0,
-                            wholesale_price: item.product.whole_sale_price || 0,
-                            special_price: item.product.special_price || 0,
-                            max_retail_price: item.product.max_retail_price || 0,
-                            retail_price: item.product.retail_price || 0,
-                            expiry_date: '', // Not available in autocomplete
-                            batch_no: '', // Not available in autocomplete
-                            stock_alert: item.product.stock_alert || 0,
-                            allow_decimal: item.product.unit?.allow_decimal || false
+                    $.ajax({
+                        url: '/products/stocks/autocomplete',
+                        data: {
+                            search: searchTermRaw,
+                            location_id: locationId,
+                            per_page: 50, // fetch more for better filtering
+                            page: 1
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.status === 200 && Array.isArray(data.data)) {
+                                let items = data.data
+                                    .map(item => ({
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                                        value: item.product.product_name,
+                                        product: {
+                                            id: item.product.id,
+                                            name: item.product.product_name,
+                                            sku: item.product.sku || "N/A",
+                                            quantity: item.total_stock || 0,
+                                            price: item.product
+                                                .original_price || 0,
+                                            wholesale_price: item.product
+                                                .whole_sale_price || 0,
+                                            special_price: item.product
+                                                .special_price || 0,
+                                            max_retail_price: item.product
+                                                .max_retail_price || 0,
+                                            retail_price: item.product
+                                                .retail_price || 0,
+                                            expiry_date: '', // Not available in autocomplete
+                                            batch_no: '', // Not available in autocomplete
+                                            stock_alert: item.product
+                                                .stock_alert || 0,
+                                            allow_decimal: item.product.unit
+                                                ?.allow_decimal || false
+                                        }
+                                    }));
+
+                                // Strict filter: only show products that match search term in name or sku (anywhere)
+                                const filtered = items.filter(item => {
+                                    const normSku = normalizeString(item.product
+                                        .sku);
+                                    const normName = normalizeString(item
+                                        .product.name);
+                                    return normSku.includes(searchTerm) ||
+                                        normName.includes(searchTerm);
+                                });
+
+                                if (filtered.length > 0) {
+                                    response(filtered.slice(0, 10));
+                                } else {
+                                    response([{
+                                        label: "No products found",
+                                        value: "",
+                                        product: null
+                                    }]);
+                                }
+                            } else {
+                                response([{
+                                    label: "No products found",
+                                    value: "",
+                                    product: null
+                                }]);
+                            }
+                        },
+                        error: function() {
+                            response([{
+                                label: "Error fetching products",
+                                value: ""
+                            }]);
                         }
-                        }));
-
-                    // Strict filter: only show products that match search term in name or sku (anywhere)
-                    const filtered = items.filter(item => {
-                        const normSku = normalizeString(item.product.sku);
-                        const normName = normalizeString(item.product.name);
-                        return normSku.includes(searchTerm) || normName.includes(searchTerm);
                     });
-
-                    if (filtered.length > 0) {
-                        response(filtered.slice(0, 10));
-                    } else {
-                        response([{
-                        label: "No products found",
-                        value: "",
-                        product: null
-                        }]);
-                    }
-                    } else {
-                    response([{
-                        label: "No products found",
-                        value: "",
-                        product: null
-                    }]);
-                    }
                 },
-                error: function() {
-                    response([{
-                    label: "Error fetching products",
-                    value: ""
-                    }]);
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    currentPage = 1;
+                    return false;
+                },
+                open: function() {
+                    setTimeout(() => {
+                        $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
+                    }, 0);
                 }
-                });
-            },
-            select: function(event, ui) {
-                if (!ui.item.product) {
-                return false;
-                }
-                addProductToTable(ui.item.product);
-                $("#productSearchInput").val("");
-                currentPage = 1;
-                return false;
-            },
-            open: function() {
-                setTimeout(() => {
-                $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
-                }, 0);
-            }
             });
 
             // Custom render for autocomplete
             const autocompleteInstance = $input.data("ui-autocomplete");
             if (autocompleteInstance) {
-            autocompleteInstance._renderItem = function(ul, item) {
-                if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-                }
-                return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-            };
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
             }
         }
 
@@ -239,35 +249,41 @@
         function fetchProducts(locationId) {
             let url = '/products/stocks';
             if (locationId) {
-            url += `?location_id=${locationId}`;
+                url += `?location_id=${locationId}`;
             }
             fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) return null;
-                    return {
-                    id: stock.product.id,
-                    name: stock.product.product_name,
-                    sku: stock.product.sku || "N/A",
-                    quantity: stock.total_stock || 0,
-                    price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
-                    wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
-                    special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
-                    max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
-                    retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
-                    expiry_date: stock.batches?.[0]?.expiry_date || '',
-                    batch_no: stock.batches?.[0]?.batch_no || '',
-                    stock_alert: stock.product.stock_alert || 0,
-                    allow_decimal: stock.product.unit?.allow_decimal || false // Pass allow_decimal
-                    };
-                }).filter(product => product !== null);
-                } else {
-                console.error("Failed to fetch product data:", data);
-                }
-            })
-            .catch(error => console.error("Error fetching products:", error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) return null;
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || stock.product
+                                    .original_price || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
+                                    .product.whole_sale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || stock.product
+                                    .special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
+                                    .product.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || stock.product
+                                    .retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                stock_alert: stock.product.stock_alert || 0,
+                                allow_decimal: stock.product.unit?.allow_decimal ||
+                                    false // Pass allow_decimal
+                            };
+                        }).filter(product => product !== null);
+                    } else {
+                        console.error("Failed to fetch product data:", data);
+                    }
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
 
         $(document).ready(function() {
@@ -275,10 +291,10 @@
             initAutocomplete(); // Initialize backend autocomplete
 
             $('#services').on('change', function() {
-            const selectedLocationId = $(this).val();
-            if (selectedLocationId) {
-                fetchProducts(selectedLocationId);
-            }
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(selectedLocationId);
+                }
             });
         });
 
@@ -609,7 +625,7 @@
                     resetFormAndValidation();
                 }
                 setTimeout(function() {
-                    window.location.href = "list-purchase";
+                    window.location.href = "/list-purchase";
                 }, 300);
 
             }
@@ -772,6 +788,14 @@
                         var table = $('#purchase-list').DataTable();
                         table.clear().draw();
                         if (response.purchases && response.purchases.length > 0) {
+                            // Sort purchases by id descending (or by purchase_date if you prefer)
+                            response.purchases.sort(function(a, b) {
+                                // Sort by id descending
+                                return b.id - a.id;
+
+                                return new Date(b.purchase_date) - new Date(a
+                                    .purchase_date);
+                            });
                             response.purchases.forEach(function(item) {
                                 let row = $('<tr data-id="' + item.id + '">');
                                 row.append(
@@ -1084,7 +1108,7 @@
                     },
                     error: function(xhr, status, error) {
                         console.error("AJAX error: ", status, error);
-                        alert('Failed to submit payment.');
+                        // alert('Failed to submit payment.');
                     }
                 });
             });
@@ -1139,7 +1163,7 @@
                         });
                     },
                     error: function(xhr) {
-                        alert(xhr.responseJSON.message);
+                        console.log(xhr.responseJSON.message);
                     }
                 });
             }
@@ -1206,7 +1230,7 @@
                         $('#viewPaymentModal').modal('show');
                     },
                     error: function(xhr) {
-                        alert(xhr.responseJSON.message);
+                        console.log(xhr.responseJSON.message);
                     }
                 });
             }
@@ -1223,7 +1247,7 @@
                             fetchPurchases();
                         },
                         error: function(xhr) {
-                            alert(xhr.responseJSON.message);
+                            console.log(xhr.responseJSON.message);
                         }
                     });
                 }
@@ -1287,6 +1311,11 @@
             // View Purchase Details
             // Row Click Event
             $('#purchase-list').on('click', 'tr', function(e) {
+                // Prevent action if clicking on thead or if no data-id (header/footer rows)
+                if ($(this).closest('thead').length || typeof $(this).data('id') === 'undefined') {
+                    e.stopPropagation();
+                    return;
+                }
                 if (!$(e.target).closest('.action-icon, .dropdown-menu').length) {
                     var purchaseId = $(this).data(
                         'id'); // Extract product ID from data-id attribute
@@ -1317,7 +1346,7 @@
                                     '</td>');
                                 row.append('<td>' + product.quantity +
                                     '</td>');
-                                row.append('<td>' + product.price +
+                                row.append('<td>' + (product.unit_cost || 0) +
                                     '</td>');
                                 row.append('<td>' + product.total +
                                     '</td>');
@@ -1356,7 +1385,7 @@
                             $('#viewPurchaseProductModal').modal('show');
                         },
                         error: function(xhr) {
-                            alert(xhr.responseJSON.message);
+                            console.log(xhr.responseJSON.message);
                         }
                     });
                 }

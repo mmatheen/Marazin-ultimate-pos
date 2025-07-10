@@ -214,11 +214,10 @@
                                         </div>
 
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="purchase-date">Purchase Date <span
-                                                    class="text-danger">*</span></label>
+                                            <label for="purchase-date">Purchase Date <span class="text-danger">*</span></label>
                                             <input class="form-control datetimepicker" type="text"
                                                 placeholder="DD-MM-YYYY" id="purchase-date" name="purchase_date"
-                                                value="{{ \Carbon\Carbon::now() }}">
+                                                value="{{ \Carbon\Carbon::now()->format('d-m-Y') }}">
                                             <span class="text-danger small" id="purchase_date_error"></span>
                                         </div>
                                         <div class="col-lg-3 col-md-6 mb-3">
