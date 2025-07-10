@@ -366,10 +366,10 @@
                                     </div>
                                     <div class="col-lg-6 col-md-12">
                                         <div class="preview-container p-3 border rounded">
-                                            <img id="selectedImage" src="/assets/images/No Product Image Available.png"
-                                                alt="Selected Image" class="img-thumbnail mb-2"
-                                                style="max-width: 200px; display: block;">
-                                            <iframe id="pdfViewer" width="100%" height="200px"
+                                            <img id="purchase-selectedImage"
+                                                src="/assets/images/No Product Image Available.png" alt="Selected Image"
+                                                class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
+                                            <iframe id="purchase-pdfViewer" width="100%" height="200px"
                                                 style="display: none;"></iframe>
                                         </div>
                                     </div>

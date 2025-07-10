@@ -179,7 +179,7 @@
 
             if (product.product_image) {
                 const imagePath = `/assets/images/${product.product_image}`;
-                $('#selectedImage').attr('src', imagePath).show();
+                $('#product-selectedImage').attr('src', imagePath).show();
             }
 
             // Populate initial dropdowns with callback to set selected values
@@ -732,7 +732,7 @@
             $('#addForm').validate().resetForm();
             $('#addForm').find('.is-invalidRed').removeClass('is-invalidRed');
             $('#addForm').find('.is-validGreen').removeClass('is-validGreen');
-            $('#selectedImage').attr('src', '/assets/img/No Product Image Available.png');
+            $('#product-selectedImage').attr('src', '/assets/img/No Product Image Available.png');
         }
 
         // Global flag to track submission state
@@ -834,6 +834,8 @@
             handleFormSubmit('saveAndOpeningStock');
         });
 
+
+
         function fetchLastAddedProducts() {
             fetchData('get-last-product', function(response) {
                 if (response.status === 200) {
@@ -851,129 +853,70 @@
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
-                const rowProductId = $(this).data('id')
+                const rowProductId = $(this).data('id');
                 if (rowProductId === product.id) {
                     existingRow = $(this);
                     return false;
                 }
             });
 
+            // Determine if decimal is allowed for this product
+            const allowDecimal = product.unit?.allow_decimal === 1 || product.unit?.allow_decimal === "1";
+            const quantityStep = allowDecimal ? "0.01" : "1";
+            const quantityMin = allowDecimal ? "0.01" : "1";
+            const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
+
+            // Get current stock quantity from locations
+            const currentStock = product.locations && product.locations.length > 0 ? product.locations[0].pivot
+                .qty : 0;
+
             if (existingRow && !isEditing) {
                 const quantityInput = existingRow.find('.purchase-quantity');
-                const newQuantity = parseFloat(quantityInput.val()) + 1;
+                let currentVal = parseFloat(quantityInput.val());
+                let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                 quantityInput.val(newQuantity).trigger('input');
             } else {
-                const price = parseFloat(prices.price || product.original_price) || 0;
-                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-                const wholesalePrice = parseFloat(prices.whole_sale_price || product.whole_sale_price) || 0;
+                // Use correct property names from the JSON response
+                const wholesalePrice = parseFloat(prices.wholesale_price || product.whole_sale_price) || 0;
                 const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
                 const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
                 const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
 
                 const newRow = `
             <tr data-id="${product.id}">
                 <td>${product.id}</td>
-                <td>${product.product_name || '-'} <br><small>Stock: ${product.quantity || 0}</small></td>
-                <td><input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="1"></td>
-                <td><input type="number" class="form-control unit-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
-                <td><input type="number" class="form-control discount-percent" value="0" min="0" max="100"></td>
-                <td><input type="number" class="form-control product-price" value="${price.toFixed(2)}" min="0" step="0.01"></td>
-                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0" step="0.01"></td>
-                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0" step="0.01"></td>
-                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td>${product.product_name} <br><small>Stock: ${currentStock}</small></td>
+                <td>
+                    <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
+                </td>
+                <td>
+                    <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
+                </td>
+                <td>
+                    <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
+                </td>
+                <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
                 <td class="sub-total">0</td>
+                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
+                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
                 <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" step="0.01"></td>
+                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
                 <td><input type="date" class="form-control expiry-date" value="${product.expiry_date || ''}"></td>
-                <td><input type="text" class="form-control batch-no" value="${product.batch_no || ''}"></td>
+                <td><input type="text" class="form-control batch_no" value="${product.batch_no || ''}"></td>
                 <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
 
                 const $newRow = $(newRow);
                 table.row.add($newRow).draw();
-                updateRow($newRow);
-                updateFooter();
 
-                $newRow.find(
-                    ".purchase-quantity, .discount-percent, .unit-price, .product-price, .retail-price, .wholesale-price, .special-price, .max-retail-price"
-                ).on("input", function() {
-                    updateRow($newRow);
-                    updateFooter();
-                });
-
-                $newRow.find(".delete-product").on("click", function() {
-                    table.row($newRow).remove().draw();
-                    updateFooter();
-                });
             }
         }
 
-        function updateRow($row) {
-            const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
-            const unitPrice = parseFloat($row.find(".unit-price").val()) || 0;
-            const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
-            const profitMargin = parseFloat($row.find(".profit-margin").val()) || 0;
 
-            const discountedPrice = unitPrice - (unitPrice * discountPercent) / 100;
-            // const retailPrice = discountedPrice + (discountedPrice * profitMargin) / 100;
-            const retailPrice = unitCost + (unitCost * profitMargin) / 100;
-            const subTotal = discountedPrice * quantity;
-
-            $row.find(".product-price").val(discountedPrice.toFixed(2));
-            $row.find(".retail-price").val(retailPrice.toFixed(2));
-            $row.find(".sub-total").text(subTotal.toFixed(2));
-        }
-
-        function updateFooter() {
-            let totalItems = 0;
-            let netTotalAmount = 0;
-
-            $('#purchase_product tbody tr').each(function() {
-                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
-
-                totalItems += quantity;
-                netTotalAmount += subTotal;
-            });
-
-            $('#total-items').text(totalItems.toFixed(2));
-            $('#net-total-amount').text(netTotalAmount.toFixed(2));
-            $('#total').val(netTotalAmount.toFixed(2));
-
-            const discountType = $('#discount-type').val();
-            const discountInput = parseFloat($('#discount-amount').val()) || 0;
-            let discountAmount = 0;
-
-            if (discountType === 'fixed') {
-                discountAmount = discountInput;
-            } else if (discountType === 'percentage') {
-                discountAmount = (netTotalAmount * discountInput) / 100;
-            }
-
-            const taxType = $('#tax-type').val();
-            let taxAmount = 0;
-
-            if (taxType === 'vat10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            } else if (taxType === 'cgst10') {
-                taxAmount = (netTotalAmount - discountAmount) * 0.10;
-            }
-
-            const finalTotal = netTotalAmount - discountAmount + taxAmount;
-
-            $('#purchase-total').text(`Purchase Total: Rs ${finalTotal.toFixed(2)}`);
-            $('#final-total').val(finalTotal.toFixed(2));
-            $('#discount-display').text(`(-) Rs ${discountAmount.toFixed(2)}`);
-            $('#tax-display').text(`(+) Rs ${taxAmount.toFixed(2)}`);
-
-            const advanceBalance = parseFloat($('#advance-payment').val()) || 0;
-            const paymentDue = finalTotal - advanceBalance;
-            $('.payment-due').text(`Rs ${paymentDue.toFixed(2)}`);
-        }
-
-        $('#discount-type, #discount-amount, #tax-type, #advance-payment').on('change input', updateFooter);
-
+       
 
         $(".show-picture").on("change", function() {
             const input = this;
@@ -983,8 +926,8 @@
 
                 if (file.type.startsWith("image/")) {
                     reader.onload = function(e) {
-                        $("#selectedImage").attr("src", e.target.result);
-                        $("#selectedImage").show();
+                        $("#product-selectedImage").attr("src", e.target.result);
+                        $("#product-selectedImage").show();
                         $("#pdfViewer").hide();
                     };
                     reader.readAsDataURL(file);

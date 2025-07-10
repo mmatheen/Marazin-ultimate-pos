@@ -122,90 +122,155 @@
         }
 
         let allProducts = []; // Store all product data
+        let currentPage = 1;
+        let hasMore = true;
 
-        // Use backend autocomplete endpoint for product search
         function initAutocomplete() {
-            $("#productSearchInput").autocomplete({
-            minLength: 2,
-            source: function(request, response) {
-                const locationId = $('#services').val();
-                $.ajax({
-                url: '/products/stocks/autocomplete',
-                data: {
-                    search: request.term,
-                    location_id: locationId,
-                    per_page: 10
-                },
-                dataType: 'json',
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                    const items = data.data
-                        .filter(item => item.product && item.product.stock_alert !== 0)
-                        .map(item => ({
-                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
-                        value: item.product.product_name,
-                        product: {
-                            id: item.product.id,
-                            name: item.product.product_name,
-                            sku: item.product.sku || "N/A",
-                            quantity: item.total_stock || 0,
-                            price: item.product.original_price || 0,
-                            wholesale_price: item.product.whole_sale_price || 0,
-                            special_price: item.product.special_price || 0,
-                            max_retail_price: item.product.max_retail_price || 0,
-                            retail_price: item.product.retail_price || 0,
-                            expiry_date: '', // Not available in autocomplete
-                            batch_no: '', // Not available in autocomplete
-                            stock_alert: item.product.stock_alert || 0,
-                            allow_decimal: item.product.unit?.allow_decimal || false // Pass allow_decimal
+            const $input = $("#productSearchInput");
+
+            $input.autocomplete({
+                minLength: 1,
+                source: function(request, response) {
+                    const locationId = $('#services').val();
+                    const searchTerm = request.term.trim().toLowerCase(); // Normalize input
+
+                    $.ajax({
+                        url: '/products/stocks/autocomplete',
+                        data: {
+                            search: searchTerm,
+                            location_id: locationId,
+                            per_page: 10,
+                            page: currentPage
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.status === 200 && Array.isArray(data.data)) {
+                                let items = data.data
+                                    .map(item => ({
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                                        value: item.product.product_name,
+                                        product: {
+                                            id: item.product.id,
+                                            name: item.product.product_name,
+                                            sku: item.product.sku || "N/A",
+                                            quantity: item.total_stock || 0,
+                                            price: item.product
+                                                .original_price || 0,
+                                            wholesale_price: item.product
+                                                .whole_sale_price || 0,
+                                            special_price: item.product
+                                                .special_price || 0,
+                                            max_retail_price: item.product
+                                                .max_retail_price || 0,
+                                            retail_price: item.product
+                                                .retail_price || 0,
+                                            expiry_date: '', // Not available in autocomplete
+                                            batch_no: '', // Not available in autocomplete
+                                            stock_alert: item.product
+                                                .stock_alert || 0,
+                                            allow_decimal: item.product.unit
+                                                ?.allow_decimal || false
+                                        }
+                                    }));
+
+                                // Check for exact SKU match
+                                const exactMatch = items.find(item => item.product.sku
+                                    .toLowerCase() === searchTerm);
+
+                                if (exactMatch) {
+                                    response([exactMatch]);
+                                } else if (items.length > 0) {
+                                    // Sort by startsWith vs contains
+                                    const startsWith = [];
+                                    const contains = [];
+
+                                    items.forEach(item => {
+                                        const productNameLower = item.product
+                                            .name.toLowerCase();
+                                        if (productNameLower.startsWith(
+                                                searchTerm)) {
+                                            startsWith.push(item);
+                                        } else if (productNameLower.includes(
+                                                searchTerm)) {
+                                            contains.push(item);
+                                        }
+                                    });
+
+                                    // Combine: Starts With First, then Contains
+                                    const sortedResults = [...startsWith, ...contains];
+
+                                    // Return top 10 only (or adjust as needed)
+                                    response(sortedResults.slice(0, 10));
+                                } else {
+                                    response([{
+                                        label: "No products found",
+                                        value: "",
+                                        product: null
+                                    }]);
+                                }
+
+                                // Infinite scroll control
+                                if (currentPage === 1 && data.data.length < 10) {
+                                    hasMore = false;
+                                } else {
+                                    hasMore = true;
+                                }
+                            } else {
+                                response([{
+                                    label: "No products found",
+                                    value: "",
+                                    product: null
+                                }]);
+                            }
+                        },
+                        error: function() {
+                            response([{
+                                label: "Error fetching products",
+                                value: ""
+                            }]);
                         }
-                        }));
-                    if (items.length === 0) {
-                        response([{
-                        label: "No products found",
-                        value: ""
-                        }]);
-                    } else {
-                        response(items.slice(0, 1)); // Only show one product
-                    }
-                    } else {
-                    response([{
-                        label: "No products found",
-                        value: ""
-                    }]);
-                    }
+                    });
                 },
-                error: function() {
-                    response([{
-                    label: "Error fetching products",
-                    value: ""
-                    }]);
+                select: function(event, ui) {
+                    if (!ui.item.product) {
+                        return false;
+                    }
+                    addProductToTable(ui.item.product);
+                    $("#productSearchInput").val("");
+                    currentPage = 1;
+                    return false;
+                },
+                open: function() {
+                    setTimeout(() => {
+                        $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
+                    }, 0);
                 }
-                });
-            },
-            select: function(event, ui) {
-                if (!ui.item.product) {
-                return false;
-                }
-                addProductToTable(ui.item.product);
-                $("#productSearchInput").val("");
-                return false;
-            }
             });
 
             // Custom render for autocomplete
-            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            const autocompleteInstance = $input.data("ui-autocomplete");
             if (autocompleteInstance) {
-            autocompleteInstance._renderItem = function(ul, item) {
-                if (!item.product) {
-                return $("<li>")
-                    .append(`<div style="color: red;">${item.label}</div>`)
-                    .appendTo(ul);
-                }
-                return $("<li>")
-                .append(`<div>${item.label}</div>`)
-                .appendTo(ul);
-            };
+                autocompleteInstance._renderItem = function(ul, item) {
+                    if (!item.product) {
+                        return $("<li>")
+                            .append(`<div style="color: red;">${item.label}</div>`)
+                            .appendTo(ul);
+                    }
+                    return $("<li>")
+                        .append(`<div>${item.label}</div>`)
+                        .appendTo(ul);
+                };
+
+                // Handle scroll for infinite loading
+                autocompleteInstance.menu.bindings.on('scroll', function() {
+                    const menu = $(this);
+                    if (menu.scrollTop() + menu.innerHeight() >= menu[0].scrollHeight - 5) {
+                        if (hasMore) {
+                            currentPage++;
+                            $input.autocomplete("search", $input.val());
+                        }
+                    }
+                });
             }
         }
 
@@ -213,35 +278,41 @@
         function fetchProducts(locationId) {
             let url = '/products/stocks';
             if (locationId) {
-            url += `?location_id=${locationId}`;
+                url += `?location_id=${locationId}`;
             }
             fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 200 && Array.isArray(data.data)) {
-                allProducts = data.data.map(stock => {
-                    if (!stock.product) return null;
-                    return {
-                    id: stock.product.id,
-                    name: stock.product.product_name,
-                    sku: stock.product.sku || "N/A",
-                    quantity: stock.total_stock || 0,
-                    price: stock.batches?.[0]?.unit_cost || stock.product.original_price || 0,
-                    wholesale_price: stock.batches?.[0]?.wholesale_price || stock.product.whole_sale_price || 0,
-                    special_price: stock.batches?.[0]?.special_price || stock.product.special_price || 0,
-                    max_retail_price: stock.batches?.[0]?.max_retail_price || stock.product.max_retail_price || 0,
-                    retail_price: stock.batches?.[0]?.retail_price || stock.product.retail_price || 0,
-                    expiry_date: stock.batches?.[0]?.expiry_date || '',
-                    batch_no: stock.batches?.[0]?.batch_no || '',
-                    stock_alert: stock.product.stock_alert || 0,
-                    allow_decimal: stock.product.unit?.allow_decimal || false // Pass allow_decimal
-                    };
-                }).filter(product => product !== null);
-                } else {
-                console.error("Failed to fetch product data:", data);
-                }
-            })
-            .catch(error => console.error("Error fetching products:", error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) return null;
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || stock.product
+                                    .original_price || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
+                                    .product.whole_sale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || stock.product
+                                    .special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
+                                    .product.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || stock.product
+                                    .retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                stock_alert: stock.product.stock_alert || 0,
+                                allow_decimal: stock.product.unit?.allow_decimal ||
+                                    false // Pass allow_decimal
+                            };
+                        }).filter(product => product !== null);
+                    } else {
+                        console.error("Failed to fetch product data:", data);
+                    }
+                })
+                .catch(error => console.error("Error fetching products:", error));
         }
 
         $(document).ready(function() {
@@ -249,10 +320,10 @@
             initAutocomplete(); // Initialize backend autocomplete
 
             $('#services').on('change', function() {
-            const selectedLocationId = $(this).val();
-            if (selectedLocationId) {
-                fetchProducts(selectedLocationId);
-            }
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(selectedLocationId);
+                }
             });
         });
 
@@ -261,11 +332,11 @@
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
-            const rowProductId = $(this).data('id');
-            if (rowProductId === product.id) {
-                existingRow = $(this);
-                return false;
-            }
+                const rowProductId = $(this).data('id');
+                if (rowProductId === product.id) {
+                    existingRow = $(this);
+                    return false;
+                }
             });
 
             // Determine if decimal is allowed for this product
@@ -275,18 +346,18 @@
             const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
 
             if (existingRow && !isEditing) {
-            const quantityInput = existingRow.find('.purchase-quantity');
-            let currentVal = parseFloat(quantityInput.val());
-            let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
-            quantityInput.val(newQuantity).trigger('input');
+                const quantityInput = existingRow.find('.purchase-quantity');
+                let currentVal = parseFloat(quantityInput.val());
+                let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
+                quantityInput.val(newQuantity).trigger('input');
             } else {
-            const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-            const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-            const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-            const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-            const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
+                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
 
-            const newRow = `
+                const newRow = `
             <tr data-id="${product.id}">
             <td>${product.id}</td>
             <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
@@ -312,22 +383,22 @@
             </tr>
         `;
 
-            const $newRow = $(newRow);
-            table.row.add($newRow).draw();
-            updateRow($newRow);
-            updateFooter();
-
-            $newRow.find(
-                ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
-            ).on("input", function() {
+                const $newRow = $(newRow);
+                table.row.add($newRow).draw();
                 updateRow($newRow);
                 updateFooter();
-            });
 
-            $newRow.find(".delete-product").on("click", function() {
-                table.row($newRow).remove().draw();
-                updateFooter();
-            });
+                $newRow.find(
+                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+                ).on("input", function() {
+                    updateRow($newRow);
+                    updateFooter();
+                });
+
+                $newRow.find(".delete-product").on("click", function() {
+                    table.row($newRow).remove().draw();
+                    updateFooter();
+                });
             }
         }
 
@@ -352,11 +423,11 @@
             let netTotalAmount = 0;
 
             $('#purchase_product tbody tr').each(function() {
-            const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-            const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
+                const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
+                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
 
-            totalItems += quantity;
-            netTotalAmount += subTotal;
+                totalItems += quantity;
+                netTotalAmount += subTotal;
             });
 
             $('#total-items').text(totalItems.toFixed(2));
@@ -368,18 +439,18 @@
             let discountAmount = 0;
 
             if (discountType === 'fixed') {
-            discountAmount = discountInput;
+                discountAmount = discountInput;
             } else if (discountType === 'percentage') {
-            discountAmount = (netTotalAmount * discountInput) / 100;
+                discountAmount = (netTotalAmount * discountInput) / 100;
             }
 
             const taxType = $('#tax-type').val();
             let taxAmount = 0;
 
             if (taxType === 'vat10') {
-            taxAmount = (netTotalAmount - discountAmount) * 0.10;
+                taxAmount = (netTotalAmount - discountAmount) * 0.10;
             } else if (taxType === 'cgst10') {
-            taxAmount = (netTotalAmount - discountAmount) * 0.10;
+                taxAmount = (netTotalAmount - discountAmount) * 0.10;
             }
 
             const finalTotal = netTotalAmount - discountAmount + taxAmount;
@@ -626,12 +697,12 @@
                     reader.onload = function(e) {
                         $("#pdfViewer").attr("src", e.target.result);
                         $("#pdfViewer").show();
-                        $("#selectedImage").hide();
+                        $("#purchase-selectedImage").hide();
                     };
                 } else if (file.type.startsWith("image/")) {
                     reader.onload = function(e) {
-                        $("#selectedImage").attr("src", e.target.result);
-                        $("#selectedImage").show();
+                        $("#purchase-selectedImage").attr("src", e.target.result);
+                        $("#purchase-selectedImage").show();
                         $("#pdfViewer").hide();
                     };
                 }
