@@ -566,14 +566,10 @@
                 return;
             }
 
-            const totalQuantity = stockEntry.total_stock;
-
             // Check if product requires IMEI
             if (product.is_imei_or_serial_no === 1) {
                 const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
                 [];
-                console.log("Available IMEIs:", availableImeis);
-
                 const billingBody = document.getElementById('billing-body');
                 const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
                     row.querySelector('.product-id')?.textContent == product.id
@@ -588,22 +584,44 @@
                 return;
             }
 
-            // If no IMEI required, proceed normally
+            // --- START FIX: Handle Unlimited Stock (stock_alert == 0) ---
+
+            // If it's an unlimited product, skip batch selection
+            if (product.stock_alert === 0) {
+                const defaultPrice = product.retail_price || product.max_retail_price || 0;
+
+                // Add directly to billing with 1 unit
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    defaultPrice,
+                    "unlimited", // special batch ID for unlimited
+                    999999999, // simulate infinite quantity
+                    'retail',
+                    1 // default sale quantity
+                );
+                return;
+            }
+
+            // --- END FIX ---
+
+            // For normal stock-managed products
+            const totalQuantity = stockEntry.total_stock;
+
             if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product
                 .stock_alert !== 0) {
                 toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
                 return;
             }
 
-            // Ensure batches is always an array
             let batchesArray = [];
+
             if (Array.isArray(stockEntry.batches)) {
                 batchesArray = stockEntry.batches;
             } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
                 batchesArray = Object.values(stockEntry.batches);
             }
 
-            // Filter batches by selected location and available quantity
             batchesArray = batchesArray.filter(batch =>
                 Array.isArray(batch.location_batches) &&
                 batch.location_batches.some(lb =>
@@ -617,20 +635,15 @@
                 return;
             }
 
-            // Sort batches by id descending (latest batch first)
             batchesArray = batchesArray.sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
-            // Get unique retail prices across batches in this location
             const retailPrices = [
                 ...new Set(
                     batchesArray.map(batch => parseFloat(batch.retail_price))
                 )
             ];
 
-            // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-                // Default: select "All" batch (not a real batch, but for all available)
-                // Calculate total quantity for all batches in this location
                 let totalQty = 0;
                 batchesArray.forEach(batch => {
                     batch.location_batches.forEach(lb => {
@@ -639,19 +652,19 @@
                         }
                     });
                 });
-                // Use latest batch's retail price for "All"
+
                 const latestBatch = batchesArray[0];
                 locationId = selectedLocationId;
+
                 addProductToBillingBody(
                     product,
                     stockEntry,
                     latestBatch.retail_price,
-                    "all", // batchId is "all"
+                    "all",
                     totalQty,
                     'retail'
                 );
             } else {
-                // Multiple prices found → show modal (user must select batch)
                 showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
