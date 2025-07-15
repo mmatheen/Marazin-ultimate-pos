@@ -463,6 +463,9 @@
                     .appendTo(ul);
             };
 
+            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
 
             // Custom _move to keep focus highlight in sync with up/down keys
             $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
@@ -550,68 +553,68 @@
             console.log("Product to be added:", product);
 
             if (!stockData || stockData.length === 0) {
-            console.error('stockData is not defined or empty');
-            toastr.error('Stock data is not available', 'Error');
-            return;
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
             }
 
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
 
             if (!stockEntry) {
-            toastr.error('Stock entry not found for the product', 'Error');
-            return;
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
             }
 
             const totalQuantity = stockEntry.total_stock;
 
             // Check if product requires IMEI
             if (product.is_imei_or_serial_no === 1) {
-            const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
-            [];
-            console.log("Available IMEIs:", availableImeis);
+                const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
+                [];
+                console.log("Available IMEIs:", availableImeis);
 
-            const billingBody = document.getElementById('billing-body');
-            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
-                row.querySelector('.product-id')?.textContent == product.id
-            );
+                const billingBody = document.getElementById('billing-body');
+                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
+                    row.querySelector('.product-id')?.textContent == product.id
+                );
 
-            if (existingRows.length > 0) {
+                if (existingRows.length > 0) {
+                    showImeiSelectionModal(product, stockEntry, availableImeis);
+                    return;
+                }
+
                 showImeiSelectionModal(product, stockEntry, availableImeis);
                 return;
             }
 
-            showImeiSelectionModal(product, stockEntry, availableImeis);
-            return;
-            }
-
             // If no IMEI required, proceed normally
             if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product
-            .stock_alert !== 0) {
-            toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-            return;
+                .stock_alert !== 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
             }
 
             // Ensure batches is always an array
             let batchesArray = [];
             if (Array.isArray(stockEntry.batches)) {
-            batchesArray = stockEntry.batches;
+                batchesArray = stockEntry.batches;
             } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-            batchesArray = Object.values(stockEntry.batches);
+                batchesArray = Object.values(stockEntry.batches);
             }
 
             // Filter batches by selected location and available quantity
             batchesArray = batchesArray.filter(batch =>
-            Array.isArray(batch.location_batches) &&
-            batch.location_batches.some(lb =>
-                String(lb.location_id) == String(selectedLocationId) &&
-                parseFloat(lb.quantity) > 0
-            )
+                Array.isArray(batch.location_batches) &&
+                batch.location_batches.some(lb =>
+                    String(lb.location_id) == String(selectedLocationId) &&
+                    parseFloat(lb.quantity) > 0
+                )
             );
 
             if (batchesArray.length === 0) {
-            toastr.error('No batches with available quantity found in this location', 'Error');
-            return;
+                toastr.error('No batches with available quantity found in this location', 'Error');
+                return;
             }
 
             // Sort batches by id descending (latest batch first)
@@ -619,73 +622,94 @@
 
             // Get unique retail prices across batches in this location
             const retailPrices = [
-            ...new Set(
-                batchesArray.map(batch => parseFloat(batch.retail_price))
-            )
+                ...new Set(
+                    batchesArray.map(batch => parseFloat(batch.retail_price))
+                )
             ];
 
             // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-            // Default: select "All" batch (not a real batch, but for all available)
-            // Calculate total quantity for all batches in this location
-            let totalQty = 0;
-            batchesArray.forEach(batch => {
-                batch.location_batches.forEach(lb => {
-                if (String(lb.location_id) == String(selectedLocationId)) {
-                    totalQty += parseFloat(lb.quantity);
-                }
+                // Default: select "All" batch (not a real batch, but for all available)
+                // Calculate total quantity for all batches in this location
+                let totalQty = 0;
+                batchesArray.forEach(batch => {
+                    batch.location_batches.forEach(lb => {
+                        if (String(lb.location_id) == String(selectedLocationId)) {
+                            totalQty += parseFloat(lb.quantity);
+                        }
+                    });
                 });
-            });
-            // Use latest batch's retail price for "All"
-            const latestBatch = batchesArray[0];
-            locationId = selectedLocationId;
-            addProductToBillingBody(
-                product,
-                stockEntry,
-                latestBatch.retail_price,
-                "all", // batchId is "all"
-                totalQty,
-                'retail'
-            );
+                // Use latest batch's retail price for "All"
+                const latestBatch = batchesArray[0];
+                locationId = selectedLocationId;
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    latestBatch.retail_price,
+                    "all", // batchId is "all"
+                    totalQty,
+                    'retail'
+                );
             } else {
-            // Multiple prices found → show modal (user must select batch)
-            showBatchPriceSelectionModal(product, stockEntry, batchesArray);
+                // Multiple prices found → show modal (user must select batch)
+                showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
 
 
+        // Global variable to track currently opened modal product
+        let activeModalProductId = null;
+
         function showBatchPriceSelectionModal(product, stockEntry, batches) {
             const tbody = document.getElementById('batch-price-list');
-            tbody.innerHTML = '';
             const modalElement = document.getElementById('batchPriceModal');
             const modal = new bootstrap.Modal(modalElement);
 
-            // Store rows for keyboard access
+            // Prevent opening modal again for same product
+            if (activeModalProductId === product.id) {
+                toastr.info('Batch selection already in progress for this product.');
+                return;
+            }
+            activeModalProductId = product.id;
+
+            // Reset modal content
+            tbody.innerHTML = '';
             const batchRows = [];
 
-            batches.forEach((batch, index) => {
+            // Filter and sort batches
+            const validBatches = batches.filter(batch => {
                 const locationBatch = batch.location_batches.find(lb => lb.location_id ==
                     selectedLocationId);
-                if (!locationBatch || locationBatch.quantity <= 0) return;
+                return locationBatch && parseFloat(locationBatch.quantity) > 0;
+            }).sort((a, b) => parseInt(b.id) - parseInt(a.id));
 
-                // Use batch.max_retail_price if available, else fallback to product.max_retail_price
+            if (validBatches.length === 0) {
+                tbody.innerHTML =
+                    `<tr><td colspan="5" class="text-center text-danger">No batches available</td></tr>`;
+                modal.show();
+                setTimeout(() => modal.hide(), 1500);
+                activeModalProductId = null;
+                return;
+            }
+
+            // Populate modal with batches
+            validBatches.forEach((batch, index) => {
+                const locationBatch = batch.location_batches.find(lb => lb.location_id ==
+                    selectedLocationId);
                 const batchMrp = batch.max_retail_price !== undefined && batch.max_retail_price !==
                     null ?
-                    parseFloat(batch.max_retail_price) :
-                    (product.max_retail_price !== undefined ? parseFloat(product.max_retail_price) : 0);
-
+                    parseFloat(batch.max_retail_price) : (product.max_retail_price || 0);
                 const batchRetailPrice = batch.retail_price !== undefined && batch.retail_price !==
                     null ?
-                    parseFloat(batch.retail_price) :
-                    (product.retail_price !== undefined ? parseFloat(product.retail_price) : 0);
+                    parseFloat(batch.retail_price) : (product.retail_price || 0);
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                <td><strong>[${index + 1}]</strong></td>
-                <td>${batch.batch_no}</td>
-                <td>MRP: Rs ${batchMrp.toFixed(2)}<br>Retail: Rs ${batchRetailPrice.toFixed(2)}</td>
-                <td>${locationBatch.quantity} PC(s)</td>
-                <td>
+            <td><strong>[${index + 1}]</strong></td>
+            <td>${batch.batch_no}</td>
+            <td>MRP: Rs ${batchMrp.toFixed(2)}<br>Retail: Rs ${batchRetailPrice.toFixed(2)}</td>
+            <td>${locationBatch.quantity} PC(s)</td>
+            <td>
                 <button class="btn btn-sm btn-primary select-batch-btn"
                     data-batch-id="${batch.id}"
                     data-retail-price="${batchRetailPrice}"
@@ -693,15 +717,15 @@
                     data-batch-json='${JSON.stringify(batch)}'>
                     Select
                 </button>
-                </td>
-            `;
+            </td>
+        `;
                 tbody.appendChild(tr);
-                batchRows.push(tr); // Save reference for keyboard navigation
+                batchRows.push(tr);
             });
 
-            // Prevent double open/close issues
             let isModalOpen = false;
 
+            // Handle batch selection
             function handleBatchSelect(e) {
                 if (e.target.classList.contains('select-batch-btn')) {
                     const batchJson = e.target.dataset.batchJson;
@@ -710,25 +734,22 @@
                         selectedLocationId);
                     const qty = locationBatch?.quantity || 0;
 
-                    // Use batch-specific retail and max_retail_price
+                    // Use batch-specific prices
                     const batchRetailPrice = selectedBatch.retail_price !== undefined && selectedBatch
                         .retail_price !== null ?
-                        parseFloat(selectedBatch.retail_price) :
-                        (product.retail_price !== undefined ? parseFloat(product.retail_price) : 0);
+                        parseFloat(selectedBatch.retail_price) : (product.retail_price || 0);
 
                     const batchMrp = selectedBatch.max_retail_price !== undefined && selectedBatch
                         .max_retail_price !== null ?
-                        parseFloat(selectedBatch.max_retail_price) :
-                        (product.max_retail_price !== undefined ? parseFloat(product.max_retail_price) : 0);
+                        parseFloat(selectedBatch.max_retail_price) : (product.max_retail_price || 0);
 
-                    // Clone product and override prices for this batch
                     const productWithBatchPrices = {
                         ...product,
                         retail_price: batchRetailPrice,
                         max_retail_price: batchMrp
                     };
 
-                    // Always add only 1 quantity when selecting from modal
+                    // Add product to billing with quantity 1
                     addProductToBillingBody(
                         productWithBatchPrices,
                         stockEntry,
@@ -736,7 +757,7 @@
                         selectedBatch.id,
                         qty,
                         'retail',
-                        1, // Always 1 for modal selection
+                        1, // Quantity is 1 when selecting from modal
                         [],
                         null,
                         null,
@@ -752,19 +773,16 @@
 
             tbody.addEventListener('click', handleBatchSelect);
 
-            // --- NEW: Keyboard Navigation Support ---
+            // Keyboard navigation
             const handleKeyDown = function(event) {
                 const key = event.key;
-
-                // Only allow 1-9 keys
                 if (!/^[1-9]$/.test(key)) return;
 
                 const selectedIndex = parseInt(key, 10) - 1;
-
                 if (batchRows[selectedIndex]) {
                     const selectBtn = batchRows[selectedIndex].querySelector('.select-batch-btn');
                     if (selectBtn) {
-                        selectBtn.click(); // Simulate click on the corresponding button
+                        selectBtn.click();
                         if (isModalOpen) {
                             modal.hide();
                             isModalOpen = false;
@@ -773,17 +791,19 @@
                 }
             };
 
-            // Show modal and attach global keyboard listener
-            modal.show();
-            isModalOpen = true;
-
-            // Attach keydown listener only when modal is shown
+            // Modal lifecycle
             const shownHandler = () => {
                 document.addEventListener('keydown', handleKeyDown);
+                isModalOpen = true;
             };
+
             const hiddenHandler = () => {
                 document.removeEventListener('keydown', handleKeyDown);
                 isModalOpen = false;
+                activeModalProductId = null;
+                tbody.removeEventListener('click', handleBatchSelect);
+                modalElement.removeEventListener('shown.bs.modal', shownHandler);
+                modalElement.removeEventListener('hidden.bs.modal', hiddenHandler);
             };
 
             modalElement.addEventListener('shown.bs.modal', shownHandler, {
@@ -792,6 +812,8 @@
             modalElement.addEventListener('hidden.bs.modal', hiddenHandler, {
                 once: true
             });
+
+            modal.show();
         }
 
 
@@ -1412,9 +1434,15 @@
             // If not IMEI, try to merge row
             if (imeis.length === 0) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                    const rowProductId = row.querySelector('.product-id').textContent;
-                    const rowBatchId = row.querySelector('.batch-id').textContent;
-                    return rowProductId == product.id && rowBatchId == batchId;
+                    const rowProductId = row.querySelector('.product-id').textContent.trim();
+                    const rowBatchId = row.querySelector('.batch-id').textContent.trim();
+                    const rowPrice = row.querySelector('.price-input')?.value.trim();
+
+                    return (
+                        rowProductId == product.id &&
+                        rowBatchId == batchId &&
+                        parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
+                    );
                 });
                 if (existingRow) {
                     const quantityInput = existingRow.querySelector('.quantity-input');
