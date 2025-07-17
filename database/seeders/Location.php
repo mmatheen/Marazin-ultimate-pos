@@ -57,6 +57,24 @@ class Location extends Seeder
                 'created_at' => '2025-03-16 08:42:57',
                 'updated_at' => '2025-03-16 08:42:57',
             ],
+
+            //nithavur
+            [
+                'id' => 4,
+                'name' => 'Ninthavur',
+                'location_id' => 'LOC0004',
+                'address' => 'Ninthavur',
+                'province' => 'Eastern',
+                'district' => 'Ampara',
+                'city' => 'Ninthavur',
+                'email' => 'ninthavur@arbtrading.lk',
+                'mobile' => '672261108',
+                'telephone_no' => '0773445906',
+                'created_at' => '2025-03-16 08:42:57',
+                'updated_at' => '2025-03-16 08:42:57',
+            ],  
+
+
         ]);
     }
 }
