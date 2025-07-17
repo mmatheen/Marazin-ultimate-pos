@@ -43,6 +43,8 @@ use App\Http\Controllers\{
     DiscountController,
     ReportController,
 };
+use App\Http\Controllers\Api\RestaurantController;
+
 
 // Helper function
 function set_active($route)
@@ -70,14 +72,14 @@ require __DIR__ . '/auth.php';
 // -------------------- Protected Routes (Auth + Session) --------------------
 Route::middleware(['auth', 'check.session'])->group(function () {
 
-        // -------------------- Dynamic Role Middleware --------------------
-        Route::group(['middleware' => function ($request, $next) {
-            $role = Auth::user()->role_name ?? null;
-            if ($role) {
-                $request->route()->middleware("role:$role");
-            }
-            return $next($request);
-        }], function () {
+    // -------------------- Dynamic Role Middleware --------------------
+    Route::group(['middleware' => function ($request, $next) {
+        $role = Auth::user()->role_name ?? null;
+        if ($role) {
+            $request->route()->middleware("role:$role");
+        }
+        return $next($request);
+    }], function () {
 
         // -------------------- UserController Routes --------------------
         // User Management
@@ -412,5 +414,14 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
+
+
+        //resturants routes
+
+        Route::post('/table', [RestaurantController::class, 'createTable']);
+        Route::post('/waiter', [RestaurantController::class, 'createWaiter']);
+        Route::post('/table/{id}/assign-waiters', [RestaurantController::class, 'assignWaitersToTable']);
+        Route::get('/tables', [RestaurantController::class, 'getTables']);
+        Route::get('/waiters', [RestaurantController::class, 'getWaiters']);
     });
 });
