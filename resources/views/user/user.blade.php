@@ -231,6 +231,6 @@
 </div>
 
 @include('user.user_ajax')
-@include('location.location_ajax')
+{{-- @include('location.location_ajax') --}}
 @include('role.role_ajax')
 @endsection

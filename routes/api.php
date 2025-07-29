@@ -32,7 +32,14 @@ use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\VariationTitleController;
 use App\Http\Controllers\StockAdjustmentController;
 
-use App\Http\Controllers\Api\RestaurantController;
+use App\Http\Controllers\Api\{
+  VehicleController,
+  VehicleLocationController,
+  SalesRepController,
+  RouteController,
+  SalesPosController,
+  RestaurantController
+};
 
 
 /*
@@ -326,10 +333,10 @@ Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
 
 
 
-//resturants routes
-
-Route::post('/table', [RestaurantController::class, 'createTable']);
-Route::post('/waiter', [RestaurantController::class, 'createWaiter']);
-Route::post('/table/{id}/assign-waiters', [RestaurantController::class, 'assignWaitersToTable']);
-Route::get('/tables', [RestaurantController::class, 'getTables']);
-Route::get('/waiters', [RestaurantController::class, 'getWaiters']);
+// Sales rep and vehicle routes
+Route::apiResource('vehicles', VehicleController::class);
+Route::apiResource('vehicle-locations', VehicleLocationController::class);
+Route::apiResource('sales-reps', SalesRepController::class);
+Route::apiResource('routes', RouteController::class);
+// Route::apiResource('cities', CityController::class);
+// Route::apiResource('sales-targets', SalesRepTargetController::class);

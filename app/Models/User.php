@@ -62,4 +62,14 @@ class User extends Authenticatable
             ->logOnly(['full_name', 'email'])
             ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
     }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
+    }
+
+    public function isSalesRep()
+    {
+        return $this->role === 'Sales rep'; // or use permission package
+    }
 }

@@ -1366,6 +1366,8 @@ class SaleController extends Controller
         return null;
     }
 
+    // test
+
     public function getSaleByInvoiceNo($invoiceNo)
     {
         $sale = Sale::with([

@@ -43,7 +43,13 @@ use App\Http\Controllers\{
     DiscountController,
     ReportController,
 };
-use App\Http\Controllers\Api\RestaurantController;
+use App\Http\Controllers\Web\{
+    VehicleController,
+    SalesRepController,
+    RouteController,
+    VehicleLocationController,
+};
+
 
 
 // Helper function
@@ -416,12 +422,14 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
 
 
-        //resturants routes
+        //Salesrep routes
 
-        Route::post('/table', [RestaurantController::class, 'createTable']);
-        Route::post('/waiter', [RestaurantController::class, 'createWaiter']);
-        Route::post('/table/{id}/assign-waiters', [RestaurantController::class, 'assignWaitersToTable']);
-        Route::get('/tables', [RestaurantController::class, 'getTables']);
-        Route::get('/waiters', [RestaurantController::class, 'getWaiters']);
+        //Grouped Routes for SalesRep, Vehicle, and Route
+        Route::group(['prefix' => 'sales-rep'], function () {
+            Route::get('/vehicles', [VehicleController::class, 'create']);
+            //vehicle location
+            Route::get('/vehicle-locations', [VehicleLocationController::class, 'create']);
+
+        });
     });
 });
