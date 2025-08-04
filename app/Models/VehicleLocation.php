@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class VehicleLocation extends Model
 {
     use HasFactory;
+
     protected $table = 'vehicle_locations';
 
     protected $fillable = [
@@ -20,10 +21,13 @@ class VehicleLocation extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
-
     public function location()
     {
         return $this->belongsTo(Location::class);
-    }   
+    }
 
+    public function salesReps()
+    {
+        return $this->hasMany(SalesRep::class);
+    }
 }

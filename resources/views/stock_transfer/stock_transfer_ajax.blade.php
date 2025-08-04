@@ -125,8 +125,61 @@
         const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ?
             pathSegments[pathSegments.length - 1] : null;
 
-        fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
-        fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
+        // fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'), "Select Location");
+        // fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'), "Select Location");
+
+        // Reusable function to populate any dropdown
+    function populateDropdown($select, data, placeholder, selectedId = null) {
+        $select.empty().append(`<option selected disabled>${placeholder}</option>`);
+        data.forEach(item => {
+            const option = $('<option></option>')
+                .val(item.id)
+                .text(item.name || item.first_name + ' ' + item.last_name);
+            $select.append(option);
+        });
+        if (selectedId) {
+            $select.val(selectedId).trigger('change');
+        }
+    }
+
+    // Fetch all locations and filter for "From" and "To"
+    $.ajax({
+        url: '/location-get-all?context=all_locations',
+        method: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            if (response.status === true && Array.isArray(response.data)) {
+                const allLocations = response.data;
+
+                // Populate "To Location" with ALL locations
+                populateDropdown($('#to_location_id'), allLocations, "Select Location");
+
+                // Populate "From Location" with ONLY parent locations (parent_id == null)
+                const parentOnlyLocations = allLocations.filter(loc => loc.parent_id === null);
+                populateDropdown($('#from_location_id'), parentOnlyLocations, "Select Location");
+
+                // If editing an existing transfer, restore selected values after dropdowns are populated
+                const pathSegments = window.location.pathname.split('/');
+                const stockTransferId = pathSegments[pathSegments.length - 1] !== 'add-stock-transfer' ? pathSegments[pathSegments.length - 1] : null;
+
+                if (stockTransferId) {
+                    const checkInterval = setInterval(() => {
+                        if ($('#from_location_id').val()) {
+                            clearInterval(checkInterval);
+                            fetchStockTransferData(stockTransferId);
+                        }
+                    }, 200);
+                }
+            } else {
+                console.error('Failed to load locations:', response.message);
+                toastr.error('Could not load location data.');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching locations:', error);
+            toastr.error('Failed to connect to server.');
+        }
+    });
 
         $('#from_location_id').on('change', function() {
             // Clear the product search input and table when the location changes
@@ -531,31 +584,31 @@
             }
         });
 
-        function fetchDropdownData(url, targetSelect, placeholder, selectedId = null) {
-            $.ajax({
-                url: url,
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.message)) {
-                        targetSelect.html(`<option selected disabled>${placeholder}</option>`);
-                        data.message.forEach(item => {
-                            const option = $('<option></option>').val(item.id).text(item
-                                .name || item.first_name + ' ' + item.last_name);
-                            targetSelect.append(option);
-                        });
-                        if (selectedId) {
-                            targetSelect.val(selectedId).trigger('change');
-                        }
-                    } else {
-                        console.error(`Failed to fetch data: ${data.message}`);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error(`Error fetching data: ${error}`);
-                }
-            });
-        }
+        // function fetchDropdownData(url, targetSelect, placeholder, selectedId = null) {
+        //     $.ajax({
+        //         url: url,
+        //         method: 'GET',
+        //         dataType: 'json',
+        //         success: function(data) {
+        //             if (data.status === 200 && Array.isArray(data.message)) {
+        //                 targetSelect.html(`<option selected disabled>${placeholder}</option>`);
+        //                 data.message.forEach(item => {
+        //                     const option = $('<option></option>').val(item.id).text(item
+        //                         .name || item.first_name + ' ' + item.last_name);
+        //                     targetSelect.append(option);
+        //                 });
+        //                 if (selectedId) {
+        //                     targetSelect.val(selectedId).trigger('change');
+        //                 }
+        //             } else {
+        //                 console.error(`Failed to fetch data: ${data.message}`);
+        //             }
+        //         },
+        //         error: function(xhr, status, error) {
+        //             console.error(`Error fetching data: ${error}`);
+        //         }
+        //     });
+        // }
 
         fetchStockTransferList();
 

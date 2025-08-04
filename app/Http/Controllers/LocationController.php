@@ -31,7 +31,7 @@ class LocationController extends Controller
 
         if ($user->is_admin) {
             $locations = Location::with('parent')->get();
-        } elseif ($user->role === 'sales-rep') {
+        } elseif ($user->role === 'Sales Rep') {
             $locations = $this->getSalesRepLocations($user);
         } else {
             $locations = $user->locations()->with('parent')->get();
@@ -248,7 +248,7 @@ class LocationController extends Controller
             'city' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
-           
+
         ]);
 
         if ($validator->fails()) {

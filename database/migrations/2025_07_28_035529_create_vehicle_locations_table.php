@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('sales_reps', function (Blueprint $table) {
+        Schema::create('vehicle_locations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('vehicle_id')->constrained('vehicles')->onDelete('cascade');
-            $table->foreignId('assigned_location_id')->constrained('locations')->onDelete('cascade');
+            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
             $table->timestamps();
+
+            $table->unique('vehicle_id', 'unique_vehicle'); // One vehicle → one location
+            $table->unique('location_id', 'unique_location'); // One location → one vehicle
         });
     }
 
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sales_reps');
+        Schema::dropIfExists('vehicle_locations');
     }
 };

@@ -9,7 +9,6 @@ use App\Models\CustomerGroup;
 use App\Models\SalesRep;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
 {
@@ -64,89 +63,204 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
 
-        // Base query with essential relationships
-        $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+        // Base query with eager loading
+        $query = Customer::with(['city'])
+            ->withSum(['sales as total_sale_due' => function ($q) {
+                $q->where('payment_status', '!=', 'Paid');
+            }], 'total_due')
+            ->withSum('salesReturns as total_return_due', 'total_due')
+            ->withSum('payments as total_paid', 'amount');
 
-        // Apply sales rep filter if user is a sales rep
-        $query = $this->applySalesRepFilter($query, $user);
+        $salesRepInfo = null;
+        $isSuperAdmin = $user->user_name === 'admin'; // Adjust condition based on your role system
 
-        Log::info('Filtered Customer Query: ' . $query->toSql());
+        if (!$isSuperAdmin) {
+            // === Sales Rep Logic: Filter by assigned route cities ===
+            $salesRep = SalesRep::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->with(['route.cities'])
+                ->first();
 
-        // Get filtered and sorted customers
-        $customers = $query->orderBy('first_name')
-            ->get()
-            ->map(function ($customer) {
-                return [
-                    'id' => $customer->id,
-                    'prefix' => $customer->prefix,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => $customer->full_name,
-                    'mobile_no' => $customer->mobile_no,
-                    'email' => $customer->email,
-                    'address' => $customer->address,
-                    'location_id' => $customer->location_id,
-                    'opening_balance' => (float) $customer->opening_balance,
-                    'current_balance' => (float) $customer->current_balance,
-                    'total_sale_due' => (float) $customer->total_sale_due,
-                    'total_return_due' => (float) $customer->total_return_due,
-                    'current_due' => (float) $customer->current_due,
-                    'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? 'Walk-in Customer',
-                    'credit_limit' => (float) $customer->credit_limit,
-                ];
-            });
+            if ($salesRep && $salesRep->route && $salesRep->route->cities->isNotEmpty()) {
+                $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+                $query->whereIn('city_id', $routeCityIds);
+                $salesRepInfo = $this->getSalesRepInfo($user);
+            } else {
+                // No route or no cities assigned
+                return response()->json([
+                    'status' => 200,
+                    'message' => 'No customers assigned to your route.',
+                    'data' => [],
+                    'total_customers' => 0,
+                    'sales_rep_info' => null,
+                ]);
+            }
+        }
+        // If super admin, optionally filter by city_id from request
+        else {
+            $cityId = request()->input('city_id');
+            if ($cityId) {
+                $query->where('city_id', $cityId);
+            }
+            // Otherwise, show all customers (with city_id NOT NULL)
+            $query->whereNotNull('city_id');
+        }
+
+        // Execute query
+        $customers = $query->orderBy('first_name')->get();
+
+        // Recalculate balance (if needed)
+        $customers->each->recalculateCurrentBalance();
+
+        // Transform data
+        $data = $customers->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'prefix' => $customer->prefix,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'mobile_no' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'location_id' => $customer->location_id,
+                'opening_balance' => (float) $customer->opening_balance,
+                'current_balance' => (float) $customer->current_balance,
+                'total_sale_due' => (float) ($customer->total_sale_due ?? 0),
+                'total_return_due' => (float) ($customer->total_return_due ?? 0),
+                'current_due' => (float) $customer->current_due,
+                'city_id' => $customer->city_id,
+                'city_name' => $customer->city?->name ?? 'Unknown City',
+                'credit_limit' => (float) $customer->credit_limit,
+            ];
+        });
 
         return response()->json([
             'status' => 200,
-            'message' => $customers,
-            'total_customers' => $customers->count(),
-            'sales_rep_info' => $this->getSalesRepInfo($user)
+            'message' => 'Customers retrieved successfully',
+            'data' => $data,
+            'total_customers' => $data->count(),
+            'sales_rep_info' => $isSuperAdmin ? null : $salesRepInfo,
         ]);
     }
-    private function applySalesRepFilter($query, $user)
+    /**
+     * Get calculated credit limit for a city
+     */
+    public function getCreditLimitForCity(Request $request)
     {
-        // Get sales rep with route and city IDs (only IDs needed)
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->whereHas('route.cities') // only if route has cities
-            ->with('route.cities:id,name') // minimal load
-            ->first();
-        
+        $cityId = $request->input('city_id');
 
-        if (!$salesRep || !$salesRep->route) {
-            return $query; // not a sales rep → show all
+        if (!$cityId) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'City ID is required',
+                'data' => null,
+            ], 400);
         }
 
-        $assignedCityIds = $salesRep->route->cities->pluck('id')->toArray();
+        $creditLimit = Customer::calculateCreditLimitForCity($cityId);
 
-        Log::info('Assigned City IDs: ' . implode(',', $assignedCityIds));
+        return response()->json([
+            'status' => 200,
+            'message' => 'Credit limit retrieved successfully',
+            'data' => [
+                'city_id' => (int)$cityId,
+                'credit_limit' => (float)$creditLimit,
+            ],
+        ]);
+    }
 
-        if (count($assignedCityIds) > 0) {
-            return $query->whereIn('city_id', $assignedCityIds);
+    public function getCustomersByRoute($routeId)
+    {
+        $route = \App\Models\Route::with('cities')->find($routeId);
+
+        if (!$route) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Route not found',
+                'data' => null,
+            ], 404);
         }
 
-        return $query; // Return query even if no assigned cities
+        $routeCityIds = $route->cities->pluck('id')->toArray();
+
+        if (empty($routeCityIds)) {
+            return response()->json([
+                'status' => 200,
+                'message' => 'Route has no cities assigned.',
+                'data' => [
+                    'route' => [
+                        'id' => $route->id,
+                        'name' => $route->name,
+                        'cities' => [],
+                    ],
+                    'customers' => [],
+                    'total_customers' => 0,
+                ],
+            ]);
+        }
+
+        $customers = Customer::with(['city'])
+            ->whereIn('city_id', $routeCityIds) // Only city-based, no null
+            ->orderBy('first_name')
+            ->get();
+
+        $data = $customers->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'full_name' => $customer->full_name,
+                'mobile_no' => $customer->mobile_no,
+                'email' => $customer->email,
+                'city_id' => $customer->city_id,
+                'city_name' => $customer->city?->name ?? 'Unknown',
+                'current_balance' => (float)$customer->current_balance,
+            ];
+        });
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Customers by route retrieved successfully',
+            'data' => [
+                'route' => [
+                    'id' => $route->id,
+                    'name' => $route->name,
+                    'cities' => $route->cities->map(fn($c) => ['id' => $c->id, 'name' => $c->name]),
+                ],
+                'customers' => $data,
+                'total_customers' => $data->count(),
+            ],
+        ]);
     }
 
     private function getSalesRepInfo($user)
     {
         $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with('route.cities')
+            ->with(['route' => function ($q) {
+                $q->with('cities'); // include cities
+            }])
             ->first();
 
-        if (!$salesRep || !$salesRep->route) {
+        if (!$salesRep) {
             return null;
         }
 
         return [
-            'sales_rep_id' => $salesRep->id,
-            'route_name' => $salesRep->route->name,
-            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
-            'total_cities' => $salesRep->route->cities->count(),
+            'id' => $salesRep->id,
+            'name' => $salesRep->user?->user_name ?? 'No Name',
+            'route_id' => $salesRep->route?->id,
+            'route_name' => $salesRep->route?->name,
+            'assigned_cities' => $salesRep->route?->cities->map(function ($city) {
+                return [
+                    'id' => $city->id,
+                    'name' => $city->name,
+                    'district' => $city->district,
+                    'province' => $city->province,
+                ];
+            })->all(),
         ];
     }
+
 
 
 
@@ -194,7 +308,7 @@ class CustomerController extends Controller
                 }
             }
 
-            Customer::create($customerData);
+            $customer = Customer::create($customerData);
 
             DB::commit();
 
@@ -327,43 +441,5 @@ class CustomerController extends Controller
         }
 
         return response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
-    }
-
-    public function getCustomersByRoute($routeId)
-    {
-        $route = \App\Models\Route::with('cities')->find($routeId);
-
-        if (!$route) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'Route not found'
-            ]);
-        }
-
-        $routeCityIds = $route->cities->pluck('id')->toArray();
-
-        $query = Customer::with(['city']);
-
-        if (!empty($routeCityIds)) {
-            $query->where(function ($q) use ($routeCityIds) {
-                $q->whereIn('city_id', $routeCityIds)
-                    ->orWhereNull('city_id');
-            });
-        } else {
-            $query->whereNull('city_id');
-        }
-
-        $customers = $query->orderBy('first_name')->get();
-
-        return response()->json([
-            'status' => 200,
-            'route' => [
-                'id' => $route->id,
-                'name' => $route->name,
-                'cities' => $route->cities->pluck('name')->toArray()
-            ],
-            'customers' => $customers,
-            'total_customers' => $customers->count()
-        ]);
     }
 }

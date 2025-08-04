@@ -14,10 +14,11 @@ return new class extends Migration
         Schema::create('sales_rep_targets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('sales_rep_id')->constrained('sales_reps')->onDelete('cascade');
-            $table->decimal('target_amount', 15, 2)->default(0.00); // monthly target
+            $table->decimal('target_amount', 15, 2)->default(0.00);
             $table->decimal('achieved_amount', 15, 2)->default(0.00);
-            $table->date('target_month'); // e.g., 2025-08-01
+            $table->date('target_month');
             $table->timestamps();
+            $table->unique(['sales_rep_id', 'target_month'], 'unique_target_per_month');
         });
     }
 

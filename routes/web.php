@@ -47,7 +47,10 @@ use App\Http\Controllers\Web\{
     VehicleController,
     SalesRepController,
     RouteController,
+    RouteCityController,
     VehicleLocationController,
+    CityController,
+    SalesRepTargetController,
 };
 
 
@@ -254,6 +257,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
         Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
         Route::get('/customer-get-all', [CustomerController::class, 'index']);
+        Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
         Route::post('/customer-store', [CustomerController::class, 'store']);
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
@@ -426,10 +430,20 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         //Grouped Routes for SalesRep, Vehicle, and Route
         Route::group(['prefix' => 'sales-rep'], function () {
-            Route::get('/vehicles', [VehicleController::class, 'create']);
+            Route::get('/vehicles', [VehicleController::class, 'create'])->name('vehicles.create');
             //vehicle location
-            Route::get('/vehicle-locations', [VehicleLocationController::class, 'create']);
-
+            Route::get('/vehicle-locations', [VehicleLocationController::class, 'create'])->name('vehicle-locations.create');
+            //sales reps
+            Route::get('/sales-reps', [SalesRepController::class, 'create'])->name('sales-reps.create');
+            //routes
+            Route::get('/routes', [RouteController::class, 'create'])->name('routes.create');
+            //cities
+            Route::get('/cities', [CityController::class, 'create'])->name('cities.create');
+            //route-cities
+            Route::get('/route-cities', [RouteCityController::class, 'create'])->name('route-cities.create');
+           
+            //targets
+            Route::get('/targets', [SalesRepTargetController::class, 'create'])->name('targets.create');
         });
     });
 });

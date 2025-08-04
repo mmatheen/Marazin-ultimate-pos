@@ -37,6 +37,9 @@ use App\Http\Controllers\Api\{
   VehicleLocationController,
   SalesRepController,
   RouteController,
+  CityController,
+  RouteCityController,
+  SalesRepTargetController,
   SalesPosController,
   RestaurantController
 };
@@ -177,9 +180,11 @@ Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
 Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
 Route::post('/customer-store', [CustomerController::class, 'store']);
 Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
 Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+Route::post('/customer-credit-limit-by-city', [CustomerController::class, 'getCreditLimitForCity']);
 //stop  Customer route
 
 //start location route
@@ -338,5 +343,21 @@ Route::apiResource('vehicles', VehicleController::class);
 Route::apiResource('vehicle-locations', VehicleLocationController::class);
 Route::apiResource('sales-reps', SalesRepController::class);
 Route::apiResource('routes', RouteController::class);
-// Route::apiResource('cities', CityController::class);
-// Route::apiResource('sales-targets', SalesRepTargetController::class);
+Route::apiResource('cities', CityController::class);
+Route::apiResource('route-cities', RouteCityController::class);
+Route::apiResource('sales-rep-targets', SalesRepTargetController::class);
+
+// Sales Rep helper routes
+Route::get('/sales-reps/vehicle-locations/available', [SalesRepController::class, 'getAvailableVehicleLocations']);
+Route::get('/sales-reps/routes/available', [SalesRepController::class, 'getAvailableRoutes']);
+Route::get('/sales-reps/vehicle-location/{vehicleLocationId}/details', [SalesRepController::class, 'getLocationFromVehicleLocation']);
+
+// Route helper routes
+Route::get('/routes/cities/available', [RouteController::class, 'getAvailableCities']);
+Route::get('/routes/{routeId}/cities', [RouteController::class, 'getRouteCities']);
+Route::post('/routes/{routeId}/cities/add', [RouteController::class, 'addCities']);
+Route::delete('/routes/{routeId}/cities/remove', [RouteController::class, 'removeCities']);
+
+// RouteCity helper routes
+Route::get('/route-cities/cities/all', [RouteCityController::class, 'getAllCities']);
+Route::get('/route-cities/routes/all', [RouteCityController::class, 'getAllRoutes']);

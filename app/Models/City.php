@@ -5,24 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Route extends Model
+class City extends Model
 {
     use HasFactory;
 
-    protected $table = 'routes';
+    protected $table = 'cities';
 
     protected $fillable = [
         'name',
+        'district',
+        'province',
     ];
 
-    public function salesReps()
+    public function routes()
     {
-        return $this->hasMany(SalesRep::class);
-    }
-
-    public function cities()
-    {
-        return $this->belongsToMany(City::class, 'route_cities');
+        return $this->belongsToMany(Route::class, 'route_cities');
     }
 
     public function routeCities()

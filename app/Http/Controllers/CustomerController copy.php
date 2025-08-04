@@ -6,18 +6,16 @@ use Illuminate\Http\Request;
 use App\Models\Customer;
 use App\Models\City;
 use App\Models\CustomerGroup;
-use App\Models\SalesRep;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use DataTables;
 
 class CustomerController extends Controller
 {
 
     function __construct()
     {
-        $this->middleware('permission:view customer', ['only' => ['index', 'show', 'Customer']]);
-        $this->middleware('permission:create customer', ['only' => ['store']]);
+        $this->middleware('permission:view customer', ['only' => ['show', 'Customer']]);       $this->middleware('permission:create customer', ['only' => ['store']]);
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);
     }
@@ -30,124 +28,35 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
-    // public function index()
-    // {
-    //     $customers = Customer::with(['sales', 'salesReturns', 'payments', 'city'])->get()->map(function ($customer) {
-    //         return [
-    //             'id' => $customer->id,
-    //             'prefix' => $customer->prefix,
-    //             'first_name' => $customer->first_name,
-    //             'last_name' => $customer->last_name,
-    //             'full_name' => $customer->full_name,
-    //             'mobile_no' => $customer->mobile_no,
-    //             'email' => $customer->email,
-    //             'address' => $customer->address,
-    //             'location_id' => $customer->location_id,
-    //             'opening_balance' => $customer->opening_balance,
-    //             'current_balance' => $customer->current_balance,
-    //             'total_sale_due' => $customer->total_sale_due,
-    //             'total_return_due' => $customer->total_return_due,
-    //             'current_due' => $customer->current_due,
-    //             'city_id' => $customer->city_id,
-    //             'city_name' => $customer->city ? $customer->city->name : 'N/A',
-    //             'credit_limit' => $customer->credit_limit,
-    //         ];
-    //     });
-
-    //     return response()->json([
-    //         'status' => 200,
-    //         'message' => $customers,
-    //     ]);
-    // }
-
     public function index()
     {
-        $user = auth()->user();
-
-        // Base query with essential relationships
-        $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
-
-        // Apply sales rep filter if user is a sales rep
-        $query = $this->applySalesRepFilter($query, $user);
-
-        Log::info('Filtered Customer Query: ' . $query->toSql());
-
-        // Get filtered and sorted customers
-        $customers = $query->orderBy('first_name')
-            ->get()
-            ->map(function ($customer) {
-                return [
-                    'id' => $customer->id,
-                    'prefix' => $customer->prefix,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => $customer->full_name,
-                    'mobile_no' => $customer->mobile_no,
-                    'email' => $customer->email,
-                    'address' => $customer->address,
-                    'location_id' => $customer->location_id,
-                    'opening_balance' => (float) $customer->opening_balance,
-                    'current_balance' => (float) $customer->current_balance,
-                    'total_sale_due' => (float) $customer->total_sale_due,
-                    'total_return_due' => (float) $customer->total_return_due,
-                    'current_due' => (float) $customer->current_due,
-                    'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? 'Walk-in Customer',
-                    'credit_limit' => (float) $customer->credit_limit,
-                ];
-            });
+        $customers = Customer::with(['city', 'sales', 'salesReturns', 'payments'])->get()->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'prefix' => $customer->prefix,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'full_name' => $customer->full_name,
+                'mobile_no' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'location_id' => $customer->location_id,
+                'city_id' => $customer->city_id,
+                'city_name' => $customer->city ? $customer->city->name : 'N/A',
+                'opening_balance' => $customer->opening_balance,
+                'current_balance' => $customer->current_balance,
+                'credit_limit' => $customer->credit_limit,
+                'total_sale_due' => $customer->total_sale_due,
+                'total_return_due' => $customer->total_return_due,
+                'current_due' => $customer->current_due,
+            ];
+        });
 
         return response()->json([
             'status' => 200,
             'message' => $customers,
-            'total_customers' => $customers->count(),
-            'sales_rep_info' => $this->getSalesRepInfo($user)
         ]);
     }
-    private function applySalesRepFilter($query, $user)
-    {
-        // Get sales rep with route and city IDs (only IDs needed)
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->whereHas('route.cities') // only if route has cities
-            ->with('route.cities:id,name') // minimal load
-            ->first();
-        
-
-        if (!$salesRep || !$salesRep->route) {
-            return $query; // not a sales rep → show all
-        }
-
-        $assignedCityIds = $salesRep->route->cities->pluck('id')->toArray();
-
-        Log::info('Assigned City IDs: ' . implode(',', $assignedCityIds));
-
-        if (count($assignedCityIds) > 0) {
-            return $query->whereIn('city_id', $assignedCityIds);
-        }
-
-        return $query; // Return query even if no assigned cities
-    }
-
-    private function getSalesRepInfo($user)
-    {
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with('route.cities')
-            ->first();
-
-        if (!$salesRep || !$salesRep->route) {
-            return null;
-        }
-
-        return [
-            'sales_rep_id' => $salesRep->id,
-            'route_name' => $salesRep->route->name,
-            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
-            'total_cities' => $salesRep->route->cities->count(),
-        ];
-    }
-
 
 
 
@@ -162,7 +71,7 @@ class CustomerController extends Controller
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
-            'city_id' => 'nullable|integer|exists:cities,id',
+            'city_id' => 'nullable|exists:cities,id',
         ]);
 
         if ($validator->fails()) {
@@ -194,7 +103,7 @@ class CustomerController extends Controller
                 }
             }
 
-            Customer::create($customerData);
+            $customer = Customer::create($customerData);
 
             DB::commit();
 
@@ -214,7 +123,7 @@ class CustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with(['city'])->find($id);
+        $customer = Customer::with('city')->find($id);
         return $customer ? response()->json(['status' => 200, 'customer' => $customer])
             : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
@@ -235,7 +144,7 @@ class CustomerController extends Controller
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
-            'city_id' => 'nullable|integer|exists:cities,id',
+            'city_id' => 'nullable|exists:cities,id',
         ]);
 
         if ($validator->fails()) {
@@ -329,41 +238,25 @@ class CustomerController extends Controller
         return response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 
-    public function getCustomersByRoute($routeId)
+    /**
+     * Get calculated credit limit for a city
+     */
+    public function getCreditLimitForCity(Request $request)
     {
-        $route = \App\Models\Route::with('cities')->find($routeId);
+        $cityId = $request->input('city_id');
 
-        if (!$route) {
+        if (!$cityId) {
             return response()->json([
-                'status' => 404,
-                'message' => 'Route not found'
+                'status' => 400,
+                'message' => 'City ID is required'
             ]);
         }
 
-        $routeCityIds = $route->cities->pluck('id')->toArray();
-
-        $query = Customer::with(['city']);
-
-        if (!empty($routeCityIds)) {
-            $query->where(function ($q) use ($routeCityIds) {
-                $q->whereIn('city_id', $routeCityIds)
-                    ->orWhereNull('city_id');
-            });
-        } else {
-            $query->whereNull('city_id');
-        }
-
-        $customers = $query->orderBy('first_name')->get();
+        $creditLimit = Customer::calculateCreditLimitForCity($cityId);
 
         return response()->json([
             'status' => 200,
-            'route' => [
-                'id' => $route->id,
-                'name' => $route->name,
-                'cities' => $route->cities->pluck('name')->toArray()
-            ],
-            'customers' => $customers,
-            'total_customers' => $customers->count()
+            'credit_limit' => $creditLimit
         ]);
     }
 }

@@ -13,8 +13,7 @@ return new class extends Migration
     {
         Schema::create('routes', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->nullable(); // Optional route name
-            $table->foreignId('sales_rep_id')->constrained('sales_reps')->onDelete('cascade');
+            $table->string('name')->unique(); // Unique route name
             $table->timestamps();
         });
     }

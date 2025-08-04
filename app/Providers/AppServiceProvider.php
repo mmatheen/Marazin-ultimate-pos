@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
+use Darryldecode\Cart\Cart;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -12,7 +13,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Properly bind the Cart service
+        $this->app->singleton(Cart::class, function ($app) {
+            return new Cart(
+                $app['session.store'],
+                $app['events'],
+                'default',
+                'cart',
+                config('shopping_cart', [])
+            );
+        });
     }
 
     /**
@@ -20,8 +30,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-         Schema::defaultStringLength(191);
-         
-
+        Schema::defaultStringLength(191);
     }
 }

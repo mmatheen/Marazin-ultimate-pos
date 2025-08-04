@@ -18,17 +18,12 @@
 
             <div class="col-md-3">
                 <div class="form-group">
-                    @if(Auth::check() && Auth::user()->locations->count() > 0)
+                    {{-- @if (Auth::check() && Auth::user()->locations->count() > 0) --}}
                     <select class="form-control form-select" id="location_dropdown">
-                        @foreach(Auth::user()->locations as $location)
-                            <option value="{{ $location->id }}" 
-                                @if(session('selectedLocation', Auth::user()->locations->first()->id) == $location->id) selected @endif>
-                                {{ $location->name }}
-                            </option>
-                        @endforeach
+                      <option value="">All Location</option>
                     </select>
-                    @endif
-                  
+                 
+
                 </div>
             </div>
             <div class="col-md-3">
@@ -217,161 +212,202 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.21.3/date-fns.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@1.0.0/dist/chartjs-adapter-date-fns.bundle.min.js">
     </script>
-   
-   <script>
-    $(document).ready(function() {
-        let salesChart;
-        let purchaseChart;
-    
-        function formatCurrency(amount) {
-            return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-    
-        function fetchDashboardData(start, end) {
-            $.ajax({
-                url: "/dashboard-data",
-                type: "GET",
-                dataType: "json",
-                data: {
-                    startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
-                    endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss')
-                },
-                success: function(response) {
-                    $("#totalSales").text(formatCurrency(response.totalSales));
-                    $("#totalPurchases").text(formatCurrency(response.totalPurchases));
-                    $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));
-                    $("#totalPurchaseReturn").text(formatCurrency(response.totalPurchaseReturn));
-                    $("#totalSalesDue").text(formatCurrency(response.totalSalesDue));
-                    $("#totalPurchasesDue").text(formatCurrency(response.totalPurchasesDue));
-                    $("#totalSalesReturnDue").text(formatCurrency(response.totalSalesReturnDue));
-                    $("#totalPurchaseReturnDue").text(formatCurrency(response.totalPurchaseReturnDue));
-                    $("#stockTransfer").text(response.stockTransfer);
-                    $("#totalProducts").text(response.totalProducts);
-    
-                    updateCharts(response);
-                }
-            });
-        }
-    
-        function updateCharts(data) {
-            // Destroy existing charts if they exist
-            if (salesChart) {
-                salesChart.destroy();
-            }
-            if (purchaseChart) {
-                purchaseChart.destroy();
-            }
-    
-            salesChart = new Chart(document.getElementById('salesChart'), {
-                type: 'line',
-                data: {
-                    labels: data.salesDates,
-                    datasets: [{
-                        label: 'Sales Amount (Rs.)',
-                        data: data.salesAmounts,
-                        borderColor: 'blue',
-                        fill: false,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return formatCurrency(context.parsed.y);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-    
-            purchaseChart = new Chart(document.getElementById('purchaseChart'), {
-                type: 'line',
-                data: {
-                    labels: data.purchaseDates,
-                    datasets: [{
-                        label: 'Purchase Amount (Rs.)',
-                        data: data.purchaseAmounts,
-                        borderColor: 'green',
-                        fill: false,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return formatCurrency(context.parsed.y);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    
-        // Date range picker 
-        $(function() {
-            var today = moment();
-            
-            function cb(start, end) {
-                $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
-                fetchDashboardData(start, end);
-            }
-    
-            $('#reportrange').daterangepicker({
-                startDate: today,
-                endDate: today,
-                ranges: {
-                    'Today': [today, today],
-                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-                    'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-                    'This Month': [moment().startOf('month'), moment().endOf('month')],
-                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-                }
-            }, cb);
-    
-            // Initialize with Today selected
-            cb(today, today);
-        });
-    });
-    </script>
 
+    <script>
+        $(document).ready(function() {
+
+            // Fetch locations and populate dropdown
+            function fetchLocation() {
+                $.ajax({
+                    url: "/location-get-all", // Adjust URL as needed
+                    type: "GET",
+                    dataType: "json",
+                    success: function(response) {
+                        if (response.status && response.data) {
+                            let options = '';
+                            response.data.forEach(function(location) {
+                                options +=
+                                    `<option value="${location.id}">${location.name}</option>`;
+                            });
+                            $('#location_dropdown').html(options);
+
+                            // Set first location as selected by default
+                            if (response.data.length > 0) {
+                                $('#location_dropdown').val(response.data[0].id);
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching locations:', error);
+                    }
+                });
+            }
+
+            // Call fetchLocation on page load
+            fetchLocation();
+
+            // Handle location dropdown change
+            $('#location_dropdown').on('change', function() {
+                const selectedLocationId = $(this).val();
+                // You can add logic here to update dashboard data based on selected location
+                console.log('Selected location ID:', selectedLocationId);
+            });
+
+            let salesChart;
+            let purchaseChart;
+
+            function formatCurrency(amount) {
+                return 'Rs. ' + parseFloat(amount).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function fetchDashboardData(start, end) {
+                $.ajax({
+                    url: "/dashboard-data",
+                    type: "GET",
+                    dataType: "json",
+                    data: {
+                        startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
+                        endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                    },
+                    success: function(response) {
+                        $("#totalSales").text(formatCurrency(response.totalSales));
+                        $("#totalPurchases").text(formatCurrency(response.totalPurchases));
+                        $("#totalSalesReturn").text(formatCurrency(response.totalSalesReturn));
+                        $("#totalPurchaseReturn").text(formatCurrency(response.totalPurchaseReturn));
+                        $("#totalSalesDue").text(formatCurrency(response.totalSalesDue));
+                        $("#totalPurchasesDue").text(formatCurrency(response.totalPurchasesDue));
+                        $("#totalSalesReturnDue").text(formatCurrency(response.totalSalesReturnDue));
+                        $("#totalPurchaseReturnDue").text(formatCurrency(response
+                            .totalPurchaseReturnDue));
+                        $("#stockTransfer").text(response.stockTransfer);
+                        $("#totalProducts").text(response.totalProducts);
+
+                        updateCharts(response);
+                    }
+                });
+            }
+
+            function updateCharts(data) {
+                // Destroy existing charts if they exist
+                if (salesChart) {
+                    salesChart.destroy();
+                }
+                if (purchaseChart) {
+                    purchaseChart.destroy();
+                }
+
+                salesChart = new Chart(document.getElementById('salesChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.salesDates,
+                        datasets: [{
+                            label: 'Sales Amount (Rs.)',
+                            data: data.salesAmounts,
+                            borderColor: 'blue',
+                            fill: false,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                purchaseChart = new Chart(document.getElementById('purchaseChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.purchaseDates,
+                        datasets: [{
+                            label: 'Purchase Amount (Rs.)',
+                            data: data.purchaseAmounts,
+                            borderColor: 'green',
+                            fill: false,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Date range picker 
+            $(function() {
+                var today = moment();
+
+                function cb(start, end) {
+                    $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format(
+                        'MMMM D, YYYY'));
+                    fetchDashboardData(start, end);
+                }
+
+                $('#reportrange').daterangepicker({
+                    startDate: today,
+                    endDate: today,
+                    ranges: {
+                        'Today': [today, today],
+                        'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                        'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                        'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                        'This Month': [moment().startOf('month'), moment().endOf('month')],
+                        'Last Month': [moment().subtract(1, 'month').startOf('month'), moment()
+                            .subtract(1, 'month').endOf('month')
+                        ]
+                    }
+                }, cb);
+
+                // Initialize with Today selected
+                cb(today, today);
+            });
+        });
+    </script>
 @endsection

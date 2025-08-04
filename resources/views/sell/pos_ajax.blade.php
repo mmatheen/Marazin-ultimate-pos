@@ -176,14 +176,45 @@
                 });
         }
 
+        // // ---- LOCATION ----
+        // function fetchAllLocations() {
+        //     $.ajax({
+        //         url: '/location-get-all',
+        //         method: 'GET',
+        //         success: function(data) {
+        //             if (data.status === 200) populateLocationDropdown(data.message);
+        //             else console.error('Error fetching locations:', data.message);
+        //         },
+        //         error: function(jqXHR, textStatus, errorThrown) {
+        //             console.error('AJAX Error:', textStatus, errorThrown);
+        //         }
+        //     });
+        // }
+
+        // function populateLocationDropdown(locations) {
+        //     const locationSelect = $('#locationSelect');
+        //     locationSelect.empty();
+        //     locationSelect.append('<option value="" disabled selected>Select Location</option>');
+        //     locations.forEach((location, index) => {
+        //         const option = $('<option></option>').val(location.id).text(location.name);
+        //         if (index === 0) option.attr('selected', 'selected');
+        //         locationSelect.append(option);
+        //     });
+        //     locationSelect.trigger('change');
+        // }
+
         // ---- LOCATION ----
         function fetchAllLocations() {
             $.ajax({
                 url: '/location-get-all',
                 method: 'GET',
-                success: function(data) {
-                    if (data.status === 200) populateLocationDropdown(data.message);
-                    else console.error('Error fetching locations:', data.message);
+                success: function(response) {
+                    // Check for status = true and data exists
+                    if (response.status && Array.isArray(response.data)) {
+                        populateLocationDropdown(response.data);
+                    } else {
+                        console.error('Error fetching locations:', response.message);
+                    }
                 },
                 error: function(jqXHR, textStatus, errorThrown) {
                     console.error('AJAX Error:', textStatus, errorThrown);
@@ -193,13 +224,18 @@
 
         function populateLocationDropdown(locations) {
             const locationSelect = $('#locationSelect');
-            locationSelect.empty();
+            locationSelect.empty(); // Clear existing options
+
+            // Add default prompt
             locationSelect.append('<option value="" disabled selected>Select Location</option>');
+
             locations.forEach((location, index) => {
                 const option = $('<option></option>').val(location.id).text(location.name);
                 if (index === 0) option.attr('selected', 'selected');
                 locationSelect.append(option);
             });
+
+            // Trigger change event (optional: useful if other logic depends on it)
             locationSelect.trigger('change');
         }
 
@@ -553,90 +589,93 @@
             console.log("Product to be added:", product);
 
             if (!stockData || stockData.length === 0) {
-            console.error('stockData is not defined or empty');
-            toastr.error('Stock data is not available', 'Error');
-            return;
+                console.error('stockData is not defined or empty');
+                toastr.error('Stock data is not available', 'Error');
+                return;
             }
 
             const stockEntry = stockData.find(stock => stock.product.id === product.id);
             console.log("stockEntry", stockEntry);
 
             if (!stockEntry) {
-            toastr.error('Stock entry not found for the product', 'Error');
-            return;
+                toastr.error('Stock entry not found for the product', 'Error');
+                return;
             }
 
             const totalQuantity = stockEntry.total_stock;
 
             // If product is unlimited stock (stock_alert === 0), allow sale even if quantity is 0
             if (product.stock_alert === 0) {
-            // Proceed to add product with batch "all" and quantity 0 (unlimited)
+                // Proceed to add product with batch "all" and quantity 0 (unlimited)
+                let batchesArray = [];
+                if (Array.isArray(stockEntry.batches)) {
+                    batchesArray = stockEntry.batches;
+                } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
+                    batchesArray = Object.values(stockEntry.batches);
+                }
+                // Use latest batch's retail price for "All"
+                const latestBatch = batchesArray.length > 0 ? batchesArray[0] : {
+                    retail_price: product.retail_price || product.max_retail_price || 0
+                };
+                locationId = selectedLocationId;
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    latestBatch.retail_price,
+                    "all", // batchId is "all"
+                    0, // unlimited stock, so quantity is 0
+                    'retail'
+                );
+                return;
+            }
+
+            // Check if product requires IMEI
+            if (product.is_imei_or_serial_no === 1) {
+                const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
+                [];
+                console.log("Available IMEIs:", availableImeis);
+
+                const billingBody = document.getElementById('billing-body');
+                const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
+                    row.querySelector('.product-id')?.textContent == product.id
+                );
+
+                if (existingRows.length > 0) {
+                    showImeiSelectionModal(product, stockEntry, availableImeis);
+                    return;
+                }
+
+                showImeiSelectionModal(product, stockEntry, availableImeis);
+                return;
+            }
+
+            // If no IMEI required, proceed normally
+            if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product
+                .stock_alert !== 0) {
+                toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
+                return;
+            }
+
+            // Ensure batches is always an array
             let batchesArray = [];
             if (Array.isArray(stockEntry.batches)) {
                 batchesArray = stockEntry.batches;
             } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
                 batchesArray = Object.values(stockEntry.batches);
             }
-            // Use latest batch's retail price for "All"
-            const latestBatch = batchesArray.length > 0 ? batchesArray[0] : { retail_price: product.retail_price || product.max_retail_price || 0 };
-            locationId = selectedLocationId;
-            addProductToBillingBody(
-                product,
-                stockEntry,
-                latestBatch.retail_price,
-                "all", // batchId is "all"
-                0, // unlimited stock, so quantity is 0
-                'retail'
-            );
-            return;
-            }
-
-            // Check if product requires IMEI
-            if (product.is_imei_or_serial_no === 1) {
-            const availableImeis = stockEntry.imei_numbers?.filter(imei => imei.status === "available") ||
-            [];
-            console.log("Available IMEIs:", availableImeis);
-
-            const billingBody = document.getElementById('billing-body');
-            const existingRows = Array.from(billingBody.querySelectorAll('tr')).filter(row =>
-                row.querySelector('.product-id')?.textContent == product.id
-            );
-
-            if (existingRows.length > 0) {
-                showImeiSelectionModal(product, stockEntry, availableImeis);
-                return;
-            }
-
-            showImeiSelectionModal(product, stockEntry, availableImeis);
-            return;
-            }
-
-            // If no IMEI required, proceed normally
-            if ((totalQuantity === 0 || totalQuantity === "0" || totalQuantity === "0.00") && product.stock_alert !== 0) {
-            toastr.error(`Sorry, ${product.product_name} is out of stock!`, 'Warning');
-            return;
-            }
-
-            // Ensure batches is always an array
-            let batchesArray = [];
-            if (Array.isArray(stockEntry.batches)) {
-            batchesArray = stockEntry.batches;
-            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-            batchesArray = Object.values(stockEntry.batches);
-            }
 
             // Filter batches by selected location and available quantity
             batchesArray = batchesArray.filter(batch =>
-            Array.isArray(batch.location_batches) &&
-            batch.location_batches.some(lb =>
-                String(lb.location_id) == String(selectedLocationId) &&
-                parseFloat(lb.quantity) > 0
-            )
+                Array.isArray(batch.location_batches) &&
+                batch.location_batches.some(lb =>
+                    String(lb.location_id) == String(selectedLocationId) &&
+                    parseFloat(lb.quantity) > 0
+                )
             );
 
             if (batchesArray.length === 0) {
-            toastr.error('No batches with available quantity found in this location', 'Error');
-            return;
+                toastr.error('No batches with available quantity found in this location', 'Error');
+                return;
             }
 
             // Sort batches by id descending (latest batch first)
@@ -644,37 +683,37 @@
 
             // Get unique retail prices across batches in this location
             const retailPrices = [
-            ...new Set(
-                batchesArray.map(batch => parseFloat(batch.retail_price))
-            )
+                ...new Set(
+                    batchesArray.map(batch => parseFloat(batch.retail_price))
+                )
             ];
 
             // If there's only one price, add the latest batch (highest id)
             if (retailPrices.length <= 1) {
-            // Default: select "All" batch (not a real batch, but for all available)
-            // Calculate total quantity for all batches in this location
-            let totalQty = 0;
-            batchesArray.forEach(batch => {
-                batch.location_batches.forEach(lb => {
-                if (String(lb.location_id) == String(selectedLocationId)) {
-                    totalQty += parseFloat(lb.quantity);
-                }
+                // Default: select "All" batch (not a real batch, but for all available)
+                // Calculate total quantity for all batches in this location
+                let totalQty = 0;
+                batchesArray.forEach(batch => {
+                    batch.location_batches.forEach(lb => {
+                        if (String(lb.location_id) == String(selectedLocationId)) {
+                            totalQty += parseFloat(lb.quantity);
+                        }
+                    });
                 });
-            });
-            // Use latest batch's retail price for "All"
-            const latestBatch = batchesArray[0];
-            locationId = selectedLocationId;
-            addProductToBillingBody(
-                product,
-                stockEntry,
-                latestBatch.retail_price,
-                "all", // batchId is "all"
-                totalQty,
-                'retail'
-            );
+                // Use latest batch's retail price for "All"
+                const latestBatch = batchesArray[0];
+                locationId = selectedLocationId;
+                addProductToBillingBody(
+                    product,
+                    stockEntry,
+                    latestBatch.retail_price,
+                    "all", // batchId is "all"
+                    totalQty,
+                    'retail'
+                );
             } else {
-            // Multiple prices found → show modal (user must select batch)
-            showBatchPriceSelectionModal(product, stockEntry, batchesArray);
+                // Multiple prices found → show modal (user must select batch)
+                showBatchPriceSelectionModal(product, stockEntry, batchesArray);
             }
         }
 
@@ -3115,7 +3154,7 @@
         function resetToWalkingCustomer() {
             const customerSelect = $('#customer-id');
             const walkingCustomer = customerSelect.find('option').filter(function() {
-                return $(this).text().startsWith('Walking');
+                return $(this).text().startsWith('Walk-in');
             });
 
             if (walkingCustomer.length > 0) {

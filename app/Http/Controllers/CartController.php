@@ -1,22 +1,16 @@
 <?php
+
 namespace App\Http\Controllers;
 
-use Darryldecode\Cart\Cart;
 use Illuminate\Http\Request;
+use Darryldecode\Cart\Facades\CartFacade as Cart; // Use the proper Cart facade
 
 class CartController extends Controller
 {
-    protected $cart;
-
-    public function __construct(Cart $cart)
-    {
-        $this->cart = $cart;
-    }
-
     public function index()
     {
         return view('cart.index', [
-            'cartItems' => $this->cart->getContent(),
+            'cartItems' => Cart::getContent(),
         ]);
     }
 
@@ -34,7 +28,7 @@ class CartController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Insufficient stock in selected batch.'], 400);
         }
 
-        $this->cart->add([
+        Cart::add([
             'id' => $product->id,
             'name' => $product->product_name,
             'price' => $batch->retail_price,
@@ -55,7 +49,7 @@ class CartController extends Controller
 
     public function remove($rowId)
     {
-        $this->cart->remove($rowId);
+        Cart::remove($rowId);
 
         return response()->json(['status' => 'success', 'message' => 'Product removed from cart.']);
     }
@@ -68,7 +62,7 @@ class CartController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Quantity must be at least 1.'], 400);
         }
 
-        $this->cart->update($rowId, [
+        Cart::update($rowId, [
             'quantity' => $quantity,
         ]);
 

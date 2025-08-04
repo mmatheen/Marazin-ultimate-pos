@@ -23,7 +23,7 @@ class Vehicle extends Model
 
     public function salesReps()
     {
-        return $this->belongsToMany(SalesRep::class, 'vehicle_sales_rep', 'vehicle_id', 'sales_rep_id');
+        return $this->hasMany(SalesRep::class);
     }
 
     public function routes()
@@ -40,6 +40,4 @@ class Vehicle extends Model
     {
         $this->attributes['vehicle_type'] = strtolower($value);
     }
-
-
 }
