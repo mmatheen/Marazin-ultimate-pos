@@ -64,15 +64,12 @@ class CustomerController extends Controller
     {
         $user = auth()->user();
 
-        // Base query with essential relationships
-        $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+        // Bypass location scope → we'll filter by route cities instead
+        $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
 
-        // Apply sales rep filter if user is a sales rep
+        // Apply sales rep route filter
         $query = $this->applySalesRepFilter($query, $user);
 
-        Log::info('Filtered Customer Query: ' . $query->toSql());
-
-        // Get filtered and sorted customers
         $customers = $query->orderBy('first_name')
             ->get()
             ->map(function ($customer) {
@@ -104,36 +101,32 @@ class CustomerController extends Controller
             'sales_rep_info' => $this->getSalesRepInfo($user)
         ]);
     }
+
     private function applySalesRepFilter($query, $user)
     {
-        // Get sales rep with route and city IDs (only IDs needed)
         $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->whereHas('route.cities') // only if route has cities
-            ->with('route.cities:id,name') // minimal load
+            ->with(['route.cities'])
             ->first();
-        
 
-        if (!$salesRep || !$salesRep->route) {
-            return $query; // not a sales rep → show all
+        if ($salesRep && $salesRep->route) {
+            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+
+            if (!empty($routeCityIds)) {
+                $query->whereIn('city_id', $routeCityIds);
+            } else {
+                $query->whereNull('city_id');
+            }
         }
 
-        $assignedCityIds = $salesRep->route->cities->pluck('id')->toArray();
-
-        Log::info('Assigned City IDs: ' . implode(',', $assignedCityIds));
-
-        if (count($assignedCityIds) > 0) {
-            return $query->whereIn('city_id', $assignedCityIds);
-        }
-
-        return $query; // Return query even if no assigned cities
+        return $query;
     }
 
     private function getSalesRepInfo($user)
     {
         $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with('route.cities')
+            ->with(['route.cities'])
             ->first();
 
         if (!$salesRep || !$salesRep->route) {
@@ -141,14 +134,12 @@ class CustomerController extends Controller
         }
 
         return [
-            'sales_rep_id' => $salesRep->id,
             'route_name' => $salesRep->route->name,
             'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
             'total_cities' => $salesRep->route->cities->count(),
+            'sales_rep_id' => $salesRep->id
         ];
     }
-
-
 
 
     public function store(Request $request)
@@ -194,7 +185,7 @@ class CustomerController extends Controller
                 }
             }
 
-            Customer::create($customerData);
+            $customer = Customer::create($customerData);
 
             DB::commit();
 
@@ -329,6 +320,34 @@ class CustomerController extends Controller
         return response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
 
+    /**
+     * Get calculated credit limit for a city
+     */
+    public function getCreditLimitForCity(Request $request)
+    {
+        $cityId = $request->input('city_id');
+
+        if (!$cityId) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'City ID is required'
+            ]);
+        }
+
+        $creditLimit = Customer::calculateCreditLimitForCity($cityId);
+
+        return response()->json([
+            'status' => 200,
+            'credit_limit' => $creditLimit
+        ]);
+    }
+
+    /**
+     * Get customers for a specific route
+     * 
+     * @param int $routeId
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getCustomersByRoute($routeId)
     {
         $route = \App\Models\Route::with('cities')->find($routeId);

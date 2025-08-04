@@ -68,8 +68,13 @@ class User extends Authenticatable
         return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
     }
 
-    public function isSalesRep()
+    public function isSalesRep(): bool
     {
-        return $this->role === 'Sales rep'; // or use permission package
+        return $this->role_name === 'Sales rep';
+    }
+
+    public function salesRep()
+    {
+        return $this->hasOne(SalesRep::class, 'user_id');
     }
 }

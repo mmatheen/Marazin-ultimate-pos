@@ -78,7 +78,7 @@ class Customer extends Model
         return $this->belongsTo(City::class);
     }
 
-    
+
 
     /* ============================
      * Accessors & Calculations
