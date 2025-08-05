@@ -93,31 +93,34 @@
 
         function fetchLocations() {
             $.ajax({
-                url: '/location-get-all',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    const locationSelect = $('#services');
-                    locationSelect.html('<option selected disabled>Select Location</option>');
+            url: '/location-get-all',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                const locationSelect = $('#services');
+                locationSelect.html('<option selected disabled>Select Location</option>');
 
-                    if (data.status === 200) {
-                        data.message.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(
-                                location.name);
-                            locationSelect.append(option);
-                        });
+                if (data.status === true) {
+                // Filter locations to only show parent_id === null
+                const mainLocations = data.data.filter(location => location.parent_id === null);
+                
+                mainLocations.forEach(function(location) {
+                    const option = $('<option></option>').val(location.id).text(
+                    location.name);
+                    locationSelect.append(option);
+                });
 
-                        // Trigger change for the first location by default
-                        if (data.message.length > 0) {
-                            locationSelect.val(data.message[0].id).trigger('change');
-                        }
-                    } else {
-                        console.error('Failed to fetch location data:', data.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching location data:', error);
+                // Trigger change for the first location by default
+                if (mainLocations.length > 0) {
+                    locationSelect.val(mainLocations[0].id).trigger('change');
                 }
+                } else {
+                console.error('Failed to fetch location data:', data.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching location data:', error);
+            }
             });
         }
 

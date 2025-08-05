@@ -67,11 +67,13 @@
                 $.ajax({
                     url: '/location-get-all',
                     method: 'GET',
-                    success: function(data) {
-                        const locationSelect = $("#locationId");
-                        data.message.forEach(location => {
-                            locationSelect.append(new Option(location.name, location.id));
-                        });
+                    success: function(response) {
+                        if (response.status && response.data) {
+                            const locationSelect = $("#locationId");
+                            response.data.forEach(location => {
+                                locationSelect.append(new Option(location.name, location.id));
+                            });
+                        }
                     },
                     error: function(error) {
                         console.error('Error fetching locations:', error);

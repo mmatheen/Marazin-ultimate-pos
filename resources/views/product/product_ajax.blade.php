@@ -100,13 +100,25 @@
         // Helper function to populate a dropdown
         function fetchData(url, successCallback, errorCallback) {
             $.ajax({
-                url: url,
-                type: 'GET',
-                dataType: 'json',
-                success: successCallback,
-                error: errorCallback || function(xhr, status, error) {
-                    console.error('Error fetching data from ' + url + ':', error);
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                // Handle different response structures
+                if (response.status === true || response.status === 200) {
+                // If response has a 'data' property, use it; otherwise use 'message'
+                const data = response.data || response.message;
+                successCallback({
+                    status: 200,
+                    message: data
+                });
+                } else {
+                successCallback(response);
                 }
+            },
+            error: errorCallback || function(xhr, status, error) {
+                console.error('Error fetching data from ' + url + ':', error);
+            }
             });
         }
 
