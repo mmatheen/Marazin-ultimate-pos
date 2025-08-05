@@ -216,15 +216,17 @@ class RolesAndPermissionsSeeder extends Seeder
 
         ];
 
-        // Create Each Permission & Assign Group using firstOrCre cb ate
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
                 Permission::firstOrCreate(
-                    ['name' => $permission],
+                    ['name' => $permission, 'guard_name' => 'web'], // Always set guard_name
                     ['group_name' => $group]
                 );
             }
         }
+
+        
+
 
         // Roles & give permissions
         $roles = [
@@ -271,8 +273,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         ];
 
+       
+        // Now assign roles after all permissions exist
         foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($rolePermissions);
         }
     }
