@@ -41,42 +41,93 @@ class AuthenticatedSessionController extends Controller
 
 
     // it will take for login user_name or password
-    public function store(LoginRequest $request): RedirectResponse
+    // public function store(LoginRequest $request): RedirectResponse
+    // {
+    //     $login = $request->input('login'); // Get the login input (either user_name or email)
+
+    //     // Check if the login is an email or username
+    //     $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name'; // Default to 'username' if not email
+
+    //     // Attempt to authenticate based on either email or username
+    //     if (Auth::attempt([$field => $login, 'password' => $request->input('password')])) {
+    //         session()->regenerate(); // Regenerate session on successful login
+
+    //         // Check user's role and handle the selected location
+    //         if (Auth::user()->role_name) {
+    //             $selectedLocation = Location::first();
+    //             if (!empty($selectedLocation)) {
+    //                 session()->put('selectedLocation', $selectedLocation->id);
+    //             }
+    //         }
+
+    //         // Get the user's name for the success message
+    //         $userName = Auth::user()->user_name;
+    //         $roleName = Auth::user()->role_name;
+
+
+
+    //         // Redirect to the intended page after successful login and show the success message with user name
+
+    //         return redirect()->intended(RouteServiceProvider::HOME)
+    //             ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
+    //     }
+
+    //     // If authentication fails, return with an error message
+    //     return back()->withErrors([
+    //         'login' => 'The provided credentials do not match our records.',
+    //     ]);
+    // }
+
+    public function store(LoginRequest $request)
     {
-        $login = $request->input('login'); // Get the login input (either user_name or email)
+        $login = $request->input('login'); // username or email
+        $password = $request->input('password');
 
-        // Check if the login is an email or username
-        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name'; // Default to 'username' if not email
+        // Field check
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name';
 
-        // Attempt to authenticate based on either email or username
-        if (Auth::attempt([$field => $login, 'password' => $request->input('password')])) {
-            session()->regenerate(); // Regenerate session on successful login
+        if (Auth::attempt([$field => $login, 'password' => $password])) {
+            $user = Auth::user();
 
-            // Check user's role and handle the selected location
-            if (Auth::user()->role_name) {
+            // Location set
+            if ($user->role_name) {
                 $selectedLocation = Location::first();
                 if (!empty($selectedLocation)) {
                     session()->put('selectedLocation', $selectedLocation->id);
                 }
             }
 
-            // Get the user's name for the success message
-            $userName = Auth::user()->user_name;
-            $roleName = Auth::user()->role_name;
+            // API route → JSON response
+            if ($request->expectsJson() || str_starts_with($request->path(), 'api/')) {
+                $token = $user->createToken('mobile_token')->plainTextToken;
 
-          
+                return response()->json([
+                    'status' => 'success',
+                    'message' => "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.",
+                    'token' => $token,
+                    'user' => $user
+                ]);
+            }
 
-            // Redirect to the intended page after successful login and show the success message with user name
-
+            // Web route → Redirect
+            session()->regenerate();
             return redirect()->intended(RouteServiceProvider::HOME)
-                ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
+                ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.");
         }
 
-        // If authentication fails, return with an error message
+        // Login fail
+        if ($request->expectsJson() || str_starts_with($request->path(), 'api/')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'The provided credentials do not match our records.'
+            ], 401);
+        }
+
         return back()->withErrors([
             'login' => 'The provided credentials do not match our records.',
         ]);
     }
+
 
 
     /**
