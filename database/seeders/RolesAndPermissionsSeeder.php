@@ -5,34 +5,29 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        // Clear cache
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Define Permissions with Groups
+        // Define permissions grouped by section
         $permissions = [
-            // user management
             '1. user-management' => [
                 'create user',
                 'edit user',
                 'view user',
                 'delete user'
             ],
-
             '2. role-management' => [
                 'create role',
                 'edit role',
                 'view role',
                 'delete role'
             ],
-
             '3. role & permission-management' => [
                 'create role & permission',
                 'edit role & permission',
@@ -45,8 +40,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view sales-commission-agent',
                 'delete sales-commission-agent'
             ],
-
-            // contact management
             '5. supplier-management' => [
                 'create supplier',
                 'edit supplier',
@@ -65,8 +58,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view customer-group',
                 'delete customer-group'
             ],
-
-            // product management
             '8. product-management' => [
                 'create product',
                 'add product',
@@ -77,8 +68,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'product Full History',
                 'show one product details'
             ],
-
-
             '9. unit-management' => [
                 'create unit',
                 'edit unit',
@@ -91,21 +80,18 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view brand',
                 'delete brand'
             ],
-
             '11. main-category-management' => [
                 'create main-category',
                 'edit main-category',
                 'view main-category',
                 'delete main-category'
             ],
-
             '12. sub-catagory-management' => [
                 'create sub-category',
                 'edit sub-catagory',
-                'view sub-category',
-                'delete sub-category'
+                'view sub-catagory',
+                'delete sub-catagory'
             ],
-
             '13. warranty-management' => [
                 'create warranty',
                 'edit warranty',
@@ -116,43 +102,34 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view import-product',
                 'create import-product'
             ],
-
-            // sale management
             '15. sale-management' => [
                 'all sale',
                 'own sale',
                 'view sale',
                 'add sale',
                 'edit sale',
-                'pos page',
-               
-            
+                'pos page'
             ],
-            // sale-return management
             '16. sale-return-management' => [
                 'view return-sale',
                 'add return-sale'
             ],
-            // bulk-payment-management
             '17. bulk-payment-management' => [
                 'add bulk sale payment',
                 'add bulk purchase payment'
             ],
-            // purchase management
             '18. product-purchase-management' => [
                 'view purchase',
                 'add purchase',
                 'create purchase',
                 'edit purchase'
             ],
-            // purchase-return management
             '19. product-purchase-return-management' => [
                 'view purchase-return',
                 'add purchase-return',
                 'create purchase-return',
                 'edit purchase-return'
             ],
-            // expenses management
             '20. parent-expenses-management' => [
                 'create parent-expense',
                 'edit parent-expense',
@@ -165,7 +142,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view child-expense',
                 'delete child-expense'
             ],
-            // stock-transfer management
             '22. stock-transfer-management' => [
                 'view stock-transfer',
                 'add stock-transfer',
@@ -173,7 +149,6 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit stock-transfer',
                 'delete stock-transfer'
             ],
-            // stock-transfer management
             '23. stock-adjustment-management' => [
                 'view stock-adjustment',
                 'add stock-adjustment',
@@ -181,54 +156,50 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit stock-adjustment',
                 'delete stock-adjustment'
             ],
-            // setting management
             '24. location-management' => [
                 'create location',
                 'edit location',
                 'view location',
                 'delete location'
             ],
-            // daily-report management
             '25. daily-report-management' => [
                 'view daily-report'
             ],
-            // daily-report management
             '26. product-discount-management' => [
                 'view product-discount',
                 'create product-discount',
                 'edit product-discount',
                 'delete product-discount'
             ],
-        
-            // pos button management
             '27. pos-button-management' => [
                 'job ticket',
                 'quotation',
                 'draft',
                 'suspend',
                 'credit sale',
-                'card',  
+                'card',
                 'cheque',
                 'multiple pay',
-                'cash',
-              
-            ],
-
+                'cash'
+            ]
         ];
 
-        // Create Each Permission & Assign Group using firstOrCre cb ate
+        // Create permissions
         foreach ($permissions as $group => $perms) {
-            foreach ($perms as $permission) {
-            Permission::firstOrCreate(
-                ['name' => $permission],
-                ['group_name' => $group]
-            );
+            foreach ($perms as $perm) {
+                Permission::firstOrCreate(
+                    ['name' => $perm],
+                    ['group_name' => $group]
+                );
             }
         }
 
-          // Roles & give permissions
+        // Fetch permissions again from DB to avoid missing IDs
+        $allPermissions = Permission::pluck('name')->toArray();
+
+        // Roles & their permissions
         $roles = [
-            'Super Admin' => Permission::all()->pluck('name')->toArray(),
+            'Super Admin' => $allPermissions,
             'Manager' => [
                 'view user',
                 'view role',
@@ -271,6 +242,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         ];
 
+        // Create roles & sync permissions
         foreach ($roles as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName]);
             $role->syncPermissions($rolePermissions);
