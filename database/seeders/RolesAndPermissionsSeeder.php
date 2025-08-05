@@ -86,12 +86,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view main-category',
                 'delete main-category'
             ],
-            '12. sub-catagory-management' => [
+            '12. sub-category-management' => [ // ✅ Fixed spelling
                 'create sub-category',
                 'edit sub-category',
                 'view sub-category',
                 'delete sub-category'
-
             ],
             '13. warranty-management' => [
                 'create warranty',
@@ -189,16 +188,16 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $perm) {
                 Permission::firstOrCreate(
-                    ['name' => $perm],
+                    ['name' => $perm, 'guard_name' => 'web'], // ✅ Ensure guard_name
                     ['group_name' => $group]
                 );
             }
         }
 
-        // Fetch permissions again from DB to avoid missing IDs
+        // Get all permissions
         $allPermissions = Permission::pluck('name')->toArray();
 
-        // Roles & their permissions
+        // Roles & permissions
         $roles = [
             'Super Admin' => $allPermissions,
             'Manager' => [
@@ -243,9 +242,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         ];
 
-        // Create roles & sync permissions
+        // Create roles & assign permissions
         foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
             $role->syncPermissions($rolePermissions);
         }
     }
