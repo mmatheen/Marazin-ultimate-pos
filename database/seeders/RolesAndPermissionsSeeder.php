@@ -216,17 +216,20 @@ class RolesAndPermissionsSeeder extends Seeder
 
         ];
 
+        // Insert or update permissions first
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-                Permission::firstOrCreate(
-                    ['name' => $permission, 'guard_name' => 'web'], // Always set guard_name
+                Permission::updateOrCreate(
+                    ['name' => $permission, 'guard_name' => 'web'],
                     ['group_name' => $group]
                 );
             }
         }
 
-        
 
+
+        // Clear cache again after permissions inserted
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Roles & give permissions
         $roles = [
@@ -273,7 +276,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         ];
 
-       
+
         // Now assign roles after all permissions exist
         foreach ($roles as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
