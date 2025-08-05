@@ -68,9 +68,11 @@ class User extends Authenticatable
         return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
     }
 
+    // app/Models/User.php
     public function isSalesRep(): bool
     {
-        return $this->role_name === 'Sales rep';
+        $role = strtolower(trim($this->role_name));
+        return in_array($role, ['Sales Rep', 'sales rep', 'salesrep', 'sales representative']);
     }
 
     public function salesRep()

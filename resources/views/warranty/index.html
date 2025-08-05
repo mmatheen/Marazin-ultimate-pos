@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Live Location Tracking with Leaflet.js</title>
+
+        <!-- Leaflet CSS with correct SRI -->
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+        />
+        <style>
+            body,
+            html {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+            }
+            #map {
+                height: 100vh;
+                width: 100%;
+            }
+            .leaflet-popup-content-wrapper {
+                font-size: 14px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+
+        <!-- Leaflet JS with correct SRI -->
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+        ></script>
+
+        <script>
+            let map;
+            let marker;
+            let accuracyCircle;
+
+            function initMap(lat, lng, accuracy) {
+                map = L.map("map").setView([lat, lng], 16);
+
+                L.tileLayer(
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    {
+                        maxZoom: 19,
+                        attribution: "&copy; OpenStreetMap contributors",
+                    }
+                ).addTo(map);
+
+                marker = L.marker([lat, lng])
+                    .addTo(map)
+                    .bindPopup("You are here")
+                    .openPopup();
+
+                accuracyCircle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: "#136AEC",
+                    fillColor: "#136AEC",
+                    fillOpacity: 0.15,
+                    weight: 2,
+                }).addTo(map);
+            }
+
+            function updatePosition(lat, lng, accuracy) {
+                if (!map) {
+                    initMap(lat, lng, accuracy);
+                } else {
+                    marker.setLatLng([lat, lng]);
+                    accuracyCircle.setLatLng([lat, lng]);
+                    accuracyCircle.setRadius(accuracy);
+                    map.panTo([lat, lng]);
+                }
+            }
+
+            function onError(err) {
+                alert("Error getting location: " + err.message);
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        const { latitude, longitude, accuracy } =
+                            position.coords;
+                        updatePosition(latitude, longitude, accuracy);
+                    },
+                    onError,
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 1000,
+                        timeout: 10000,
+                    }
+                );
+            } else {
+                alert("Geolocation is not supported by your browser");
+            }
+        </script>
+    </body>
+</html>

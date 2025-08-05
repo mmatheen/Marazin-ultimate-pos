@@ -40,8 +40,7 @@ use App\Http\Controllers\Api\{
   CityController,
   RouteCityController,
   SalesRepTargetController,
-  SalesPosController,
-  RestaurantController
+  VehicleTrackingController
 };
 
 
@@ -58,6 +57,16 @@ use App\Http\Controllers\Api\{
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
   return $request->user();
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+  //live tracking
+  // Sales rep sends vehicle location
+  Route::get('/vehicle/track', [VehicleTrackingController::class, 'trackVehicle'])->name('vehicle.track');
+  Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
+
+  // Admin gets all live vehicles
+  Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
 });
 
 

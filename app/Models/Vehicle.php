@@ -40,4 +40,15 @@ class Vehicle extends Model
     {
         $this->attributes['vehicle_type'] = strtolower($value);
     }
+
+    // ✅ Single relationship for location logs
+    public function locationLogs()
+    {
+        return $this->hasMany(VehicleLocationLog::class);
+    }
+
+    public function latestLocation()
+    {
+        return $this->hasOne(VehicleLocationLog::class)->latest('recorded_at');
+    }
 }
