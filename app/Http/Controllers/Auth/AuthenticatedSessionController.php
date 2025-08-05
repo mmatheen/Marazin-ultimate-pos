@@ -97,7 +97,6 @@ class AuthenticatedSessionController extends Controller
                 }
             }
 
-            // API route → JSON response
             if ($request->expectsJson() || str_starts_with($request->path(), 'api/')) {
                 $token = $user->createToken('mobile_token')->plainTextToken;
 
@@ -105,9 +104,16 @@ class AuthenticatedSessionController extends Controller
                     'status' => 'success',
                     'message' => "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.",
                     'token' => $token,
-                    'user' => $user
+                    'user' => [
+                        'id' => $user->id,
+                        'user_name' => $user->user_name,
+                        'role_name' => $user->role_name,
+                        'email' => $user->email,
+                        'mobile_no' => $user->mobile_no,
+                    ]
                 ]);
             }
+
 
             // Web route → Redirect
             session()->regenerate();
