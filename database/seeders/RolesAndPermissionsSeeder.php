@@ -88,9 +88,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
             '12. sub-catagory-management' => [
                 'create sub-category',
-                'edit sub-catagory',
-                'view sub-catagory',
-                'delete sub-catagory'
+                'edit sub-category',
+                'view sub-category',
+                'delete sub-category'
+
             ],
             '13. warranty-management' => [
                 'create warranty',
