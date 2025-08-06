@@ -336,7 +336,7 @@
             }
 
             $.ajax({
-                url: '/apply-discount',
+                url: '/api/apply-discount',
                 type: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -381,7 +381,7 @@
                     dangerMode: true,
                 })) {
                 $.ajax({
-                    url: '/delete-product/' + productId,
+                    url: '/api/delete-product/' + productId,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken
@@ -1293,7 +1293,8 @@
                     return location;
                 });
 
-                let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+                let url = isEditMode ? `/api/opening-stock/${productId}` : `/api/opening-stock/${productId}`;
+
 
                 $.ajax({
                     url: url,
