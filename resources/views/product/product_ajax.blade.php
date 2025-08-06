@@ -139,7 +139,8 @@
         }
 
         function fetchInitialDropdowns(callback) {
-            fetchData('/initial-product-details', function(response) {
+            fetchData('/api/initial-product-details', function(response) {
+
                 if (response.status === 200) {
                     const brands = response.message.brands;
                     const mainCategories = response.message.mainCategories;
@@ -261,7 +262,8 @@
             const selectedLocations = $('#locations').val();
             if (selectedLocations && selectedProductIds.length > 0) {
                 $.ajax({
-                    url: '/save-changes',
+                    url: '/api/save-changes',
+
                     type: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -501,7 +503,7 @@
                     };
 
                     $.ajax({
-                        url: '/products/stocks',
+                        url: '/api/products/stocks',
                         type: 'GET',
                         data: params,
                         dataType: 'json',
@@ -753,7 +755,8 @@
         // Function to get the form action URL based on whether we are adding or updating
         function getFormActionUrl() {
             const productId = $('#product_id').val();
-            return productId ? `/product/update/${productId}` : '/product/store';
+            return productId ? `/api/product/update/${productId}` : '/api/product/store';
+
         }
 
         // Function to handle form submission
@@ -849,7 +852,8 @@
 
 
         function fetchLastAddedProducts() {
-            fetchData('get-last-product', function(response) {
+            fetchData('/api/get-last-product', function(response) {
+
                 if (response.status === 200) {
                     const product = response.product;
                     addProductToTable(product);
@@ -1572,7 +1576,7 @@
 
         function fetchProductDetails(productId) {
             $.ajax({
-                url: '/product-get-details/' + productId,
+                url: '/api/product-get-details/' + productId,
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1670,7 +1674,7 @@
 
                 return xhr;
             },
-            url: '/import-product-excel-store',
+            url: '/api/import-product-excel-store',
             type: "POST",
             data: formData,
             contentType: false,

@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
 
 use App\Models\Sale;
 use App\Models\Unit;
@@ -30,16 +32,6 @@ use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
-    public function product()
-    {
-        return view('product.product');
-    }
-
-    public function addProduct()
-    {
-        return view('product.add_product');
-    }
-
 
     public function getStockHistory($productId)
     {
@@ -138,7 +130,7 @@ class ProductController extends Controller
         return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
     }
 
- 
+
     public function initialProductDetails()
     {
         $mainCategories = MainCategory::all();
@@ -923,9 +915,9 @@ class ProductController extends Controller
                 // Calculate total stock (decimal or integer based on allow_decimal)
                 $totalStock = $filteredBatches->sum(
                     fn($batch) =>
-                        $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
-                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                        })
+                    $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
+                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                    })
                 );
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
@@ -1364,17 +1356,6 @@ class ProductController extends Controller
             ]);
         }
     }
-
-    public function updatePrice()
-    {
-        return view('product.update_price');
-    }
-
-    public function importProduct()
-    {
-        return view('product.import_product');
-    }
-
 
     public function destroy(int $id)
     {

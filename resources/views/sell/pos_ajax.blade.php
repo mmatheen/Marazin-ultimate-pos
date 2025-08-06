@@ -257,7 +257,8 @@
             if (isLoadingProducts || !selectedLocationId || !hasMoreProducts) return;
             isLoadingProducts = true;
             if (reset) showLoader();
-            fetch(`/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`)
+            fetch(
+                    `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`)
                 .then(res => res.json())
                 .then(data => {
                     hideLoader();
@@ -406,7 +407,7 @@
                 source: function(request, response) {
                     if (!selectedLocationId) return response([]);
                     $.ajax({
-                        url: '/products/stocks/autocomplete',
+                        url: '/api/products/stocks/autocomplete',
                         data: {
                             location_id: selectedLocationId,
                             search: request.term,
@@ -470,7 +471,7 @@
                     if (!stockEntry) {
                         // If still not found, fetch the full stock entry from the server
                         fetch(
-                                `/products/stocks?location_id=${selectedLocationId}&product_id=${ui.item.product.id}`
+                                `/api/products/stocks?location_id=${selectedLocationId}&product_id=${ui.item.product.id}`
                             )
                             .then(res => res.json())
                             .then(data => {

@@ -12,7 +12,7 @@ use App\Http\Controllers\{
     UserController,
     BrandController,
     ContactController,
-    ProductController,
+    // ProductController,
     ProfileController,
     CustomerController,
     LocationController,
@@ -52,6 +52,7 @@ use App\Http\Controllers\Web\{
     CityController,
     SalesRepTargetController,
     VehicleTrackingController,
+    ProductController
 };
 
 
