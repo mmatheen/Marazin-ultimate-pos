@@ -16,14 +16,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('backup:run')->everyMinute();
         $schedule->command('backup:run')->everyMinute();
 
-         //Backup at 10:00 AM
-        // $schedule->command('backup:run')->dailyAt('10:00')->timezone('Asia/Colombo');
+         //Backup at 8:00 AM
+        $schedule->command('backup:run')->dailyAt('8:00')->timezone('Asia/Colombo');
 
-        // // Backup at 5:00 PM
-        // $schedule->command('backup:run')->dailyAt('17:00')->timezone('Asia/Colombo');
+        // Backup at 22:00 PM
+        $schedule->command('backup:run')->dailyAt('22:00')->timezone('Asia/Colombo');
 
-        // // after 5PM backup
-        // $schedule->command('backup:clean')->dailyAt('18:00')->timezone('Asia/Colombo');
+        // after 5PM backup
+        $schedule->command('backup:clean')->dailyAt('23:00')->timezone('Asia/Colombo');
     }
 
     /**
