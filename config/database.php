@@ -64,6 +64,7 @@ return [
             'dump' => [
                 'dump_binary_path' => 'E:\\xampp\\mysql\\bin\\',
             ],
+            
         ],
 
         'pgsql' => [
