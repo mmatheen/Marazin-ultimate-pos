@@ -22,11 +22,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-         Schema::defaultStringLength(191);
-           $this->DbBackup();
+        Schema::defaultStringLength(191);
+        $this->DbBackup();
     }
 
-        private function DbBackup()
+    private function DbBackup()
     {
         try {
             \Storage::extend('google', function ($app, $config) {
