@@ -133,7 +133,7 @@
                                                                 style="width: 16px; height: 16px;"></th>
                                                         <!-- Select All checkbox -->
                                                         <th>Action</th>
-                                                        {{-- <th>Product Image</th> --}}
+                                                        <th>Product Image</th>
                                                         <th>Product Name</th>
                                                         <th>SKU</th>
                                                         <th>Business Location</th>

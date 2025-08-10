@@ -551,6 +551,16 @@
                         orderable: false
                     },
                     {
+                        data: "product_image",
+                        render: function(data) {
+                            const imagePath = data && data !== 'null' && data !== null &&
+                                data !== '' ?
+                                `/assets/images/${data}` :
+                                '/assets/images/No Product Image Available.png';
+                            return `<img src="${imagePath}" alt="Product Image" style="width: 50px; height: 50px;">`;
+                        }
+                    },
+                    {
                         data: "product_name"
                     },
                     {
@@ -916,7 +926,7 @@
         }
 
 
-       
+
 
         $(".show-picture").on("change", function() {
             const input = this;
