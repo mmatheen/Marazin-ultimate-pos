@@ -208,7 +208,7 @@
                         if (response.status === 200) {
                             updateLocationDisplay(locationId, locationName);
                             window.location
-                        .reload(); // Refresh to update session-based content
+                                .reload(); // Refresh to update session-based content
                         }
                     },
                     error: function() {
@@ -225,7 +225,7 @@
         fetchNotifications();
 
         function fetchNotifications() {
-            fetch('/notifications')
+            fetch('/api/notifications')
                 .then(async response => {
                     const text = await response.text();
                     try {

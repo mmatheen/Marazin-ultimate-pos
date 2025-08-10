@@ -182,6 +182,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.js"></script>
 
     <script>
+        // Load CSRF cookie once
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetch('/sanctum/csrf-cookie', {
+                method: 'GET',
+                credentials: 'include'
+            });
+        });
+    </script>
+    <script>
         $(function() {
             $('.datetime').datetimepicker({
                 format: 'hh:mm:ss a'

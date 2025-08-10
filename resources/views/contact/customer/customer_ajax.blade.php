@@ -81,9 +81,15 @@
 
         function showFetchData() {
             $.ajax({
-                url: '/api/customer-get-all',
+                url: '/customer-get-all',
                 type: 'GET',
                 dataType: 'json',
+                xhrFields: {
+                    withCredentials: true // 🔥 Required
+                },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(response) {
                     var table = $('#customer').DataTable();
                     table.clear().draw();
@@ -285,12 +291,10 @@
 
         function fetchCustomerData() {
             return $.ajax({
-                url: '/api/customer-get-all',
+                url: '/customer-get-all',
                 method: 'GET',
                 dataType: 'json',
-                xhrFields: {
-                    withCredentials: true
-                },
+
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },

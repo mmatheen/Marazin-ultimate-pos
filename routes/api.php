@@ -217,10 +217,12 @@ Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::clas
 //   //// Product Details & Stock
 // });
 // Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
-
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/customer-get-all', [CustomerController::class, 'index']);
+});
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
-Route::get('/customer-get-all', [CustomerController::class, 'index']);
+// Route::get('/customer-get-all', [CustomerController::class, 'index']);
 Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
 Route::post('/customer-store', [CustomerController::class, 'store']);
 Route::post('/customer-update/{id}', [CustomerController::class, 'update']);

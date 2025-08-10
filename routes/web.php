@@ -14,7 +14,7 @@ use App\Http\Controllers\{
     ContactController,
     // ProductController,
     ProfileController,
-    CustomerController,
+    // CustomerController,
     LocationController,
     PurchaseController,
     SupplierController,
@@ -52,7 +52,9 @@ use App\Http\Controllers\Web\{
     CityController,
     SalesRepTargetController,
     VehicleTrackingController,
-    ProductController
+    ProductController,
+    CustomerController
+
 };
 
 
