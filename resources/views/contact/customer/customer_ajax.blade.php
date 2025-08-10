@@ -81,7 +81,7 @@
 
         function showFetchData() {
             $.ajax({
-                url: '/customer-get-all',
+                url: '/api/customer-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -164,15 +164,18 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200 && response.customer) {
-                        $('#edit_prefix').val(response.customer.prefix || '').trigger('change');
+                        $('#edit_prefix').val(response.customer.prefix || '').trigger(
+                            'change');
                         $('#edit_first_name').val(response.customer.first_name || '');
                         $('#edit_last_name').val(response.customer.last_name || '');
                         $('#edit_mobile_no').val(response.customer.mobile_no || '');
                         $('#edit_email').val(response.customer.email || '');
                         $('#edit_address').val(response.customer.address || '');
-                        $('#edit_opening_balance').val(response.customer.opening_balance || '');
+                        $('#edit_opening_balance').val(response.customer.opening_balance ||
+                            '');
                         $('#edit_credit_limit').val(response.customer.credit_limit || '');
-                        $('#edit_city_id').val(response.customer.city_id || '').trigger('change');
+                        $('#edit_city_id').val(response.customer.city_id || '').trigger(
+                            'change');
                         $('#addAndEditCustomerModal').modal('show');
                     } else {
                         toastr.options = {
@@ -282,9 +285,15 @@
 
         function fetchCustomerData() {
             return $.ajax({
-                url: '/customer-get-all',
+                url: '/api/customer-get-all',
                 method: 'GET',
                 dataType: 'json',
+                xhrFields: {
+                    withCredentials: true
+                },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(data) {
                     const customerSelect = $('#customer-id');
                     customerSelect.empty();
@@ -324,6 +333,7 @@
                 }
             });
         }
+
 
         function updateDueAmount(dueAmount) {
             // Ensure dueAmount is a valid number before calling toFixed

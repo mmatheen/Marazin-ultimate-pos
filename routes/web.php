@@ -456,13 +456,15 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             Route::get('/vehicle/my-live', [VehicleTrackingController::class, 'getMyLiveVehicle']);
             // });
 
-            
+
         });
 
         if (app()->isLocal()) {
-                Route::prefix('sales-rep')->middleware(['auth', 'verified'])->group(function () {
-                    Route::post('/test/move-vehicle', [VehicleTrackingController::class, 'simulateMovement']);
-                });
-            }
+            Route::prefix('sales-rep')->middleware(['auth', 'verified'])->group(function () {
+                Route::post('/test/move-vehicle', [VehicleTrackingController::class, 'simulateMovement']);
+            });
+        }
     });
 });
+
+

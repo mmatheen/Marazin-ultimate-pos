@@ -20,8 +20,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use App\Models\JobTicket;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class SaleController extends Controller
 {
@@ -756,6 +759,58 @@ class SaleController extends Controller
                 'user' => $user,
                 'location' => $location,
             ])->render();
+
+
+            try {
+                $mobileNo = ltrim($customer->mobile_no, '0');
+                if (!empty($mobileNo)) {
+                    // Render the 80mm thermal receipt view to HTML
+                    $thermalHtml = view('sell.receipt', [
+                        'sale' => $sale,
+                        'customer' => $customer,
+                        'products' => $products,
+                        'payments' => $payments,
+                        'total_discount' => $request->discount_amount ?? 0,
+                        'amount_given' => $sale->amount_given,
+                        'balance_amount' => $sale->balance_amount,
+                        'user' => $user,
+                        'location' => $location,
+                    ])->render();
+
+                    // Generate PDF for 80mm thermal paper (set custom paper size)
+                    $pdf = Pdf::loadHTML($thermalHtml)
+                        ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm x 297mm in points
+
+                    $pdfContent = $pdf->output();
+
+                    // Temporarily save PDF to local storage
+                    $pdfPath = public_path('assets/images/invoice_' . $sale->invoice_no . '_80mm.pdf');
+                    file_put_contents($pdfPath, $pdfContent);
+
+                    // Prepare multipart form-data request using Http::withHeaders()->attach()
+                    $response = Http::withHeaders([
+                        // 'Content-Type' will be set automatically for multipart form-data
+                    ])->attach(
+                        'files',
+                        file_get_contents($pdfPath),
+                        "invoice_{$sale->invoice_no}_80mm.pdf"
+                    )->post(env('WHATSAPP_API_URL'), [
+                        'number' => "+94" . $mobileNo,
+                        'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs. {$sale->final_total}. Thank you for your business!",
+                    ]);
+
+                    if ($response->successful()) {
+                        Log::info('WhatsApp message sent successfully to: ' . $mobileNo);
+                    } else {
+                        Log::error('WhatsApp send failed: ' . $response->body());
+                    }
+                } else {
+                    Log::warning('WhatsApp not sent: customer mobile number is missing.');
+                }
+            } catch (\Exception $ex) {
+                Log::error('WhatsApp send error: ' . $ex->getMessage());
+            }
+
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',

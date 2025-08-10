@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Web;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use App\Models\City;
@@ -30,87 +31,87 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
-  
-    public function index()
-    {
-        $user = auth()->user();
 
-        // Bypass location scope → we'll filter by route cities instead
-        $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+    // public function index()
+    // {
+    //     $user = auth()->user();
 
-        // Apply sales rep route filter
-        $query = $this->applySalesRepFilter($query, $user);
+    //     // Bypass location scope → we'll filter by route cities instead
+    //     $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
 
-        $customers = $query->orderBy('first_name')
-            ->get()
-            ->map(function ($customer) {
-                return [
-                    'id' => $customer->id,
-                    'prefix' => $customer->prefix,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => $customer->full_name,
-                    'mobile_no' => $customer->mobile_no,
-                    'email' => $customer->email,
-                    'address' => $customer->address,
-                    'location_id' => $customer->location_id,
-                    'opening_balance' => (float) $customer->opening_balance,
-                    'current_balance' => (float) $customer->current_balance,
-                    'total_sale_due' => (float) $customer->total_sale_due,
-                    'total_return_due' => (float) $customer->total_return_due,
-                    'current_due' => (float) $customer->current_due,
-                    'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? 'Walk-in Customer',
-                    'credit_limit' => (float) $customer->credit_limit,
-                ];
-            });
+    //     // Apply sales rep route filter
+    //     $query = $this->applySalesRepFilter($query, $user);
 
-        return response()->json([
-            'status' => 200,
-            'message' => $customers,
-            'total_customers' => $customers->count(),
-            'sales_rep_info' => $this->getSalesRepInfo($user)
-        ]);
-    }
+    //     $customers = $query->orderBy('first_name')
+    //         ->get()
+    //         ->map(function ($customer) {
+    //             return [
+    //                 'id' => $customer->id,
+    //                 'prefix' => $customer->prefix,
+    //                 'first_name' => $customer->first_name,
+    //                 'last_name' => $customer->last_name,
+    //                 'full_name' => $customer->full_name,
+    //                 'mobile_no' => $customer->mobile_no,
+    //                 'email' => $customer->email,
+    //                 'address' => $customer->address,
+    //                 'location_id' => $customer->location_id,
+    //                 'opening_balance' => (float) $customer->opening_balance,
+    //                 'current_balance' => (float) $customer->current_balance,
+    //                 'total_sale_due' => (float) $customer->total_sale_due,
+    //                 'total_return_due' => (float) $customer->total_return_due,
+    //                 'current_due' => (float) $customer->current_due,
+    //                 'city_id' => $customer->city_id,
+    //                 'city_name' => $customer->city?->name ?? 'Walk-in Customer',
+    //                 'credit_limit' => (float) $customer->credit_limit,
+    //             ];
+    //         });
 
-    private function applySalesRepFilter($query, $user)
-    {
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
+    //     return response()->json([
+    //         'status' => 200,
+    //         'message' => $customers,
+    //         'total_customers' => $customers->count(),
+    //         'sales_rep_info' => $this->getSalesRepInfo($user)
+    //     ]);
+    // }
 
-        if ($salesRep && $salesRep->route) {
-            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+    // private function applySalesRepFilter($query, $user)
+    // {
+    //     $salesRep = SalesRep::where('user_id', $user->id)
+    //         ->where('status', 'active')
+    //         ->with(['route.cities'])
+    //         ->first();
 
-            if (!empty($routeCityIds)) {
-                $query->whereIn('city_id', $routeCityIds);
-            } else {
-                $query->whereNull('city_id');
-            }
-        }
+    //     if ($salesRep && $salesRep->route) {
+    //         $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
 
-        return $query;
-    }
+    //         if (!empty($routeCityIds)) {
+    //             $query->whereIn('city_id', $routeCityIds);
+    //         } else {
+    //             $query->whereNull('city_id');
+    //         }
+    //     }
 
-    private function getSalesRepInfo($user)
-    {
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
+    //     return $query;
+    // }
 
-        if (!$salesRep || !$salesRep->route) {
-            return null;
-        }
+    // private function getSalesRepInfo($user)
+    // {
+    //     $salesRep = SalesRep::where('user_id', $user->id)
+    //         ->where('status', 'active')
+    //         ->with(['route.cities'])
+    //         ->first();
 
-        return [
-            'route_name' => $salesRep->route->name,
-            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
-            'total_cities' => $salesRep->route->cities->count(),
-            'sales_rep_id' => $salesRep->id
-        ];
-    }
+    //     if (!$salesRep || !$salesRep->route) {
+    //         return null;
+    //     }
+
+    //     return [
+    //         'route_name' => $salesRep->route->name,
+    //         'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
+    //         'total_cities' => $salesRep->route->cities->count(),
+    //         'sales_rep_id' => $salesRep->id
+    //     ];
+    // }
 
 
     public function store(Request $request)

@@ -12,7 +12,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\PaymentController;
 // use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CustomerController;
+// use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\SupplierController;
@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\{
   SalesRepTargetController,
   VehicleTrackingController,
   ProductController,
+  CustomerController
 };
 
 
@@ -182,15 +183,7 @@ Route::post('/customer-update/{id}', [SupplierController::class, 'update']);
 Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
 //stop  Customer route
 
-//start Customer route
-Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
-Route::get('/customer-get-all', [CustomerController::class, 'index']);
-Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
-Route::post('/customer-store', [CustomerController::class, 'store']);
-Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
-Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
-Route::post('/customer-credit-limit-by-city', [CustomerController::class, 'getCreditLimitForCity']);
-//stop  Customer route
+
 
 //start location route
 Route::get('/location', [LocationController::class, 'location']);
@@ -210,18 +203,29 @@ Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class,
 Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
 //stop  import-opening-stock route
 
-Route::middleware('auth:sanctum')->group(function () {
-  //live tracking
-  // Sales rep sends vehicle location
-  Route::get('/vehicle/track', [VehicleTrackingController::class, 'trackVehicle'])->name('vehicle.track');
-  Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
+// Route::middleware('auth:sanctum')->group(function () {
+//   //live tracking
+//   // Sales rep sends vehicle location
+//   Route::get('/vehicle/track', [VehicleTrackingController::class, 'trackVehicle'])->name('vehicle.track');
+//   Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
 
-  // Admin gets all live vehicles
-  Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
+//   // Admin gets all live vehicles
+//   Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
 
 
-  //// Product Details & Stock
-});
+
+//   //// Product Details & Stock
+// });
+// Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
+
+//start Customer route
+Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
+Route::post('/customer-store', [CustomerController::class, 'store']);
+Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
 
 Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
 
@@ -261,6 +265,10 @@ Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->na
 Route::post('/save-changes', [ProductController::class, 'saveChanges']);
 Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
 
+
+
+
+//stop  Customer route
 //stop product route
 
 //start unit route
