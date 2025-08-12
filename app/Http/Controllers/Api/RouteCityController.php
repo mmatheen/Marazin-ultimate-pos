@@ -15,29 +15,64 @@ class RouteCityController extends Controller
     /**
      * List all route-city assignments.
      */
+    // public function index()
+    // {
+    //     try {
+    //         $routeCities = RouteCity::with(['route:id,name', 'city:id,name,district,province'])
+    //             ->get()
+    //             ->map(function ($routeCity) {
+    //                 return [
+    //                     'id' => $routeCity->id,
+    //                     'route_id' => $routeCity->route_id,
+    //                     'city_id' => $routeCity->city_id,
+    //                     'route_name' => $routeCity->route->name ?? 'Unknown Route',
+    //                     'city_name' => $routeCity->city->name ?? 'Unknown City',
+    //                     'district' => $routeCity->city->district ?? 'N/A',
+    //                     'province' => $routeCity->city->province ?? 'N/A',
+    //                     'created_at' => $routeCity->created_at,
+    //                     'updated_at' => $routeCity->updated_at,
+    //                 ];
+    //             });
+
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Route-city assignments retrieved successfully.',
+    //             'data' => $routeCities,
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => 'Failed to retrieve data.',
+    //             'error' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+    /**
+     * List all routes with their assigned cities (grouped).
+     */
+    /**
+     * List all routes with their assigned cities (grouped).
+     */
     public function index()
     {
         try {
-            $routeCities = RouteCity::with(['route:id,name', 'city:id,name,district,province'])
-                ->get()
-                ->map(function ($routeCity) {
+            $routes = Route::with(['cities:id,name,district,province'])
+                ->has('cities') // Only routes with cities
+                ->get(['id', 'name', 'created_at', 'updated_at'])
+                ->map(function ($route) {
                     return [
-                        'id' => $routeCity->id,
-                        'route_id' => $routeCity->route_id,
-                        'city_id' => $routeCity->city_id,
-                        'route_name' => $routeCity->route->name ?? 'Unknown Route',
-                        'city_name' => $routeCity->city->name ?? 'Unknown City',
-                        'district' => $routeCity->city->district ?? 'N/A',
-                        'province' => $routeCity->city->province ?? 'N/A',
-                        'created_at' => $routeCity->created_at,
-                        'updated_at' => $routeCity->updated_at,
+                        'id' => $route->id,
+                        'route_name' => $route->name,
+                        'city_count' => $route->cities->count(),
+                        'updated_at' => $route->updated_at,
+                        'cities' => $route->cities, // Add this line to include cities in the response
                     ];
                 });
 
             return response()->json([
                 'status' => true,
-                'message' => 'Route-city assignments retrieved successfully.',
-                'data' => $routeCities,
+                'message' => 'Routes with cities retrieved successfully.',
+                'data' => $routes,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -67,54 +102,27 @@ class RouteCityController extends Controller
             ], 422);
         }
 
-        $routeId = $request->route_id;
-        $cityIds = array_unique($request->city_ids);
-
         DB::beginTransaction();
         try {
-            $newAssignments = [];
-            $duplicates = [];
+            $route = Route::findOrFail($request->route_id);
+            $cityIds = array_unique($request->city_ids);
 
-            foreach ($cityIds as $cityId) {
-                // Check for existing assignment
-                $existing = RouteCity::where('route_id', $routeId)
-                    ->where('city_id', $cityId)
-                    ->first();
+            // Sync will add new and remove unselected cities
+            $syncResult = $route->cities()->sync($cityIds);
 
-                if ($existing) {
-                    $city = City::find($cityId);
-                    $duplicates[] = $city->name ?? "City ID $cityId";
-                } else {
-                    $newAssignments[] = [
-                        'route_id' => $routeId,
-                        'city_id' => $cityId,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
-            }
-
-            if (!empty($newAssignments)) {
-                RouteCity::insert($newAssignments);
-            }
-
-            $route = Route::find($routeId);
-            $message = count($newAssignments) . ' city(s) assigned to route successfully.';
-
-            if (!empty($duplicates)) {
-                $message .= ' Note: ' . implode(', ', $duplicates) . ' already assigned.';
-            }
+            $added = count($syncResult['attached']);
+            $removed = count($syncResult['detached']);
 
             DB::commit();
 
             return response()->json([
                 'status' => true,
-                'message' => $message,
+                'message' => "{$added} city(s) assigned, {$removed} city(s) removed from route successfully.",
                 'data' => [
                     'route_id' => $route->id,
                     'route_name' => $route->name,
-                    'new_assignments' => count($newAssignments),
-                    'duplicates' => count($duplicates),
+                    'new_assignments' => $added,
+                    'removed_assignments' => $removed,
                 ],
             ], 201);
         } catch (\Exception $e) {
@@ -127,36 +135,76 @@ class RouteCityController extends Controller
         }
     }
 
+
     /**
-     * Show a specific route-city assignment.
+     * Get cities assigned to a specific route.
+     */
+    public function getRouteCities($routeId)
+    {
+        try {
+            $route = Route::with('cities:id,name,district,province')
+                ->findOrFail($routeId);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Route cities retrieved successfully.',
+                'data' => [
+                    'route_name' => $route->name,
+                    'cities' => $route->cities->map(function ($city) {
+                        return [
+                            'id' => $city->id,
+                            'name' => $city->name,
+                            'district' => $city->district,
+                            'province' => $city->province,
+                        ];
+                    }),
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve route cities.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Show a specific route with its assigned cities (grouped).
      */
     public function show($id)
     {
         try {
-            $routeCity = RouteCity::with(['route:id,name', 'city:id,name,district,province'])
+            $route = Route::with(['cities:id,name,district,province'])
                 ->find($id);
 
-            if (!$routeCity) {
+            if (!$route) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Route-city assignment not found.',
+                    'message' => 'Route not found.',
                 ], 404);
             }
 
+            $data = [
+                'id' => $route->id,
+                'route_name' => $route->name,
+                'cities' => $route->cities->map(function ($city) {
+                    return [
+                        'id' => $city->id,
+                        'name' => $city->name,
+                        'district' => $city->district,
+                        'province' => $city->province,
+                    ];
+                }),
+                'city_count' => $route->cities->count(),
+                'created_at' => $route->created_at,
+                'updated_at' => $route->updated_at,
+            ];
+
             return response()->json([
                 'status' => true,
-                'message' => 'Route-city assignment retrieved successfully.',
-                'data' => [
-                    'id' => $routeCity->id,
-                    'route_id' => $routeCity->route_id,
-                    'city_id' => $routeCity->city_id,
-                    'route_name' => $routeCity->route->name ?? 'Unknown Route',
-                    'city_name' => $routeCity->city->name ?? 'Unknown City',
-                    'district' => $routeCity->city->district ?? 'N/A',
-                    'province' => $routeCity->city->province ?? 'N/A',
-                    'created_at' => $routeCity->created_at,
-                    'updated_at' => $routeCity->updated_at,
-                ],
+                'message' => 'Routes with cities retrieved successfully.',
+                'data' => [$data],
             ]);
         } catch (\Exception $e) {
             return response()->json([

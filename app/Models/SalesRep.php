@@ -13,14 +13,16 @@ class SalesRep extends Model
 
     protected $fillable = [
         'user_id',
-        'vehicle_location_id',
+        'vehicle_id',
         'route_id',
         'assigned_date',
+        'end_date',
         'status',
     ];
 
     protected $casts = [
         'assigned_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function user()
@@ -28,9 +30,9 @@ class SalesRep extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function vehicleLocation()
+    public function vehicle()
     {
-        return $this->belongsTo(VehicleLocation::class);
+        return $this->belongsTo(Vehicle::class);
     }
 
     public function route()
@@ -43,29 +45,8 @@ class SalesRep extends Model
         return $this->hasMany(SalesRepTarget::class);
     }
 
-    // Helper method to get vehicle through vehicle_location
-    public function vehicle()
+    public function scopeActive($query)
     {
-        return $this->hasOneThrough(
-            Vehicle::class,
-            VehicleLocation::class,
-            'id',
-            'id',
-            'vehicle_location_id',
-            'vehicle_id'
-        );
-    }
-
-    // Helper method to get location through vehicle_location
-    public function location()
-    {
-        return $this->hasOneThrough(
-            Location::class,
-            VehicleLocation::class,
-            'id',
-            'id',
-            'vehicle_location_id',
-            'location_id'
-        );
+        return $query->where('status', 'active');
     }
 }

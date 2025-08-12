@@ -12,13 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('vehicles', function (Blueprint $table) {
-        $table->id();
-        $table->string('vehicle_number')->unique();
-        $table->enum('vehicle_type', ['bike', 'van', 'other']);
-        $table->text('description')->nullable();
-        $table->timestamps();
+            $table->id();
+            $table->string('vehicle_number')->unique();
+            $table->enum('vehicle_type', ['bike', 'van', 'other']);
+            $table->text('description')->nullable();
+            $table->unsignedBigInteger('location_id');
+            $table->foreign('location_id')->references('id')->on('locations');
+            $table->timestamps();
         });
-
     }
 
     /**

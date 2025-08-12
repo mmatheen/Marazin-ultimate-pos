@@ -18,7 +18,27 @@ class VehicleController extends Controller
      */
     public function index()
     {
-        $vehicles = Vehicle::select('id', 'vehicle_number', 'vehicle_type', 'description', 'created_at', 'updated_at')->get();
+        $vehicles = Vehicle::with('location:id,name,parent_id') // Load related location (only needed fields)
+            ->with('location.parent:id,name') // Load parent location (main location)
+            ->select('id', 'vehicle_number', 'vehicle_type', 'description', 'location_id', 'created_at', 'updated_at')
+            ->get()
+            ->map(function ($vehicle) {
+                return [
+                    'id' => $vehicle->id,
+                    'vehicle_number' => $vehicle->vehicle_number,
+                    'vehicle_type' => $vehicle->vehicle_type,
+                    'description' => $vehicle->description,
+                    'location_id' => $vehicle->location_id,
+                    'location' => $vehicle->location ? [
+                        'id' => $vehicle->location->id,
+                        'name' => $vehicle->location->name,
+                        'parent_name' => $vehicle->location->parent?->name, // e.g., "Colombo"
+                        'full_name' => $vehicle->location->parent?->name . ' → ' . $vehicle->location->name,
+                    ] : null,
+                    'created_at' => $vehicle->created_at,
+                    'updated_at' => $vehicle->updated_at,
+                ];
+            });
 
         if ($vehicles->isEmpty()) {
             return response()->json([
@@ -35,13 +55,14 @@ class VehicleController extends Controller
         ], 200);
     }
 
-  
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'vehicle_number' => 'required|string|max:50|unique:vehicles,vehicle_number',
             'vehicle_type' => 'required|in:bike,van,other',
             'description' => 'nullable|string|max:255',
+            'location_id' => 'required|exists:locations,id', // Now part of vehicles table
         ]);
 
         if ($validator->fails()) {
@@ -54,14 +75,14 @@ class VehicleController extends Controller
 
         DB::beginTransaction();
         try {
-            $vehicle = Vehicle::create($validator->validated());
+            $vehicle = Vehicle::create($validator->validated()); // location_id is inserted directly
 
             DB::commit();
 
             return response()->json([
                 'status' => true,
                 'message' => 'Vehicle created successfully.',
-                'data' => $vehicle,
+                'data' => $vehicle->load('location'), // optionally load location
             ], 201);
         } catch (\Exception $e) {
             DB::rollback();
@@ -73,9 +94,11 @@ class VehicleController extends Controller
             ], 500);
         }
     }
+
     public function show($id)
     {
-        $vehicle = Vehicle::select('id', 'vehicle_number', 'vehicle_type', 'description', 'created_at', 'updated_at')
+        $vehicle = Vehicle::with('location:id,name') // only select needed fields
+            ->select('id', 'vehicle_number', 'vehicle_type', 'description', 'location_id', 'created_at', 'updated_at')
             ->find($id);
 
         if (!$vehicle) {
@@ -101,7 +124,6 @@ class VehicleController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Vehicle not found.',
-                'data' => null,
             ], 404);
         }
 
@@ -109,6 +131,7 @@ class VehicleController extends Controller
             'vehicle_number' => 'required|string|max:50|unique:vehicles,vehicle_number,' . $id,
             'vehicle_type' => 'required|in:bike,van,other',
             'description' => 'nullable|string|max:255',
+            'location_id' => 'required|exists:locations,id',
         ]);
 
         if ($validator->fails()) {
@@ -128,7 +151,7 @@ class VehicleController extends Controller
             return response()->json([
                 'status' => true,
                 'message' => 'Vehicle updated successfully.',
-                'data' => $vehicle->refresh(),
+                'data' => $vehicle->refresh()->load('location'),
             ], 200);
         } catch (\Exception $e) {
             DB::rollback();
@@ -140,7 +163,6 @@ class VehicleController extends Controller
             ], 500);
         }
     }
-
     /**
      * Remove the specified vehicle from storage.
      *

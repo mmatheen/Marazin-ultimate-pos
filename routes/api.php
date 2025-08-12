@@ -218,7 +218,7 @@ Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::clas
 // });
 // Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/customer-get-all', [CustomerController::class, 'index']);
+  Route::get('/customer-get-all', [CustomerController::class, 'index']);
 });
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
@@ -389,12 +389,21 @@ Route::apiResource('sales-rep-targets', SalesRepTargetController::class);
 Route::get('/sales-reps/vehicle-locations/available', [SalesRepController::class, 'getAvailableVehicleLocations']);
 Route::get('/sales-reps/routes/available', [SalesRepController::class, 'getAvailableRoutes']);
 Route::get('/sales-reps/vehicle-location/{vehicleLocationId}/details', [SalesRepController::class, 'getLocationFromVehicleLocation']);
-
+Route::get('sales-reps/available-vehicles', [SalesRepController::class, 'getAvailableVehicles']);
+Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
 // Route helper routes
 Route::get('/routes/cities/available', [RouteController::class, 'getAvailableCities']);
 Route::get('/routes/{routeId}/cities', [RouteController::class, 'getRouteCities']);
 Route::post('/routes/{routeId}/cities/add', [RouteController::class, 'addCities']);
 Route::delete('/routes/{routeId}/cities/remove', [RouteController::class, 'removeCities']);
+// Vehicle helper routes
+
+
+//change routes status routecontroller
+Route::put('/routes/{routeId}/status', [RouteController::class, 'changeStatus']);
+
+
+
 
 // RouteCity helper routes
 Route::get('/route-cities/cities/all', [RouteCityController::class, 'getAllCities']);

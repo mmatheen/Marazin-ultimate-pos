@@ -13,6 +13,9 @@ class Route extends Model
 
     protected $fillable = [
         'name',
+        'description',
+        'status',
+
     ];
 
     public function salesReps()
@@ -28,5 +31,14 @@ class Route extends Model
     public function routeCities()
     {
         return $this->hasMany(RouteCity::class);
+    }
+    public function vehicles()
+    {
+        return $this->belongsToMany(Vehicle::class, 'vehicle_route', 'route_id', 'vehicle_id');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
     }
 }

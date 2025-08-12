@@ -14,9 +14,10 @@ return new class extends Migration
         Schema::create('sales_reps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('vehicle_location_id')->constrained('vehicle_locations')->onDelete('cascade');
+            $table->foreignId('vehicle_id')->constrained('vehicles')->onDelete('cascade');
             $table->foreignId('route_id')->constrained('routes')->onDelete('cascade');
             $table->date('assigned_date')->default(now());
+            $table->date('end_date')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
 

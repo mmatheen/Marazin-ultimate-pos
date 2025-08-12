@@ -27,9 +27,9 @@
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     {{-- @can('create vehicle') --}}
-                                        <button type="button" class="btn btn-outline-info" id="addVehicleButton">
-                                            New <i class="fas fa-plus px-2"></i>
-                                        </button>
+                                    <button type="button" class="btn btn-outline-info" id="addVehicleButton">
+                                        New <i class="fas fa-plus px-2"></i>
+                                    </button>
                                     {{-- @endcan --}}
                                 </div>
                             </div>
@@ -44,6 +44,7 @@
                                         <th>Vehicle Number</th>
                                         <th>Vehicle Type</th>
                                         <th>Description</th>
+                                        <th>Location</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -89,6 +90,14 @@
                         <div class="mb-3">
                             <label>Description</label>
                             <textarea name="description" id="description" class="form-control" rows="3" placeholder="Optional details"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Location <span class="text-danger">*</span></label>
+                            <select name="location_id" id="location_id" class="form-control">
+                                <option value="">Select Location</option>
+                            </select>
+                            <span class="text-danger" id="location_id_error"></span>
                         </div>
 
                         <div class="modal-footer">
@@ -168,6 +177,17 @@
                             return data ? data : '—';
                         }
                     },
+
+                    {
+                        data: null,
+                        render: function(data) {
+                            if (data.location) {
+                                return `<strong>${data.location.name}</strong><br>
+                    <small class="text-muted">${data.location.parent_name}</small>`;
+                            }
+                            return '<span class="badge bg-warning">No Location</span>';
+                        }
+                    },
                     {
                         data: null,
                         orderable: false,
@@ -182,7 +202,6 @@
                 ]
             });
 
-            // --- Open Add Modal ---
             $('#addVehicleButton').on('click', function() {
                 $('#vehicleAddUpdateForm')[0].reset();
                 $('#vehicle_id').val('');
@@ -190,10 +209,12 @@
                 $('#saveBtn').text('Save');
                 $('#vehicle_number_error').text('');
                 $('#vehicle_type_error').text('');
+                $('#location_id_error').text('');
                 $('#description').val('');
+
+                fetchSubLocations(); // Load options
                 $('#addAndEditVehicleModal').modal('show');
             });
-
             // --- Save or Update Vehicle ---
             $('#vehicleAddUpdateForm').on('submit', function(e) {
                 e.preventDefault();
@@ -217,11 +238,45 @@
 
                         $('#vehicle_number_error').text(errors.vehicle_number || '');
                         $('#vehicle_type_error').text(errors.vehicle_type || '');
+                        $('#location_id_error').text(errors.location_id || ''); // Add this
 
                         toastr.error(message);
                     }
                 });
             });
+
+            function fetchSubLocations() {
+                return $.ajax({
+                    url: '/location-get-all',
+                    type: 'GET',
+                    success: function(response) {
+                        const select = $('#location_id');
+                        select.empty().append('<option value="">Select Sub-Location</option>');
+
+                        if (response.status === true && Array.isArray(response.data)) {
+                            let found = false;
+                            response.data.forEach(function(loc) {
+                                if (loc.parent_id !== null && loc.parent) {
+                                    select.append(
+                                        `<option value="${loc.id}">${loc.parent.name} → ${loc.name}</option>`
+                                    );
+                                    found = true;
+                                }
+                            });
+                            if (!found) {
+                                select.append(
+                                    '<option value="" disabled>No sub-locations available</option>');
+                            }
+                        } else {
+                            select.append('<option value="" disabled>No locations found</option>');
+                        }
+                    },
+                    error: function(xhr) {
+                        $('#location_id').html('<option value="">Failed to load locations</option>');
+                        toastr.error('Could not load sub-locations.');
+                    }
+                });
+            }
 
             // --- Edit Vehicle ---
             $('#vehiclesTable').on('click', '.editBtn', function() {
@@ -232,17 +287,23 @@
 
                         $('#vehicle_id').val(data.id);
                         $('#vehicle_number').val(data.vehicle_number);
-                        $('#vehicle_type').val(data.vehicle_type
-                    .toLowerCase()); // Ensure lowercase for dropdown
+                        $('#vehicle_type').val(data.vehicle_type.toLowerCase());
                         $('#description').val(data.description || '');
+
+                        // Load locations first, then set selected
+                        fetchSubLocations().then(() => {
+                            if (data.location_id) {
+                                $('#location_id').val(data.location_id);
+                            }
+                        });
 
                         $('#modalTitle').text('Edit Vehicle');
                         $('#saveBtn').text('Update');
                         $('#addAndEditVehicleModal').modal('show');
 
-                        // Clear previous errors
                         $('#vehicle_number_error').text('');
                         $('#vehicle_type_error').text('');
+                        $('#location_id_error').text('');
                     } else {
                         toastr.error('Failed to load vehicle data.');
                     }
@@ -250,7 +311,6 @@
                     toastr.error('Vehicle not found or server error.');
                 });
             });
-
             // --- Open Delete Modal ---
             $('#vehiclesTable').on('click', '.deleteBtn', function() {
                 const id = $(this).data('id');
@@ -272,7 +332,7 @@
                     },
                     error: function(xhr) {
                         const message = xhr.responseJSON?.message ||
-                        'Failed to delete vehicle.';
+                            'Failed to delete vehicle.';
                         toastr.error(message);
                     }
                 });

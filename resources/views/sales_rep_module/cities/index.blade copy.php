@@ -18,6 +18,25 @@
             </div>
         </div>
 
+        <!-- Filter Row -->
+        <div class="row mb-3">
+            <div class="col-sm-3">
+                <label for="filterProvince" class="form-label">Filter by Province</label>
+                <select id="filterProvince" class="form-select">
+                    <option value="">All Provinces</option>
+                    <option value="Western">Western</option>
+                    <option value="Central">Central</option>
+                    <option value="Southern">Southern</option>
+                    <option value="North Western">North Western</option>
+                    <option value="North Central">North Central</option>
+                    <option value="Northern">Northern</option>
+                    <option value="Eastern">Eastern</option>
+                    <option value="Uva">Uva</option>
+                    <option value="Sabaragamuwa">Sabaragamuwa</option>
+                </select>
+            </div>
+        </div>
+
         <!-- Table Row -->
         <div class="row">
             <div class="col-sm-12">
@@ -136,8 +155,7 @@
 
     <script>
         $(document).ready(function() {
-
-
+            // Province to district mapping
             var provinceDistricts = {
                 'Western': ['Colombo', 'Gampaha', 'Kalutara'],
                 'Central': ['Kandy', 'Matale', 'Nuwara Eliya'],
@@ -168,64 +186,85 @@
                 }
             }
 
+            // --- Initialize DataTable ---
+            let table;
+            if (!$.fn.DataTable.isDataTable('#citiesTable')) {
+                table = $('#citiesTable').DataTable({
+                    processing: true,
+                    serverSide: false,
+                    ajax: {
+                        url: "/api/cities",
+                        type: "GET",
+                        dataSrc: function(json) {
+                            // Check if the response is valid and has a data property
+                            if (!json || typeof json !== 'object') {
+                                toastr.error('Invalid server response. Please check your API.');
+                                return [];
+                            }
+                            if (!Array.isArray(json.data)) {
+                                toastr.error('API response missing "data" array.');
+                                return [];
+                            }
+                            return json.data;
+                        },
+                        error: function(xhr, textStatus, errorThrown) {
+                            let message = 'Failed to load cities. ';
+                            if (xhr.responseText) {
+                                message += 'Server response: ' + xhr.responseText;
+                            }
+                            toastr.error(message);
+                        }
+                    },
+                    columns: [{
+                            data: 'id'
+                        },
+                        {
+                            data: 'name'
+                        },
+                        {
+                            data: 'district',
+                            render: function(data) {
+                                return data ? data : '—';
+                            }
+                        },
+                        {
+                            data: 'province',
+                            render: function(data) {
+                                return data ? data : '—';
+                            }
+                        },
+                        {
+                            data: null,
+                            orderable: false,
+                            searchable: false,
+                            render: function(data) {
+                                return `
+                                    <button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button>
+                                    <button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>
+                                `;
+                            }
+                        }
+                    ]
+                });
+            } else {
+                table = $('#citiesTable').DataTable();
+            }
+
+            // --- Filter DataTable by Province ---
+            $('#filterProvince').on('change', function() {
+                const val = $(this).val();
+
+                // Clear filter if empty
+                if (!val) {
+                    table.column(3).search('').draw();
+                } else {
+                    table.column(3).search('^' + val + '$', true, false).draw();
+                }
+            });
 
             // --- Province change in modal: update district dropdown ---
             $('#province').on('change', function() {
                 populateDistricts($(this).val());
-            });
-
-
-            // --- Prevent DataTable Reinitialization ---
-            if ($.fn.DataTable.isDataTable('#citiesTable')) {
-                $('#citiesTable').DataTable().destroy();
-            }
-
-            // --- Initialize DataTable ---
-            const table = $('#citiesTable').DataTable({
-                processing: true,
-                serverSide: false,
-                ajax: {
-                    url: "{{ url('/api/cities') }}",
-                    type: "GET",
-                    dataSrc: "data",
-                    error: function(xhr) {
-                        let message = 'Failed to load cities.';
-                        if (xhr.responseJSON?.message) {
-                            message = xhr.responseJSON.message;
-                        }
-                        toastr.error(message);
-                    }
-                },
-                columns: [{
-                        data: 'id'
-                    },
-                    {
-                        data: 'name'
-                    },
-                    {
-                        data: 'district',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'province',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: null,
-                        orderable: false,
-                        searchable: false,
-                        render: function(data) {
-                            return `
-                            <button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button>
-                            <button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>
-                        `;
-                        }
-                    }
-                ]
             });
 
             // --- Open Add Modal ---
@@ -235,6 +274,8 @@
                 $('#modalTitle').text('Add City');
                 $('#saveBtn').text('Save');
                 $('.text-danger').text('');
+                $('#district').prop('disabled', true).empty().append(
+                    '<option value="">Select District</option>');
                 $('#addAndEditCityModal').modal('show');
             });
 
@@ -277,8 +318,8 @@
 
                         $('#city_id').val(data.id);
                         $('#city_name').val(data.name);
-                        $('#district').val(data.district || '');
                         $('#province').val(data.province || '');
+                        populateDistricts(data.province, data.district);
 
                         $('#modalTitle').text('Edit City');
                         $('#saveBtn').text('Update');
@@ -314,8 +355,7 @@
                         toastr.success(response.message || 'City deleted successfully.');
                     },
                     error: function(xhr) {
-                        const message = xhr.responseJSON?.message ||
-                            'Failed to delete city.';
+                        const message = xhr.responseJSON?.message || 'Failed to delete city.';
                         toastr.error(message);
                     }
                 });

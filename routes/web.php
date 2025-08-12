@@ -140,7 +140,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/unit-store', [UnitController::class, 'store']);
         Route::post('/unit-update/{id}', [UnitController::class, 'update']);
         Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
-
         // -------------------- Dropdowns (Brand/Unit) --------------------
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
         Route::get('/get-unit', [UnitController::class, 'unitDropdown']);

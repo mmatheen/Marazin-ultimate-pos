@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('routes', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique(); // Unique route name
+            $table->string('description')->nullable(); // Route description
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
     }

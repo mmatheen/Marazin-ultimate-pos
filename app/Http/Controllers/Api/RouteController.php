@@ -53,6 +53,10 @@ class RouteController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:routes,name',
+            'description' => 'nullable|string|max:1000',
+            'status' => 'nullable|in:active,inactive',
+            'city_ids' => 'nullable|array',
+            'city_ids.*' => 'exists:cities,id',
         ]);
 
         if ($validator->fails()) {
@@ -68,9 +72,18 @@ class RouteController extends Controller
         try {
             $route = Route::create([
                 'name' => $request->name,
+                'description' => $request->description,
+                'status' => $request->status ?? 'active',
             ]);
 
+            // Attach cities if provided
+            if ($request->has('city_ids') && is_array($request->city_ids)) {
+                $route->cities()->attach($request->city_ids);
+            }
+
             DB::commit();
+
+            $route->load(['cities:id,name,district,province']);
 
             return response()->json([
                 'status' => true,
@@ -78,6 +91,9 @@ class RouteController extends Controller
                 'data' => [
                     'id' => $route->id,
                     'name' => $route->name,
+                    'description' => $route->description,
+                    'status' => $route->status,
+                    'cities' => $route->cities,
                     'created_at' => $route->created_at,
                     'updated_at' => $route->updated_at,
                 ],
@@ -92,7 +108,6 @@ class RouteController extends Controller
         }
     }
 
- 
     public function show($id)
     {
         try {
@@ -148,8 +163,6 @@ class RouteController extends Controller
         }
     }
 
-  
-  
     public function update(Request $request, $id)
     {
         $route = Route::find($id);
@@ -192,12 +205,10 @@ class RouteController extends Controller
                 if (is_array($request->city_ids)) {
                     $route->cities()->sync($request->city_ids);
                 } else {
-                    // If null or empty, detach all cities
                     $route->cities()->detach();
                 }
             }
 
-            // Load relationships for response
             $route->load(['cities:id,name,district,province']);
 
             DB::commit();
@@ -247,7 +258,6 @@ class RouteController extends Controller
                 ], 404);
             }
 
-            // Check if route has assigned sales reps
             if ($route->salesReps->count() > 0) {
                 return response()->json([
                     'status' => false,
@@ -258,10 +268,7 @@ class RouteController extends Controller
 
             $routeName = $route->name;
 
-            // Detach all cities
             $route->cities()->detach();
-
-            // Delete the route
             $route->delete();
 
             DB::commit();
@@ -389,10 +396,7 @@ class RouteController extends Controller
         DB::beginTransaction();
 
         try {
-            // Attach new cities (will not duplicate existing ones)
             $route->cities()->syncWithoutDetaching($request->city_ids);
-
-            // Load relationships for response
             $route->load(['cities:id,name,district,province']);
 
             DB::commit();
@@ -452,10 +456,7 @@ class RouteController extends Controller
         DB::beginTransaction();
 
         try {
-            // Detach specified cities
             $route->cities()->detach($request->city_ids);
-
-            // Load relationships for response
             $route->load(['cities:id,name,district,province']);
 
             DB::commit();
@@ -479,4 +480,37 @@ class RouteController extends Controller
             ], 500);
         }
     }
+
+    //change route status
+    public function changeStatus(Request $request, $id)
+    {
+        $route = Route::find($id);
+        if (!$route) {
+            return response()->json([                              
+
+                'status' => false,
+                'message' => 'Route not found.',
+                'data' => null,
+            ], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|in:active,inactive',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+        $route->status = $request->status;
+        $route->save();
+        return response()->json([
+            'status' => true,
+            'message' => 'Route status updated successfully.',
+            'data' => $route,
+        ], 200);
+    }
+
 }

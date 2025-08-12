@@ -14,12 +14,14 @@ class Vehicle extends Model
         "vehicle_number",
         "vehicle_type",
         "description",
+        "location_id",
     ];
 
-    public function vehicleLocations()
+    public function location()
     {
-        return $this->hasMany(VehicleLocation::class);
+        return $this->belongsTo(Location::class);
     }
+
 
     public function salesReps()
     {

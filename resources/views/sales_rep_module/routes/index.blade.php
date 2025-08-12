@@ -40,7 +40,8 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Route Name</th>
-    
+                                        <th>Description</th>
+                                        <th>Status</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -71,8 +72,18 @@
                                 placeholder="e.g. Colombo North Route">
                             <span class="text-danger" id="name_error"></span>
                         </div>
-
-
+                        <div class="mb-3">
+                            <label>Description</label>
+                            <textarea name="description" id="route_description" class="form-control" placeholder="Enter route description"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label>Status</label>
+                            <select name="status" id="route_status" class="form-select">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <span class="text-danger" id="status_error"></span>
+                        </div>
                         <div class="modal-footer">
                             <button type="submit" id="saveBtn" class="btn btn-outline-primary">Save</button>
                             <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
@@ -141,7 +152,28 @@
                             return data ? data : '—';
                         }
                     },
-    
+                    {
+                        data: 'description',
+                        render: function(data) {
+                            return data ? data : '—';
+                        }
+                    },
+                    {
+                        data: 'status',
+                        render: function(data, type, row) {
+                            const color = data === 'active' ? 'success' : 'secondary';
+                            const nextStatus = data === 'active' ? 'inactive' : 'active';
+                            const btnText = data === 'active' ? 'Active' : 'Inactive';
+                            return `
+            <button class="btn btn-sm btn-${color} status-toggle-btn" 
+                data-id="${row.id}" 
+                data-status="${nextStatus}">
+                ${btnText}
+            </button>
+        `;
+                        }
+                    },
+
                     {
                         data: null,
                         orderable: false,
@@ -175,10 +207,13 @@
                 const url = id ? `/api/routes/${id}` : `/api/routes`;
                 const method = id ? 'PUT' : 'POST';
 
-              
+
 
                 const formData = {
                     name: $('#route_name').val(),
+                    description: $('#route_description').val(),
+                    status: $('#route_status').val(),
+
                 };
 
                 $.ajax({
@@ -195,7 +230,7 @@
                         const message = xhr.responseJSON?.message || 'An error occurred.';
 
                         $('#name_error').text(errors.name || '');
-                       
+
                         toastr.error(message);
                     }
                 });
@@ -212,7 +247,7 @@
 
                             $('#route_id').val(data.id);
                             $('#route_name').val(data.name || '');
-                           
+
                             $('#modalTitle').text('Edit Route');
                             $('#saveBtn').text('Update');
                             $('#addAndEditRouteModal').modal('show');
@@ -254,6 +289,30 @@
                     }
                 });
             });
+
+            // --- Toggle Status ---
+            $('#routesTable').on('click', '.status-toggle-btn', function() {
+                const id = $(this).data('id');
+                const newStatus = $(this).data('status');
+
+                $.ajax({
+                    url: `/api/routes/${id}/status`,
+                    method: 'PUT',
+                    data: {
+                        status: newStatus
+                    },
+                    success: function(response) {
+                        toastr.success(response.message || 'Status updated successfully.');
+                        $('#routesTable').DataTable().ajax.reload(null,
+                        false); // reload without resetting page
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message || 'Failed to update status.';
+                        toastr.error(message);
+                    }
+                });
+            });
+
         });
     </script>
 @endsection
