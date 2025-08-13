@@ -19,6 +19,16 @@
 
                 },
 
+                city_id: {
+                    required: true,
+                },
+
+                credit_limit: {
+                    required: true,
+                    number: true,
+                },
+
+
 
             },
             messages: {
@@ -31,6 +41,13 @@
 
                 mobile_no: {
                     required: "Mobile No  is required",
+                },
+                city_id: {
+                    required: "City is required",
+                },
+                credit_limit: {
+                    required: "Credit Limit is required",
+                    number: "Credit Limit must be a number",
                 },
 
 
