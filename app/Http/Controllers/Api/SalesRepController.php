@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 class SalesRepController extends Controller
 {
     /**
-     * Display a listing of sales representatives.
+     * Display a listing of sales representatives with grouped routes.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -23,9 +23,9 @@ class SalesRepController extends Controller
             $salesReps = SalesRep::with([
                 'user:id,user_name,email',
                 'vehicle:id,vehicle_number,vehicle_type,location_id',
-                'vehicle.location:id,name',
+                'vehicle.location:id,name,parent_id',
                 'vehicle.location.parent:id,name',
-                'route:id,name,',
+                'route:id,name,status',
                 'route.cities:id,name,district,province'
             ])
                 ->select('id', 'user_id', 'vehicle_id', 'route_id', 'assigned_date', 'end_date', 'status', 'created_at', 'updated_at')
@@ -37,8 +37,10 @@ class SalesRepController extends Controller
             })->map(function ($group) {
                 $first = $group->first();
                 return [
+                    'id' => $first->user_id . '-' . $first->vehicle_id, // Unique ID for frontend
                     'user_id' => $first->user_id,
                     'vehicle_id' => $first->vehicle_id,
+                    'status' => $first->status,
                     'user' => $first->user ? [
                         'id' => $first->user->id,
                         'user_name' => $first->user->user_name,
@@ -53,15 +55,16 @@ class SalesRepController extends Controller
                         'id' => $first->vehicle->location->id,
                         'name' => $first->vehicle->location->name,
                         'parent_name' => $first->vehicle->location->parent?->name,
-                        'full_name' => ($first->vehicle->location->parent?->name ? $first->vehicle->location->parent->name . ' → ' : ' → ') . $first->vehicle->location->name,
+                        'full_name' => ($first->vehicle->location->parent?->name ? $first->vehicle->location->parent->name . ' → ' : '') . $first->vehicle->location->name,
                     ] : null,
                     'routes' => $group->map(function ($rep) {
                         return [
-                            'id' => $rep->route?->id,
+                            'id' => $rep->id,
+                            'route_id' => $rep->route?->id,
                             'name' => $rep->route?->name,
                             'assigned_date' => $rep->assigned_date,
                             'end_date' => $rep->end_date,
-                            'status' => $rep->status,
+                            'status' => $rep->route?->status ?? 'inactive',
                             'cities' => $rep->route ? $rep->route->cities->map(fn($city) => [
                                 'id' => $city->id,
                                 'name' => $city->name,
@@ -98,7 +101,7 @@ class SalesRepController extends Controller
     }
 
     /**
-     * Store a newly created sales representative.
+     * Store a new route assignment for a sales rep.
      */
     public function store(Request $request)
     {
@@ -107,7 +110,7 @@ class SalesRepController extends Controller
             'vehicle_id' => 'required|exists:vehicles,id',
             'route_id' => 'required|exists:routes,id',
             'assigned_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:assigned_date',
             'status' => 'nullable|in:active,inactive',
         ]);
 
@@ -119,27 +122,36 @@ class SalesRepController extends Controller
             ], 422);
         }
 
-        // Prevent duplicate: same user + route
-        $existing = SalesRep::where('user_id', $request->user_id)
-            ->where('route_id', $request->route_id)
-            ->when($request->id, fn($q) => $q->where('id', '!=', $request->id))
-            ->first();
+        $today = now()->format('Y-m-d');
+
+        // Prevent duplicate active assignment: user + vehicle + route (with overlapping dates)
+        $overlapQuery = SalesRep::where('user_id', $request->user_id)
+            ->where('vehicle_id', $request->vehicle_id)
+            ->where('route_id', $request->route_id);
+
+        if ($request->id) {
+            $overlapQuery->where('id', '!=', $request->id);
+        }
+
+        $existing = $overlapQuery->where(function ($q) use ($today) {
+            $q->whereNull('end_date')
+                ->orWhere('end_date', '>=', $today);
+        })->first();
 
         if ($existing) {
             return response()->json([
                 'status' => false,
-                'message' => 'This user is already assigned to this route.',
-                'errors' => ['combination' => ['User-route assignment must be unique.']],
+                'message' => 'This user (with this vehicle) is already assigned to this route.',
+                'errors' => ['combination' => ['Active assignment already exists for this route.']],
             ], 422);
         }
 
-        // Validate vehicle has a location
         $vehicle = Vehicle::find($request->vehicle_id);
         if (!$vehicle || !$vehicle->location_id) {
             return response()->json([
                 'status' => false,
                 'message' => 'Selected vehicle is not assigned to any location.',
-                'errors' => ['vehicle_id' => ['Vehicle must have a valid location assigned.']],
+                'errors' => ['vehicle_id' => ['Vehicle must have a valid location.']],
             ], 422);
         }
 
@@ -158,21 +170,21 @@ class SalesRepController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Sales representative created successfully.',
+                'message' => 'Route assigned successfully.',
                 'data' => $this->formatSalesRep($salesRep),
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to create sales representative.',
+                'message' => 'Failed to assign route.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Display the specified sales representative.
+     * Display a single route assignment.
      */
     public function show($id)
     {
@@ -182,34 +194,34 @@ class SalesRepController extends Controller
                 'vehicle:id,vehicle_number,vehicle_type,location_id',
                 'vehicle.location:id,name,parent_id',
                 'vehicle.location.parent:id,name',
-                'route:id,name',
-                'route.cities:id,name,district,province',
+                'route:id,name,status',
+                'route.cities',
                 'targets'
             ])->find($id);
 
             if (!$salesRep) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Sales representative not found.',
+                    'message' => 'Route assignment not found.',
                 ], 404);
             }
 
             return response()->json([
                 'status' => true,
-                'message' => 'Sales representative retrieved successfully.',
+                'message' => 'Assignment retrieved successfully.',
                 'data' => $this->formatSalesRep($salesRep),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to retrieve sales representative.',
+                'message' => 'Failed to retrieve assignment.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Update the specified sales representative.
+     * Update a route assignment.
      */
     public function update(Request $request, $id)
     {
@@ -217,7 +229,7 @@ class SalesRepController extends Controller
         if (!$salesRep) {
             return response()->json([
                 'status' => false,
-                'message' => 'Sales representative not found.',
+                'message' => 'Route assignment not found.',
             ], 404);
         }
 
@@ -226,7 +238,7 @@ class SalesRepController extends Controller
             'vehicle_id' => 'required|exists:vehicles,id',
             'route_id' => 'required|exists:routes,id',
             'assigned_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:assigned_date',
             'status' => 'nullable|in:active,inactive',
         ]);
 
@@ -238,27 +250,32 @@ class SalesRepController extends Controller
             ], 422);
         }
 
-        // Unique constraint: user + route
-        $existing = SalesRep::where('user_id', $request->user_id)
+        $today = now()->format('Y-m-d');
+
+        $overlapQuery = SalesRep::where('user_id', $request->user_id)
+            ->where('vehicle_id', $request->vehicle_id)
             ->where('route_id', $request->route_id)
-            ->where('id', '!=', $id)
-            ->first();
+            ->where('id', '!=', $id);
+
+        $existing = $overlapQuery->where(function ($q) use ($today) {
+            $q->whereNull('end_date')
+                ->orWhere('end_date', '>=', $today);
+        })->first();
 
         if ($existing) {
             return response()->json([
                 'status' => false,
-                'message' => 'This user is already assigned to this route.',
-                'errors' => ['combination' => ['User-route combination must be unique.']],
+                'message' => 'This user (with this vehicle) is already assigned to this route.',
+                'errors' => ['combination' => ['Active assignment already exists.']],
             ], 422);
         }
 
-        // Validate vehicle has location
         $vehicle = Vehicle::find($request->vehicle_id);
         if (!$vehicle || !$vehicle->location_id) {
             return response()->json([
                 'status' => false,
                 'message' => 'Selected vehicle is not assigned to any location.',
-                'errors' => ['vehicle_id' => ['Vehicle must have a location assigned.']],
+                'errors' => ['vehicle_id' => ['Vehicle must have a location.']],
             ], 422);
         }
 
@@ -277,50 +294,49 @@ class SalesRepController extends Controller
 
             return response()->json([
                 'status' => true,
-                'message' => 'Sales representative updated successfully.',
+                'message' => 'Route assignment updated successfully.',
                 'data' => $this->formatSalesRep($salesRep->refresh()),
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to update sales representative.',
+                'message' => 'Failed to update assignment.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Remove the specified sales representative.
+     * Remove a route assignment.
      */
     public function destroy($id)
     {
         DB::beginTransaction();
         try {
-            $salesRep = SalesRep::with(['user', 'targets'])->find($id);
+            $salesRep = SalesRep::with('user')->find($id);
             if (!$salesRep) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Sales representative not found.',
+                    'message' => 'Assignment not found.',
                 ], 404);
             }
 
             $userName = $salesRep->user?->user_name ?? 'Unknown';
 
-            $salesRep->targets()->delete();
             $salesRep->delete();
 
             DB::commit();
 
             return response()->json([
                 'status' => true,
-                'message' => "Sales representative '{$userName}' and associated targets deleted successfully.",
+                'message' => "Route assignment for '{$userName}' deleted successfully.",
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => false,
-                'message' => 'Failed to delete sales representative.',
+                'message' => 'Failed to delete assignment.',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -361,6 +377,7 @@ class SalesRepController extends Controller
     public function getAvailableRoutes()
     {
         $routes = Route::withCount('cities')
+            ->where('status', 'active')
             ->get(['id', 'name'])
             ->map(function ($r) {
                 return [
@@ -377,7 +394,7 @@ class SalesRepController extends Controller
         ], 200);
     }
 
-     private function formatSalesRep($rep)
+    private function formatSalesRep($rep)
     {
         return [
             'id' => $rep->id,

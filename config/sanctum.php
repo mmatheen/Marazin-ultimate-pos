@@ -46,7 +46,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => 43200, // minutes = 30 days, set as you want
+
 
     /*
     |--------------------------------------------------------------------------
@@ -63,7 +64,7 @@ return [
         'verify_csrf_token' => App\Http\Middleware\VerifyCsrfToken::class,
         'encrypt_cookies' => App\Http\Middleware\EncryptCookies::class,
         'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
-        
+
     ],
 
 ];

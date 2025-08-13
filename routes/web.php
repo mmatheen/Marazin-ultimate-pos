@@ -54,8 +54,9 @@ use App\Http\Controllers\Web\{
     VehicleTrackingController,
     ProductController,
     CustomerController
-
 };
+
+
 
 
 
@@ -467,5 +468,3 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         }
     });
 });
-
-

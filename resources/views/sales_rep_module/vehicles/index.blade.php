@@ -67,6 +67,7 @@
                         <h5 id="modalTitle">Add Vehicle</h5>
                     </div>
                     <form id="vehicleAddUpdateForm">
+                        @csrf
                         <input type="hidden" name="id" id="vehicle_id">
 
                         <div class="mb-3">
@@ -138,6 +139,8 @@
 
     <script>
         $(document).ready(function() {
+
+            let csrfToken = $('meta[name="csrf-token"]').attr('content');
             // --- Prevent DataTable Reinitialization ---
             if ($.fn.DataTable.isDataTable('#vehiclesTable')) {
                 $('#vehiclesTable').DataTable().destroy();
@@ -222,6 +225,12 @@
                 const id = $('#vehicle_id').val();
                 const url = id ? `/api/vehicles/${id}` : `/api/vehicles`;
                 const method = id ? 'PUT' : 'POST';
+
+                $.ajaxSetup({
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                });
 
                 $.ajax({
                     url: url,

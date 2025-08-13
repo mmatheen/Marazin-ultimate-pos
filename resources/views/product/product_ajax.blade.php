@@ -100,25 +100,25 @@
         // Helper function to populate a dropdown
         function fetchData(url, successCallback, errorCallback) {
             $.ajax({
-            url: url,
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                // Handle different response structures
-                if (response.status === true || response.status === 200) {
-                // If response has a 'data' property, use it; otherwise use 'message'
-                const data = response.data || response.message;
-                successCallback({
-                    status: 200,
-                    message: data
-                });
-                } else {
-                successCallback(response);
+                url: url,
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    // Handle different response structures
+                    if (response.status === true || response.status === 200) {
+                        // If response has a 'data' property, use it; otherwise use 'message'
+                        const data = response.data || response.message;
+                        successCallback({
+                            status: 200,
+                            message: data
+                        });
+                    } else {
+                        successCallback(response);
+                    }
+                },
+                error: errorCallback || function(xhr, status, error) {
+                    console.error('Error fetching data from ' + url + ':', error);
                 }
-            },
-            error: errorCallback || function(xhr, status, error) {
-                console.error('Error fetching data from ' + url + ':', error);
-            }
             });
         }
 
@@ -139,7 +139,7 @@
         }
 
         function fetchInitialDropdowns(callback) {
-            fetchData('/api/initial-product-details', function(response) {
+            fetchData('/initial-product-details', function(response) {
 
                 if (response.status === 200) {
                     const brands = response.message.brands;
@@ -262,7 +262,7 @@
             const selectedLocations = $('#locations').val();
             if (selectedLocations && selectedProductIds.length > 0) {
                 $.ajax({
-                    url: '/api/save-changes',
+                    url: '/save-changes',
 
                     type: 'POST',
                     headers: {
@@ -336,7 +336,7 @@
             }
 
             $.ajax({
-                url: '/api/apply-discount',
+                url: '/apply-discount',
                 type: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -381,7 +381,7 @@
                     dangerMode: true,
                 })) {
                 $.ajax({
-                    url: '/api/delete-product/' + productId,
+                    url: '/delete-product/' + productId,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken
@@ -503,7 +503,7 @@
                     };
 
                     $.ajax({
-                        url: '/api/products/stocks',
+                        url: '/products/stocks',
                         type: 'GET',
                         data: params,
                         dataType: 'json',
@@ -755,7 +755,7 @@
         // Function to get the form action URL based on whether we are adding or updating
         function getFormActionUrl() {
             const productId = $('#product_id').val();
-            return productId ? `/api/product/update/${productId}` : '/api/product/store';
+            return productId ? `/product/update/${productId}` : '/product/store';
 
         }
 
@@ -852,7 +852,7 @@
 
 
         function fetchLastAddedProducts() {
-            fetchData('/api/get-last-product', function(response) {
+            fetchData('/get-last-product', function(response) {
 
                 if (response.status === 200) {
                     const product = response.product;
@@ -932,7 +932,7 @@
         }
 
 
-       
+
 
         $(".show-picture").on("change", function() {
             const input = this;
@@ -1293,7 +1293,8 @@
                     return location;
                 });
 
-                let url = isEditMode ? `/api/opening-stock/${productId}` : `/api/opening-stock/${productId}`;
+                let url = isEditMode ? `/opening-stock/${productId}` :
+                    `/opening-stock/${productId}`;
 
 
                 $.ajax({
@@ -1577,7 +1578,7 @@
 
         function fetchProductDetails(productId) {
             $.ajax({
-                url: '/api/product-get-details/' + productId,
+                url: '/product-get-details/' + productId,
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
@@ -1675,7 +1676,7 @@
 
                 return xhr;
             },
-            url: '/api/import-product-excel-store',
+            url: '/import-product-excel-store',
             type: "POST",
             data: formData,
             contentType: false,
