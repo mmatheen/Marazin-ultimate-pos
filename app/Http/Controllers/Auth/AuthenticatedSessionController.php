@@ -66,7 +66,6 @@ class AuthenticatedSessionController extends Controller
 
           
 
-            // Redirect to the intended page after successful login and show the success message with user name
 
             return redirect()->intended(RouteServiceProvider::HOME)
                 ->with('toastr-success', "Welcome back, {$userName}! You're logged in as {$roleName}.");
