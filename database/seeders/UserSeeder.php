@@ -18,59 +18,20 @@ class UserSeeder extends Seeder
     {
         // Get all locations and their IDs
         $allLocations = DB::table('locations')->pluck('id', 'name');
-        $location_ids = $allLocations->only(['Sammanthurai', 'ARB FASHION', 'ARB SUPER CENTER', 'Ninthavur']);
+        $location_ids = $allLocations->only(['Sammanthurai']);
 
         $users = [
             [
                 'name_title' => 'Mr',
-                'full_name' => 'ARB',
-                'user_name' => 'ARB',
+                'full_name' => 'Super Admin',
+                'user_name' => 'admin',
                 'is_admin' => true,
-                'email' => 'arb@gmail.com',
+                'email' => 'admin@gmail.com',
                 'password' => '1234',
                 'role' => 'Super Admin',
                 'locations' => ['Sammanthurai']
             ],
-            [
-                'name_title' => 'Mr',
-                'full_name' => 'Apple Bees',
-                'user_name' => 'AppleBees',
-                'is_admin' => true,
-                'email' => 'applebees@gmail.com',
-                'password' => '1234',
-                'role' => 'Super Admin',
-                'locations' => ['Ninthavur']
-            ],
-            [
-                'name_title' => 'Mr',
-                'full_name' => 'Ahamed',
-                'user_name' => 'Suraif',
-                'is_admin' => false,
-                'email' => 'suraif@arbtrading.lk',
-                'password' => '1234',
-                'role' => 'Admin',
-                'locations' => ['ARB FASHION']
-            ],
-            [
-                'name_title' => 'Mr',
-                'full_name' => 'Mohamed',
-                'user_name' => 'Riskan',
-                'is_admin' => false,
-                'email' => 'riskan@arbtrading.lk',
-                'password' => '1234',
-                'role' => 'Admin',
-                'locations' => ['ARB FASHION']
-            ],
-            [
-                'name_title' => 'Mr',
-                'full_name' => 'Mohamed',
-                'user_name' => 'Ajwath',
-                'is_admin' => false,
-                'email' => 'ajwath94@gmail.com',
-                'password' => '1234',
-                'role' => 'Super Admin',
-                'locations' => ['ARB SUPER CENTER']
-            ],
+           
         ];
 
         foreach ($users as $userData) {

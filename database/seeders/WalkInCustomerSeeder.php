@@ -20,8 +20,8 @@ class WalkInCustomerSeeder extends Seeder
                 'prefix' => 'Mr.',
                 'first_name' => 'Walk-in',
                 'last_name' => 'Customer',
-                'mobile_no' => '0775894563',  // Placeholder number
-                'email' => 'walking.customer@example.com',
+                'mobile_no' => '0111111111',  // Placeholder number
+                'email' => '',
                 'address' => 'N/A',
                 'opening_balance' => 0.00,
                 'current_balance' => 0.00,

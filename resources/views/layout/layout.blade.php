@@ -5,8 +5,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
     {{-- <title>ARB - Distribution </title> --}}
-    <title>ARB - Fashion @yield('title') </title>
-    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
+    {{-- <title>ARB - Fashion @yield('title') </title>
+    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}"> --}}
+    <!-- Dynamic App Name in Title -->
+    <meta charset="UTF-8">
+    <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
+
+    <!-- Dynamic Favicon -->
+    <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
+
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
     <link

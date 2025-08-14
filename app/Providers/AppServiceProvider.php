@@ -6,6 +6,9 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,12 +27,19 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
         $this->DbBackup();
+
+        View::composer('*', function ($view) {
+            $activeSetting = Cache::remember('active_setting', 3600, function () {
+                return Setting::where('is_active', true)->first();
+            });
+            $view->with('activeSetting', $activeSetting);
+        });
     }
 
     private function DbBackup()
     {
         try {
-            \Storage::extend('google', function ($app, $config) {
+            Storage::extend('google', function ($app, $config) {
                 $options = [];
 
                 if (! empty($config['folderId'] ?? null)) {
@@ -48,7 +58,7 @@ class AppServiceProvider extends ServiceProvider
                 return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
             });
         } catch (\Exception $e) {
-            \Log::error($e->getMessage());
+            Log::error($e->getMessage());
         }
     }
 }

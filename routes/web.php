@@ -42,8 +42,9 @@ use App\Http\Controllers\{
     PaymentController,
     DiscountController,
     ReportController,
+    SettingController
 };
-use App\Http\Controllers\Api\RestaurantController;
+
 
 
 // Helper function
@@ -415,13 +416,14 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
 
-
-        //resturants routes
-
-        Route::post('/table', [RestaurantController::class, 'createTable']);
-        Route::post('/waiter', [RestaurantController::class, 'createWaiter']);
-        Route::post('/table/{id}/assign-waiters', [RestaurantController::class, 'assignWaitersToTable']);
-        Route::get('/tables', [RestaurantController::class, 'getTables']);
-        Route::get('/waiters', [RestaurantController::class, 'getWaiters']);
+        // -------------------- Site Setting Routes --------------------
+        Route::get('/site-settings', [SettingController::class, 'index'])->name('site.setting');
+        Route::get('/site-settings/all', [SettingController::class, 'getAllSettings'])->name('site.setting.all');
+        Route::get('/site-settings/{id}', [SettingController::class, 'show'])->name('site.setting.show');
+        Route::post('/site-settings/store', [SettingController::class, 'store'])->name('site.setting.store');
+        Route::post('/site-settings/update/{id}', [SettingController::class, 'update'])->name('site.setting.update');
+        Route::post('/site-settings/activate/{id}', [SettingController::class, 'activate'])->name('site.setting.activate');
+        Route::get('/site-settings/active', [SettingController::class, 'getActiveSetting'])->name('site.setting.active');
+        Route::delete('/site-settings/delete/{id}', [SettingController::class, 'destroy'])->name('site.setting.delete');
     });
 });

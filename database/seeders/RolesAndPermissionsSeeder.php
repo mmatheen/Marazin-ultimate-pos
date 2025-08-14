@@ -229,46 +229,6 @@ class RolesAndPermissionsSeeder extends Seeder
           // Roles & give permissions
         $roles = [
             'Super Admin' => Permission::all()->pluck('name')->toArray(),
-            'Manager' => [
-                'view user',
-                'view role',
-                'view product',
-                'view sale',
-                'add sale',
-                'view purchase',
-                'view daily-report'
-            ],
-            'Cashier' => [
-                'pos page',
-                'add sale',
-                'view sale',
-                'add return-sale',
-                'view return-sale',
-                'job ticket',
-                'quotation',
-                'draft',
-                'suspend',
-                'credit sale',
-                'card',
-                'cheque',
-                'multiple pay',
-                'cash'
-            ],
-            'Admin' => [
-                'create user',
-                'edit user',
-                'view user',
-                'delete user',
-                'create role',
-                'edit role',
-                'view role',
-                'delete role',
-                'create product',
-                'edit product',
-                'view product',
-                'delete product',
-                'job ticket'
-            ]
         ];
 
         foreach ($roles as $roleName => $rolePermissions) {

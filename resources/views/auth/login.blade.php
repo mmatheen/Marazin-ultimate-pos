@@ -49,10 +49,11 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
-    <title>ARB - Distribution</title>
+    <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
     <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/feather/feather.css') }}">
@@ -69,7 +70,6 @@
         .invalid-feedback {
             font-size: 14px;
         }
-
     </style>
 
     {{-- for sound --}}
@@ -83,15 +83,21 @@
             <div class="container">
                 <div class="loginbox">
                     <div class="login-left">
-                        <img class="img-fluid" src="{{'/assets/images/ARB Logo.png' }}" alt="ARB login image">
+                        <img class="img-fluid"
+                            src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/ARB Logo.png') }}"
+                            alt="ARB login image">
                     </div>
 
                     <div class="login-right">
                         <div class="login-right-wrap">
                             <div class="d-flex justify-content-center mb-3">
-                                <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px" height="100px" src="{{ URL::to('assets/img/ARB Logo.png') }}" alt="Logo"></a>
+                                <a href="https://marazin.lk/" target="_blank"><img class="img-fluid" width="100px"
+                                        height="100px"
+                                        src="{{ $activeSetting?->logo_url ?? URL::to('assets/img/ARB Logo.png') }}"
+                                        alt="Logo"></a>
+
                             </div>
-                            <h1 class="mb-4 text-center">ARB Distribution</h1>
+                            <h1 class="mb-4 text-center">{{ $activeSetting?->app_name ?? 'My App' }}</h1>
                             {{-- <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p> --}}
                             <form action="{{ route('login') }}" method="POST">
                                 @csrf
@@ -106,7 +112,9 @@
                                 </div> --}}
                                 <div class="form-group">
                                     <label for="login">Username or Email<span class="login-danger">*</span></label>
-                                    <input type="text" id="login" class="form-control @error('login') is-invalid @enderror" autofocus autocomplete="username" name="login">
+                                    <input type="text" id="login"
+                                        class="form-control @error('login') is-invalid @enderror" autofocus
+                                        autocomplete="username" name="login">
                                     <span class="profile-views"><i class="fas fa-user"></i></span>
 
                                     @if ($errors->has('login'))
@@ -117,18 +125,21 @@
 
                                 <div class="form-group">
                                     <label>Password<span class="login-danger">*</span></label>
-                                    <input type="password" class="form-control pass-input1 @error('password') is-invalid @enderror" name="password" autocomplete="current-password">
+                                    <input type="password"
+                                        class="form-control pass-input1 @error('password') is-invalid @enderror"
+                                        name="password" autocomplete="current-password">
                                     <span class="profile-views feather-eye-off toggle-password1"></span>
                                     @if ($errors->has('password'))
-                                    <span class="text-danger mt-2">{{ $errors->first('password') }}</span>
+                                        <span class="text-danger mt-2">{{ $errors->first('password') }}</span>
                                     @endif
                                 </div>
 
                                 <div class="forgotpass">
                                     <div class="remember-me">
-                                        <input class="form-check-input" id="remember_me" type="checkbox" name="remember">
+                                        <input class="form-check-input" id="remember_me" type="checkbox"
+                                            name="remember">
                                         <label class="form-check-label mt-1" for="remember_me">
-                                         Remember me
+                                            Remember me
                                         </label>
                                     </div>
                                     <div>
@@ -171,37 +182,36 @@
             var successSound = document.querySelector('.successSound');
             var errorSound = document.querySelector('.errorSound');
 
-            @if(Session::has('toastr-success'))
-            toastr.success("{{ Session::get('toastr-success') }}");
-            successSound.play();
+            @if (Session::has('toastr-success'))
+                toastr.success("{{ Session::get('toastr-success') }}");
+                successSound.play();
             @endif
 
-            @if(Session::has('toastr-error'))
-            toastr.error("{{ Session::get('toastr-error') }}");
-            errorSound.play();
+            @if (Session::has('toastr-error'))
+                toastr.error("{{ Session::get('toastr-error') }}");
+                errorSound.play();
             @endif
 
-            @if(Session::has('toastr-warning'))
-            toastr.warning("{{ Session::get('toastr-warning') }}");
+            @if (Session::has('toastr-warning'))
+                toastr.warning("{{ Session::get('toastr-warning') }}");
             @endif
 
-            @if(Session::has('toastr-info'))
-            toastr.info("{{ Session::get('toastr-info') }}");
+            @if (Session::has('toastr-info'))
+                toastr.info("{{ Session::get('toastr-info') }}");
             @endif
         });
-
     </script>
 
 
- {{-- it will remove the localStorage details, when logout and go to login page script start --}}
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Clear specific items from local storage
-        localStorage.removeItem('selectedLocationId');
-        localStorage.removeItem('selectedLocationName');
-    });
-</script>
-{{-- it will remove the localStorage details, when logout and go to login page script end --}}
+    {{-- it will remove the localStorage details, when logout and go to login page script start --}}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Clear specific items from local storage
+            localStorage.removeItem('selectedLocationId');
+            localStorage.removeItem('selectedLocationName');
+        });
+    </script>
+    {{-- it will remove the localStorage details, when logout and go to login page script end --}}
 
 
 </body>

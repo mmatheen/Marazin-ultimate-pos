@@ -3,10 +3,10 @@
 
         <div class="header-left">
             <a href="{{ route('dashboard') }}" class="logo">
-                <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="Logo" width="100" height="50">
+                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="100" height="50">
             </a>
             <a href="{{ route('dashboard') }}" class="logo logo-small">
-                <img src="{{ asset('assets/img/ARB Logo.png') }}" alt="Logo" width="50" height="50">
+                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="50" height="50">
             </a>
         </div>
         <div class="menu-toggle">
@@ -208,7 +208,7 @@
                         if (response.status === 200) {
                             updateLocationDisplay(locationId, locationName);
                             window.location
-                        .reload(); // Refresh to update session-based content
+                                .reload(); // Refresh to update session-based content
                         }
                     },
                     error: function() {
