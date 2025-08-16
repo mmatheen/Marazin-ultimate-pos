@@ -34,10 +34,8 @@ class CustomerController extends Controller
 
     public function index()
     {
-        // Works for Breeze (web) & Sanctum (API)
         $user = auth()->user();
 
-        // If no authenticated user → return unauthorized
         if (!$user) {
             return response()->json([
                 'status' => 401,
@@ -45,35 +43,35 @@ class CustomerController extends Controller
             ], 401);
         }
 
-        // Start query — bypass location scope
+        // Start query — bypass location scope (we handle filtering manually)
         $query = Customer::withoutLocationScope()
             ->with(['sales', 'salesReturns', 'payments', 'city']);
 
-        // Apply filter if user is sales rep
-        $query = $this->applySalesRepFilter($query, $user);
+        if ($user->isSalesRep()) {
+            $query = $this->applySalesRepFilter($query, $user);
+        }
 
-        // Fetch and format results
         $customers = $query->orderBy('first_name')
             ->get()
             ->map(function ($customer) {
                 return [
-                    'id'               => $customer->id,
-                    'prefix'           => $customer->prefix,
-                    'first_name'       => $customer->first_name,
-                    'last_name'        => $customer->last_name,
-                    'full_name'        => $customer->full_name,
-                    'mobile_no'        => $customer->mobile_no,
-                    'email'            => $customer->email,
-                    'address'          => $customer->address,
-                    'location_id'      => $customer->location_id,
-                    'opening_balance'  => (float) $customer->opening_balance,
-                    'current_balance'  => (float) $customer->current_balance,
-                    'total_sale_due'   => (float) $customer->total_sale_due,
-                    'total_return_due' => (float) $customer->total_return_due,
-                    'current_due'      => (float) $customer->current_due,
-                    'city_id'          => $customer->city_id,
-                    'city_name'        => $customer->city?->name ?? '',
-                    'credit_limit'     => (float) $customer->credit_limit,
+                    'id'                  => $customer->id,
+                    'prefix'              => $customer->prefix,
+                    'first_name'          => $customer->first_name,
+                    'last_name'           => $customer->last_name,
+                    'full_name'           => $customer->full_name,
+                    'mobile_no'           => $customer->mobile_no,
+                    'email'               => $customer->email,
+                    'address'             => $customer->address,
+                    'location_id'         => $customer->location_id,
+                    'opening_balance'     => (float) $customer->opening_balance,
+                    'current_balance'     => (float) $customer->current_balance,
+                    'total_sale_due'      => (float) $customer->total_sale_due,
+                    'total_return_due'    => (float) $customer->total_return_due,
+                    'current_due'         => (float) $customer->current_due,
+                    'city_id'             => $customer->city_id,
+                    'city_name'           => $customer->city?->name ?? '',
+                    'credit_limit'        => (float) $customer->credit_limit,
                 ];
             });
 
@@ -81,7 +79,7 @@ class CustomerController extends Controller
             'status'          => 200,
             'message'         => $customers,
             'total_customers' => $customers->count(),
-            'sales_rep_info'  => $this->getSalesRepInfo($user)
+            'sales_rep_info'  => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
         ]);
     }
 
@@ -116,12 +114,6 @@ class CustomerController extends Controller
         return $query;
     }
 
-    /**
-     * Get sales rep info for authenticated user
-     */
-    /**
-     * Get sales rep info for authenticated user
-     */
     private function getSalesRepInfo($user)
     {
         $salesRepAssignments = SalesRep::where('user_id', $user->id)
