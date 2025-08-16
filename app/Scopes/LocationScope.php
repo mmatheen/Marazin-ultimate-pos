@@ -57,8 +57,8 @@ class LocationScope implements Scope
 
         $user = Auth::user();
 
-        // No filter if not logged in or is Super Admin
-        if (!Auth::check() || ($user && $user->hasRole('Super Admin'))) {
+        // No filter if not logged in or is Super Admin (by key column)
+        if (!Auth::check() || ($user && $user->roles->pluck('key')->contains('super_admin'))) {
             return;
         }
 

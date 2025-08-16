@@ -68,15 +68,58 @@ class User extends Authenticatable
         return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
     }
 
-    // app/Models/User.php
-    public function isSalesRep(): bool
-    {
-        $role = strtolower(trim($this->role_name));
-        return in_array($role, ['Sales Rep', 'sales rep', 'salesrep', 'sales representative']);
-    }
-
     public function salesRep()
     {
         return $this->hasOne(SalesRep::class, 'user_id');
+    }
+
+    /**
+     * Check if user has the Sales Rep role (via role key)
+     */
+    public function isSalesRep(): bool
+    {
+        return $this->roles()->where('key', 'sales_rep')->exists();
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->roles()->where('key', 'admin')->exists();
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->roles()->where('key', 'super_admin')->exists();
+    }
+
+    public function isManager(): bool
+    {
+        return $this->roles()->where('key', 'manager')->exists();
+    }
+
+    public function isCashier(): bool
+    {
+        return $this->roles()->where('key', 'cashier')->exists();
+    }
+
+    public function isPosUser(): bool
+    {
+        return $this->roles()->where('key', 'pos_user')->exists();
+    }
+
+    public function isRetailUser(): bool
+    {
+        return $this->roles()->where('key', 'retail_user')->exists();
+    }
+
+    // Optional: Get the primary role key
+    public function getRoleKey(): ?string
+    {
+        return $this->roles->first()?->key;
+    }
+
+    // Optional: Get display role name
+    public function getRoleName(): ?string
+    {
+        return $this->roles->first()?->name;
     }
 }

@@ -281,7 +281,7 @@
                         $('#user_id').empty().append('<option value="">Select User</option>');
                         if (res.message && Array.isArray(res.message)) {
                             res.message
-                                .filter(u => u.role?.toLowerCase() === 'sales rep')
+                                .filter(u => u.role_key === 'sales_rep') // ✅ Filter by canonical key
                                 .forEach(u => {
                                     $('#user_id').append(
                                         `<option value="${u.id}">${u.user_name} (${u.email})</option>`
@@ -289,7 +289,8 @@
                                 });
                         }
                         if (userId) $('#user_id').val(userId);
-                    }
+                    },
+                    error: () => toastr.error('Failed to load users.')
                 });
 
                 // Load Vehicles
@@ -306,7 +307,8 @@
                             });
                         }
                         if (vehicleId) $('#vehicle_id').val(vehicleId);
-                    }
+                    },
+                    error: () => toastr.error('Failed to load vehicles.')
                 });
 
                 // Load Routes
@@ -324,7 +326,8 @@
                                     );
                                 });
                         }
-                    }
+                    },
+                    error: () => toastr.error('Failed to load routes.')
                 });
             }
 

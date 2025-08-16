@@ -5,41 +5,41 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role; //it will use the role from permission modal
 use Illuminate\Support\Facades\Validator;
+
 class RoleController extends Controller
 {
 
     function __construct()
     {
-        $this->middleware('permission:view role', ['only' => ['index', 'show','role']]);
+        $this->middleware('permission:view role', ['only' => ['index', 'show', 'role']]);
         $this->middleware('permission:create role', ['only' => ['store']]);
         $this->middleware('permission:edit role', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role', ['only' => ['destroy']]);
     }
 
-    public function role(){
+    public function role()
+    {
         return view('role.role');
     }
 
     public function index()
     {
-        $getValue = Role::all();
-        if ($getValue->count() > 0) {
+        $roles = Role::select('id', 'name', 'key')->get(); // Include key
 
+        if ($roles->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
+                'message' => $roles
             ]);
         }
+
+        return response()->json(['status' => 404, 'message' => 'No Roles Found!']);
     }
+
 
     public function SelectRoleNameDropdown()
     {
-        $roles = Role::select('id','name')->get();
+        $roles = Role::select('id', 'name')->get();
 
         // Check if the collection is not empty
         if ($roles->isNotEmpty()) {
@@ -73,39 +73,28 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        // dd($request->all());
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'name' => 'required|string|max:50|unique:roles,name',
-            ]
-        );
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:50|unique:roles,name',
+            'key'  => 'required|string|in:super_admin,admin,manager,sales_rep,cashier,pos_user,retail_user|unique:roles,key',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
             ]);
-        } else {
-
-            $getValue = Role::create([
-                'name' => $request->name,
-
-            ]);
-
-
-            if ($getValue) {
-                return response()->json([
-                    'status' => 200,
-                    'message' => "New Role Details Created Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 500,
-                    'message' => "Something went wrong!"
-                ]);
-            }
         }
+
+        $role = Role::create([
+            'name' => $request->name,
+            'guard_name' => 'web',
+            'key' => $request->key,
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Role created successfully!'
+        ]);
     }
 
     /**
@@ -135,20 +124,13 @@ class RoleController extends Controller
      * @param  \App\Models\Lecturer  $lecturer
      * @return \Illuminate\Http\Response
      */
-    public function edit(int $id)
+    public function edit($id)
     {
-        $getValue = Role::find($id);
-        if ($getValue) {
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Such Role Found!"
-            ]);
+        $role = Role::select('id', 'name', 'key')->find($id);
+        if ($role) {
+            return response()->json(['status' => 200, 'message' => $role]);
         }
+        return response()->json(['status' => 404, 'message' => 'Role not found.']);
     }
 
     /**
@@ -158,53 +140,31 @@ class RoleController extends Controller
      * @param  \App\Models\Lecturer  $lecturer
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, int $id)
+    public function update(Request $request, $id)
     {
+        $role = Role::find($id);
+        if (!$role) {
+            return response()->json(['status' => 404, 'message' => 'Role not found.']);
+        }
 
-           // Fetch the user by ID
-           $roleDetails = Role::find($id);
-
-           // Check if the user exists
-           if (!$roleDetails) {
-               return response()->json([
-                   'status' => 404,
-                   'message' => "No Such Role Found!"
-               ]);
-           }
-
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'name' => 'required|string|max:50|unique:roles,name,'. $roleDetails->id, // Unique name except for current role,
-            ]
-        );
-
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:50|unique:roles,name,' . $id,
+            'key'  => 'required|string|in:super_admin,admin,manager,sales_rep,cashier,pos_user,retail_user|unique:roles,key,' . $id,
+        ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'status' => 400,
-                'errors' => $validator->messages()
-            ]);
-        } else {
-            $getValue = Role::find($id);
-
-            if ($getValue) {
-                $getValue->update([
-
-                    'name' => $request->name,
-
-                ]);
-                return response()->json([
-                    'status' => 200,
-                    'message' => "Old Role  Details Updated Successfully!"
-                ]);
-            } else {
-                return response()->json([
-                    'status' => 404,
-                    'message' => "No Such Role Found!"
-                ]);
-            }
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
+
+        $role->update([
+            'name' => $request->name,
+            'key' => $request->key,
+        ]);
+
+        return response()->json([
+            'status' => 200,
+            'message' => 'Role updated successfully!'
+        ]);
     }
 
     /**

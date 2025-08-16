@@ -23,6 +23,8 @@ class UserController extends Controller
         return view('user.user');
     }
 
+    // app/Http/Controllers/UserController.php
+
     public function index()
     {
         $users = User::with(['roles', 'locations'])->get();
@@ -31,13 +33,15 @@ class UserController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => $users->map(function ($user) {
+                    $role = $user->roles->first(); // Assume one role per user (or pick primary)
                     return [
                         'id' => $user->id,
                         'name_title' => $user->name_title,
                         'full_name' => $user->full_name,
                         'user_name' => $user->user_name,
                         'email' => $user->email,
-                        'role' => $user->getRoleNames()->first(),
+                        'role' => $role?->name ?? '—',        // Display name
+                        'role_key' => $role?->key ?? '—',     // Canonical key
                         'locations' => $user->locations->pluck('name')->toArray(),
                     ];
                 }),
