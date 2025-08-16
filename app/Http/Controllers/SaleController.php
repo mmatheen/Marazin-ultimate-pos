@@ -763,7 +763,10 @@ class SaleController extends Controller
 
             try {
                 $mobileNo = ltrim($customer->mobile_no, '0');
-                if (!empty($mobileNo)) {
+                $whatsAppApiUrl = env('WHATSAPP_API_URL'); // load from .env
+
+                if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
+
                     // Render the 80mm thermal receipt view to HTML
                     $thermalHtml = view('sell.receipt', [
                         'sale' => $sale,
@@ -777,27 +780,22 @@ class SaleController extends Controller
                         'location' => $location,
                     ])->render();
 
-                    // Generate PDF for 80mm thermal paper (set custom paper size)
+                    // Generate PDF (no saving to disk)
                     $pdf = Pdf::loadHTML($thermalHtml)
-                        ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm x 297mm in points
-
+                        ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm x 297mm
                     $pdfContent = $pdf->output();
 
-                    // Temporarily save PDF to local storage
-                    $pdfPath = public_path('assets/images/invoice_' . $sale->invoice_no . '_80mm.pdf');
-                    file_put_contents($pdfPath, $pdfContent);
-
-                    // Prepare multipart form-data request using Http::withHeaders()->attach()
-                    $response = Http::withHeaders([
-                        // 'Content-Type' will be set automatically for multipart form-data
-                    ])->attach(
-                        'files',
-                        file_get_contents($pdfPath),
-                        "invoice_{$sale->invoice_no}_80mm.pdf"
-                    )->post(env('WHATSAPP_API_URL'), [
-                        'number' => "+94" . $mobileNo,
-                        'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs. {$sale->final_total}. Thank you for your business!",
-                    ]);
+                    // Send to WhatsApp API
+                    $response = Http::withHeaders([])
+                        ->attach(
+                            'files',
+                            $pdfContent, // Directly attach binary content
+                            "invoice_{$sale->invoice_no}_80mm.pdf"
+                        )
+                        ->post($whatsAppApiUrl, [
+                            'number' => "+94" . $mobileNo,
+                            'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs. {$sale->final_total}. Thank you for your business!",
+                        ]);
 
                     if ($response->successful()) {
                         Log::info('WhatsApp message sent successfully to: ' . $mobileNo);
@@ -805,11 +803,13 @@ class SaleController extends Controller
                         Log::error('WhatsApp send failed: ' . $response->body());
                     }
                 } else {
-                    Log::warning('WhatsApp not sent: customer mobile number is missing.');
+                    Log::info("WhatsApp skipped: API URL not set or mobile number missing.");
                 }
             } catch (\Exception $ex) {
                 Log::error('WhatsApp send error: ' . $ex->getMessage());
             }
+
+
 
 
             return response()->json([

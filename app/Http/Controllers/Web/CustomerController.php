@@ -34,84 +34,122 @@ class CustomerController extends Controller
 
     public function index()
     {
+        // Works for Breeze (web) & Sanctum (API)
         $user = auth()->user();
 
-        // Bypass location scope → we'll filter by route cities instead
-        $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+        // If no authenticated user → return unauthorized
+        if (!$user) {
+            return response()->json([
+                'status' => 401,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
 
-        // Apply sales rep route filter
+        // Start query — bypass location scope
+        $query = Customer::withoutLocationScope()
+            ->with(['sales', 'salesReturns', 'payments', 'city']);
+
+        // Apply filter if user is sales rep
         $query = $this->applySalesRepFilter($query, $user);
 
+        // Fetch and format results
         $customers = $query->orderBy('first_name')
             ->get()
             ->map(function ($customer) {
                 return [
-                    'id' => $customer->id,
-                    'prefix' => $customer->prefix,
-                    'first_name' => $customer->first_name,
-                    'last_name' => $customer->last_name,
-                    'full_name' => $customer->full_name,
-                    'mobile_no' => $customer->mobile_no,
-                    'email' => $customer->email,
-                    'address' => $customer->address,
-                    'location_id' => $customer->location_id,
-                    'opening_balance' => (float) $customer->opening_balance,
-                    'current_balance' => (float) $customer->current_balance,
-                    'total_sale_due' => (float) $customer->total_sale_due,
+                    'id'               => $customer->id,
+                    'prefix'           => $customer->prefix,
+                    'first_name'       => $customer->first_name,
+                    'last_name'        => $customer->last_name,
+                    'full_name'        => $customer->full_name,
+                    'mobile_no'        => $customer->mobile_no,
+                    'email'            => $customer->email,
+                    'address'          => $customer->address,
+                    'location_id'      => $customer->location_id,
+                    'opening_balance'  => (float) $customer->opening_balance,
+                    'current_balance'  => (float) $customer->current_balance,
+                    'total_sale_due'   => (float) $customer->total_sale_due,
                     'total_return_due' => (float) $customer->total_return_due,
-                    'current_due' => (float) $customer->current_due,
-                    'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? 'Walk-in Customer',
-                    'credit_limit' => (float) $customer->credit_limit,
+                    'current_due'      => (float) $customer->current_due,
+                    'city_id'          => $customer->city_id,
+                    'city_name'        => $customer->city?->name ?? '',
+                    'credit_limit'     => (float) $customer->credit_limit,
                 ];
             });
 
         return response()->json([
-            'status' => 200,
-            'message' => $customers,
+            'status'          => 200,
+            'message'         => $customers,
             'total_customers' => $customers->count(),
-            'sales_rep_info' => $this->getSalesRepInfo($user)
+            'sales_rep_info'  => $this->getSalesRepInfo($user)
         ]);
     }
 
+    /**
+     * Apply filter for sales reps based on cities in their active route assignments
+     */
     private function applySalesRepFilter($query, $user)
     {
-        $salesRep = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
+        // Get all **active** SalesRep assignments for this user
+        $salesRepAssignments = SalesRep::where('user_id', $user->id)
+            ->where('status', 'active') // SalesRep assignment is active
+            ->with(['route' => function ($q) {
+                $q->where('status', 'active'); // Only include routes that are active
+            }, 'route.cities'])
+            ->get();
 
-        if ($salesRep && $salesRep->route) {
-            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+        // Extract all city IDs from all active routes
+        $cityIds = $salesRepAssignments
+            ->pluck('route.cities') // Get cities from each route
+            ->flatten()
+            ->pluck('id')
+            ->unique()
+            ->toArray();
 
-            if (!empty($routeCityIds)) {
-                $query->whereIn('city_id', $routeCityIds);
-            } else {
-                $query->whereNull('city_id');
-            }
+        if (!empty($cityIds)) {
+            $query->whereIn('city_id', $cityIds);
+        } else {
+            // No cities assigned → only show walk-in customers (city_id = null)
+            $query->whereNull('city_id');
         }
 
         return $query;
     }
 
+    /**
+     * Get sales rep info for authenticated user
+     */
+    /**
+     * Get sales rep info for authenticated user
+     */
     private function getSalesRepInfo($user)
     {
-        $salesRep = SalesRep::where('user_id', $user->id)
+        $salesRepAssignments = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
+            ->with(['route' => function ($q) {
+                $q->where('status', 'active');
+            }, 'route.cities'])
+            ->get();
 
-        if (!$salesRep || !$salesRep->route) {
+        if ($salesRepAssignments->isEmpty() || !$salesRepAssignments->contains('route')) {
             return null;
         }
 
+        // Collect all unique cities across all active routes
+        $allCities = $salesRepAssignments
+            ->pluck('route.cities')
+            ->flatten()
+            ->unique('id');
+
         return [
-            'route_name' => $salesRep->route->name,
-            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
-            'total_cities' => $salesRep->route->cities->count(),
-            'sales_rep_id' => $salesRep->id
+            'assigned_routes' => $salesRepAssignments->pluck('route.name')->filter()->toArray(),
+            'total_routes'    => $salesRepAssignments->count(),
+            'assigned_cities' => $allCities->pluck('name')->toArray(),
+            'total_cities'    => $allCities->count(),
+            'sales_rep_id'    => $salesRepAssignments->first()->id,
         ];
     }
+
 
 
     public function store(Request $request)

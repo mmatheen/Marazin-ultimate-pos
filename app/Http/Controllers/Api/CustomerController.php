@@ -79,58 +79,76 @@ class CustomerController extends Controller
                 ];
             });
 
-                return response()->json([
-                    'status'          => 200,
-                    'message'         => $customers,
-                    'total_customers' => $customers->count(),
-                    'sales_rep_info'  => $this->getSalesRepInfo($user)
-                ]);
+        return response()->json([
+            'status'          => 200,
+            'message'         => $customers,
+            'total_customers' => $customers->count(),
+            'sales_rep_info'  => $this->getSalesRepInfo($user)
+        ]);
     }
 
     /**
-     * Apply filter for sales reps based on route cities
+     * Apply filter for sales reps based on cities in their active route assignments
      */
     private function applySalesRepFilter($query, $user)
-                    {
-                        $salesRep = SalesRep::where('user_id', $user->id)
-                            ->where('status', 'active')
-                            ->with(['route.cities'])
-                            ->first();
+    {
+        // Get all **active** SalesRep assignments for this user
+        $salesRepAssignments = SalesRep::where('user_id', $user->id)
+            ->where('status', 'active') // SalesRep assignment is active
+            ->with(['route' => function ($q) {
+                $q->where('status', 'active'); // Only include routes that are active
+            }, 'route.cities'])
+            ->get();
 
-        if ($salesRep && $salesRep->route) {
-            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+        // Extract all city IDs from all active routes
+        $cityIds = $salesRepAssignments
+            ->pluck('route.cities') // Get cities from each route
+            ->flatten()
+            ->pluck('id')
+            ->unique()
+            ->toArray();
 
-            if (!empty($routeCityIds)) {
-                $query->whereIn('city_id', $routeCityIds);
-            } else {
-                // No assigned cities → only walk-in customers
-                $query->whereNull('city_id');
-            }
+        if (!empty($cityIds)) {
+            $query->whereIn('city_id', $cityIds);
+        } else {
+            // No cities assigned → only show walk-in customers (city_id = null)
+            $query->whereNull('city_id');
         }
 
-        // If not a sales rep → return unfiltered
         return $query;
     }
 
     /**
      * Get sales rep info for authenticated user
      */
+    /**
+     * Get sales rep info for authenticated user
+     */
     private function getSalesRepInfo($user)
     {
-        $salesRep = SalesRep::where('user_id', $user->id)
+        $salesRepAssignments = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['route.cities'])
-            ->first();
+            ->with(['route' => function ($q) {
+                $q->where('status', 'active');
+            }, 'route.cities'])
+            ->get();
 
-        if (!$salesRep || !$salesRep->route) {
+        if ($salesRepAssignments->isEmpty() || !$salesRepAssignments->contains('route')) {
             return null;
         }
 
+        // Collect all unique cities across all active routes
+        $allCities = $salesRepAssignments
+            ->pluck('route.cities')
+            ->flatten()
+            ->unique('id');
+
         return [
-            'route_name'      => $salesRep->route->name,
-            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
-            'total_cities'    => $salesRep->route->cities->count(),
-            'sales_rep_id'    => $salesRep->id
+            'assigned_routes' => $salesRepAssignments->pluck('route.name')->filter()->toArray(),
+            'total_routes'    => $salesRepAssignments->count(),
+            'assigned_cities' => $allCities->pluck('name')->toArray(),
+            'total_cities'    => $allCities->count(),
+            'sales_rep_id'    => $salesRepAssignments->first()->id,
         ];
     }
 
