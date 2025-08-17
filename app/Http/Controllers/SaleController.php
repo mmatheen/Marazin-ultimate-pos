@@ -817,7 +817,8 @@ class SaleController extends Controller
                 'invoice_html' => $html
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'An error occurred while processing the sale.'], 400);
+            return response()->json(['message' => $e->getMessage()], 400);
+            
         }
     }
 
