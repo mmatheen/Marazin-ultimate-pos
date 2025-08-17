@@ -23,18 +23,20 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
-    {
-        Schema::defaultStringLength(191);
-        $this->DbBackup();
+   public function boot(): void
+        {
+            Schema::defaultStringLength(191);
+            $this->DbBackup();
 
-        View::composer('*', function ($view) {
-            $activeSetting = Cache::remember('active_setting', 3600, function () {
-                return Setting::where('is_active', true)->first();
+            View::composer('*', function ($view) {
+                // Get the single setting (only one exists)
+                $activeSetting = Cache::remember('active_setting', 3600, function () {
+                    return Setting::first(); // ← No is_active filter, just get the only setting
+                });
+
+                $view->with('activeSetting', $activeSetting);
             });
-            $view->with('activeSetting', $activeSetting);
-        });
-    }
+        }
 
     private function DbBackup()
     {

@@ -9,10 +9,11 @@
     <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}"> --}}
     <!-- Dynamic App Name in Title -->
     <meta charset="UTF-8">
-    <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
+   <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
 
     <!-- Dynamic Favicon -->
     <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="autocomplete" content="off">
@@ -37,6 +38,8 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/css/tom-select.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 
+
+    
 
     <style>
         @media (max-width: 575.98px) {

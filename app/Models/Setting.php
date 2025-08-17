@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 class Setting extends Model
 {
@@ -14,56 +14,21 @@ class Setting extends Model
         'app_name',
         'logo',
         'favicon',
-        'is_active'
+       
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
-
-    // Ensure only one active setting
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::saving(function ($setting) {
-            if ($setting->is_active) {
-                // Deactivate all others
-                self::where('id', '!=', $setting->id)->update(['is_active' => false]);
-            } else {
-                // If no active setting exists, make this one active
-                if (!self::where('is_active', true)->exists() && !$setting->exists) {
-                    $setting->is_active = true;
-                }
-            }
-        });
-
-        static::saved(function ($setting) {
-            // Clear cache whenever a setting is saved
-            Cache::forget('active_setting');
-        });
-
-        static::deleted(function ($setting) {
-            // Clear cache whenever a setting is deleted
-            Cache::forget('active_setting');
-        });
-    }
-
-    // Accessor: Logo URL with fallback
+    // Accessor: Full URL for logo
     public function getLogoUrlAttribute()
     {
-        if ($this->logo) {
-            return asset('storage/settings/' . $this->logo);
-        }
-        return asset('assets/img/ARB Logo.png'); // fallback
+        return $this->logo ? Storage::url('settings/' . $this->logo) : asset('assets/img/ARB Logo.png');
     }
 
-    // Accessor: Favicon URL
+    // Accessor: Full URL for favicon
     public function getFaviconUrlAttribute()
     {
         if ($this->favicon) {
             return asset('storage/settings/' . $this->favicon);
         }
-        return asset('favicon.ico'); // fallback
+        return asset('assets/img/favicon.ico'); // Fallback favicon
     }
 }

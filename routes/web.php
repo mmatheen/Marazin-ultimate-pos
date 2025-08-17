@@ -417,13 +417,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
 
         // -------------------- Site Setting Routes --------------------
-        Route::get('/site-settings', [SettingController::class, 'index'])->name('site.setting');
-        Route::get('/site-settings/all', [SettingController::class, 'getAllSettings'])->name('site.setting.all');
-        Route::get('/site-settings/{id}', [SettingController::class, 'show'])->name('site.setting.show');
-        Route::post('/site-settings/store', [SettingController::class, 'store'])->name('site.setting.store');
-        Route::post('/site-settings/update/{id}', [SettingController::class, 'update'])->name('site.setting.update');
-        Route::post('/site-settings/activate/{id}', [SettingController::class, 'activate'])->name('site.setting.activate');
-        Route::get('/site-settings/active', [SettingController::class, 'getActiveSetting'])->name('site.setting.active');
-        Route::delete('/site-settings/delete/{id}', [SettingController::class, 'destroy'])->name('site.setting.delete');
+      Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
+        Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
     });
 });

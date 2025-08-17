@@ -313,7 +313,7 @@
 
                             {{-- site- settings --}}
                             {{-- @can('view site-setting') --}}
-                            <li><a href="{{ route('site.setting') }}" class="{{ set_active(['site.setting']) }}">Site
+                            <li><a href="{{ route('settings.index') }}" class="{{ set_active(['settings.index']) }}">Site
                                     Settings</a></li>
                             {{-- @endcan --}}
                         </ul>

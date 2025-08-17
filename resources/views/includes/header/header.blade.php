@@ -1,14 +1,14 @@
 <div>
     <div class="header">
 
-        <div class="header-left">
-            <a href="{{ route('dashboard') }}" class="logo">
-                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="100" height="50">
-            </a>
-            <a href="{{ route('dashboard') }}" class="logo logo-small">
-                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="50" height="50">
-            </a>
-        </div>
+       <div class="header-left">
+        <a href="{{ route('dashboard') }}" class="logo">
+            <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="100" height="50">
+        </a>
+        <a href="{{ route('dashboard') }}" class="logo logo-small">
+            <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="50" height="50">
+        </a>
+    </div>
         <div class="menu-toggle">
             <a href="javascript:void(0);" id="toggle_btn">
                 <i class="fas fa-bars"></i>
