@@ -24,41 +24,35 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle login for both web and API.
      */
-     public function store(Request $request)
+    public function store(Request $request)
     {
-        // Validate input
-        $request->validate([
-            'login' => ['required', 'string'],
-            'password' => ['required', 'string'],
-        ]);
-
         $login = $request->input('login');
         $password = $request->input('password');
 
-        // Detect if email or username
+        // Determine if login is email or username
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name';
 
         // Check if it's an API request
         $isApi = $request->expectsJson() || str_starts_with($request->path(), 'api/');
 
-        // Find user by field
+        // Find user
         $user = User::where($field, $login)->first();
 
-        // Validate credentials
+        // Validate credentials manually for better API control
         if (!$user || !Hash::check($password, $user->password)) {
             if ($isApi) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Invalid credentials.'
+                    'message' => 'The provided credentials do not match our records.'
                 ], 401);
             }
 
-            throw ValidationException::withMessages([
-                'login' => ['The provided credentials are incorrect.']
+            return back()->withErrors([
+                'login' => 'The provided credentials do not match our records.'
             ]);
         }
 
-        // ✅ Web Login: Authenticate session
+        // ✅ Log in via web guard (for web sessions)
         if (!$isApi) {
             Auth::login($user, $request->boolean('remember'));
 
@@ -70,8 +64,8 @@ class AuthenticatedSessionController extends Controller
                 }
             }
 
+          // Web login
             session()->regenerate();
-
             return redirect()->intended(RouteServiceProvider::HOME)
                 ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.");
         }
@@ -86,17 +80,9 @@ class AuthenticatedSessionController extends Controller
             'user' => [
                 'id' => $user->id,
                 'user_name' => $user->user_name,
-                'first_name' => $user->first_name ?? null,
-                'last_name' => $user->last_name ?? null,
-                'email' => $user->email,
                 'role_name' => $user->getRoleNames()->first() ?? null,
-                'locations' => $user->locations ? $user->locations->map(function ($loc) {
-                    return [
-                        'id' => $loc->id,
-                        'name' => $loc->name,
-                        'code' => $loc->code ?? null,
-                    ];
-                }) : [],
+                'email' => $user->email,
+                'locations' => $user->locations ?? []
             ]
         ], 200);
     }

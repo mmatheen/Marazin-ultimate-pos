@@ -15,11 +15,15 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort()
-    ))),
+    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', implode(',', [
+        'localhost',
+        'localhost:3000',
+        '127.0.0.1',
+        '127.0.0.1:8000',
+        '192.168.56.1:8000',
+        '::1',
+        \Laravel\Sanctum\Sanctum::currentApplicationUrlWithPort(),
+    ]))),
 
     /*
     |--------------------------------------------------------------------------
@@ -33,7 +37,7 @@ return [
     |
     */
 
-    'guard' => ['web'],
+      'guard' => [], // ← Change from ['web'] to []
 
     /*
     |--------------------------------------------------------------------------

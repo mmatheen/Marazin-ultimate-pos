@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SaleController;
+// use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
@@ -43,7 +43,8 @@ use App\Http\Controllers\Api\{
   SalesRepTargetController,
   VehicleTrackingController,
   ProductController,
-  CustomerController
+  CustomerController,
+  SaleController
 };
 
 
@@ -219,6 +220,8 @@ Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::clas
 // Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
   Route::get('/customer-get-all', [CustomerController::class, 'index']);
+  Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+  Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 });
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
