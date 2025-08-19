@@ -347,7 +347,7 @@ class SaleController extends Controller
     }
 
 
-   public function storeOrUpdate(Request $request, $id = null)
+  public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
@@ -404,16 +404,50 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->errors()], 400);
         }
 
-        // ✅ Check authentication BEFORE transaction
-        $userId = auth()->id();
-        if (!$userId) {
-            Log::error("Auth failed: No user ID. Token: " . $request->header('Authorization'));
+        // ✅ FIXED: Proper Sanctum authentication check
+        try {
+            // Try Sanctum authentication first (for mobile/API)
+            $user = $request->user('sanctum');
             
-                    Log::info("Auth Check Start");
-                    Log::info("Header: " . $request->header('Authorization'));
-                    Log::info("Bearer Token: " . $request->bearerToken());
-                    Log::info("User ID: " . auth()->id());
-                    Log::info("User: " . json_encode($request->user()));
+            if (!$user) {
+                // Fallback to web auth guard (for web sessions)
+                $user = $request->user();
+            }
+            
+            if (!$user) {
+                Log::error("Authentication failed", [
+                    'bearer_token' => $request->bearerToken() ? 'present' : 'missing',
+                    'authorization_header' => $request->header('Authorization') ? 'present' : 'missing',
+                    'session_token' => $request->session()->token() ?? 'none',
+                    'user_agent' => $request->userAgent(),
+                    'ip' => $request->ip()
+                ]);
+                
+                return response()->json([
+                    'status' => 401,
+                    'message' => 'Unauthenticated. Please login again.',
+                    'errors' => ['auth' => ['Invalid or expired token']]
+                ], 401);
+            }
+            
+            $userId = $user->id;
+            
+            Log::info("Authentication successful", [
+                'user_id' => $userId,
+                'user_email' => $user->email ?? 'N/A',
+                'auth_method' => $request->bearerToken() ? 'sanctum' : 'web'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Authentication exception: " . $e->getMessage(), [
+                'exception' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'status' => 401,
+                'message' => 'Authentication error occurred.',
+                'errors' => ['auth' => ['Authentication system error']]
+            ], 401);
         }
         
         try {
@@ -502,7 +536,6 @@ class SaleController extends Controller
                     throw new \Exception("Credit limit exceeded for {$customer->full_name}. Current balance: {$currentBalance}, Sale amount due after payment: {$netSaleAmount}, Credit limit: {$customer->credit_limit}");
                 }
 
-
                 // ----- Save Sale -----
                 $sale->fill([
                     'customer_id' => $request->customer_id,
@@ -571,39 +604,41 @@ class SaleController extends Controller
                     }
 
                     $totalPaidFromPayments = 0;
-                    foreach ($request->payments as $paymentData) {
-                        $payment = Payment::create([
-                            'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-                            'amount' => $paymentData['amount'],
-                            'payment_method' => $paymentData['payment_method'],
-                            'reference_no' => $referenceNo,
-                            'notes' => $paymentData['notes'] ?? '',
-                            'payment_type' => 'sale',
-                            'reference_id' => $sale->id,
-                            'customer_id' => $request->customer_id,
-                            'card_number' => $paymentData['card_number'] ?? null,
-                            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                            'card_security_code' => $paymentData['card_security_code'] ?? null,
-                            'cheque_number' => $paymentData['cheque_number'] ?? null,
-                            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                            'cheque_received_date' => (isset($paymentData['cheque_received_date']) && $paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                            'cheque_valid_date' => (isset($paymentData['cheque_valid_date']) && $paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                        ]);
-                        $totalPaidFromPayments += $paymentData['amount'];
+                    if (!empty($request->payments)) {
+                        foreach ($request->payments as $paymentData) {
+                            $payment = Payment::create([
+                                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                                'amount' => $paymentData['amount'],
+                                'payment_method' => $paymentData['payment_method'],
+                                'reference_no' => $referenceNo,
+                                'notes' => $paymentData['notes'] ?? '',
+                                'payment_type' => 'sale',
+                                'reference_id' => $sale->id,
+                                'customer_id' => $request->customer_id,
+                                'card_number' => $paymentData['card_number'] ?? null,
+                                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                                'card_security_code' => $paymentData['card_security_code'] ?? null,
+                                'cheque_number' => $paymentData['cheque_number'] ?? null,
+                                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                                'cheque_received_date' => (isset($paymentData['cheque_received_date']) && $paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                                'cheque_valid_date' => (isset($paymentData['cheque_valid_date']) && $paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                            ]);
+                            $totalPaidFromPayments += $paymentData['amount'];
 
-                        Ledger::create([
-                            'transaction_date' => $payment->payment_date,
-                            'reference_no' => $referenceNo,
-                            'transaction_type' => 'payments',
-                            'debit' => $payment->amount,
-                            'credit' => 0,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                            'contact_type' => 'customer',
-                            'user_id' => $request->customer_id,
-                        ]);
+                            Ledger::create([
+                                'transaction_date' => $payment->payment_date,
+                                'reference_no' => $referenceNo,
+                                'transaction_type' => 'payments',
+                                'debit' => $payment->amount,
+                                'credit' => 0,
+                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                'contact_type' => 'customer',
+                                'user_id' => $request->customer_id,
+                            ]);
+                        }
                     }
 
                     $amountGiven = $request->amount_given ?? $finalTotal;
@@ -673,35 +708,49 @@ class SaleController extends Controller
                 return $sale;
             });
 
+            // REPLACE THE RECEIPT GENERATION SECTION (around line 740-760) WITH:
             // ✅ Generate receipt
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
 
-            // ✅ Fallback user if missing
-            $user = User::find($sale->user_id);
-            if (!$user) {
-                Log::warning("User with ID {$sale->user_id} not found for sale ID {$sale->id}");
-                $user = (object) [
-                    'user_name' => 'Unknown',
-                    'first_name' => 'Unknown',
-                    'last_name' => 'User',
-                    'email' => 'unknown@marazin.com',
-                    'mobile_no' => 'N/A'
-                ];
+            // ✅ Get authenticated user for receipt (use current authenticated user)
+            $authenticatedUser = $request->user('sanctum') ?: $request->user();
+
+            // ✅ Create safe user object for receipt
+            if (!$authenticatedUser) {
+                Log::warning("No authenticated user found for sale ID {$sale->id}, using fallback");
+                $receiptUser = new \stdClass();
+                $receiptUser->user_name = 'System User';
+                $receiptUser->first_name = 'System';
+                $receiptUser->last_name = 'User';
+                $receiptUser->email = 'system@marazin.com';
+                $receiptUser->mobile_no = 'N/A';
                 $location = null;
             } else {
-                // Ensure all expected properties exist
-                $user->user_name = isset($user->user_name) && $user->user_name !== null
-                    ? $user->user_name
-                    : trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
-                $user->first_name = $user->first_name ?? '';
-                $user->last_name = $user->last_name ?? '';
-                $user->email = $user->email ?? '';
-                $user->mobile_no = $user->mobile_no ?? '';
-                $location = method_exists($user, 'locations') ? $user->locations()->first() : null;
+                // Create a new stdClass object to avoid cloning issues
+                $receiptUser = new \stdClass();
+                
+                // Safely extract properties from authenticated user
+                $receiptUser->user_name = $authenticatedUser->user_name ?? 
+                    trim(($authenticatedUser->first_name ?? '') . ' ' . ($authenticatedUser->last_name ?? '')) ?: 'Unknown User';
+                $receiptUser->first_name = $authenticatedUser->first_name ?? 'Unknown';
+                $receiptUser->last_name = $authenticatedUser->last_name ?? 'User';
+                $receiptUser->email = $authenticatedUser->email ?? 'unknown@marazin.com';
+                $receiptUser->mobile_no = $authenticatedUser->mobile_no ?? 'N/A';
+                
+                // Get user location safely
+                $location = null;
+                if (method_exists($authenticatedUser, 'locations')) {
+                    try {
+                        $location = $authenticatedUser->locations()->first();
+                    } catch (\Exception $e) {
+                        Log::warning("Could not fetch user location: " . $e->getMessage());
+                    }
+                }
             }
 
+            // UPDATE ALL VIEW CALLS TO USE $receiptUser INSTEAD OF $user:
             $html = view('sell.receipt', [
                 'sale' => $sale,
                 'customer' => $customer,
@@ -710,27 +759,30 @@ class SaleController extends Controller
                 'total_discount' => $request->discount_amount ?? 0,
                 'amount_given' => $sale->amount_given,
                 'balance_amount' => $sale->balance_amount,
-                'user' => $user,
+                'user' => $receiptUser, // CHANGED FROM $user TO $receiptUser
+                'location' => $location,
+            ])->render();
+
+            // ALSO UPDATE THE WHATSAPP PDF SECTION:
+            $thermalHtml = view('sell.receipt', [
+                'sale' => $sale,
+                'customer' => $customer,
+                'products' => $products,
+                'payments' => $payments,
+                'total_discount' => $request->discount_amount ?? 0,
+                'amount_given' => $sale->amount_given,
+                'balance_amount' => $sale->balance_amount,
+                'user' => $receiptUser, // CHANGED FROM $user TO $receiptUser
                 'location' => $location,
             ])->render();
 
             // ✅ WhatsApp PDF (optional)
             try {
-                $mobileNo = ltrim($customer->mobile_no, '0');
+                $mobileNo = ltrim($customer->mobile_no ?? '', '0');
                 $whatsAppApiUrl = env('WHATSAPP_API_URL');
 
                 if ($mobileNo && $whatsAppApiUrl) {
-                    $thermalHtml = view('sell.receipt', [
-                        'sale' => $sale,
-                        'customer' => $customer,
-                        'products' => $products,
-                        'payments' => $payments,
-                        'total_discount' => $request->discount_amount ?? 0,
-                        'amount_given' => $sale->amount_given,
-                        'balance_amount' => $sale->balance_amount,
-                        'user' => $user,
-                        'location' => $location,
-                    ])->render();
+                    
 
                     $pdf = Pdf::loadHTML($thermalHtml)
                         ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm
@@ -753,13 +805,27 @@ class SaleController extends Controller
             }
 
             return response()->json([
+                'status' => 200,
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'data' => [
+                    'sale_id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'final_total' => $sale->final_total
+                ],
                 'invoice_html' => $html
             ], 200);
 
         } catch (\Exception $e) {
+            Log::error('Sales transaction error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $userId ?? null,
+                'request_data' => $request->except(['password'])
+            ]);
+            
             return response()->json([
-                'message' => $e->getMessage()
+                'status' => 400,
+                'message' => $e->getMessage(),
+                'errors' => ['transaction' => [$e->getMessage()]]
             ], 400);
         }
     }
@@ -964,9 +1030,9 @@ class SaleController extends Controller
             'batch_id' => null,
             'location_id' => $locationId,
             'price_type' => $productData['price_type'],
-            'discount_amount' => $productData['discount_amount'],
-            'discount_type' => $productData['discount_type'],
-            'tax' => $productData['tax'],
+            'discount_amount' => $productData['discount_amount'] ?? 0,
+            'discount_type' => $productData['discount_type'] ?? 'fixed',
+            'tax' => $productData['tax'] ?? 0,
         ]);
 
         // Add stock history for unlimited stock product

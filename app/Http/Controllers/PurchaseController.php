@@ -38,6 +38,8 @@ class PurchaseController extends Controller
 
     public function storeOrUpdate(Request $request, $purchaseId = null)
     {
+
+        // dd($request->all());
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'purchase_date' => 'required|date',
@@ -323,6 +325,10 @@ class PurchaseController extends Controller
         // Calculate the total due and total paid for the purchase
         $totalPaid = Payment::where('reference_id', $purchase->id)->sum('amount');
         $totalDue = $purchase->final_total - $totalPaid;
+
+        dd($totalPaid);
+
+        // dd($totalPaid, $totalDue);
 
         // If the paid amount exceeds total due, adjust it
         $paidAmount = min($request->paid_amount, $totalDue);
