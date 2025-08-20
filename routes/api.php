@@ -222,6 +222,7 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::get('/customer-get-all', [CustomerController::class, 'index']);
   Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
   Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+  Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
 });
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
@@ -304,8 +305,8 @@ Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit'
 Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
 Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
 
-Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
-Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+// Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+// Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
@@ -319,11 +320,9 @@ Route::put('sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpda
 Route::get('sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
 
-Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
-Route::get('sales_details/{id}', [SaleController::class, 'selesDetails']);
+
+Route::get('sales_details/{id}', [SaleController::class, 'salesDetails']);
 // Route::get('sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
-Route::put('sales/{id}', [SaleController::class, 'update'])->name('sales.update');
-Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
 Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
