@@ -418,8 +418,25 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit check
-                $customer = Customer::findOrFail($request->customer_id);
+                // Credit limit check - Get customer with proper error handling for location scope
+                $customer = Customer::find($request->customer_id);
+                
+                if (!$customer) {
+                    // Check if customer exists but is filtered by location scope
+                    $customerExists = Customer::withoutGlobalScopes()->find($request->customer_id);
+                    if ($customerExists) {
+                        // Customer exists but user doesn't have access to their location
+                        $accessibleCustomers = Customer::select('id', 'first_name', 'last_name')
+                            ->limit(5)
+                            ->get()
+                            ->map(fn($c) => "ID: {$c->id} - {$c->first_name} {$c->last_name}")
+                            ->join(', ');
+                        
+                        throw new \Exception("Customer ID {$request->customer_id} is not accessible from your location. Try one of these customers: {$accessibleCustomers}");
+                    } else {
+                        throw new \Exception("Customer ID {$request->customer_id} does not exist.");
+                    }
+                }
 
                 // Calculate payments amount sent in request
                 $paymentAmount = 0;

@@ -11,6 +11,8 @@ use App\Models\SalesRep;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Location; // Ensure Location model is imported
+use App\Models\User; // Ensure User model is imported
 
 class CustomerController extends Controller
 {
@@ -34,6 +36,7 @@ class CustomerController extends Controller
 
     public function index()
     {
+        /** @var User $user */
         $user = auth()->user();
 
         if (!$user) {
