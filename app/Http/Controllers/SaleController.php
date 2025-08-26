@@ -418,25 +418,8 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit check - Get customer with proper error handling for location scope
-                $customer = Customer::find($request->customer_id);
-                
-                if (!$customer) {
-                    // Check if customer exists but is filtered by location scope
-                    $customerExists = Customer::withoutGlobalScopes()->find($request->customer_id);
-                    if ($customerExists) {
-                        // Customer exists but user doesn't have access to their location
-                        $accessibleCustomers = Customer::select('id', 'first_name', 'last_name')
-                            ->limit(5)
-                            ->get()
-                            ->map(fn($c) => "ID: {$c->id} - {$c->first_name} {$c->last_name}")
-                            ->join(', ');
-                        
-                        throw new \Exception("Customer ID {$request->customer_id} is not accessible from your location. Try one of these customers: {$accessibleCustomers}");
-                    } else {
-                        throw new \Exception("Customer ID {$request->customer_id} does not exist.");
-                    }
-                }
+                // Credit limit check
+                $customer = Customer::findOrFail($request->customer_id);
 
                 // Calculate payments amount sent in request
                 $paymentAmount = 0;
@@ -646,25 +629,27 @@ class SaleController extends Controller
                 return $sale;
             });
 
-            // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-
             $user = User::find($sale->user_id);
             $location = $user ? $user->locations()->first() : null;
 
-            $html = view('sell.receipt', [
-                'sale' => $sale,
-                'customer' => $customer,
-                'products' => $products,
-                'payments' => $payments,
-                'total_discount' => $request->discount_amount ?? 0,
-                'amount_given' => $sale->amount_given,
-                'balance_amount' => $sale->balance_amount,
-                'user' => $user,
-                'location' => $location,
-            ])->render();
+        $viewData = [
+            'sale' => $sale,
+            'customer' => $customer,
+            'products' => $products,
+            'payments' => $payments,
+            'total_discount' => $request->discount_amount ?? 0,
+            'amount_given' => $sale->amount_given,
+            'balance_amount' => $sale->balance_amount,
+            'user' => $user,
+            'location' => $location,
+        ];
+
+        $html = view('sell.receipt', $viewData)->render();
+
+          
 
 
             try {
@@ -673,18 +658,10 @@ class SaleController extends Controller
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
 
+
+
                     // Render the 80mm thermal receipt view to HTML
-                    $thermalHtml = view('sell.receipt', [
-                        'sale' => $sale,
-                        'customer' => $customer,
-                        'products' => $products,
-                        'payments' => $payments,
-                        'total_discount' => $request->discount_amount ?? 0,
-                        'amount_given' => $sale->amount_given,
-                        'balance_amount' => $sale->balance_amount,
-                        'user' => $user,
-                        'location' => $location,
-                    ])->render();
+                    $thermalHtml = view('sell.receipt', $viewData)->render();
 
                     // Generate PDF (no saving to disk)
                     $pdf = Pdf::loadHTML($thermalHtml)
@@ -720,7 +697,8 @@ class SaleController extends Controller
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-                'invoice_html' => $html
+                'invoice_html' => $html,
+                'data' => $viewData
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

@@ -1096,25 +1096,27 @@ class SaleController extends Controller
                 return $sale;
             });
 
-            // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-
             $user = User::find($sale->user_id);
             $location = $user ? $user->locations()->first() : null;
 
-            $html = view('sell.receipt', [
-                'sale' => $sale,
-                'customer' => $customer,
-                'products' => $products,
-                'payments' => $payments,
-                'total_discount' => $request->discount_amount ?? 0,
-                'amount_given' => $sale->amount_given,
-                'balance_amount' => $sale->balance_amount,
-                'user' => $user,
-                'location' => $location,
-            ])->render();
+        $viewData = [
+            'sale' => $sale,
+            'customer' => $customer,
+            'products' => $products,
+            'payments' => $payments,
+            'total_discount' => $request->discount_amount ?? 0,
+            'amount_given' => $sale->amount_given,
+            'balance_amount' => $sale->balance_amount,
+            'user' => $user,
+            'location' => $location,
+        ];
+
+        $html = view('sell.receipt', $viewData)->render();
+
+          
 
 
             try {
@@ -1123,18 +1125,10 @@ class SaleController extends Controller
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
 
+
+
                     // Render the 80mm thermal receipt view to HTML
-                    $thermalHtml = view('sell.receipt', [
-                        'sale' => $sale,
-                        'customer' => $customer,
-                        'products' => $products,
-                        'payments' => $payments,
-                        'total_discount' => $request->discount_amount ?? 0,
-                        'amount_given' => $sale->amount_given,
-                        'balance_amount' => $sale->balance_amount,
-                        'user' => $user,
-                        'location' => $location,
-                    ])->render();
+                    $thermalHtml = view('sell.receipt', $viewData)->render();
 
                     // Generate PDF (no saving to disk)
                     $pdf = Pdf::loadHTML($thermalHtml)
@@ -1170,7 +1164,8 @@ class SaleController extends Controller
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-                'invoice_html' => $html
+                'invoice_html' => $html,
+                'data' => $viewData
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

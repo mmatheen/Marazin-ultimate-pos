@@ -392,7 +392,7 @@ class SaleController extends Controller
     }
 
 
-    public function storeOrUpdate(Request $request, $id = null)
+ public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
@@ -742,15 +742,13 @@ class SaleController extends Controller
                 return $sale;
             });
 
-            // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-
             $user = User::find($sale->user_id);
             $location = $user ? $user->locations()->first() : null;
 
-            $html = view('sell.receipt', [
+            $viewData = [
                 'sale' => $sale,
                 'customer' => $customer,
                 'products' => $products,
@@ -760,7 +758,11 @@ class SaleController extends Controller
                 'balance_amount' => $sale->balance_amount,
                 'user' => $user,
                 'location' => $location,
-            ])->render();
+            ];
+
+            $html = view('sell.receipt', $viewData)->render();
+
+          
 
 
             try {
@@ -769,18 +771,10 @@ class SaleController extends Controller
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
 
+
+
                     // Render the 80mm thermal receipt view to HTML
-                    $thermalHtml = view('sell.receipt', [
-                        'sale' => $sale,
-                        'customer' => $customer,
-                        'products' => $products,
-                        'payments' => $payments,
-                        'total_discount' => $request->discount_amount ?? 0,
-                        'amount_given' => $sale->amount_given,
-                        'balance_amount' => $sale->balance_amount,
-                        'user' => $user,
-                        'location' => $location,
-                    ])->render();
+                    $thermalHtml = view('sell.receipt', $viewData)->render();
 
                     // Generate PDF (no saving to disk)
                     $pdf = Pdf::loadHTML($thermalHtml)
@@ -816,6 +810,7 @@ class SaleController extends Controller
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'data' => $viewData,
                 'invoice_html' => $html
             ], 200);
         } catch (\Exception $e) {
@@ -823,7 +818,6 @@ class SaleController extends Controller
             
         }
     }
-
 
     private function calculateNewBalance($customerId, $amount, $type)
     {
