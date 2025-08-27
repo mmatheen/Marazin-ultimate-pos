@@ -41,6 +41,7 @@
                                         <th>ID</th>
                                         <th>Route Name</th>
                                         <th>Description</th>
+                                        <th>Cities</th>
                                         <th>Status</th>
                                         <th>Action</th>
                                     </tr>
@@ -75,6 +76,11 @@
                         <div class="mb-3">
                             <label>Description</label>
                             <textarea name="description" id="route_description" class="form-control" placeholder="Enter route description"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label>Cities</label>
+                            <select name="city_ids[]" id="city_ids" class="form-select" multiple></select>
+                            <span class="text-danger" id="cities_error"></span>
                         </div>
                         <div class="mb-3">
                             <label>Status</label>
@@ -143,26 +149,38 @@
                         toastr.error(message);
                     }
                 },
-                columns: [{
-                        data: 'id'
-                    },
-                    {
-                        data: 'name',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'description',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'status',
-                        render: function(data, type, row) {
-                            const color = data === 'active' ? 'success' : 'secondary';
-                            const nextStatus = data === 'active' ? 'inactive' : 'active';
+                    columns: [{
+                            data: 'id'
+                        },
+                        {
+                            data: 'name',
+                            render: function(data) {
+                                return data ? data : '—';
+                            }
+                        },
+                        {
+                            data: 'description',
+                            render: function(data) {
+                                return data ? data : '—';
+                            }
+                        },
+                        {
+                            data: 'cities',
+                            render: function(data, type, row) {
+                                if (Array.isArray(data) && data.length > 0) {
+                                    return data.map(c => c.name).join(', ');
+                                }
+                                if (row.cities_count !== undefined) {
+                                    return row.cities_count;
+                                }
+                                return '—';
+                            }
+                        },
+                        {
+                            data: 'status',
+                            render: function(data, type, row) {
+                                const color = data === 'active' ? 'success' : 'secondary';
+                                const nextStatus = data === 'active' ? 'inactive' : 'active';
                             const btnText = data === 'active' ? 'Active' : 'Inactive';
                             return `
             <button class="btn btn-sm btn-${color} status-toggle-btn" 
@@ -188,6 +206,24 @@
                 ]
             });
 
+            // --- Load City Options ---
+            function loadCities() {
+                $.get('/api/cities', function(response) {
+                    if (response.status && Array.isArray(response.data)) {
+                        const options = response.data.map(city =>
+                            `<option value="${city.id}">${city.name}</option>`
+                        );
+                        $('#city_ids').html(options);
+                    } else {
+                        toastr.error(response.message || 'Failed to load cities.');
+                    }
+                }).fail(function() {
+                    toastr.error('Failed to load cities.');
+                });
+            }
+
+            loadCities();
+
             // --- Open Add Modal ---
             $('#addRouteButton').on('click', function() {
                 $('#routeAddUpdateForm')[0].reset();
@@ -195,7 +231,7 @@
                 $('#modalTitle').text('Add Route');
                 $('#saveBtn').text('Save');
                 $('.text-danger').text('');
-                $('input[name="city_ids[]"]').prop('checked', false);
+                $('#city_ids').val([]);
                 $('#addAndEditRouteModal').modal('show');
             });
 
@@ -213,7 +249,7 @@
                     name: $('#route_name').val(),
                     description: $('#route_description').val(),
                     status: $('#route_status').val(),
-
+                    city_ids: $('#city_ids').val() || [],
                 };
 
                 $.ajax({
@@ -222,7 +258,11 @@
                     data: formData,
                     success: function(response) {
                         $('#addAndEditRouteModal').modal('hide');
-                        table.ajax.reload();
+                        if (method === 'POST') {
+                            table.row.add(response.data).draw(false);
+                        } else {
+                            table.ajax.reload(null, false);
+                        }
                         toastr.success(response.message || 'Route saved successfully.');
                     },
                     error: function(xhr) {
@@ -230,6 +270,8 @@
                         const message = xhr.responseJSON?.message || 'An error occurred.';
 
                         $('#name_error').text(errors.name || '');
+                        $('#cities_error').text(errors.city_ids || '');
+                        $('#status_error').text(errors.status || '');
 
                         toastr.error(message);
                     }
@@ -247,7 +289,13 @@
 
                             $('#route_id').val(data.id);
                             $('#route_name').val(data.name || '');
-
+                            $('#route_description').val(data.description || '');
+                            $('#route_status').val(data.status || 'active');
+                            if (Array.isArray(data.cities)) {
+                                $('#city_ids').val(data.cities.map(c => c.id));
+                            } else {
+                                $('#city_ids').val([]);
+                            }
                             $('#modalTitle').text('Edit Route');
                             $('#saveBtn').text('Update');
                             $('#addAndEditRouteModal').modal('show');
