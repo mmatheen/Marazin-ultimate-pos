@@ -374,6 +374,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/location-store', [LocationController::class, 'store']);
         Route::post('/location-update/{id}', [LocationController::class, 'update']);
         Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+        
+        // New vehicle and hierarchy routes
+        Route::get('/location-parents', [LocationController::class, 'getParentLocations']);
+        Route::get('/location-sublocations/{parentId}', [LocationController::class, 'getSublocations']);
+        Route::get('/location-by-vehicle-type/{vehicleType}', [LocationController::class, 'getLocationsByVehicleType']);
+        Route::get('/location-search-by-vehicle', [LocationController::class, 'searchByVehicleNumber']);
+        Route::get('/location-hierarchy/{id}', [LocationController::class, 'getLocationHierarchy']);
 
         // -------------------- OpeningStockController Routes --------------------
         Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
@@ -434,7 +441,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         //Grouped Routes for SalesRep, Vehicle, and Route
         Route::group(['prefix' => 'sales-rep'], function () {
-            Route::get('/vehicles', [VehicleController::class, 'create'])->name('vehicles.create');
             //vehicle location
             Route::get('/vehicle-locations', [VehicleLocationController::class, 'create'])->name('vehicle-locations.create');
             //sales reps

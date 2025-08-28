@@ -379,7 +379,6 @@ Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
 
 
 // Sales rep and vehicle routes
-Route::apiResource('vehicles', VehicleController::class);
 Route::apiResource('vehicle-locations', VehicleLocationController::class);
 Route::apiResource('sales-reps', SalesRepController::class);
 Route::apiResource('routes', RouteController::class);
@@ -388,11 +387,11 @@ Route::apiResource('route-cities', RouteCityController::class);
 Route::apiResource('sales-rep-targets', SalesRepTargetController::class);
 
 // Sales Rep helper routes
-Route::get('/sales-reps/vehicle-locations/available', [SalesRepController::class, 'getAvailableVehicleLocations']);
+Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers']);
+Route::get('/sales-reps/user-locations/{userId}', [SalesRepController::class, 'getUserAccessibleLocations']);
 Route::get('/sales-reps/routes/available', [SalesRepController::class, 'getAvailableRoutes']);
-Route::get('/sales-reps/vehicle-location/{vehicleLocationId}/details', [SalesRepController::class, 'getLocationFromVehicleLocation']);
-Route::get('sales-reps/available-vehicles', [SalesRepController::class, 'getAvailableVehicles']);
 Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
+Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations']);
 // Route helper routes
 Route::get('/routes/cities/available', [RouteController::class, 'getAvailableCities']);
 Route::get('/routes/{routeId}/cities', [RouteController::class, 'getRouteCities']);

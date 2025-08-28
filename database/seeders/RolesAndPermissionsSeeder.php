@@ -214,6 +214,17 @@ class RolesAndPermissionsSeeder extends Seeder
 
             ],
 
+            // sales rep management
+            '28. sales-rep-management' => [
+                'view sales-rep',
+                'create sales-rep',
+                'edit sales-rep',
+                'delete sales-rep',
+                'assign routes',
+                'view assigned routes',
+                'manage sales targets'
+            ],
+
         ];
 
         // Insert or update permissions first
@@ -273,13 +284,38 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view product',
                 'delete product',
                 'job ticket'
+            ],
+            'Sales Rep' => [
+                'view sale',
+                'add sale',
+                'pos page',
+                'view customer',
+                'create customer',
+                'edit customer',
+                'view product',
+                'view assigned routes',
+                'cash',
+                'card',
+                'credit sale'
             ]
         ];
 
 
         // Now assign roles after all permissions exist
         foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+            // Generate role key from name
+            $roleKey = strtolower(str_replace(' ', '_', $roleName));
+            
+            $role = Role::firstOrCreate(
+                ['name' => $roleName, 'guard_name' => 'web'],
+                ['key' => $roleKey]
+            );
+            
+            // Update key if it doesn't exist
+            if (!$role->key) {
+                $role->update(['key' => $roleKey]);
+            }
+            
             $role->syncPermissions($rolePermissions);
         }
     }

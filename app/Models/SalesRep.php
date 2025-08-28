@@ -13,16 +13,18 @@ class SalesRep extends Model
 
     protected $fillable = [
         'user_id',
-        'vehicle_id',
+        'sub_location_id',
         'route_id',
         'assigned_date',
         'end_date',
+        'can_sell',
         'status',
     ];
 
     protected $casts = [
-        'assigned_date' => 'date',
-        'end_date' => 'date',
+        'assigned_date' => 'datetime',
+        'end_date' => 'datetime',
+        'can_sell' => 'boolean',
     ];
 
     public function user()
@@ -30,19 +32,14 @@ class SalesRep extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function vehicle()
+    public function subLocation()
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Location::class, 'sub_location_id');
     }
 
     public function route()
     {
         return $this->belongsTo(Route::class);
-    }
-
-    public function targets()
-    {
-        return $this->hasMany(SalesRepTarget::class);
     }
 
     public function scopeActive($query)

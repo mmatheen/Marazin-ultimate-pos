@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Location;
+use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,14 +28,15 @@ class LocationController extends Controller
      */
     public function index()
     {
+        /** @var User $user */
         $user = Auth::user();
 
         if ($user->is_admin) {
-            $locations = Location::with('parent')->get();
+            $locations = Location::with('parent', 'children')->get();
         } elseif ($user->role === 'Sales Rep') {
             $locations = $this->getSalesRepLocations($user);
         } else {
-            $locations = $user->locations()->with('parent')->get();
+            $locations = $user->locations()->with('parent', 'children')->get();
         }
 
         if ($locations->isNotEmpty()) {
@@ -62,10 +64,14 @@ class LocationController extends Controller
 
         if ($vehicle->vehicle_type === 'bike') {
             // Bike: Only main locations (no parent)
-            return Location::whereNull('parent_id')->with('parent')->get();
+            return Location::whereNull('parent_id')->with('parent', 'children')->get();
         } else {
-            // Van/Other: Only sub-locations (has parent)
-            return Location::whereNotNull('parent_id')->with('parent')->get();
+            // Van/Other: Only sub-locations (has parent) with vehicle details
+            return Location::whereNotNull('parent_id')
+                ->whereNotNull('vehicle_number')
+                ->whereNotNull('vehicle_type')
+                ->with('parent', 'children')
+                ->get();
         }
     }
 
@@ -112,11 +118,43 @@ class LocationController extends Controller
             'city' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
+            'vehicle_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                'unique:locations,vehicle_number',
+                function ($attribute, $value, $fail) use ($request) {
+                    // If parent_id is set (sublocation), vehicle_number is required
+                    if ($request->parent_id && empty($value)) {
+                        $fail('Vehicle number is required for sublocations.');
+                    }
+                    // If parent_id is null (parent location), vehicle_number should be null
+                    if (!$request->parent_id && !empty($value)) {
+                        $fail('Parent locations should not have vehicle details.');
+                    }
+                }
+            ],
+            'vehicle_type' => [
+                'nullable',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) use ($request) {
+                    // If parent_id is set (sublocation), vehicle_type is required
+                    if ($request->parent_id && empty($value)) {
+                        $fail('Vehicle type is required for sublocations.');
+                    }
+                    // If parent_id is null (parent location), vehicle_type should be null
+                    if (!$request->parent_id && !empty($value)) {
+                        $fail('Parent locations should not have vehicle details.');
+                    }
+                }
+            ],
         ], [
             'mobile.required' => 'Mobile number is required.',
             'mobile.regex' => 'Mobile must be 9 or 10 digits.',
             'location_id.regex' => 'Location ID must be in format LOC0001.',
             'location_id.unique' => 'This Location ID is already taken.',
+            'vehicle_number.unique' => 'This vehicle number is already in use.',
         ]);
 
         if ($validator->fails()) {
@@ -130,7 +168,7 @@ class LocationController extends Controller
         $location_id = $request->location_id ?? $this->generateLocationId();
 
         try {
-            $location = Location::create([
+            $locationData = [
                 'name' => $request->name,
                 'location_id' => $location_id,
                 'parent_id' => $request->parent_id,
@@ -141,11 +179,24 @@ class LocationController extends Controller
                 'email' => $request->email,
                 'mobile' => $request->mobile,
                 'telephone_no' => $request->telephone_no,
-            ]);
+            ];
 
-            if (Auth::user()->is_admin) {
-                Auth::user()->locations()->attach($location->id);
+            // Add vehicle details if this is a sublocation
+            if ($request->parent_id) {
+                $locationData['vehicle_number'] = $request->vehicle_number;
+                $locationData['vehicle_type'] = $request->vehicle_type;
             }
+
+            $location = Location::create($locationData);
+
+            /** @var User $authUser */
+            $authUser = Auth::user();
+            if ($authUser->is_admin && method_exists($authUser, 'locations')) {
+                $authUser->locations()->attach($location->id);
+            }
+
+            // Load relationships for response
+            $location->load('parent', 'children');
 
             return response()->json([
                 'status' => true,
@@ -181,7 +232,7 @@ class LocationController extends Controller
 
     public function show($id)
     {
-        $location = Location::with('parent')->find($id);
+        $location = Location::with('parent', 'children')->find($id);
         if (!$location) {
             return response()->json([
                 'status' => false,
@@ -230,9 +281,13 @@ class LocationController extends Controller
             'parent_id' => [
                 'nullable',
                 'exists:locations,id',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($location) {
                     if ($value && Location::find($value)?->parent_id !== null) {
                         $fail('Only main locations can be parents.');
+                    }
+                    // Prevent setting self as parent
+                    if ($value == $location->id) {
+                        $fail('A location cannot be its own parent.');
                     }
                 }
             ],
@@ -248,7 +303,43 @@ class LocationController extends Controller
             'city' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
-
+            'vehicle_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                'unique:locations,vehicle_number,' . $id,
+                function ($attribute, $value, $fail) use ($request) {
+                    // If parent_id is set (sublocation), vehicle_number is required
+                    if ($request->parent_id && empty($value)) {
+                        $fail('Vehicle number is required for sublocations.');
+                    }
+                    // If parent_id is null (parent location), vehicle_number should be null
+                    if (!$request->parent_id && !empty($value)) {
+                        $fail('Parent locations should not have vehicle details.');
+                    }
+                }
+            ],
+            'vehicle_type' => [
+                'nullable',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) use ($request) {
+                    // If parent_id is set (sublocation), vehicle_type is required
+                    if ($request->parent_id && empty($value)) {
+                        $fail('Vehicle type is required for sublocations.');
+                    }
+                    // If parent_id is null (parent location), vehicle_type should be null
+                    if (!$request->parent_id && !empty($value)) {
+                        $fail('Parent locations should not have vehicle details.');
+                    }
+                }
+            ],
+        ], [
+            'mobile.required' => 'Mobile number is required.',
+            'mobile.regex' => 'Mobile must be 9 or 10 digits.',
+            'location_id.regex' => 'Location ID must be in format LOC0001.',
+            'location_id.unique' => 'This Location ID is already taken.',
+            'vehicle_number.unique' => 'This vehicle number is already in use.',
         ]);
 
         if ($validator->fails()) {
@@ -260,7 +351,19 @@ class LocationController extends Controller
         }
 
         try {
-            $location->update($validator->validated());
+            $updateData = $validator->validated();
+            
+            // Handle vehicle details based on parent_id
+            if (!$request->parent_id) {
+                // Parent location - remove vehicle details
+                $updateData['vehicle_number'] = null;
+                $updateData['vehicle_type'] = null;
+            }
+            
+            $location->update($updateData);
+            
+            // Load relationships for response
+            $location->load('parent', 'children');
 
             return response()->json([
                 'status' => true,
@@ -274,6 +377,132 @@ class LocationController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get all parent locations (no parent_id)
+     */
+    public function getParentLocations()
+    {
+        $locations = Location::whereNull('parent_id')
+            ->with('children')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Parent locations retrieved successfully.',
+            'data' => $locations,
+        ]);
+    }
+
+    /**
+     * Get all sublocations for a specific parent
+     */
+    public function getSublocations($parentId)
+    {
+        $parent = Location::find($parentId);
+        if (!$parent) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Parent location not found.',
+            ], 404);
+        }
+
+        if ($parent->parent_id !== null) {
+            return response()->json([
+                'status' => false,
+                'message' => 'This is not a parent location.',
+            ], 400);
+        }
+
+        $sublocations = Location::where('parent_id', $parentId)
+            ->with('parent')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Sublocations retrieved successfully.',
+            'data' => $sublocations,
+        ]);
+    }
+
+    /**
+     * Get locations by vehicle type
+     */
+    public function getLocationsByVehicleType($vehicleType)
+    {
+        $locations = Location::where('vehicle_type', $vehicleType)
+            ->whereNotNull('parent_id')
+            ->with('parent')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => "Locations with vehicle type '{$vehicleType}' retrieved successfully.",
+            'data' => $locations,
+        ]);
+    }
+
+    /**
+     * Search locations by vehicle number
+     */
+    public function searchByVehicleNumber(Request $request)
+    {
+        $vehicleNumber = $request->query('vehicle_number');
+        
+        if (!$vehicleNumber) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Vehicle number parameter is required.',
+            ], 400);
+        }
+
+        $location = Location::where('vehicle_number', $vehicleNumber)
+            ->with('parent', 'children')
+            ->first();
+
+        if (!$location) {
+            return response()->json([
+                'status' => false,
+                'message' => 'No location found with this vehicle number.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Location found.',
+            'data' => $location,
+        ]);
+    }
+
+    /**
+     * Get location hierarchy (parent with all children)
+     */
+    public function getLocationHierarchy($id)
+    {
+        $location = Location::with('parent', 'children')->find($id);
+        
+        if (!$location) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Location not found.',
+            ], 404);
+        }
+
+        // If this is a sublocation, get the parent and all its children
+        if ($location->parent_id) {
+            $hierarchy = Location::with('children')
+                ->find($location->parent_id);
+        } else {
+            // If this is a parent, get it with all children
+            $hierarchy = $location;
+        }
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Location hierarchy retrieved successfully.',
+            'data' => $hierarchy,
+        ]);
     }
 
     public function destroy($id)

@@ -291,13 +291,7 @@
                         <span class="menu-arrow"></span>
                     </a>
                     <ul>
-                        {{-- @can('view sales-rep') --}}
-                        <li><a href="{{ route('vehicles.create') }}"
-                                class="{{ set_active(['vehicles.create']) }}">Vehicles</a></li>
-                        {{-- @endcan --}}
-
-
-
+                       
                         {{-- @can('view sales-rep') --}}
                         <li><a href="{{ route('routes.create') }}"
                                 class="{{ set_active(['routes.create']) }}">Routes</a></li>

@@ -14,15 +14,16 @@ return new class extends Migration
         Schema::create('sales_reps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('vehicle_id')->constrained('vehicles')->onDelete('cascade');
+            $table->foreignId('sub_location_id')->constrained('locations')->onDelete('cascade');
             $table->foreignId('route_id')->constrained('routes')->onDelete('cascade');
-            $table->date('assigned_date')->default(now());
-            $table->date('end_date')->nullable();
+            $table->dateTime('assigned_date')->default(now());
+            $table->dateTime('end_date')->nullable();
+            $table->boolean('can_sell')->default(true);
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
 
-            // Prevent same sales rep from having duplicate active assignments for same route
-            $table->unique(['user_id', 'route_id'], 'unique_sales_rep_route');
+            // Ensure unique active assignments
+            $table->unique(['user_id', 'sub_location_id', 'route_id'], 'unique_active_assignment');
         });
     }
 

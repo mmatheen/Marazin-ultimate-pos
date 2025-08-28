@@ -1,4 +1,93 @@
 @extends('layout.layout')
+
+@section('styles')
+<style>
+    #vehicleDetailsSection, #parentLocationDetails {
+        animation: slideIn 0.3s ease-in-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .vehicle-alert {
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+    }
+    
+    .input-group-text {
+        border-right: none;
+        background: #f8f9fa;
+    }
+    
+    .input-group .form-control,
+    .input-group .form-select {
+        border-left: none;
+    }
+    
+    .input-group:focus-within .input-group-text {
+        border-color: #80bdff;
+        background: #e7f3ff;
+    }
+    
+    .input-group:focus-within .form-control,
+    .input-group:focus-within .form-select {
+        border-color: #80bdff;
+    }
+    
+    /* Compact sublocation styling */
+    .sublocation-badge {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: all 0.2s ease;
+        display: inline-block;
+        margin: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .sublocation-badge:hover {
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transform: translateY(-1px);
+    }
+    
+    .sublocation-vehicle {
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 0.75em;
+        font-weight: 500;
+        margin-left: 5px;
+    }
+    
+    .parent-info-row {
+        margin-bottom: 0 !important;
+    }
+    
+    .parent-info-row .col-md-3 {
+        padding: 4px 8px;
+    }
+    
+    /* Compact form spacing */
+    .modal-xl {
+        max-width: 95%;
+    }
+    
+    .form-group.local-forms {
+        margin-bottom: 0.8rem;
+    }
+</style>
+@endsection
+
 @section('content')
     <div class="content container-fluid">
         <div class="row">
@@ -44,13 +133,14 @@
                                         <th>Name</th>
                                         <th>Location ID</th>
                                         <th>Parent Location</th>
+                                        <th>Vehicle Number</th>
+                                        <th>Vehicle Type</th>
                                         <th>Address</th>
                                         <th>Province</th>
                                         <th>District</th>
                                         <th>City</th>
                                         <th>Email</th>
                                         <th>Mobile</th>
-                                        <th>Telephone No</th>
                                         <th>Action</th>
 
                                     </tr>
@@ -108,6 +198,105 @@
                                                     <option value="">No Parent (Main)</option>
                                                 </select>
                                                 <span class="text-danger" id="parent_id_error"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Parent Location Details Section (Initially Hidden) -->
+                                    <div id="parentLocationDetails" class="col-12" style="display: none;">
+                                        <div class="alert alert-success border-0 mb-3" style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); border-radius: 10px;">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="fas fa-building text-success me-2"></i>
+                                                <h6 class="mb-0 text-success fw-bold" id="parentLocationName">Parent Location Details</h6>
+                                            </div>
+                                            
+                                            <div class="row g-2 mb-2">
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block">📍 Address</small>
+                                                    <span id="parentAddress" class="fw-semibold">-</span>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block">🏙️ City</small>
+                                                    <span id="parentCity" class="fw-semibold">-</span>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block">📍 District</small>
+                                                    <span id="parentDistrict" class="fw-semibold">-</span>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <small class="text-muted d-block">📞 Phone</small>
+                                                    <span id="parentTelephone" class="fw-semibold">-</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Existing Sublocations -->
+                                            <div id="existingSublocations" style="display: none;">
+                                                <hr class="my-2" style="border-color: #28a745; opacity: 0.3;">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="fas fa-sitemap text-info me-2"></i>
+                                                    <small class="text-info fw-bold">Existing Sublocations</small>
+                                                </div>
+                                                <div id="sublocationsList" class="d-flex flex-wrap gap-2">
+                                                    <!-- Sublocations will be populated here -->
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vehicle Details Section (Initially Hidden) -->
+                                    <div id="vehicleDetailsSection" class="col-12" style="display: none;">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <div class="alert alert-info border-info vehicle-alert mb-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left: 4px solid #2196f3;">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-truck text-primary me-2" style="font-size: 1.2em;"></i>
+                                                        <div>
+                                                            <strong class="text-primary">Vehicle Details Required</strong>
+                                                            <br>
+                                                            <small class="text-muted">Sublocations must have vehicle information for delivery tracking</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label class="form-label d-flex align-items-center">
+                                                            <i class="fas fa-hashtag text-primary me-2"></i>
+                                                            Vehicle Number <span class="login-danger">*</span>
+                                                        </label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text"><i class="fas fa-car"></i></span>
+                                                            <input class="form-control" id="edit_vehicle_number" name="vehicle_number" 
+                                                                   type="text" placeholder="e.g., ABC-1234" maxlength="20">
+                                                        </div>
+                                                        <span class="text-danger" id="vehicle_number_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label class="form-label d-flex align-items-center">
+                                                            <i class="fas fa-truck text-primary me-2"></i>
+                                                            Vehicle Type <span class="login-danger">*</span>
+                                                        </label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text"><i class="fas fa-cogs"></i></span>
+                                                            <select class="form-control form-select" id="edit_vehicle_type" name="vehicle_type">
+                                                                <option value="">Select Vehicle Type</option>
+                                                                <option value="Van">🚐 Van</option>
+                                                                <option value="Truck">🚛 Truck</option>
+                                                                <option value="Bike">🏍️ Bike</option>
+                                                                <option value="Car">🚗 Car</option>
+                                                                <option value="Three Wheeler">🛺 Three Wheeler</option>
+                                                                <option value="Lorry">🚚 Lorry</option>
+                                                                <option value="Other">🚙 Other</option>
+                                                            </select>
+                                                        </div>
+                                                        <span class="text-danger" id="vehicle_type_error"></span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -189,17 +378,15 @@
                                                     name="mobile" placeholder="Phone No">
                                                 <span class="text-danger" id="mobile_error"></span>
                                             </div>
-
-
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
-                                                <label>Telephone<span class="login-danger"></span></label>
+                                                <label>Telephone (Optional)</label>
                                                 <input type="text" class="form-control" id="edit_telephone_no"
                                                     name="telephone_no" placeholder="Telephone No">
-                                                <span class="text-danger" id="telephone_no_error">Email is required</span>
+                                                <span class="text-danger" id="telephone_no_error"></span>
                                             </div>
                                         </div>
                                     </div>

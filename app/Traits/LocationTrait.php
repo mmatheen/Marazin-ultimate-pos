@@ -3,46 +3,49 @@
 namespace App\Traits;
 
 use App\Scopes\LocationScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
 trait LocationTrait
 {
-    protected $bypassLocationScope = false;
+    protected static $bypassLocationScope = false;
 
-    protected static function booted(): void
+    protected static function booted()
     {
         static::addGlobalScope(new LocationScope);
 
         static::creating(function ($model) {
             if (empty($model->location_id)) {
-                $firstLocation = Auth::user()?->locations->first();
-                $model->location_id = $firstLocation?->id;
+                $user = auth()->user();
+                if ($user && $user->locations->isNotEmpty()) {
+                    $model->location_id = $user->locations->first()->id;
+                }
             }
         });
     }
 
     /**
-     * Temporarily disable location scope for this query
+     * Scope to bypass location scope
      */
     public function scopeWithoutLocationScope($query)
     {
-        $this->bypassLocationScope = true;
+        static::$bypassLocationScope = true;
         return $query;
     }
 
     /**
-     * Helper to check if scope should be bypassed
+     * Check if location scope should be bypassed
      */
-    public function shouldBypassLocationScope(): bool
+    public function shouldBypassLocationScope()
     {
-        return (bool) $this->bypassLocationScope;
+        return (bool) static::$bypassLocationScope;
     }
 
     /**
-     * Filter by specific location (optional helper)
+     * Reset the bypass flag (optional)
      */
-    public function scopeByLocation($query, $locationId)
+    public static function resetLocationScope()
     {
-        return $query->where('location_id', $locationId);
+        static::$bypassLocationScope = false;
     }
 }

@@ -22,6 +22,8 @@ class Location extends Model
         'telephone_no',
         'invoice_prefix',
         'parent_id',
+        'vehicle_number',
+        'vehicle_type',
     ];
 
     public function parent()
@@ -90,5 +92,61 @@ class Location extends Model
         }
 
         return $prefix;
+    }
+
+    /**
+     * Check if this location is a parent location (no parent_id)
+     */
+    public function isParentLocation()
+    {
+        return is_null($this->parent_id);
+    }
+
+    /**
+     * Check if this location is a sublocation (has parent_id)
+     */
+    public function isSublocation()
+    {
+        return !is_null($this->parent_id);
+    }
+
+    /**
+     * Check if this location has valid vehicle details
+     */
+    public function hasVehicleDetails()
+    {
+        return !empty($this->vehicle_number) && !empty($this->vehicle_type);
+    }
+
+    /**
+     * Validate vehicle requirements for sublocations
+     */
+    public function validateVehicleRequirements()
+    {
+        if ($this->isSublocation() && !$this->hasVehicleDetails()) {
+            throw new \InvalidArgumentException('Sublocations must have vehicle_number and vehicle_type.');
+        }
+        
+        return true;
+    }
+
+    /**
+     * Get all descendant locations (sublocations recursively)
+     */
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
+    }
+
+    /**
+     * Boot method to add model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($location) {
+            $location->validateVehicleRequirements();
+        });
     }
 }

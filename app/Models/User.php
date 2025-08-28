@@ -12,7 +12,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * @property int $id
+ * @property string $name_title
+ * @property string $full_name
+ * @property string $user_name
+ * @property string $role_name
+ * @property int|null $location_id
+ * @property bool $is_admin
+ * @property string $email
+ * @property string $password
+ * @method BelongsToMany locations()
+ * @method BelongsTo vehicle()
+ * @method HasOne salesRep()
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
@@ -28,6 +45,7 @@ class User extends Authenticatable
         'user_name',
         'role_name',
         'location_id',
+        'is_admin',
         'email',
         'password',
     ];
@@ -49,9 +67,10 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_admin' => 'boolean',
     ];
 
-    public function locations()
+    public function locations(): BelongsToMany
     {
         return $this->belongsToMany(Location::class, 'location_user', 'user_id', 'location_id');
     }
@@ -63,12 +82,12 @@ class User extends Authenticatable
             ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
     }
 
-    public function vehicle()
+    public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
     }
 
-    public function salesRep()
+    public function salesRep(): HasOne
     {
         return $this->hasOne(SalesRep::class, 'user_id');
     }

@@ -606,16 +606,16 @@ class SaleController extends Controller
                             'reference_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                         ]);
-                        // Ledger::create([
-                        //     'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
-                        //     'reference_no' => $referenceNo,
-                        //     'transaction_type' => 'payments',
-                        //     'debit' => $paymentAmount,
-                        //     'credit' => 0,
-                        //     'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
-                        //     'contact_type' => 'customer',
-                        //     'user_id' => $sale->customer_id,
-                        // ]);
+                        Ledger::create([
+                            'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
+                            'reference_no' => $referenceNo,
+                            'transaction_type' => 'payments',
+                            'debit' => $paymentAmount,
+                            'credit' => 0,
+                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
+                            'contact_type' => 'customer',
+                            'user_id' => $sale->customer_id,
+                        ]);
                     }
                 }
 
@@ -629,9 +629,9 @@ class SaleController extends Controller
 
                         if ($isUpdate) {
                             Payment::where('reference_id', $sale->id)->delete();
-                            // Ledger::where('reference_no', $referenceNo)
-                            //     ->where('transaction_type', 'payments')
-                            //     ->delete();
+                            Ledger::where('reference_no', $referenceNo)
+                                ->where('transaction_type', 'payments')
+                                ->delete();
                         }
 
                         foreach ($request->payments as $paymentData) {
@@ -656,16 +656,16 @@ class SaleController extends Controller
                                 'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                             ]);
 
-                            // Ledger::create([
-                            //     'transaction_date' => $payment->payment_date,
-                            //     'reference_no' => $referenceNo,
-                            //     'transaction_type' => 'payments',
-                            //     'debit' => $payment->amount,
-                            //     'credit' => 0,
-                            //     'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                            //     'contact_type' => 'customer',
-                            //     'user_id' => $request->customer_id,
-                            // ]);
+                            Ledger::create([
+                                'transaction_date' => $payment->payment_date,
+                                'reference_no' => $referenceNo,
+                                'transaction_type' => 'payments',
+                                'debit' => $payment->amount,
+                                'credit' => 0,
+                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                'contact_type' => 'customer',
+                                'user_id' => $request->customer_id,
+                            ]);
                         }
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
@@ -717,26 +717,26 @@ class SaleController extends Controller
                     }
                 }
 
-                // // ----- Ledger -----
-                // if ($isUpdate) {
-                //     Ledger::where('reference_no', $referenceNo)
-                //         ->where('transaction_type', 'sale')
-                //         ->update([
-                //             'credit' => $finalTotal,
-                //             'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
-                //         ]);
-                // } else {
-                //     Ledger::create([
-                //         'transaction_date' => $request->sales_date,
-                //         'reference_no' => $referenceNo,
-                //         'transaction_type' => 'sale',
-                //         'debit' => 0,
-                //         'credit' => $finalTotal,
-                //         'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
-                //         'contact_type' => 'customer',
-                //         'user_id' => $request->customer_id,
-                //     ]);
-                // }
+                // ----- Ledger -----
+                if ($isUpdate) {
+                    Ledger::where('reference_no', $referenceNo)
+                        ->where('transaction_type', 'sale')
+                        ->update([
+                            'credit' => $finalTotal,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
+                        ]);
+                } else {
+                    Ledger::create([
+                        'transaction_date' => $request->sales_date,
+                        'reference_no' => $referenceNo,
+                        'transaction_type' => 'sale',
+                        'debit' => 0,
+                        'credit' => $finalTotal,
+                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
+                        'contact_type' => 'customer',
+                        'user_id' => $request->customer_id,
+                    ]);
+                }
 
                 $this->updatePaymentStatus($sale);
                 return $sale;
@@ -819,27 +819,25 @@ class SaleController extends Controller
         }
     }
 
-    // Calculate new customer balance based on all sales/payments (not ledger)
     private function calculateNewBalance($customerId, $amount, $type)
     {
-        $customer = Customer::find($customerId);
-        if (!$customer) return 0;
+        $lastLedger = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->orderBy('transaction_date', 'desc')
+            ->first();
 
-        // Sum all sales (final/suspend) for this customer
-        $totalSales = Sale::where('customer_id', $customerId)
-            ->whereIn('status', ['final', 'suspend'])
-            ->sum('final_total');
+        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
 
-        // Sum all payments for this customer
-        $totalPayments = Payment::where('customer_id', $customerId)
-            ->sum('amount');
-
-        // New balance = total sales - total payments
-        $newBalance = $totalSales - $totalPayments;
+        $newBalance = $type === 'debit'
+            ? $previousBalance - $amount
+            : $previousBalance + $amount;
 
         // Sync to customer current balance
-        $customer->current_balance = $newBalance;
-        $customer->saveQuietly();
+        $customer = Customer::find($customerId);
+        if ($customer) {
+            $customer->current_balance = $newBalance;
+            $customer->saveQuietly();
+        }
 
         return $newBalance;
     }

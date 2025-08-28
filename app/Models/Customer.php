@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Customer extends Model
 {
-    use HasFactory, LocationTrait;
+    use HasFactory,LocationTrait;
 
     protected $table = 'customers';
 
@@ -25,6 +25,8 @@ class Customer extends Model
         'city_id',
     ];
 
+    protected $appends = ['full_name', 'total_sale_due', 'total_return_due', 'current_due', 'available_credit'];
+
     /* ============================
      * Boot events
      * ============================
@@ -34,22 +36,28 @@ class Customer extends Model
         parent::boot();
 
         static::creating(function ($customer) {
-            // Initialize current balance equal to opening balance
             $customer->current_balance = $customer->opening_balance;
 
-            // Auto-assign credit limit based on city if not set manually
             if ($customer->city_id && !$customer->credit_limit) {
                 $customer->credit_limit = self::calculateCreditLimitForCity($customer->city_id);
             }
         });
 
         static::updating(function ($customer) {
-            // Auto-update credit limit if city changes & old limit was default
             if ($customer->isDirty('city_id') && $customer->city_id) {
                 $originalCreditLimit = self::calculateCreditLimitForCity($customer->getOriginal('city_id'));
                 if ($customer->getOriginal('credit_limit') == $originalCreditLimit) {
                     $customer->credit_limit = self::calculateCreditLimitForCity($customer->city_id);
                 }
+            }
+        });
+
+        static::saved(function ($customer) {
+            if ($customer->id != 1) {
+                $customer->recalculateCurrentBalance();
+            } else {
+                $customer->current_balance = 0;
+                $customer->saveQuietly();
             }
         });
     }
@@ -78,85 +86,76 @@ class Customer extends Model
         return $this->belongsTo(City::class);
     }
 
-
-
     /* ============================
-     * Accessors & Calculations
+     * Accessors
      * ============================
      */
     public function getFullNameAttribute()
     {
-        return trim($this->first_name . ' ' . $this->last_name);
+        return trim("{$this->first_name} {$this->last_name}");
     }
 
     public function getTotalSaleDueAttribute()
     {
-        // Get all unpaid sales
-        $unpaidSales = $this->sales()->where('payment_status', '!=', 'Paid')->get();
-
-        $totalDue = 0;
-
-        foreach ($unpaidSales as $sale) {
-            // Sum payments for this sale
-            $paymentsForSale = $sale->payments()->sum('amount');
-
-            // Calculate due = total - payments
-            $due = $sale->final_total - $paymentsForSale;
-
-            if ($due > 0) {
-                $totalDue += $due;
-            }
-        }
-
-        return $totalDue;
+        return $this->sales()
+            ->whereIn('status', ['final', 'suspend'])
+            ->where('total_due', '>', 0)
+            ->sum('total_due');
     }
 
     public function getTotalReturnDueAttribute()
     {
-        // Total value of sales returns (credit to customer)
         return $this->salesReturns()->sum('total_due');
     }
 
     public function getCurrentDueAttribute()
     {
-        // Opening balance
-        $opening = $this->opening_balance;
+        if ($this->id == 1) return 0;
 
-        // Total sales value
-        $totalSales = $this->sales()->sum('final_total');
+        $totalSales = $this->sales()
+            ->whereIn('status', ['final', 'suspend'])
+            ->sum('final_total');
 
-        // Total payments for sales + opening balance
         $totalPayments = $this->payments()->sum('amount');
 
-        // Total returns (credit)
         $totalReturns = $this->salesReturns()->sum('total_due');
 
-        // Current due calculation matching POS
-        return ($opening + $totalSales - $totalPayments - $totalReturns);
+        $due = $this->opening_balance + $totalSales - $totalPayments - $totalReturns;
+
+        return max(0, $due);
     }
 
-
-    /* ============================
-     * Helpers
-     * ============================
-     */
-    public function recalculateCurrentBalance()
+    public function getAvailableCreditAttribute()
     {
-        // Keep DB current_balance in sync with calculated due
-        $this->current_balance = $this->getCurrentDueAttribute();
-        $this->saveQuietly();
+        if ($this->id == 1) return 0;
+        return max(0, $this->credit_limit - $this->current_balance);
     }
+
+
+
+public function recalculateCurrentBalance()
+{
+    if ($this->id == 1) {
+        $this->current_balance = 0;
+    } else {
+        $totalSales = $this->sales()
+            ->whereIn('status', ['final', 'suspend'])
+            ->sum('final_total');
+
+        $totalPayments = $this->payments()->sum('amount');
+
+        $totalReturns = $this->salesReturns()->sum('total_due');
+
+        $this->current_balance = max(0, $this->opening_balance + $totalSales - $totalPayments - $totalReturns);
+    }
+    $this->saveQuietly();
+}
 
     public static function calculateCreditLimitForCity($cityId)
     {
-        if (!$cityId) {
-            return 0;
-        }
+        if (!$cityId) return 0;
 
-        $salesRepsWithRoutes = SalesRep::whereHas('route.cities', function ($q) use ($cityId) {
-            $q->where('cities.id', $cityId);
-        })->get();
-
-        return $salesRepsWithRoutes->max('default_credit_limit') ?: 0;
+        return \App\Models\SalesRep::whereHas('route.cities', fn($q) => $q->where('cities.id', $cityId))
+            ->max('default_credit_limit') ?: 0;
     }
 }
