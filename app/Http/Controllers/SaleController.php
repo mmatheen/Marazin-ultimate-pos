@@ -36,7 +36,7 @@ class SaleController extends Controller
         // If user has 'own sale', restrict to their own sales; otherwise, allow all sales
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
-            if ($user && $user->can('own sale') && !$user->can('all sale')) {
+            if ($user && method_exists($user, 'can') && $user->can('own sale') && !$user->can('all sale')) {
                 // Only allow access to own sales
                 Sale::addGlobalScope('own_sale', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
