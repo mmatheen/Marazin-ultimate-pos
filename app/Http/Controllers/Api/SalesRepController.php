@@ -24,8 +24,8 @@ class SalesRepController extends Controller
         try {
             $salesReps = SalesRep::with([
                 'user:id,user_name,full_name,email',
-                'subLocation:id,name,parent_id',
-                'subLocation.parent:id,name',
+                'subLocation:id,name,parent_id,vehicle_number,vehicle_type',
+                'subLocation.parent:id,name,vehicle_number,vehicle_type',
                 'route:id,name,status',
             ])->get();
 
@@ -38,7 +38,17 @@ class SalesRepController extends Controller
             }
 
             $formattedReps = $salesReps->map(function($rep) {
-                return $this->formatSalesRep($rep);
+                $subLocation = $rep->subLocation;
+                $parentLocation = $subLocation?->parent;
+                return array_merge(
+                    $this->formatSalesRep($rep),
+                    [
+                        'sub_location_vehicle_number' => $subLocation?->vehicle_number,
+                        'sub_location_vehicle_type' => $subLocation?->vehicle_type,
+                        'parent_location_vehicle_number' => $parentLocation?->vehicle_number,
+                        'parent_location_vehicle_type' => $parentLocation?->vehicle_type,
+                    ]
+                );
             });
 
             return response()->json([

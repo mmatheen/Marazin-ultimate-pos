@@ -1,5 +1,36 @@
 <script type="text/javascript">
     $(document).ready(function() {
+        // Add CSS for batch history styling
+        if (!$('#batch-history-styles').length) {
+            $('<style id="batch-history-styles">')
+                .prop("type", "text/css")
+                .html(`
+                    .batch-history {
+                        max-height: 100px;
+                        overflow-y: auto;
+                        font-size: 11px;
+                        background-color: #f8f9fa;
+                        padding: 5px;
+                        border-radius: 3px;
+                        border: 1px solid #e9ecef;
+                    }
+                    .batch-history small {
+                        line-height: 1.2;
+                        margin-bottom: 2px;
+                    }
+                    .is-invalid {
+                        border-color: #dc3545 !important;
+                        animation: shake 0.5s;
+                    }
+                    @keyframes shake {
+                        0%, 100% { transform: translateX(0); }
+                        25% { transform: translateX(-5px); }
+                        75% { transform: translateX(5px); }
+                    }
+                `)
+                .appendTo("head");
+        }
+
         // CSRF Token setup
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
         fetchProducts();
@@ -325,16 +356,47 @@
                 let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                 quantityInput.val(newQuantity).trigger('input');
             } else {
-                const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
-                const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
-                const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
-                const retailPrice = parseFloat(prices.retail_price || product.retail_price) || 0;
-                const unitCost = parseFloat(prices.unit_cost || product.price) || 0;
+                // Get latest batch prices using helper function
+                const latestPrices = getLatestBatchPrices(product);
+                
+                // Override with any provided prices
+                const wholesalePrice = parseFloat(prices.wholesale_price || latestPrices.wholesale_price) || 0;
+                const specialPrice = parseFloat(prices.special_price || latestPrices.special_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || latestPrices.max_retail_price) || 0;
+                let retailPrice = parseFloat(prices.retail_price || latestPrices.retail_price) || 0;
+                const unitCost = parseFloat(prices.unit_cost || latestPrices.unit_cost) || 0;
+
+                // Ensure retail price doesn't exceed MRP
+                if (retailPrice > maxRetailPrice && maxRetailPrice > 0) {
+                    retailPrice = maxRetailPrice;
+                    toastr.info(`Retail price set to MRP (${maxRetailPrice.toFixed(2)}) for ${product.name}`, 'Price Adjustment');
+                }
+
+                // Generate batch history for reference (earliest 5 batches)
+                let batchHistoryHtml = '';
+                if (product.batches && product.batches.length > 0) {
+                    const earliestBatches = product.batches
+                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                        .slice(0, 5);
+                    
+                    batchHistoryHtml = earliestBatches.map(batch => 
+                        `<small class="d-block text-muted">
+                            Batch: ${batch.batch_no || 'N/A'} | 
+                            Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} | 
+                            Retail: ${parseFloat(batch.retail_price || 0).toFixed(2)} | 
+                            Date: ${batch.created_at ? new Date(batch.created_at).toLocaleDateString() : 'N/A'}
+                        </small>`
+                    ).join('');
+                }
 
                 const newRow = `
-            <tr data-id="${product.id}">
+            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}">
             <td>${product.id}</td>
-            <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
+            <td>
+                ${product.name} 
+                <br><small>Stock: ${product.quantity}</small>
+                ${batchHistoryHtml ? `<br><div class="batch-history mt-1"><strong>Recent Batches:</strong><br>${batchHistoryHtml}</div>` : ''}
+            </td>
             <td>
                 <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
             </td>
@@ -349,10 +411,10 @@
             <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
             <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
             <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
-            <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-            <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
-            <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
-            <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
+            <td><input type="number" class="form-control profit-margin" value="0" min="0" readonly></td>
+            <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" max="${maxRetailPrice}" required title="Maximum allowed: ${maxRetailPrice.toFixed(2)} (MRP)" placeholder="Max: ${maxRetailPrice.toFixed(2)}"></td>
+            <td><input type="date" class="form-control expiry-date" value="${latestPrices.expiry_date}"></td>
+            <td><input type="text" class="form-control batch_no" value="${latestPrices.batch_no}"></td>
             <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
@@ -360,12 +422,21 @@
                 const $newRow = $(newRow);
                 table.row.add($newRow).draw();
                 updateRow($newRow);
+                calculateProfitMargin($newRow); // Initial profit margin calculation
                 updateFooter();
 
+                // Handle quantity, discount, and price changes
                 $newRow.find(
-                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost, .profit-margin"
+                    ".purchase-quantity, .discount-percent, .product-price, .unit-cost"
                 ).on("input", function() {
                     updateRow($newRow);
+                    updateFooter();
+                });
+
+                // Handle retail price changes separately to update profit margin
+                $newRow.find(".retail-price").on("input", function() {
+                    validateRetailPriceAgainstMRP($newRow);
+                    calculateProfitMargin($newRow);
                     updateFooter();
                 });
 
@@ -380,16 +451,85 @@
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const price = parseFloat($row.find(".product-price").val()) || 0;
             const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
-            const profitMargin = parseFloat($row.find(".profit-margin").val()) || 0;
 
+            // Calculate discounted unit cost
             const discountedPrice = price - (price * discountPercent) / 100;
             const unitCost = discountedPrice;
-            const retailPrice = unitCost + (unitCost * profitMargin) / 100;
             const subTotal = unitCost * quantity;
 
+            // Update unit cost and subtotal
             $row.find(".unit-cost").val(unitCost.toFixed(2));
-            $row.find(".retail-price").val(retailPrice.toFixed(2));
             $row.find(".sub-total").text(subTotal.toFixed(2));
+
+            // Recalculate profit margin based on current retail price and unit cost
+            calculateProfitMargin($row);
+        }
+
+        function calculateProfitMargin($row) {
+            const retailPrice = parseFloat($row.find(".retail-price").val()) || 0;
+            const unitCost = parseFloat($row.find(".unit-cost").val()) || 0;
+            
+            let profitMargin = 0;
+            if (unitCost > 0 && retailPrice > 0) {
+                profitMargin = ((retailPrice - unitCost) / unitCost) * 100;
+            }
+            
+            $row.find(".profit-margin").val(profitMargin.toFixed(2));
+        }
+
+        function validateRetailPriceAgainstMRP($row) {
+            const retailPriceInput = $row.find(".retail-price");
+            const retailPrice = parseFloat(retailPriceInput.val()) || 0;
+            const mrp = parseFloat($row.data('mrp')) || 0;
+            
+            if (mrp > 0 && retailPrice > mrp) {
+                // Show warning and reset to MRP
+                toastr.warning(`Retail price cannot exceed MRP (${mrp.toFixed(2)}). Setting to MRP.`, 'Price Validation');
+                retailPriceInput.val(mrp.toFixed(2));
+                
+                // Add visual feedback
+                retailPriceInput.addClass('is-invalid');
+                setTimeout(() => {
+                    retailPriceInput.removeClass('is-invalid');
+                }, 2000);
+            }
+        }
+
+        function initializeExistingRowValidation($row) {
+            // Add MRP validation to existing rows
+            $row.find(".retail-price").on("input", function() {
+                validateRetailPriceAgainstMRP($row);
+                calculateProfitMargin($row);
+                updateFooter();
+            });
+        }
+
+        function getLatestBatchPrices(product) {
+            // Helper function to get latest batch prices
+            if (!product.batches || product.batches.length === 0) {
+                return {
+                    wholesale_price: product.wholesale_price || 0,
+                    special_price: product.special_price || 0,
+                    max_retail_price: product.max_retail_price || 0,
+                    retail_price: product.retail_price || 0,
+                    unit_cost: product.price || 0,
+                    batch_no: product.batch_no || '',
+                    expiry_date: product.expiry_date || ''
+                };
+            }
+
+            // Sort by creation date to get latest batch
+            const latestBatch = product.batches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            
+            return {
+                wholesale_price: latestBatch.wholesale_price || product.wholesale_price || 0,
+                special_price: latestBatch.special_price || product.special_price || 0,
+                max_retail_price: latestBatch.max_retail_price || product.max_retail_price || 0,
+                retail_price: latestBatch.retail_price || product.retail_price || 0,
+                unit_cost: latestBatch.unit_cost || product.price || 0,
+                batch_no: latestBatch.batch_no || product.batch_no || '',
+                expiry_date: latestBatch.expiry_date || product.expiry_date || ''
+            };
         }
 
         function updateFooter() {

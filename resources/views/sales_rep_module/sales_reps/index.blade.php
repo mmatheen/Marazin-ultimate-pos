@@ -363,20 +363,19 @@
                         data: null,
                         render: function(data) {
                             let html = '';
-                            
-                            // Create a map to group routes by location
+
+                            // Group assignments by sub-location
                             const locationRoutes = {};
                             data.assignments.forEach(assignment => {
                                 const locId = assignment.sub_location?.id;
-                                const locName = assignment.sub_location?.full_name || assignment.sub_location?.name;
-                                
                                 if (!locationRoutes[locId]) {
                                     locationRoutes[locId] = {
                                         location: assignment.sub_location,
-                                        routes: []
+                                        routes: [],
+                                        vehicle_number: assignment.sub_location_vehicle_number || null,
+                                        vehicle_type: assignment.sub_location_vehicle_type || null
                                     };
                                 }
-                                
                                 if (assignment.route) {
                                     locationRoutes[locId].routes.push({
                                         ...assignment.route,
@@ -387,28 +386,32 @@
                                     });
                                 }
                             });
-                            
-                            // Render grouped data
+
                             Object.values(locationRoutes).forEach(locData => {
                                 if (locData.location) {
+                                    const vehicleNumber = locData.vehicle_number;
+                                    const vehicleType = locData.vehicle_type;
+
                                     html += `
                                         <div class="mb-3 p-2 border rounded bg-light">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <strong class="text-primary">
                                                     <i class="fas fa-map-marker-alt me-1"></i>
                                                     ${locData.location.full_name || locData.location.name}
+                                                    ${vehicleNumber ? ` (<span class="text-info">${vehicleNumber}</span>)` : ''}
+                                                    ${vehicleType ? ` <span class="badge bg-secondary ms-1">${vehicleType}</span>` : ''}
                                                 </strong>
                                                 <small class="text-muted">ID: ${locData.location.id}</small>
                                             </div>
                                             <div class="routes-container">
                                     `;
-                                    
+
                                     locData.routes.forEach(route => {
                                         const statusColor = route.assignment_status === 'active' ? 'success' : 'secondary';
-                                        const sellBadge = route.can_sell ? 
-                                            '<span class="badge badge-sm bg-success ms-1">Can Sell</span>' : 
+                                        const sellBadge = route.can_sell ?
+                                            '<span class="badge badge-sm bg-success ms-1">Can Sell</span>' :
                                             '<span class="badge badge-sm bg-warning ms-1">No Sell</span>';
-                                        
+
                                         html += `
                                             <div class="route-item d-flex justify-content-between align-items-center mb-1 p-1">
                                                 <div>
@@ -420,22 +423,22 @@
                                                     <small class="text-muted d-block">
                                                         From: ${new Date(route.assigned_date).toLocaleDateString()}
                                                     </small>
-                                                    ${route.end_date ? 
-                                                        `<small class="text-muted d-block">To: ${new Date(route.end_date).toLocaleDateString()}</small>` : 
+                                                    ${route.end_date ?
+                                                        `<small class="text-muted d-block">To: ${new Date(route.end_date).toLocaleDateString()}</small>` :
                                                         '<small class="text-success d-block">Ongoing</small>'
                                                     }
                                                 </div>
                                             </div>
                                         `;
                                     });
-                                    
+
                                     html += `
                                             </div>
                                         </div>
                                     `;
                                 }
                             });
-                            
+
                             return html || '<span class="text-muted">No Assignments</span>';
                         }
                     },
