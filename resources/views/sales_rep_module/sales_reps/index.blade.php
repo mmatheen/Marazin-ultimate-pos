@@ -256,7 +256,7 @@
     <script>
         let rowCounter = 0;
         let locationsData = {};
-        let routesData = {};
+        let routesData = []; // Initialize as array instead of object
         let usersData = {};
 
         $(document).ready(function() {
@@ -501,100 +501,120 @@
 
         // Load all dropdown data
         function loadDropdownData() {
-            // Load Users
-            $.ajax({
-                url: '/user-get-all',
-                method: 'GET',
-                success: function(res) {
-                    $('#user_id').empty().append('<option value="">Select User</option>');
-                    if (res.message && Array.isArray(res.message)) {
-                        res.message
-                            .filter(u => u.role_key === 'sales_rep')
-                            .forEach(u => {
-                                $('#user_id').append(
-                                    `<option value="${u.id}">${u.user_name} (${u.email}) ==> ${u.role_key}</option>`
-                                );
-                            });
+            return new Promise((resolve, reject) => {
+                let loadedCount = 0;
+                const totalLoads = 3; // Users, Locations, Routes
+                
+                function checkComplete() {
+                    loadedCount++;
+                    if (loadedCount >= totalLoads) {
+                        resolve();
                     }
-                    if (typeof userId !== 'undefined' && userId) $('#user_id').val(userId);
-                },
-                error: function() {
-                    toastr.error('Failed to load users.');
                 }
-            });
-
-            // Load Locations
-            $.ajax({
-                url: '/location-get-all',
-                method: 'GET',
-                success: function(res) {
-                    console.log('Locations API Response:', res);
-                    if (res.status && Array.isArray(res.data)) {
-                        locationsData = {};
-                        res.data.forEach(loc => {
-                            locationsData[loc.id] = loc;
-                            // Also include children locations
-                            if (loc.children && Array.isArray(loc.children)) {
-                                loc.children.forEach(child => {
-                                    locationsData[child.id] = child;
+                
+                // Load Users
+                $.ajax({
+                    url: '/user-get-all',
+                    method: 'GET',
+                    success: function(res) {
+                        $('#user_id').empty().append('<option value="">Select User</option>');
+                        if (res.message && Array.isArray(res.message)) {
+                            // Store users data for later use
+                            usersData = {};
+                            res.message
+                                .filter(u => u.role_key === 'sales_rep')
+                                .forEach(u => {
+                                    usersData[u.id] = u;
+                                    $('#user_id').append(
+                                        `<option value="${u.id}">${u.user_name} (${u.email}) ==> ${u.role_key}</option>`
+                                    );
                                 });
-                            }
-                        });
+                        }
+                        checkComplete();
+                    },
+                    error: function() {
+                        toastr.error('Failed to load users.');
+                        checkComplete();
                     }
-                },
-                error: (xhr) => {
-                    console.error('Failed to load locations:', xhr);
-                    toastr.error('Failed to load locations.');
-                }
-            });
+                });
 
-            // Show vehicle info when sub-location changes
-            $(document).on('change', '.sub-location-select', function() {
-                const locationId = $(this).val();
-                const rowDiv = $(this).closest('.assignment-row');
-                let vehicleInfoHtml = '';
-                if (locationId && locationsData[locationId]) {
-                    const loc = locationsData[locationId];
-                    if (loc.vehicle_number || loc.vehicle_type) {
-                        vehicleInfoHtml = `
-                            <div class="mt-2">
-                                <span class="badge bg-info me-2">
-                                    <i class="fas fa-car me-1"></i>
-                                    ${loc.vehicle_number ? 'Number: ' + loc.vehicle_number : ''}
-                                </span>
-                                <span class="badge bg-secondary">
-                                    <i class="fas fa-truck me-1"></i>
-                                    ${loc.vehicle_type ? 'Type: ' + loc.vehicle_type : ''}
-                                </span>
-                            </div>
-                        `;
+                // Load Locations
+                $.ajax({
+                    url: '/location-get-all',
+                    method: 'GET',
+                    success: function(res) {
+                        console.log('Locations API Response:', res);
+                        if (res.status && Array.isArray(res.data)) {
+                            locationsData = {};
+                            res.data.forEach(loc => {
+                                locationsData[loc.id] = loc;
+                                // Also include children locations
+                                if (loc.children && Array.isArray(loc.children)) {
+                                    loc.children.forEach(child => {
+                                        locationsData[child.id] = child;
+                                    });
+                                }
+                            });
+                        }
+                        checkComplete();
+                    },
+                    error: (xhr) => {
+                        console.error('Failed to load locations:', xhr);
+                        toastr.error('Failed to load locations.');
+                        checkComplete();
                     }
-                }
-                // Remove any previous vehicle info and add new
-                rowDiv.find('.vehicle-info-row').remove();
-                if (vehicleInfoHtml) {
-                    rowDiv.find('.sub-location-select').parent().append(
-                        `<div class="vehicle-info-row">${vehicleInfoHtml}</div>`
-                    );
-                }
-            });
+                });
 
-            // Load Routes
-            $.ajax({
-                url: '/api/routes',
-                method: 'GET',
-                success: function(res) {
-                    console.log('Routes API Response:', res);
-                    if (res.status && Array.isArray(res.data)) {
-                        routesData = res.data.filter(r => r.status === 'active');
+                // Load Routes
+                $.ajax({
+                    url: '/api/routes',
+                    method: 'GET',
+                    success: function(res) {
+                        console.log('Routes API Response:', res);
+                        if (res.status && Array.isArray(res.data)) {
+                            routesData = res.data.filter(r => r.status === 'active');
+                        }
+                        checkComplete();
+                    },
+                    error: (xhr) => {
+                        console.error('Failed to load routes:', xhr);
+                        toastr.error('Failed to load routes.');
+                        checkComplete();
                     }
-                },
-                error: (xhr) => {
-                    console.error('Failed to load routes:', xhr);
-                    toastr.error('Failed to load routes.');
-                }
+                });
             });
         }
+
+        // Show vehicle info when sub-location changes
+        $(document).on('change', '.sub-location-select', function() {
+            const locationId = $(this).val();
+            const rowDiv = $(this).closest('.assignment-row');
+            let vehicleInfoHtml = '';
+            if (locationId && locationsData[locationId]) {
+                const loc = locationsData[locationId];
+                if (loc.vehicle_number || loc.vehicle_type) {
+                    vehicleInfoHtml = `
+                        <div class="mt-2">
+                            <span class="badge bg-info me-2">
+                                <i class="fas fa-car me-1"></i>
+                                ${loc.vehicle_number ? 'Number: ' + loc.vehicle_number : ''}
+                            </span>
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-truck me-1"></i>
+                                ${loc.vehicle_type ? 'Type: ' + loc.vehicle_type : ''}
+                            </span>
+                        </div>
+                    `;
+                }
+            }
+            // Remove any previous vehicle info and add new
+            rowDiv.find('.vehicle-info-row').remove();
+            if (vehicleInfoHtml) {
+                rowDiv.find('.sub-location-select').parent().append(
+                    `<div class="vehicle-info-row">${vehicleInfoHtml}</div>`
+                );
+            }
+        });
 
         // User selection change
         $('#user_id').on('change', function() {
@@ -639,11 +659,15 @@
             
             // Populate locations dropdown (only sub-locations with parent_id)
             const locationSelect = $(`[data-row-id="${rowCounter}"] .sub-location-select`);
-            Object.values(locationsData).forEach(loc => {
-                if (loc.parent_id) { // Only sub-locations
-                    locationSelect.append(`<option value="${loc.id}">${loc.name}</option>`);
-                }
-            });
+            if (locationsData && typeof locationsData === 'object') {
+                Object.values(locationsData).forEach(loc => {
+                    if (loc.parent_id) { // Only sub-locations
+                        locationSelect.append(`<option value="${loc.id}">${loc.name}</option>`);
+                    }
+                });
+            } else {
+                console.warn('Locations data not loaded yet:', locationsData);
+            }
             
             // Initialize Select2 for routes
             $(`[data-row-id="${rowCounter}"] .routes-select`).select2({
@@ -653,10 +677,34 @@
             
             // Populate all routes initially
             const routesSelect = $(`[data-row-id="${rowCounter}"] .routes-select`);
-            routesData.forEach(route => {
-                const option = new Option(route.name, route.id, false, false);
-                routesSelect.append(option);
-            });
+            if (Array.isArray(routesData) && routesData.length > 0) {
+                routesData.forEach(route => {
+                    const option = new Option(route.name, route.id, false, false);
+                    routesSelect.append(option);
+                });
+            } else {
+                console.warn('Routes data not loaded yet or is empty:', routesData);
+                // Optionally load routes data if not available
+                $.ajax({
+                    url: '/api/routes',
+                    method: 'GET',
+                    success: function(res) {
+                        console.log('Routes loaded in addAssignmentRow:', res);
+                        if (res.status && Array.isArray(res.data)) {
+                            routesData = res.data.filter(r => r.status === 'active');
+                            routesData.forEach(route => {
+                                const option = new Option(route.name, route.id, false, false);
+                                routesSelect.append(option);
+                            });
+                            routesSelect.trigger('change');
+                        }
+                    },
+                    error: (xhr) => {
+                        console.error('Failed to load routes in addAssignmentRow:', xhr);
+                        toastr.error('Failed to load routes.');
+                    }
+                });
+            }
             routesSelect.trigger('change');
             
             // Update remove button visibility
@@ -803,15 +851,18 @@
             const userId = $(this).data('user');
             console.log('Adding route for user:', userId);
             
+            // Get user data from the table
+            const tableData = $('#salesRepsTable').DataTable().data().toArray();
+            const userData = tableData.find(row => row.user_id == userId);
+            
             $('#salesRepAddUpdateForm')[0].reset();
             $('#sales_rep_id').val('');
-            $('#user_id').val(userId).prop('disabled', true);
             
-            if (usersData[userId]) {
-                const user = usersData[userId];
+            if (userData && userData.user) {
+                const user = userData.user;
                 $('#selectedUserName').text(user.user_name);
                 $('#selectedUserEmail').text(user.email);
-                $('#selectedUserRole').text(user.role);
+                $('#selectedUserRole').text(user.role_key || 'Sales Rep');
                 $('#userInfoContainer').show();
                 $('#assignmentsContainer').show();
                 
@@ -823,12 +874,21 @@
             $('#saveBtn').html('<i class="fas fa-save me-2"></i>Save Assignment');
             $('.text-danger').text('');
             
-            loadDropdownData();
+            // Load dropdown data and then set the user
+            loadDropdownData().then(() => {
+                // Set user after dropdown is loaded
+                $('#user_id').val(userId).prop('disabled', true);
+                console.log('User selected in dropdown:', userId);
+            });
+            
             $('#addAndEditSalesRepModal').modal('show');
         });
 
         // View details for grouped user
-        $('#salesRepsTable').on('click', '.viewDetailsBtn', function() {
+        $('#salesRepsTable').on('click', '.viewDetailsBtn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             const userId = $(this).data('user');
             console.log('Viewing details for user:', userId);
             
@@ -837,144 +897,197 @@
             const userData = tableData.find(row => row.user_id == userId);
             
             if (userData) {
-                let detailsHtml = `
-                    <div class="modal fade" id="userDetailsModal" tabindex="-1" role="dialog">
-                        <div class="modal-dialog modal-lg" role="document">
-                            <div class="modal-content">
-                                <div class="modal-header bg-primary text-white">
-                                    <h5 class="modal-title">
-                                        <i class="fas fa-user-tie me-2"></i>
-                                        ${userData.user.user_name} - Assignment Details
-                                    </h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="row mb-3">
-                                        <div class="col-md-6">
-                                            <strong>User Name:</strong> ${userData.user.user_name}<br>
-                                            <strong>Full Name:</strong> ${userData.user.full_name || 'N/A'}<br>
-                                            <strong>Email:</strong> ${userData.user.email}
-                                        </div>
-                                        <div class="col-md-6">
-                                            <strong>Total Assignments:</strong> ${userData.total_assignments}<br>
-                                            <strong>Overall Status:</strong> 
-                                            <span class="badge bg-${userData.status === 'active' ? 'success' : 'secondary'}">
-                                                ${userData.status.charAt(0).toUpperCase() + userData.status.slice(1)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <hr>
-                                    <h6><i class="fas fa-list me-2"></i>All Assignments</h6>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-bordered">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th>ID</th>
-                                                    <th>Location</th>
-                                                    <th>Route</th>
-                                                    <th>Assigned Date</th>
-                                                    <th>End Date</th>
-                                                    <th>Can Sell</th>
-                                                    <th>Status</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                `;
-                
-                userData.assignments.forEach(assignment => {
-                    detailsHtml += `
-                        <tr>
-                            <td>${assignment.id}</td>
-                            <td>
-                                <span class="badge bg-info">${assignment.sub_location?.name || 'N/A'}</span>
-                                <small class="d-block text-muted">${assignment.sub_location?.full_name || ''}</small>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">${assignment.route?.name || 'N/A'}</span>
-                            </td>
-                            <td>${new Date(assignment.assigned_date).toLocaleDateString()}</td>
-                            <td>${assignment.end_date ? new Date(assignment.end_date).toLocaleDateString() : '<span class="text-success">Ongoing</span>'}</td>
-                            <td>
-                                <span class="badge bg-${assignment.can_sell ? 'success' : 'warning'}">
-                                    ${assignment.can_sell ? 'Yes' : 'No'}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-${assignment.status === 'active' ? 'success' : 'secondary'}">
-                                    ${assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                                </span>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-danger deleteAssignmentBtn" 
-                                    data-id="${assignment.id}" title="Delete Assignment">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                detailsHtml += `
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                    <button type="button" class="btn btn-success addRouteBtn" data-user="${userId}">
-                                        <i class="fas fa-plus me-2"></i>Add New Route
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // Remove existing modal if present
-                $('#userDetailsModal').remove();
-                
-                // Add modal to body and show
-                $('body').append(detailsHtml);
-                $('#userDetailsModal').modal('show');
-                
-                // Handle delete assignment within modal
-                $('#userDetailsModal').on('click', '.deleteAssignmentBtn', function() {
-                    const assignmentId = $(this).data('id');
-                    if (confirm('Are you sure you want to delete this assignment?')) {
-                        $.ajax({
-                            url: `/api/sales-reps/${assignmentId}`,
-                            method: 'DELETE',
-                            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                            success: function(res) {
-                                $('#userDetailsModal').modal('hide');
-                                loadDataTable();
-                                toastr.success(res.message || 'Assignment deleted successfully');
-                            },
-                            error: function(xhr) {
-                                console.error('Delete error:', xhr);
-                                toastr.error(xhr.responseJSON?.message || 'Delete failed.');
-                            }
-                        });
-                    }
-                });
-                
-                // Handle add route within modal
-                $('#userDetailsModal').on('click', '.addRouteBtn', function() {
-                    $('#userDetailsModal').modal('hide');
-                    $(this).trigger('click'); // Trigger the main add route handler
-                });
+                showUserDetailsModal(userData, userId);
             }
         });
 
         // Manage user assignments
-        $('#salesRepsTable').on('click', '.editUserBtn', function() {
+        $('#salesRepsTable').on('click', '.editUserBtn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             const userId = $(this).data('user');
             console.log('Managing assignments for user:', userId);
             
-            // For now, just show the view details modal
-            $('.viewDetailsBtn[data-user="' + userId + '"]').trigger('click');
+            // Get current table data to find user assignments
+            const tableData = $('#salesRepsTable').DataTable().data().toArray();
+            const userData = tableData.find(row => row.user_id == userId);
+            
+            if (userData) {
+                // Call the view details functionality directly without triggering events
+                showUserDetailsModal(userData, userId);
+            }
         });
+
+        // Extract the modal creation to a separate function to avoid recursion
+        function showUserDetailsModal(userData, userId) {
+            let detailsHtml = `
+                <div class="modal fade" id="userDetailsModal" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-user-tie me-2"></i>
+                                    ${userData.user.user_name} - Assignment Details
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>User Name:</strong> ${userData.user.user_name}<br>
+                                        <strong>Full Name:</strong> ${userData.user.full_name || 'N/A'}<br>
+                                        <strong>Email:</strong> ${userData.user.email}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Total Assignments:</strong> ${userData.total_assignments}<br>
+                                        <strong>Overall Status:</strong> 
+                                        <span class="badge bg-${userData.status === 'active' ? 'success' : 'secondary'}">
+                                            ${userData.status.charAt(0).toUpperCase() + userData.status.slice(1)}
+                                        </span>
+                                    </div>
+                                </div>
+                                <hr>
+                                <h6><i class="fas fa-list me-2"></i>All Assignments</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Location</th>
+                                                <th>Route</th>
+                                                <th>Assigned Date</th>
+                                                <th>End Date</th>
+                                                <th>Can Sell</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+            `;
+            
+            userData.assignments.forEach(assignment => {
+                detailsHtml += `
+                    <tr>
+                        <td>${assignment.id}</td>
+                        <td>
+                            <span class="badge bg-info">${assignment.sub_location?.name || 'N/A'}</span>
+                            <small class="d-block text-muted">${assignment.sub_location?.full_name || ''}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">${assignment.route?.name || 'N/A'}</span>
+                        </td>
+                        <td>${new Date(assignment.assigned_date).toLocaleDateString()}</td>
+                        <td>${assignment.end_date ? new Date(assignment.end_date).toLocaleDateString() : '<span class="text-success">Ongoing</span>'}</td>
+                        <td>
+                            <span class="badge bg-${assignment.can_sell ? 'success' : 'warning'}">
+                                ${assignment.can_sell ? 'Yes' : 'No'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${assignment.status === 'active' ? 'success' : 'secondary'}">
+                                ${assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger deleteAssignmentBtn" 
+                                data-id="${assignment.id}" title="Delete Assignment">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            detailsHtml += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-success addRouteBtn" data-user="${userId}">
+                                <i class="fas fa-plus me-2"></i>Add New Route
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+            
+            // Remove existing modal if present
+            $('#userDetailsModal').remove();
+            
+            // Add modal to body and show
+            $('body').append(detailsHtml);
+            $('#userDetailsModal').modal('show');
+            
+            // Handle delete assignment within modal
+            $('#userDetailsModal').on('click', '.deleteAssignmentBtn', function() {
+                const assignmentId = $(this).data('id');
+                if (confirm('Are you sure you want to delete this assignment?')) {
+                    $.ajax({
+                        url: `/api/sales-reps/${assignmentId}`,
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                        success: function(res) {
+                            $('#userDetailsModal').modal('hide');
+                            loadDataTable();
+                            toastr.success(res.message || 'Assignment deleted successfully');
+                        },
+                        error: function(xhr) {
+                            console.error('Delete error:', xhr);
+                            toastr.error(xhr.responseJSON?.message || 'Delete failed.');
+                        }
+                    });
+                }
+            });
+            
+            // Handle add route within modal
+            $('#userDetailsModal').on('click', '.addRouteBtn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const userId = $(this).data('user');
+                $('#userDetailsModal').modal('hide');
+                
+                // Wait for modal to hide, then trigger the main add route functionality
+                setTimeout(function() {
+                    // Get user data from the table
+                    const tableData = $('#salesRepsTable').DataTable().data().toArray();
+                    const userData = tableData.find(row => row.user_id == userId);
+                    
+                    // Call the add route functionality directly
+                    $('#salesRepAddUpdateForm')[0].reset();
+                    $('#sales_rep_id').val('');
+                    
+                    if (userData && userData.user) {
+                        const user = userData.user;
+                        $('#selectedUserName').text(user.user_name);
+                        $('#selectedUserEmail').text(user.email);
+                        $('#selectedUserRole').text(user.role_key || 'Sales Rep');
+                        $('#userInfoContainer').show();
+                        $('#assignmentsContainer').show();
+                        
+                        $('#assignmentRows').empty();
+                        addAssignmentRow();
+                    }
+                    
+                    $('#modalTitle').html('<i class="fas fa-user-tie me-2"></i>Assign Another Route');
+                    $('#saveBtn').html('<i class="fas fa-save me-2"></i>Save Assignment');
+                    $('.text-danger').text('');
+                    
+                    // Load dropdown data and then set the user
+                    loadDropdownData().then(() => {
+                        // Set user after dropdown is loaded
+                        $('#user_id').val(userId).prop('disabled', true);
+                        console.log('User selected in modal dropdown:', userId);
+                    });
+                    
+                    $('#addAndEditSalesRepModal').modal('show');
+                }, 300);
+            });
+        }
 
         // Delete
         $('#salesRepsTable').on('click', '.deleteBtn', function() {
@@ -991,7 +1104,7 @@
                 success: function(res) {
                     $('#deleteModal').modal('hide');
                     loadDataTable();
-                    toastr.success(res.message || 'Assignment deleted successfully');
+                    toastr.success(res.message || 'Sales Representative deleted successfully');
                 },
                 error: function(xhr) {
                     console.error('Delete error:', xhr);
