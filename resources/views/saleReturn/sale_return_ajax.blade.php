@@ -149,7 +149,7 @@
 
             function fetchSaleProducts(invoiceNo) {
                 $.ajax({
-                    url: `/api/sales/${invoiceNo}`,
+                    url: `/sales/${invoiceNo}`,
                     method: 'GET',
                     success: function(data) {
                         const productsTableBody = $("#productsTableBody");

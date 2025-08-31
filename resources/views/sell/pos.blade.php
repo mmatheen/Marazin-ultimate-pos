@@ -2597,7 +2597,7 @@
                 if (invoiceNo) {
                     // Fetch sales data from the API
                     $.ajax({
-                        url: '/api/sales', // Update this URL if necessary
+                        url: '/sales', // Update this URL if necessary
                         method: 'GET',
                         success: function(data) {
                             // Check if the entered invoice number matches any sales data
