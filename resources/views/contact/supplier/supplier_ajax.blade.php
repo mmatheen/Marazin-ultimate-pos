@@ -95,7 +95,9 @@
                         row.append('<td>Rs ' + item.current_balance + '</td>');
                         row.append('<td>Rs ' + item.total_purchase_due + '</td>');
                         row.append('<td>Rs ' + item.total_return_due + '</td>');
-                        row.append('<td>' + '@can("edit supplier")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                        row.append('<td>' + 
+                            '@can("view supplier")<button type="button" value="' + item.id + '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book text-primary"></i> Ledger</button>@endcan' +
+                            '@can("edit supplier")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
                             '@can("delete supplier")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         table.row.add(row).draw(false);
                     });
@@ -266,5 +268,12 @@
                 }
             });
         }
+
+        // Navigate to Supplier Ledger
+        $(document).on('click', '.ledger_btn', function() {
+            var supplierId = $(this).val();
+            // Navigate to supplier ledger page with supplier ID as parameter
+            window.location.href = '/supplier-ledger?supplier_id=' + supplierId;
+        });
     });
 </script>

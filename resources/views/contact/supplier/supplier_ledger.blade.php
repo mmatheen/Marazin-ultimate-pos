@@ -7,10 +7,10 @@
             <div class="row align-items-center">
                 <div class="col-sm-12">
                     <div class="page-sub-header">
-                        <h3 class="page-title">Customer Ledger</h3>
+                        <h3 class="page-title">Supplier Ledger</h3>
                         <ul class="breadcrumb">
                             <li class="breadcrumb-item"><a href="{{ url('/dashboard') }}">Dashboard</a></li>
-                            <li class="breadcrumb-item active">Customer Ledger</li>
+                            <li class="breadcrumb-item active">Supplier Ledger</li>
                         </ul>
                     </div>
                 </div>
@@ -28,9 +28,9 @@
                             <form id="ledgerFilterForm" class="border p-3 rounded">
                                 <div class="row">
                                     <div class="col-md-3">
-                                        <label for="customer_id" class="form-label"><strong>Customer <span class="text-danger">*</span></strong></label>
-                                        <select class="form-select" id="customer_id" name="customer_id" required>
-                                            <option value="">Select Customer</option>
+                                        <label for="supplier_id" class="form-label"><strong>Supplier <span class="text-danger">*</span></strong></label>
+                                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                                            <option value="">Select Supplier</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
@@ -60,46 +60,46 @@
                         </div>
                     </div>
 
-                    <!-- Auto-selected Customer Notification -->
+                    <!-- Auto-selected Supplier Notification -->
                     <div id="autoSelectedNotification" class="alert alert-info d-none">
                         <i class="fa fa-info-circle"></i> 
-                        <span id="autoSelectedMessage">Customer automatically selected from customer list.</span>
+                        <span id="autoSelectedMessage">Supplier automatically selected from supplier list.</span>
                     </div>
 
-                    <!-- Customer Details Section -->
-                    <div id="customerDetailsSection" style="display: none;">
+                    <!-- Supplier Details Section -->
+                    <div id="supplierDetailsSection" style="display: none;">
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="card bg-light">
                                     <div class="card-body">
-                                        <h5 class="card-title">Customer Information</h5>
-                                        <div id="customerDetails"></div>
+                                        <h5 class="card-title">Supplier Information</h5>
+                                        <div id="supplierDetails"></div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="card bg-info text-white">
+                                <div class="card bg-warning text-dark">
                                     <div class="card-body">
-                                        <h5 class="card-title text-white">Account Summary</h5>
+                                        <h5 class="card-title text-dark">Account Summary</h5>
                                         <div id="accountSummary"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Advance Payment Actions -->
+                        <!-- Supplier Advance Payment Actions -->
                         <div id="advanceActionsSection" class="row mb-3" style="display: none;">
                             <div class="col-12">
-                                <div class="card border-success">
+                                <div class="card border-primary">
                                     <div class="card-body p-3">
                                         <div class="row">
                                             <div class="col-md-8">
-                                                <h6 class="card-title mb-2 text-success">
-                                                    <i class="fa fa-credit-card"></i> Advance Payment Management
+                                                <h6 class="card-title mb-2 text-primary">
+                                                    <i class="fa fa-credit-card"></i> Supplier Advance Management
                                                 </h6>
                                                 <div class="row">
                                                     <div class="col-md-6">
-                                                        <small class="text-muted">Available Advance: <strong class="text-success">₹<span id="advanceAmount">0.00</span></strong></small><br>
+                                                        <small class="text-muted">Available Advance: <strong class="text-primary">₹<span id="advanceAmount">0.00</span></strong></small><br>
                                                         <small id="advanceStatusText" class="text-info">Ready to apply</small>
                                                     </div>
                                                     <div class="col-md-6">
@@ -108,10 +108,10 @@
                                                 </div>
                                             </div>
                                             <div class="col-md-4 text-right">
-                                                <button type="button" id="applyAdvanceBtn" class="btn btn-success btn-sm mb-1" style="min-width: 150px;">
+                                                <button type="button" id="applyAdvanceBtn" class="btn btn-primary btn-sm mb-1" style="min-width: 150px;">
                                                     <i class="fa fa-magic"></i> Apply to Bills
                                                 </button><br>
-                                                <button type="button" id="manageAdvanceBtn" class="btn btn-outline-primary btn-sm mb-1" style="min-width: 150px;">
+                                                <button type="button" id="manageAdvanceBtn" class="btn btn-outline-warning btn-sm mb-1" style="min-width: 150px;">
                                                     <i class="fa fa-cog"></i> Manage Advance
                                                 </button><br>
                                                 <button type="button" id="refreshLedgerBtn" class="btn btn-outline-info btn-sm" style="min-width: 150px;">
@@ -172,13 +172,13 @@
     </div>
 </div>
 
-<!-- Advance Management Modal -->
+<!-- Supplier Advance Management Modal -->
 <div class="modal fade" id="advanceManagementModal" tabindex="-1" role="dialog" aria-labelledby="advanceManagementModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="advanceManagementModalLabel">
-                    <i class="fa fa-credit-card"></i> Advance Payment Management
+                    <i class="fa fa-credit-card"></i> Supplier Advance Management
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -187,39 +187,39 @@
             <div class="modal-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="card border-success">
-                            <div class="card-header bg-success text-white">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
                                 <h6 class="mb-0"><i class="fa fa-plus-circle"></i> Apply Advance to Bills</h6>
                             </div>
                             <div class="card-body">
-                                <p class="text-muted">Apply customer's advance amount to reduce outstanding bills automatically.</p>
+                                <p class="text-muted">Apply supplier's advance amount to reduce outstanding purchase bills.</p>
                                 <div class="form-group">
                                     <label>Available Advance Amount:</label>
-                                    <h4 class="text-success">₹<span id="modalAdvanceAmount">0.00</span></h4>
+                                    <h4 class="text-primary">₹<span id="modalAdvanceAmount">0.00</span></h4>
                                 </div>
-                                <button type="button" id="modalApplyAdvanceBtn" class="btn btn-success btn-block">
+                                <button type="button" id="modalApplyAdvanceBtn" class="btn btn-primary btn-block">
                                     <i class="fa fa-magic"></i> Apply to Outstanding Bills
                                 </button>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card border-info">
-                            <div class="card-header bg-info text-white">
-                                <h6 class="mb-0"><i class="fa fa-exchange"></i> Manage Returns & Refunds</h6>
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0"><i class="fa fa-exchange"></i> Manage Returns & Credits</h6>
                             </div>
                             <div class="card-body">
-                                <p class="text-muted">Handle customer returns and decide how to process refund amounts.</p>
+                                <p class="text-muted">Handle purchase returns and decide how to process credit amounts.</p>
                                 <div class="form-group">
                                     <label>Return Processing Options:</label>
                                     <div class="btn-group-vertical btn-block">
-                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="handleReturnOption('cash')">
-                                            <i class="fa fa-money"></i> Cash Refund
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="handleReturnOption('cash')">
+                                            <i class="fa fa-money"></i> Cash Credit
                                         </button>
-                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="handleReturnOption('advance')">
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="handleReturnOption('advance')">
                                             <i class="fa fa-credit-card"></i> Add to Advance
                                         </button>
-                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="handleReturnOption('adjust')">
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="handleReturnOption('adjust')">
                                             <i class="fa fa-adjust"></i> Adjust Against Bills
                                         </button>
                                     </div>
@@ -231,8 +231,8 @@
                 
                 <div class="row mt-3">
                     <div class="col-12">
-                        <div class="card border-warning">
-                            <div class="card-header bg-warning text-dark">
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white">
                                 <h6 class="mb-0"><i class="fa fa-cogs"></i> Advanced Options</h6>
                             </div>
                             <div class="card-body">
@@ -243,7 +243,7 @@
                                             <div class="input-group">
                                                 <input type="number" class="form-control" id="manualAdvanceAmount" placeholder="0.00" step="0.01" min="0">
                                                 <div class="input-group-append">
-                                                    <button class="btn btn-warning" type="button" onclick="addManualAdvance()">
+                                                    <button class="btn btn-info" type="button" onclick="addManualAdvance()">
                                                         <i class="fa fa-plus"></i> Add
                                                     </button>
                                                 </div>
@@ -279,5 +279,21 @@
     </div>
 </div>
 
-@include('contact.customer.customer_ledger_ajax')
+@include('contact.supplier.supplier_ledger_ajax')
+
+@if(isset($supplierId))
+<script>
+    // Auto-select supplier from controller parameter
+    $(document).ready(function() {
+        setTimeout(function() {
+            if ($('#supplier_id').length) {
+                $('#supplier_id').val('{{ $supplierId }}').trigger('change');
+                loadSupplierDetails('{{ $supplierId }}');
+                loadSupplierLedger();
+            }
+        }, 1000); // Wait for suppliers to load
+    });
+</script>
+@endif
+
 @endsection

@@ -45,6 +45,53 @@ $(document).ready(function() {
         }
     });
 
+    // Ensure buttons work with a simple approach
+    $(document).ready(function() {
+        console.log('Customer ledger AJAX loaded');
+        
+        // Force enable button functionality with body delegation
+        $('body').on('click', '#applyAdvanceBtn', function(e) {
+            e.preventDefault();
+            console.log('Apply advance button clicked via body delegation');
+            
+            const customerId = $('#customer_id').val();
+            if (!customerId) {
+                alert('Please select a customer first');
+                return;
+            }
+            
+            const advanceAmount = parseFloat($('#advanceAmount').text() || 0);
+            if (advanceAmount <= 0) {
+                alert('No advance amount available to apply');
+                return;
+            }
+            
+            if (confirm(`Apply ₹${advanceAmount.toFixed(2)} advance to outstanding bills?`)) {
+                applyAdvancePayments(customerId);
+            }
+        });
+        
+        $('body').on('click', '#manageAdvanceBtn', function(e) {
+            e.preventDefault();
+            console.log('Manage advance button clicked');
+            const customerId = $('#customer_id').val();
+            if (!customerId) {
+                alert('Please select a customer first');
+                return;
+            }
+            $('#modalAdvanceAmount').text($('#advanceAmount').text());
+            $('#advanceManagementModal').modal('show');
+        });
+        
+        $('body').on('click', '#refreshLedgerBtn', function(e) {
+            e.preventDefault();
+            console.log('Refresh button clicked');
+            if ($('#customer_id').val()) {
+                loadCustomerLedger();
+            }
+        });
+    });
+
     function loadCustomers() {
         $.ajax({
             url: '/customer-get-all',
@@ -149,6 +196,29 @@ $(document).ready(function() {
                     $('#ledgerTableSection').show();
                     $('#noDataMessage').hide();
 
+                    // Show/hide advance actions based on available advance
+                    console.log('Checking advance application data:', response.advance_application);
+                    
+                    // Always show the advance section if customer is selected for better UX
+                    if (response.customer && response.customer.id) {
+                        const advanceAmount = response.advance_application ? response.advance_application.available_advance : 0;
+                        console.log('Available advance amount:', advanceAmount);
+                        
+                        $('#advanceActionsSection').show();
+                        $('#advanceAmount').text(parseFloat(advanceAmount || 0).toFixed(2));
+                        
+                        // Enable/disable button based on advance availability
+                        if (advanceAmount > 0) {
+                            $('#applyAdvanceBtn').prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                            $('#advanceStatusText').text('Available for application');
+                        } else {
+                            $('#applyAdvanceBtn').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
+                            $('#advanceStatusText').text('No advance available');
+                        }
+                    } else {
+                        $('#advanceActionsSection').hide();
+                    }
+
                     if (response.transactions.length === 0) {
                         $('#ledgerTableSection').hide();
                         $('#noDataMessage').show();
@@ -208,18 +278,41 @@ $(document).ready(function() {
                     <h4 class="text-white">Rs. ${formatCurrency(summary.total_paid)}</h4>
                 </div>
             </div>
-            <div class="row text-center mt-3">
+            <div class="row text-center mt-2">
                 <div class="col-6">
                     <h6 class="text-white mb-1">Total Returns</h6>
                     <h4 class="text-white">Rs. ${formatCurrency(summary.total_returns)}</h4>
                 </div>
                 <div class="col-6">
-                    <h6 class="text-white mb-1">Balance Due</h6>
-                    <h4 class="text-white ${summary.balance_due < 0 ? 'text-success' : 'text-warning'}">
-                        Rs. ${formatCurrency(Math.abs(summary.balance_due))} ${summary.balance_due < 0 ? '(Advance)' : ''}
+                    <h6 class="text-white mb-1">Outstanding Due</h6>
+                    <h4 class="text-white text-warning">Rs. ${formatCurrency(summary.outstanding_due)}</h4>
+                </div>
+            </div>
+            <div class="row text-center mt-2">
+                <div class="col-6">
+                    <h6 class="text-white mb-1">Advance Amount</h6>
+                    <h4 class="text-white text-success">Rs. ${formatCurrency(summary.advance_amount)}</h4>
+                </div>
+                <div class="col-6">
+                    <h6 class="text-white mb-1">Effective Due</h6>
+                    <h4 class="text-white ${summary.effective_due > 0 ? 'text-danger' : 'text-success'}">
+                        Rs. ${formatCurrency(summary.effective_due)}
                     </h4>
                 </div>
             </div>
+            ${summary.advance_amount > 0 ? `
+            <div class="row text-center mt-2">
+                <div class="col-12">
+                    <div class="alert alert-info alert-sm p-2 mb-0">
+                        <small class="text-dark">
+                            <i class="fa fa-info-circle"></i>
+                            Advance Rs. ${formatCurrency(Math.min(summary.advance_amount, summary.outstanding_due))} 
+                            auto-applied to outstanding bills
+                        </small>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
         `;
         $('#accountSummary').html(summaryHtml);
     }
@@ -243,6 +336,16 @@ $(document).ready(function() {
             const typeClass = getTypeClass(transaction.type);
             const statusClass = getStatusClass(transaction.payment_status);
             const balanceClass = transaction.running_balance < 0 ? 'text-success' : 'text-dark';
+            
+            // Enhanced balance display with advance/due information
+            let balanceDisplay = '';
+            if (transaction.advance_amount && transaction.advance_amount > 0) {
+                balanceDisplay = `<div class="text-end fw-bold text-success">Rs. ${formatCurrency(transaction.advance_amount)} (Advance)</div>`;
+            } else if (transaction.due_amount && transaction.due_amount > 0) {
+                balanceDisplay = `<div class="text-end fw-bold text-danger">Rs. ${formatCurrency(transaction.due_amount)} (Due)</div>`;
+            } else {
+                balanceDisplay = `<div class="text-end fw-bold ${balanceClass}">Rs. ${formatCurrency(Math.abs(transaction.running_balance))} ${transaction.running_balance < 0 ? '(Adv)' : ''}</div>`;
+            }
 
             tableData.push([
                 index + 1,
@@ -253,7 +356,7 @@ $(document).ready(function() {
                 `<span class="badge ${statusClass}">${transaction.payment_status}</span>`,
                 transaction.debit > 0 ? `<div class="text-end">Rs. ${formatCurrency(transaction.debit)}</div>` : '<div class="text-end">-</div>',
                 transaction.credit > 0 ? `<div class="text-end">Rs. ${formatCurrency(transaction.credit)}</div>` : '<div class="text-end">-</div>',
-                `<div class="text-end fw-bold ${balanceClass}">Rs. ${formatCurrency(Math.abs(transaction.running_balance))} ${transaction.running_balance < 0 ? '(Adv)' : ''}</div>`,
+                balanceDisplay,
                 transaction.payment_method,
                 transaction.others || '-'
             ]);
@@ -270,7 +373,7 @@ $(document).ready(function() {
             destroy: true,
             responsive: true,
             processing: true,
-            pageLength: 25,
+            pageLength: 10,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
             order: [[1, 'desc']], // Sort by date descending
             columnDefs: [
@@ -362,12 +465,155 @@ $(document).ready(function() {
         $('#customerDetailsSection').hide();
         $('#ledgerTableSection').hide();
         $('#noDataMessage').hide();
+        $('#advanceActionsSection').hide();
         
         // Destroy DataTable if it exists
         if (ledgerDataTable) {
             ledgerDataTable.destroy();
             ledgerDataTable = null;
         }
+    }
+
+    function applyAdvancePayments(customerId) {
+        console.log('applyAdvancePayments called with customerId:', customerId);
+        
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        console.log('CSRF token:', csrfToken);
+        
+        $.ajax({
+            url: '/apply-customer-advance',
+            type: 'POST',
+            data: {
+                customer_id: customerId,
+                _token: csrfToken
+            },
+            dataType: 'json',
+            beforeSend: function() {
+                console.log('AJAX request starting...');
+                $('#applyAdvanceBtn').prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Applying...');
+            },
+            success: function(response) {
+                console.log('AJAX success:', response);
+                if (response.status === 200) {
+                    toastr.success(response.message || 'Advance payments applied successfully');
+                    // Reload the ledger to show updated data
+                    loadCustomerLedger();
+                } else {
+                    toastr.error(response.message || 'Failed to apply advance payments');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX error:', error);
+                console.error('XHR:', xhr);
+                console.error('Status:', status);
+                toastr.error('Failed to apply advance payments: ' + error);
+            },
+            complete: function() {
+                console.log('AJAX complete');
+                $('#applyAdvanceBtn').prop('disabled', false).html('<i class="fa fa-magic"></i> Apply Advance to Bills');
+            }
+        });
+    }
+    
+    // Handle return processing options
+    function handleReturnOption(option) {
+        const customerId = $('#customer_id').val();
+        if (!customerId) {
+            toastr.error('Please select a customer first');
+            return;
+        }
+        
+        let message = '';
+        switch(option) {
+            case 'cash':
+                message = 'Process return as cash refund. This will create a cash payment record.';
+                break;
+            case 'advance':
+                message = 'Add return amount to customer advance balance for future purchases.';
+                break;
+            case 'adjust':
+                message = 'Automatically adjust return amount against outstanding bills.';
+                break;
+        }
+        
+        if (confirm(message + ' Continue?')) {
+            // You can implement specific return handling logic here
+            toastr.info('Return processing option: ' + option.toUpperCase());
+            // Call backend API for return processing
+            processReturn(customerId, option);
+        }
+    }
+    
+    // Add manual advance amount
+    function addManualAdvance() {
+        const customerId = $('#customer_id').val();
+        const amount = parseFloat($('#manualAdvanceAmount').val());
+        
+        if (!customerId) {
+            toastr.error('Please select a customer first');
+            return;
+        }
+        
+        if (!amount || amount <= 0) {
+            toastr.error('Please enter a valid amount');
+            return;
+        }
+        
+        if (confirm(`Add ₹${amount.toFixed(2)} to customer's advance balance?`)) {
+            // Call backend API to add manual advance
+            addAdvanceAmount(customerId, amount);
+        }
+    }
+    
+    // Adjust advance amount
+    function adjustAdvance() {
+        const customerId = $('#customer_id').val();
+        const amount = parseFloat($('#adjustAdvanceAmount').val());
+        
+        if (!customerId) {
+            toastr.error('Please select a customer first');
+            return;
+        }
+        
+        if (!amount || amount <= 0) {
+            toastr.error('Please enter a valid amount');
+            return;
+        }
+        
+        if (confirm(`Deduct ₹${amount.toFixed(2)} from customer's advance balance?`)) {
+            // Call backend API to adjust advance
+            adjustAdvanceAmount(customerId, amount);
+        }
+    }
+    
+    // Refresh advance data
+    function refreshAdvanceData() {
+        loadCustomerLedger();
+        $('#advanceManagementModal').modal('hide');
+        toastr.info('Advance data refreshed');
+    }
+    
+    // Process return (placeholder for future implementation)
+    function processReturn(customerId, option) {
+        console.log('Processing return for customer:', customerId, 'Option:', option);
+        // Implement return processing logic here
+        toastr.success('Return processing initiated');
+    }
+    
+    // Add advance amount (placeholder for future implementation)
+    function addAdvanceAmount(customerId, amount) {
+        console.log('Adding advance amount:', amount, 'for customer:', customerId);
+        // Implement add advance logic here
+        toastr.success('Manual advance added: ₹' + amount.toFixed(2));
+        loadCustomerLedger();
+    }
+    
+    // Adjust advance amount (placeholder for future implementation)
+    function adjustAdvanceAmount(customerId, amount) {
+        console.log('Adjusting advance amount:', amount, 'for customer:', customerId);
+        // Implement adjust advance logic here
+        toastr.success('Advance adjusted: -₹' + amount.toFixed(2));
+        loadCustomerLedger();
     }
 });
 </script>

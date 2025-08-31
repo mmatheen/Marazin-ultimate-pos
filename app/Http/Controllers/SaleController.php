@@ -1043,9 +1043,12 @@ private function updatePaymentStatus($sale)
         ->sum('amount');
 
     $sale->total_paid = $totalPaid;
-    $sale->total_due = max($sale->final_total - $totalPaid, 0);
+    // Don't update total_due as it's a generated column
+    
+    // Calculate total_due for payment status logic
+    $totalDue = $sale->final_total - $totalPaid;
 
-    if ($sale->total_due <= 0) {
+    if ($totalDue <= 0) {
         $sale->payment_status = 'Paid';
     } elseif ($totalPaid > 0) {
         $sale->payment_status = 'Partial';

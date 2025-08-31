@@ -403,6 +403,15 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Customer Ledger Routes
         Route::get('/customer-ledger', [PaymentController::class, 'customerLedger'])->name('customer.ledger');
         Route::get('/customer-ledger-data', [PaymentController::class, 'getCustomerLedger'])->name('customer.ledger.data');
+        Route::post('/apply-customer-advance', [PaymentController::class, 'applyCustomerAdvance'])->name('customer.apply.advance');
+
+        // Supplier Ledger Routes
+        Route::get('/supplier-ledger', [PaymentController::class, 'supplierLedger'])->name('supplier.ledger');
+        Route::get('/supplier-ledger-data', [PaymentController::class, 'getSupplierLedger'])->name('supplier.getSupplierLedgerData');
+        Route::post('/apply-supplier-advance', [PaymentController::class, 'applySupplierAdvance'])->name('supplier.applySupplierAdvance');
+        Route::get('/supplier-details', [PaymentController::class, 'getSupplierDetails'])->name('supplier.getSupplierDetails');
+        Route::get('/suppliers-list', [PaymentController::class, 'getSuppliersData'])->name('contact.supplier.getSuppliers');
+        Route::get('/business-locations', [PaymentController::class, 'getBusinessLocations'])->name('business.getBusinessLocation');
 
         // -------------------- DiscountController Routes --------------------
         Route::get('/discounts', [DiscountController::class, 'index'])->name('discounts.index');
