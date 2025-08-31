@@ -39,7 +39,6 @@ class PurchaseController extends Controller
     public function storeOrUpdate(Request $request, $purchaseId = null)
     {
 
-        // dd($request->all());
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'purchase_date' => 'required|date',
