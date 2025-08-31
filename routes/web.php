@@ -326,22 +326,30 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
         Route::get('/draft-list', [SaleController::class, 'draft'])->name('draft-list');
         Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
+        
+        // Sales Routes - Specific routes BEFORE generic ones
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
         Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
-        Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
-        // Sales Reports
+        Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
+        
+        // Sales Reports - These need to come before the generic routes
         Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
         Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
-        // Suspended Sales
+        
+        // Suspended Sales - These need to come before the generic routes
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
-        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
-        // Print Sales
+        
+        // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
+        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
+        
+        // Generic sales route - This MUST come last
+        Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 
         // -------------------- ExpenseParentCategoryController Routes --------------------
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
