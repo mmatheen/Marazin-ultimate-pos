@@ -10,6 +10,7 @@ use App\Models\Ledger;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
+use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -17,15 +18,6 @@ use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
-    function __construct()
-    {
-        $this->middleware('permission:add bulk sale payment', ['only' => ['addSaleBulkPayments']]);
-        $this->middleware('permission:add bulk purchase payment', ['only' => ['addPurchaseBulkPayments']]);
-    }
-
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         $payments = Payment::all();
@@ -42,11 +34,182 @@ class PaymentController extends Controller
         return view('bulk_payments.purchases_bulk_payments');
     }
 
+    public function customerLedger()
+    {
+        return view('customer.customer_ledger');
+    }
+
+    public function getCustomerLedger(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'customer_id' => 'required|exists:customers,id',
+            'location_id' => 'nullable|exists:locations,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        $customerId = $request->customer_id;
+        $locationId = $request->location_id;
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+
+        // Get customer details
+        $customer = Customer::find($customerId);
+
+        // Build base query for ledger transactions
+        $ledgerQuery = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->whereBetween('transaction_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->orderBy('transaction_date', 'asc');
+
+        // Get all ledger entries
+        $ledgerEntries = $ledgerQuery->get();
+
+        // Get sales data with location filter
+        $salesQuery = Sale::withoutGlobalScopes()->where('customer_id', $customerId)
+            ->whereBetween('sales_date', [$startDate, $endDate])
+            ->with(['location', 'user', 'payments']);
+
+        if ($locationId) {
+            $salesQuery->where('location_id', $locationId);
+        }
+
+        $sales = $salesQuery->get();
+
+        // Get payments data
+        $paymentsQuery = Payment::where('customer_id', $customerId)
+            ->whereBetween('payment_date', [$startDate, $endDate]);
+
+        if ($locationId) {
+            $paymentsQuery->where(function($query) use ($locationId) {
+                $query->whereHas('sale', function($subQuery) use ($locationId) {
+                    $subQuery->withoutGlobalScopes()->where('location_id', $locationId);
+                })->orWhere(function($subQuery) use ($locationId) {
+                    // For payments without sales, you might want to include them or exclude them
+                    // For now, let's include payments that don't have sales
+                    $subQuery->whereNull('reference_id');
+                });
+            });
+        }
+
+        $payments = $paymentsQuery->with(['sale'])->get();
+
+        // Get sale returns data
+        $returnsQuery = SalesReturn::where('customer_id', $customerId)
+            ->whereBetween('return_date', [$startDate, $endDate])
+            ->with(['sale', 'location', 'user']);
+
+        if ($locationId) {
+            $returnsQuery->where('location_id', $locationId);
+        }
+
+        $returns = $returnsQuery->get();
+
+        // Combine all transactions
+        $transactions = collect();
+
+        // Add sales
+        foreach ($sales as $sale) {
+            $transactions->push([
+                'date' => $sale->sales_date,
+                'reference_no' => $sale->invoice_no,
+                'type' => 'Sale',
+                'location' => $sale->location ? $sale->location->name : 'N/A',
+                'payment_status' => $sale->payment_status,
+                'debit' => $sale->final_total,
+                'credit' => 0,
+                'payment_method' => 'N/A',
+                'others' => $sale->discount_amount > 0 ? "Discount: {$sale->discount_amount}" : '',
+                'created_at' => $sale->created_at,
+            ]);
+        }
+
+        // Add payments
+        foreach ($payments as $payment) {
+            $location = 'N/A';
+            if ($payment->sale && $payment->sale->location) {
+                $location = $payment->sale->location->name;
+            }
+
+            $transactions->push([
+                'date' => $payment->payment_date,
+                'reference_no' => $payment->reference_no,
+                'type' => 'Payment',
+                'location' => $location,
+                'payment_status' => 'Paid',
+                'debit' => 0,
+                'credit' => $payment->amount,
+                'payment_method' => $payment->payment_method,
+                'others' => $payment->notes ?: '',
+                'created_at' => $payment->created_at,
+            ]);
+        }
+
+        // Add returns
+        foreach ($returns as $return) {
+            $transactions->push([
+                'date' => $return->return_date,
+                'reference_no' => $return->invoice_number,
+                'type' => 'Return',
+                'location' => $return->location ? $return->location->name : 'N/A',
+                'payment_status' => $return->payment_status,
+                'debit' => 0,
+                'credit' => $return->return_total,
+                'payment_method' => 'N/A',
+                'others' => '',
+                'created_at' => $return->created_at,
+            ]);
+        }
+
+        // Sort transactions by date
+        $transactions = $transactions->sortBy('date')->values();
+
+        // Calculate running balance
+        $runningBalance = $customer->opening_balance;
+        $transactionsWithBalance = $transactions->map(function ($transaction) use (&$runningBalance) {
+            $runningBalance += $transaction['debit'] - $transaction['credit'];
+            $transaction['running_balance'] = $runningBalance;
+            return $transaction;
+        });
+
+        // Calculate totals
+        $totalInvoices = $sales->sum('final_total');
+        $totalPaid = $payments->sum('amount');
+        $totalReturns = $returns->sum('return_total');
+        $balanceDue = $runningBalance;
+
+        return response()->json([
+            'status' => 200,
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->first_name . ' ' . $customer->last_name,
+                'mobile' => $customer->mobile_no,
+                'email' => $customer->email,
+                'address' => $customer->address,
+                'opening_balance' => $customer->opening_balance,
+            ],
+            'transactions' => $transactionsWithBalance,
+            'summary' => [
+                'total_invoices' => $totalInvoices,
+                'total_paid' => $totalPaid,
+                'total_returns' => $totalReturns,
+                'balance_due' => $balanceDue,
+                'opening_balance' => $customer->opening_balance,
+            ],
+            'period' => [
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+            ]
+        ]);
+    }
 
     public function storeOrUpdate(Request $request, $paymentId = null)
     {
         $validator = Validator::make($request->all(), $this->getValidationRules());
-
         if ($validator->fails()) {
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
@@ -56,7 +219,7 @@ class PaymentController extends Controller
             $payment = $this->saveOrUpdatePayment($paymentData, $paymentId);
 
             if ($payment) {
-                $this->processPayment($request, $payment);
+                $this->processPayment($payment);
             }
         });
 
@@ -71,7 +234,7 @@ class PaymentController extends Controller
             'payment_method' => 'required|string',
             'reference_no' => 'nullable|string',
             'notes' => 'nullable|string',
-            'payment_type' => 'nullable|string|in:purchase,sale,purchase_return,sale_return_with_bill,sale_return_without_bill',
+            'payment_type' => 'required|string|in:purchase,sale,purchase_return,sale_return_with_bill,sale_return_without_bill',
             'reference_id' => 'nullable|integer',
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'customer_id' => 'nullable|integer|exists:customers,id',
@@ -86,45 +249,6 @@ class PaymentController extends Controller
             'cheque_valid_date' => 'nullable|date',
             'cheque_given_by' => 'nullable|string',
         ];
-    }
-
-    private function saveOrUpdatePayment($paymentData, $paymentId = null)
-    {
-        if ($paymentId) {
-            $payment = Payment::find($paymentId);
-            if ($payment) {
-                $payment->update($paymentData);
-                return $payment;
-            }
-        } else {
-            return Payment::create($paymentData);
-        }
-        return null;
-    }
-
-    private function processPayment(Request $request, Payment $payment)
-    {
-        $this->updateReference($request, $payment);
-
-        if (in_array($payment->payment_type, ['purchase', 'purchase_return'])) {
-            $this->updateSupplierBalance($request->supplier_id);
-            $this->createLedgerEntry($request, $payment, 'supplier');
-        } elseif (in_array($payment->payment_type, ['sale', 'sale_return_with_bill', 'sale_return_without_bill'])) {
-            $this->updateCustomerBalance($request->customer_id);
-            $this->createLedgerEntry($request, $payment, 'customer');
-        }
-    }
-
-    private function updateReference(Request $request, Payment $payment)
-    {
-        if ($request->reference_id) {
-            $reference = $this->findReference($request->payment_type, $request->reference_id);
-            if ($reference) {
-                $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount') + $payment->amount;
-                $reference->total_paid = $totalPaid;
-                $this->updatePaymentStatus($reference, $totalPaid, $request->payment_type);
-            }
-        }
     }
 
     private function preparePaymentData(Request $request)
@@ -152,90 +276,110 @@ class PaymentController extends Controller
         ];
     }
 
-    private function findReference($type, $id)
+    private function saveOrUpdatePayment($paymentData, $paymentId = null)
     {
-        return match ($type) {
-            'purchase' => Purchase::find($id),
-            'sale' => Sale::find($id),
-            'purchase_return' => PurchaseReturn::find($id),
-            'sale_return_with_bill', 'sale_return_without_bill' => SalesReturn::find($id),
-            default => null,
-        };
-    }
-
-    private function updatePaymentStatus($reference, $totalPaid, $type)
-    {
-        $finalTotalField = match ($type) {
-            'purchase', 'purchase_return' => $type === 'purchase' ? 'final_total' : 'return_total',
-            'sale_return_with_bill', 'sale_return_without_bill' => 'return_total',
-            default => 'final_total',
-        };
-
-        $reference->total_paid = $totalPaid;
-        $reference->payment_status = $this->getPaymentStatus($reference->$finalTotalField, $totalPaid);
-        $reference->save();
-    }
-
-    private function getPaymentStatus($finalTotal, $totalPaid)
-    {
-        if ($finalTotal - $totalPaid <= 0) {
-            return 'Paid';
-        } elseif ($totalPaid < $finalTotal) {
-            return 'Partial';
+        if ($paymentId) {
+            $payment = Payment::find($paymentId);
+            if ($payment) {
+                $payment->update($paymentData);
+                return $payment;
+            }
         } else {
-            return 'Due';
+            return Payment::create($paymentData);
         }
+        return null;
     }
 
-    private function updateSupplierBalance($supplierId)
+    private function processPayment(Payment $payment)
     {
-        $supplier = Supplier::find($supplierId);
+        // Only payment ledger entries!
+        if ($payment->payment_type === 'sale' && $payment->customer_id) {
+            $this->updateCustomerBalance($payment->customer_id);
+            $this->createLedgerEntryForPayment($payment);
+            $this->updateSaleTable($payment->reference_id);
+        } else if ($payment->payment_type === 'purchase' && $payment->supplier_id) {
+            $this->updateSupplierBalance($payment->supplier_id);
+            $this->createLedgerEntryForPayment($payment, 'supplier');
+            // update purchase table if needed...
+        }
+        // handle returns if needed (not shown here)
+    }
 
-        if ($supplier) {
-            $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
-            $totalPurchasesReturn = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
-            $totalPayments = Payment::where('supplier_id', $supplierId)->whereIn('payment_type', ['purchase', 'purchase_return'])->sum('amount');
+    private function createLedgerEntryForPayment(Payment $payment, $contactType = 'customer')
+    {
+        $userId = $contactType === 'supplier' ? $payment->supplier_id : $payment->customer_id;
 
-            $supplier->current_balance = ($supplier->opening_balance + $totalPurchases) - ($totalPayments + $totalPurchasesReturn);
-            $supplier->save();
+        $prevLedger = Ledger::where('user_id', $userId)
+            ->where('contact_type', $contactType)
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $prevBalance = $prevLedger ? $prevLedger->balance : 0;
+
+        // Payment: debit = 0, credit = payment amount
+        $debit = 0;
+        $credit = $payment->amount;
+        $newBalance = $prevBalance + $debit - $credit;
+
+        Ledger::create([
+            'transaction_date' => $payment->payment_date,
+            'reference_no' => $payment->reference_no,
+            'transaction_type' => 'payments', // Always payments for PaymentController!
+            'debit' => $debit,
+            'credit' => $credit,
+            'balance' => $newBalance,
+            'contact_type' => $contactType,
+            'user_id' => $userId,
+            'payment_method' => $payment->payment_method,
+        ]);
+    }
+
+    private function updateSaleTable($saleId)
+    {
+        $sale = Sale::find($saleId);
+        if ($sale) {
+            $totalPaid = Payment::where('reference_id', $sale->id)
+                ->where('payment_type', 'sale')
+                ->sum('amount');
+            $sale->total_paid = $totalPaid;
+            $sale->total_due = max($sale->final_total - $totalPaid, 0);
+
+            if ($sale->total_due <= 0) {
+                $sale->payment_status = 'Paid';
+            } elseif ($totalPaid > 0) {
+                $sale->payment_status = 'Partial';
+            } else {
+                $sale->payment_status = 'Due';
+            }
+            $sale->save();
         }
     }
 
     private function updateCustomerBalance($customerId)
     {
         $customer = Customer::find($customerId);
-
         if ($customer) {
             $totalSales = Sale::where('customer_id', $customerId)->sum('final_total');
             $totalSalesReturn = SalesReturn::where('customer_id', $customerId)->sum('return_total');
-            $totalPayments = Payment::where('customer_id', $customerId)->whereIn('payment_type', ['sale', 'sale_return_with_bill', 'sale_return_without_bill'])->sum('amount');
-
+            $totalPayments = Payment::where('customer_id', $customerId)->where('payment_type', 'sale')->sum('amount');
             $customer->current_balance = ($customer->opening_balance + $totalSales) - ($totalPayments + $totalSalesReturn);
             $customer->save();
         }
     }
 
-    private function createLedgerEntry(Request $request, Payment $payment, $contactType)
+    private function updateSupplierBalance($supplierId)
     {
-        $ledgerData = [
-            'transaction_date' => $payment->payment_date,
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => $payment->payment_type,
-            'debit' => $contactType === 'supplier' ? $payment->amount : 0,
-            'credit' => $contactType === 'customer' ? $payment->amount : 0,
-            'balance' => 0,
-            'payment_method' => $payment->payment_method,
-            'contact_type' => $contactType,
-            'user_id' => $contactType === 'supplier' ? $request->supplier_id : $request->customer_id,
-        ];
-
-        $ledger = Ledger::create($ledgerData);
-        Ledger::calculateBalance($ledger->user_id, $ledger->contact_type);
+        $supplier = Supplier::find($supplierId);
+        if ($supplier) {
+            $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
+            $totalPurchasesReturn = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
+            $totalPayments = Payment::where('supplier_id', $supplierId)->where('payment_type', 'purchase')->sum('amount');
+            $supplier->current_balance = ($supplier->opening_balance + $totalPurchases) - ($totalPayments + $totalPurchasesReturn);
+            $supplier->save();
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Payment $payment)
     {
         $payment->load($this->getPaymentRelations($payment->payment_type));
@@ -255,28 +399,25 @@ class PaymentController extends Controller
     {
         DB::transaction(function () use ($payment) {
             $payment->delete();
-            $this->restoreReference($payment);
 
-            if (in_array($payment->payment_type, ['purchase', 'purchase_return'])) {
+            if ($payment->payment_type === 'purchase' || $payment->payment_type === 'purchase_return') {
                 $this->updateSupplierBalance($payment->supplier_id);
             } else {
                 $this->updateCustomerBalance($payment->customer_id);
+                $this->updateSaleTable($payment->reference_id);
             }
+
+            Ledger::where('transaction_date', $payment->payment_date)
+                ->where('reference_no', $payment->reference_no)
+                ->where('transaction_type', 'payments')
+                ->where('user_id', $payment->supplier_id ?? $payment->customer_id)
+                ->delete();
         });
 
         return response()->json(['status' => 200, 'message' => 'Payment deleted and balances restored successfully.']);
     }
 
-    private function restoreReference(Payment $payment)
-    {
-        $reference = $this->findReference($payment->payment_type, $payment->reference_id);
-        if ($reference) {
-            $totalPaid = $reference->payments()->where('id', '!=', $payment->id)->sum('amount');
-            $reference->total_paid = $totalPaid;
-            $this->updatePaymentStatus($reference, $totalPaid, $payment->payment_type);
-        }
-    }
-
+    // Bulk payment functions for sales (customer) and purchases (supplier)
     public function submitBulkPayment(Request $request)
     {
         $data = $request->validate($this->getBulkPaymentValidationRules($request));
@@ -366,7 +507,7 @@ class PaymentController extends Controller
                 }
 
                 $paidAmount = min($remainingAmount, $reference->total_due);
-                $this->createPayment($reference, $paidAmount, $data['payment_method'], $data['entity_type'], $entity->id, 'Bulk payment', $request);
+                $this->createBulkPayment($reference, $paidAmount, $data['payment_method'], $data['entity_type'], $entity->id, 'Bulk payment', $request);
                 $remainingAmount -= $paidAmount;
             }
         }
@@ -376,8 +517,8 @@ class PaymentController extends Controller
     {
         if ($data['global_amount'] == 0 && isset($data['payments']) && count($data['payments']) > 0) {
             foreach ($data['payments'] as $paymentData) {
-                $reference = $this->findReference($data['entity_type'] === 'supplier' ? 'purchase' : 'sale', $paymentData['reference_id']);
-                $this->createPayment($reference, $paymentData['amount'], $data['payment_method'], $data['entity_type'], $entity->id, 'Individual payment', $request);
+                $reference = $this->getReferenceForBulk($data['entity_type'], $paymentData['reference_id']);
+                $this->createBulkPayment($reference, $paymentData['amount'], $data['payment_method'], $data['entity_type'], $entity->id, 'Individual payment', $request);
             }
         }
     }
@@ -391,7 +532,14 @@ class PaymentController extends Controller
         };
     }
 
-    private function createPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
+    private function getReferenceForBulk($entityType, $refId)
+    {
+        return $entityType === 'supplier'
+            ? Purchase::find($refId)
+            : Sale::find($refId);
+    }
+
+    private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
     {
         $paymentData = [
             'payment_date' => Carbon::today()->format('Y-m-d'),
@@ -399,12 +547,11 @@ class PaymentController extends Controller
             'payment_method' => $paymentMethod,
             'payment_type' => $entityType === 'supplier' ? 'purchase' : 'sale',
             'reference_id' => $reference->id,
-            'reference_no' => $reference->reference_no,
+            'reference_no' => $reference->invoice_no ?? $reference->reference_no,
             $entityType === 'supplier' ? 'supplier_id' : 'customer_id' => $entityId,
             'notes' => $notes,
         ];
 
-        // Add card details if payment method is card
         if ($paymentMethod === 'card') {
             $paymentData['card_number'] = $request->card_number;
             $paymentData['card_holder_name'] = $request->card_holder_name;
@@ -413,7 +560,6 @@ class PaymentController extends Controller
             $paymentData['card_security_code'] = $request->card_security_code;
         }
 
-        // Add cheque details if payment method is cheque
         if ($paymentMethod === 'cheque') {
             $paymentData['cheque_number'] = $request->cheque_number;
             $paymentData['cheque_bank_branch'] = $request->cheque_bank_branch;
@@ -422,17 +568,20 @@ class PaymentController extends Controller
             $paymentData['cheque_given_by'] = $request->cheque_given_by;
         }
 
-        // Add bank transfer details if payment method is bank transfer
         if ($paymentMethod === 'bank_transfer') {
             $paymentData['bank_account_number'] = $request->bank_account_number;
         }
 
         $payment = Payment::create($paymentData);
 
-        $this->createLedgerEntry($request, $payment, $entityType);
+        // Only payment ledger entries!
+        $this->createLedgerEntryForPayment($payment, $entityType);
 
-        $reference->increment('total_paid', $amount);
-        $reference->payment_status = $this->getPaymentStatus($reference->final_total, $reference->total_paid);
-        $reference->save();
+        if ($entityType === 'customer') {
+            $this->updateSaleTable($reference->id);
+            $this->updateCustomerBalance($entityId);
+        } else {
+            $this->updateSupplierBalance($entityId);
+        }
     }
 }

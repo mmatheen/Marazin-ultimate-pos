@@ -399,6 +399,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
+        
+        // Customer Ledger Routes
+        Route::get('/customer-ledger', [PaymentController::class, 'customerLedger'])->name('customer.ledger');
+        Route::get('/customer-ledger-data', [PaymentController::class, 'getCustomerLedger'])->name('customer.ledger.data');
 
         // -------------------- DiscountController Routes --------------------
         Route::get('/discounts', [DiscountController::class, 'index'])->name('discounts.index');

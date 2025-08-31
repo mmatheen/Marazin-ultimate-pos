@@ -58,6 +58,10 @@
                                 <li><a href="{{ route('customer') }}" class="{{ set_active(['customer']) }}">Customer</a></li>
                             @endcan
 
+                            @can('view customer')
+                                <li><a href="{{ route('customer.ledger') }}" class="{{ set_active(['customer-ledger']) }}">Customer Ledger</a></li>
+                            @endcan
+
                             {{-- @can('view customer-group')
                         <li><a href="{{ route('customer-group') }}" class="{{ set_active(['customer-group'])}}">Customer Groups</a></li>
                         @endcan

@@ -45,4 +45,9 @@ class Payment extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class, 'reference_id', 'id');
+    }
 }

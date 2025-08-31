@@ -100,6 +100,9 @@
                         row.append('<td>' + item.total_sale_due + '</td>');
                         row.append('<td>' + item.total_return_due + '</td>');
                         row.append('<td>' +
+                            '@can('view customer')<button type="button" value="' +
+                            item.id +
+                            '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>@endcan' +
                             '@can('edit customer')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
@@ -240,6 +243,13 @@
                     }
                 }
             });
+        });
+
+        // Navigate to Customer Ledger
+        $(document).on('click', '.ledger_btn', function() {
+            var customerId = $(this).val();
+            // Navigate to customer ledger page with customer ID as parameter
+            window.location.href = '/customer-ledger?customer_id=' + customerId;
         });
 
 
