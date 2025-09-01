@@ -96,9 +96,11 @@
     <div id="printArea">
 
         <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
-            <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
+            {{-- <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" /> --}}
+            <div style="font-size: 28px; font-weight: bold;">PRANY</div>
+            <div style="font-size: 16px; font-weight: bold;">STORES</div>
         </div>
-        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
+        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 16px;">
             @if ($location)
                 @if ($location->address)
                     <div>{{ $location->address }}</div>
@@ -151,13 +153,13 @@
                     </th>
                     {{-- Group products by product_id and batch_id --}}
                     @foreach ($products->groupBy(function ($item) {
-                        return $item->product_id . '-' . ($item->batch_id ?? '0');
-                    }) as $groupKey => $group)
-                                        @php
-                                            $firstProduct = $group->first();
-                                            $totalQuantity = $group->sum('quantity');
-                                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-                                        @endphp
+        return $item->product_id . '-' . ($item->batch_id ?? '0');
+    }) as $groupKey => $group)
+                        @php
+                            $firstProduct = $group->first();
+                            $totalQuantity = $group->sum('quantity');
+                            $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
+                        @endphp
 
                 <tr>
                     <td>{{ $loop->iteration }}</td>
