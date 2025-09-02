@@ -1821,30 +1821,47 @@ class ProductController extends Controller
 
             // Check if file upload was successful
             if ($file->isValid()) {
-                // Create an instance of the import class
-                $import = new importProduct();
+                try {
+                    // Create an instance of the import class
+                    $import = new importProduct();
 
-                // Process the Excel file
-                Excel::import($import, $file);
+                    // Process the Excel file
+                    Excel::import($import, $file);
 
-                // Get validation errors from the import process
-                $validationErrors = $import->getValidationErrors();
-                $records = $import->getData();
+                    // Get validation errors and data from the import process
+                    $validationErrors = $import->getValidationErrors();
+                    $records = $import->getData();
+                    $successCount = count($records);
+                    $errorCount = count($validationErrors);
 
-                // If there are validation errors, return them in the response
-                if (!empty($validationErrors)) {
+                    // If there are validation errors, return them in the response
+                    if (!empty($validationErrors)) {
+                        return response()->json([
+                            'status' => 422, // Unprocessable Entity
+                            'message' => "Import completed with errors. {$successCount} products imported successfully, {$errorCount} rows had errors.",
+                            'validation_errors' => $validationErrors,
+                            'success_count' => $successCount,
+                            'error_count' => $errorCount,
+                            'has_errors' => true
+                        ]);
+                    }
+
                     return response()->json([
-                        'status' => 401,
-                        'validation_errors' => $validationErrors, // Return specific error messages
+                        'status' => 200,
+                        'data' => $records,
+                        'message' => "Import successful! {$successCount} products imported successfully.",
+                        'success_count' => $successCount,
+                        'error_count' => 0,
+                        'has_errors' => false
+                    ]);
 
+                } catch (\Exception $e) {
+                    Log::error('Product import failed: ' . $e->getMessage());
+                    return response()->json([
+                        'status' => 500,
+                        'message' => "Import failed due to an unexpected error: " . $e->getMessage()
                     ]);
                 }
-
-                return response()->json([
-                    'status' => 200,
-                    'data' => $records,
-                    'message' => "Import Products Excel file uploaded successfully!"
-                ]);
             } else {
                 return response()->json([
                     'status' => 500,
