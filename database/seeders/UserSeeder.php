@@ -18,7 +18,7 @@ class UserSeeder extends Seeder
     {
         // Get all locations and their IDs
         $allLocations = DB::table('locations')->pluck('id', 'name');
-        $location_ids = $allLocations->only(['Sammanthurai']);
+        $location_ids = $allLocations->only(['Main Location']);
 
         $users = [
             [
@@ -29,7 +29,7 @@ class UserSeeder extends Seeder
                 'email' => 'admin@gmail.com',
                 'password' => '1234',
                 'role' => 'Super Admin',
-                'locations' => ['Sammanthurai']
+                'locations' => ['Main Location']
             ],
            
         ];

@@ -96,11 +96,11 @@
     <div id="printArea">
 
         <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
-            {{-- <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" /> --}}
-            <div style="font-size: 28px; font-weight: bold;">PRANY</div>
-            <div style="font-size: 16px; font-weight: bold;">STORES</div>
+            <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Prany Logo" class="logo" width="50px" height="50px" />
+            {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
+            <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>
-        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 16px;">
+        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
             @if ($location)
                 @if ($location->address)
                     <div>{{ $location->address }}</div>

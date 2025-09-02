@@ -14,7 +14,7 @@ class MainCategory extends Seeder
      */
     public function run(): void
     {
-        $location_id = DB::table('locations')->where('name', 'marazin')->first()->id;
+        $location_id = DB::table('locations')->where('name', 'Main Location')->first()->id;
 
         DB::table('main_categories')->insert([
             [
