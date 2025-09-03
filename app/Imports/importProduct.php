@@ -134,6 +134,59 @@ class importProduct implements ToCollection, WithHeadingRow
         }
     }
 
+    /**
+     * Clean row data to handle empty strings and whitespace
+     */
+    private function cleanRowData(array &$rowArray)
+    {
+        // Clean numeric fields - convert empty strings or whitespace to null
+        $numericFields = [
+            'stock_alert_quantity', 
+            'alert_quantity',
+            'original_price', 
+            'retail_price', 
+            'whole_sale_price', 
+            'special_price', 
+            'max_retail_price', 
+            'qty', 
+            'pax'
+        ];
+
+        foreach ($numericFields as $field) {
+            if (isset($rowArray[$field])) {
+                $value = trim($rowArray[$field]);
+                // Only convert empty strings and pure whitespace to null, preserve "0"
+                if ($value === '' || $value === ' ' || $value === '  ') {
+                    $rowArray[$field] = null;
+                } else {
+                    $rowArray[$field] = $value;
+                }
+            }
+        }
+
+        // Clean string fields - trim whitespace
+        $stringFields = [
+            'product_name', 
+            'sku', 
+            'unit_name', 
+            'brand_name', 
+            'main_category_name', 
+            'sub_category_name',
+            'product_image_name',
+            'description',
+            'batch_no'
+        ];
+
+        foreach ($stringFields as $field) {
+            if (isset($rowArray[$field])) {
+                $rowArray[$field] = trim($rowArray[$field]);
+                if ($rowArray[$field] === '') {
+                    $rowArray[$field] = null;
+                }
+            }
+        }
+    }
+
     private function validateAllRows(Collection $rows)
     {
         foreach ($rows as $index => $row) {
@@ -144,6 +197,9 @@ class importProduct implements ToCollection, WithHeadingRow
             if (empty(array_filter($rowArray))) {
                 continue;
             }
+
+            // Clean and validate data before processing
+            $this->cleanRowData($rowArray);
 
             // Convert expiry date to proper format if present
             if (!empty($rowArray['expiry_date'])) {
@@ -167,6 +223,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'brand_name' => 'nullable|string|max:255',
                 'main_category_name' => 'nullable|string|max:255',
                 'sub_category_name' => 'nullable|string|max:255',
+                'stock_alert_quantity' => 'nullable|numeric|min:0',
                 'original_price' => 'required|numeric|min:0',
                 'retail_price' => 'required|numeric|min:0',
                 'whole_sale_price' => 'required|numeric|min:0',
@@ -180,6 +237,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'sku.regex' => 'The SKU must contain only letters, numbers, and hyphens.',
                 'product_name.required' => 'Product name is required.',
                 'unit_name.required' => 'Unit name is required.',
+                'stock_alert_quantity.numeric' => 'Stock alert quantity must be a valid number.',
                 'original_price.required' => 'Original price is required.',
                 'original_price.numeric' => 'Original price must be a valid number.',
                 'retail_price.required' => 'Retail price is required.',
@@ -206,6 +264,9 @@ class importProduct implements ToCollection, WithHeadingRow
             if (empty(array_filter($row))) {
                 return null;
             }
+
+            // Clean data before processing
+            $this->cleanRowData($row);
 
             // Convert expiry date to proper format if present
             if (!empty($row['expiry_date'])) {
