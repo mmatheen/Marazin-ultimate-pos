@@ -1641,7 +1641,6 @@
     });
 </script>
 
-
 <script>
     $(document).on('submit', '#importProductForm', function(e) {
         e.preventDefault();
@@ -1685,35 +1684,94 @@
             beforeSend: function() {
                 $('.progress-bar').css('width', '0%').text('0%');
                 $('.progress').show();
+                $('#import_btn').prop('disabled', true).text('Processing...');
             },
             success: function(response) {
                 if (response.status == 400) {
+                    // Handle file validation errors
                     $.each(response.errors, function(key, err_value) {
                         $('#' + key + '_error').html(err_value);
                         $('.errorSound')[0].play();
                         toastr.error(err_value, 'Error');
                     });
                 } else if (response.status == 200) {
+                    // Complete success
                     $("#importProductForm")[0].reset();
                     $('.successSound')[0].play();
                     toastr.success(response.message, 'Success');
-                } else if (response.status == 401) {
+                    
+                    // Show success summary
+                    if (response.success_count > 0) {
+                        toastr.info(`${response.success_count} products imported successfully.`, 'Import Summary');
+                    }
+                } else if (response.status == 422) {
+                    // Partial success with errors
+                    $("#importProductForm")[0].reset();
+                    
+                    // Show detailed error messages with row numbers
+                    if (response.validation_errors && response.validation_errors.length > 0) {
+                        let errorHtml = '<div class="alert alert-warning"><h6>Import Completed with Errors:</h6>';
+                        errorHtml += '<p><strong>' + response.message + '</strong></p>';
+                        errorHtml += '<div style="max-height: 300px; overflow-y: auto;"><ul>';
+                        
+                        response.validation_errors.forEach(function(error) {
+                            errorHtml += '<li>' + error + '</li>';
+                        });
+                        
+                        errorHtml += '</ul></div></div>';
+                        
+                        // Display errors in a modal or alert area
+                        if ($('#error-display-area').length) {
+                            $('#error-display-area').html(errorHtml);
+                        } else {
+                            // Create error display area if it doesn't exist
+                            let errorArea = '<div id="error-display-area" class="mt-3">' + errorHtml + '</div>';
+                            $('#importProductForm').after(errorArea);
+                        }
+                        
+                        $('.errorSound')[0].play();
+                        
+                        // Show ONLY ONE comprehensive toastr error message
+                        let errorCount = response.validation_errors.length;
+                        let summary = `Import failed with ${errorCount} error${errorCount > 1 ? 's' : ''}. Please check the details below and fix your Excel file.`;
+                        toastr.error(summary, 'Import Failed', {
+                            timeOut: 10000,
+                            extendedTimeOut: 5000
+                        });
+                    }
+                    
+                    // Show success count if any (this shouldn't happen with "all or nothing" approach)
+                    if (response.success_count > 0) {
+                        setTimeout(function() {
+                            toastr.success(`${response.success_count} products were imported successfully.`, 'Partial Success');
+                        }, 500);
+                    }
+                } else if (response.status == 500) {
+                    // Server error
                     $("#importProductForm")[0].reset();
                     $('.errorSound')[0].play();
-                    toastr.error(response.validation_errors, 'Error');
+                    toastr.error(response.message || 'Server error occurred during import.', 'Server Error');
                 }
 
                 $('.progress').hide();
+                $('#import_btn').prop('disabled', false).text('Upload');
             },
             error: function(xhr, status, error) {
                 console.error("AJAX Error:", xhr.responseText);
                 $('.errorSound')[0].play();
-                toastr.error('An error occurred while uploading the file.');
+                
+                let errorMessage = 'An error occurred while uploading the file.';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                
+                toastr.error(errorMessage, 'Upload Error');
                 $('.progress').hide();
+                $('#import_btn').prop('disabled', false).text('Upload');
             },
             complete: function() {
-                $("#importProductForm")[0].reset();
                 $('.progress').hide();
+                $('#import_btn').prop('disabled', false).text('Upload');
             }
         });
     });
