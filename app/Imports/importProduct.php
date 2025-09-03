@@ -287,13 +287,31 @@ class importProduct implements ToCollection, WithHeadingRow
                 $row['sku'] = str_pad($lastSkuNumber + 1, 4, '0', STR_PAD_LEFT);
             }
 
-            // Get authenticated user's first location
+            // Get authenticated user's location for import
             $authUser = auth()->user();
             if (!$authUser) {
                 throw new \Exception("User not authenticated.");
             }
 
-            $authLocationId = $authUser->location_id ?? 1;
+            // First check if user has selected a specific location in session
+            $selectedLocationId = session()->get('selected_location');
+            
+            if ($selectedLocationId) {
+                // Verify that the selected location is assigned to the user
+                $userLocationIds = $authUser->locations->pluck('id')->toArray();
+                if (in_array($selectedLocationId, $userLocationIds)) {
+                    $authLocationId = $selectedLocationId;
+                } else {
+                    throw new \Exception("Selected location is not assigned to the current user.");
+                }
+            } else {
+                // Fall back to user's first assigned location
+                $userLocations = $authUser->locations;
+                if ($userLocations->isEmpty()) {
+                    throw new \Exception("User has no assigned locations. Please assign at least one location to the user before importing products.");
+                }
+                $authLocationId = $userLocations->first()->id;
+            }
 
             // Resolve or create related models
             $unit = Unit::firstOrCreate(
