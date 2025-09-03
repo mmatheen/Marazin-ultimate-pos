@@ -38,7 +38,6 @@ class PurchaseController extends Controller
 
     public function storeOrUpdate(Request $request, $purchaseId = null)
     {
-
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|integer|exists:suppliers,id',
             'purchase_date' => 'required|date',
@@ -116,13 +115,12 @@ class PurchaseController extends Controller
             // Process products
             $this->processProducts($request, $purchase);
 
-            // Handle payment if paid_amount is provided
-            if ($request->paid_amount > 0) {
-                $this->handlePayment($request, $purchase);
+            // Clean up existing ledger entries if this is an update
+            if ($purchaseId) {
+                Ledger::where('reference_no', $purchase->reference_no)
+                    ->where('contact_type', 'supplier')
+                    ->delete();
             }
-
-            // Update supplier's balance
-            $this->updateSupplierBalance($purchase->supplier_id);
 
             // Insert ledger entry for the purchase
             Ledger::create([
@@ -131,35 +129,33 @@ class PurchaseController extends Controller
                 'transaction_type' => 'purchase',
                 'debit' => $request->final_total,
                 'credit' => 0,
-                'balance' => $this->calculateNewBalance($request->supplier_id, $request->final_total, 'debit'),
+                'balance' => $this->calculateNewBalance($request->supplier_id, $request->final_total, 0),
                 'contact_type' => 'supplier',
                 'user_id' => $request->supplier_id,
             ]);
 
-            // Insert ledger entry for the payment if paid_amount is provided
+            // Handle payment if paid_amount is provided
             if ($request->paid_amount > 0) {
-                Ledger::create([
-                    'transaction_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
-                    'reference_no' => $purchase->reference_no,
-                    'transaction_type' => 'payments',
-                    'debit' => 0,
-                    'credit' => $request->paid_amount,
-                    'balance' => $this->calculateNewBalance($request->supplier_id, $request->paid_amount, 'credit'),
-                    'contact_type' => 'supplier',
-                    'user_id' => $request->supplier_id,
-                ]);
+                $this->handlePayment($request, $purchase);
             }
+
+            // Update supplier's balance
+            $this->updateSupplierBalance($purchase->supplier_id);
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
     }
 
-    private function calculateNewBalance($userId, $amount, $type)
+    private function calculateNewBalance($userId, $debitAmount, $creditAmount)
     {
-        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'supplier')->orderBy('transaction_date', 'desc')->first();
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
+        $lastLedger = Ledger::where('user_id', $userId)
+            ->where('contact_type', 'supplier')
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
 
-        return $type === 'debit' ? $previousBalance + $amount : $previousBalance - $amount;
+        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
+        return $previousBalance + $debitAmount - $creditAmount;
     }
 
     private function processProducts($request, $purchase)
@@ -325,14 +321,10 @@ class PurchaseController extends Controller
         $totalPaid = Payment::where('reference_id', $purchase->id)->sum('amount');
         $totalDue = $purchase->final_total - $totalPaid;
 
-        dd($totalPaid);
-
-        // dd($totalPaid, $totalDue);
-
         // If the paid amount exceeds total due, adjust it
         $paidAmount = min($request->paid_amount, $totalDue);
 
-        Payment::create([
+        $payment = Payment::create([
             'payment_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
             'amount' => $paidAmount,
             'payment_method' => $request->payment_method,
@@ -353,11 +345,23 @@ class PurchaseController extends Controller
             'cheque_given_by' => $request->cheque_given_by,
         ]);
 
+        // Create ledger entry for the payment
+        Ledger::create([
+            'transaction_date' => $payment->payment_date,
+            'reference_no' => $purchase->reference_no,
+            'transaction_type' => 'payments',
+            'debit' => 0,
+            'credit' => $paidAmount,
+            'balance' => $this->calculateNewBalance($purchase->supplier_id, 0, $paidAmount),
+            'contact_type' => 'supplier',
+            'user_id' => $purchase->supplier_id,
+        ]);
 
         // Update purchase payment status based on total due
-        if ($totalDue - $paidAmount <= 0) {
+        $newTotalPaid = $totalPaid + $paidAmount;
+        if ($purchase->final_total - $newTotalPaid <= 0) {
             $purchase->payment_status = 'Paid';
-        } elseif ($totalPaid + $paidAmount < $purchase->final_total) {
+        } elseif ($newTotalPaid > 0) {
             $purchase->payment_status = 'Partial';
         } else {
             $purchase->payment_status = 'Due';
