@@ -383,4 +383,57 @@ class CustomerController extends Controller
             'total_customers' => $customers->count()
         ]);
     }
+
+    /**
+     * Filter customers by city names
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function filterByCities(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'cities' => 'required|array',
+            'cities.*' => 'string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Invalid cities data',
+                'errors' => $validator->messages()
+            ], 400);
+        }
+
+        $cityNames = array_map('strtolower', $request->cities);
+
+        // Get city IDs from names
+        $cityIds = City::whereIn(DB::raw('LOWER(name)'), $cityNames)
+            ->pluck('id')
+            ->toArray();
+
+        // Get customers from these cities + walk-in customers
+        $query = Customer::with(['city']);
+
+        if (!empty($cityIds)) {
+            $query->where(function ($q) use ($cityIds) {
+                $q->whereIn('city_id', $cityIds)
+                    ->orWhereNull('city_id'); // Include walk-in customers
+            });
+        } else {
+            // If no cities found, only show walk-in customers
+            $query->whereNull('city_id');
+        }
+
+        $customers = $query->orderBy('first_name')->get();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Customers filtered successfully',
+            'customers' => $customers,
+            'filtered_cities' => $cityNames,
+            'found_city_ids' => $cityIds,
+            'total_customers' => $customers->count()
+        ]);
+    }
 }

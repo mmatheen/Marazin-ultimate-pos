@@ -33,8 +33,8 @@ class LocationController extends Controller
 
         if ($user->is_admin) {
             $locations = Location::with('parent', 'children')->get();
-        } elseif ($user->role === 'Sales Rep') {
-            $locations = $this->getSalesRepLocations($user);
+        } elseif ($this->isSalesRep($user)) {
+            $locations = $this->getSalesRepAccessibleLocations($user);
         } else {
             $locations = $user->locations()->with('parent', 'children')->get();
         }
@@ -52,6 +52,46 @@ class LocationController extends Controller
             'message' => 'No locations found.',
             'data' => [],
         ], 404);
+    }
+
+    /**
+     * Check if user has sales rep role
+     */
+    private function isSalesRep($user)
+    {
+        return $user->roles()->where('key', 'sales_rep')->exists();
+    }
+
+    /**
+     * Get locations accessible to sales rep based on their assignments
+     */
+    private function getSalesRepAccessibleLocations($user)
+    {
+        // Get all active sales rep assignments for this user
+        $salesRepAssignments = \App\Models\SalesRep::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['subLocation'])
+            ->get();
+
+        if ($salesRepAssignments->isEmpty()) {
+            return collect();
+        }
+
+        // Get all sublocation IDs the sales rep is assigned to
+        $assignedLocationIds = $salesRepAssignments
+            ->pluck('subLocation.id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($assignedLocationIds->isEmpty()) {
+            return collect();
+        }
+
+        // Return the assigned sublocations (vehicles)
+        return Location::whereIn('id', $assignedLocationIds)
+            ->with('parent', 'children')
+            ->get();
     }
 
     private function getSalesRepLocations($user)

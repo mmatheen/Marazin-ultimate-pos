@@ -765,5 +765,106 @@ class SalesRepController extends Controller
                    $role->key === 'sales_rep';
         });
     }
+
+    /**
+     * Get current user's sales rep assignments for POS vehicle/route selection
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getMyAssignments()
+    {
+        try {
+            $user = auth()->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User not authenticated.',
+                ], 401);
+            }
+
+            // Check if user is a sales rep
+            if (!$this->validateSalesRepRole($user)) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'User is not a sales representative.',
+                ], 403);
+            }
+
+            // Get all active sales rep assignments for this user
+            $assignments = SalesRep::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->with([
+                    'subLocation:id,name,parent_id,vehicle_number,vehicle_type',
+                    'subLocation.parent:id,name,vehicle_number,vehicle_type',
+                    'route:id,name,status',
+                    'route.cities:id,name,district,province'
+                ])
+                ->get();
+
+            if ($assignments->isEmpty()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No active assignments found for this sales representative.',
+                    'data' => [],
+                ], 404);
+            }
+
+            // Format the assignments for the frontend
+            $formattedAssignments = $assignments->map(function ($assignment) {
+                return [
+                    'id' => $assignment->id,
+                    'sub_location' => $assignment->subLocation ? [
+                        'id' => $assignment->subLocation->id,
+                        'name' => $assignment->subLocation->name,
+                        'vehicle_number' => $assignment->subLocation->vehicle_number,
+                        'vehicle_type' => $assignment->subLocation->vehicle_type,
+                        'parent_id' => $assignment->subLocation->parent_id,
+                        'parent' => $assignment->subLocation->parent ? [
+                            'id' => $assignment->subLocation->parent->id,
+                            'name' => $assignment->subLocation->parent->name,
+                            'vehicle_number' => $assignment->subLocation->parent->vehicle_number,
+                            'vehicle_type' => $assignment->subLocation->parent->vehicle_type,
+                        ] : null,
+                    ] : null,
+                    'route' => $assignment->route ? [
+                        'id' => $assignment->route->id,
+                        'name' => $assignment->route->name,
+                        'status' => $assignment->route->status,
+                        'cities' => $assignment->route->cities->map(function ($city) {
+                            return [
+                                'id' => $city->id,
+                                'name' => $city->name,
+                                'district' => $city->district,
+                                'province' => $city->province,
+                            ];
+                        }),
+                    ] : null,
+                    'assigned_date' => $assignment->assigned_date,
+                    'end_date' => $assignment->end_date,
+                    'can_sell' => $assignment->can_sell,
+                    'status' => $assignment->status,
+                ];
+            });
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Sales rep assignments retrieved successfully.',
+                'data' => $formattedAssignments,
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error("Get my assignments error", [
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id(),
+            ]);
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to retrieve assignments.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }
 

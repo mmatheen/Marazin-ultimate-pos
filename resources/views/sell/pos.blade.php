@@ -1010,6 +1010,9 @@
 </head>
 
 <body>
+    <!-- Include Sales Rep Vehicle/Route Selection Modal -->
+    @include('components.sales-rep-modal')
+
     <div class="container-fluid p-2">
         <div class="row">
             <div class="col-md-12">
@@ -1024,6 +1027,25 @@
                                 <select id="locationSelect" class="form-control selectBox rounded-start" style="max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
+                                
+                                <!-- Sales Rep Vehicle/Route Display -->
+                                <div id="salesRepDisplay" style="display: none;" class="d-flex align-items-center gap-2">
+                                    <div class="badge bg-success text-white p-2">
+                                        <i class="fas fa-truck me-1"></i>
+                                        <span id="selectedVehicleDisplay">-</span>
+                                    </div>
+                                    <div class="badge bg-info text-white p-2">
+                                        <i class="fas fa-route me-1"></i>
+                                        <span id="selectedRouteDisplay">-</span>
+                                    </div>
+                                    <div id="salesAccessBadge" class="badge p-2">
+                                        <span id="salesAccessText">-</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection" title="Change Vehicle/Route">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                                
                                 <button class="btn btn-primary text-white border-1 px-3 py-1" style="width: 130px; font-size: 1.15rem;" id="currentDateButton">
                                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
                                 </button>

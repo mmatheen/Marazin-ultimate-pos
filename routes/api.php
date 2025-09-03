@@ -228,6 +228,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
 // Route::get('/customer-get-all', [CustomerController::class, 'index']);
 Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
+Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
 Route::post('/customer-store', [CustomerController::class, 'store']);
 Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
 Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
@@ -392,6 +393,8 @@ Route::get('/sales-reps/user-locations/{userId}', [SalesRepController::class, 'g
 Route::get('/sales-reps/routes/available', [SalesRepController::class, 'getAvailableRoutes']);
 Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
 Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations']);
+// Sales rep specific routes for POS
+Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments']);
 // Route helper routes
 Route::get('/routes/cities/available', [RouteController::class, 'getAvailableCities']);
 Route::get('/routes/{routeId}/cities', [RouteController::class, 'getRouteCities']);

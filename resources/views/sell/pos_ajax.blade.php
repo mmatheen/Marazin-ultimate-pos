@@ -19,11 +19,271 @@
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
         // ---- INIT ----
+        // Check if user is sales rep and handle vehicle/route selection
+        checkSalesRepStatus();
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
         fetchCategories();
         fetchBrands();
         initAutocomplete();
+
+        // ---- SALES REP FUNCTIONS ----
+        function checkSalesRepStatus() {
+            // Check if user has sales rep role
+            fetch('/api/sales-rep/my-assignments', {
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    // User is a sales rep with assignments
+                    handleSalesRepUser(data.data);
+                } else if (data.status === false && response.status === 403) {
+                    // User is not a sales rep, proceed normally
+                    console.log('User is not a sales rep, proceeding with normal flow');
+                } else {
+                    console.log('No sales rep assignments found');
+                }
+            })
+            .catch(error => {
+                console.log('Not a sales rep or error:', error);
+                // Proceed with normal flow for non-sales rep users
+            });
+        }
+
+        function handleSalesRepUser(assignments) {
+            // Store assignments globally for modal
+            window.salesRepAssignments = assignments;
+            
+            // Check if we already have a valid selection
+            if (!hasSalesRepSelection()) {
+                // Show modal for vehicle/route selection
+                showSalesRepModal();
+            } else {
+                // Validate existing selection against current assignments
+                const selection = getSalesRepSelection();
+                const validAssignment = assignments.find(a => 
+                    a.sub_location.id === selection.vehicle.id && 
+                    a.route.id === selection.route.id
+                );
+                
+                if (validAssignment) {
+                    // Update selection with current assignment data
+                    selection.canSell = validAssignment.can_sell;
+                    storeSalesRepSelection(selection);
+                    
+                    updateSalesRepDisplay(selection);
+                    restrictLocationAccess(selection);
+                } else {
+                    // Invalid selection, clear and show modal
+                    clearSalesRepSelection();
+                    showSalesRepModal();
+                }
+            }
+
+            // Set up event listeners
+            setupSalesRepEventListeners();
+        }
+
+        function setupSalesRepEventListeners() {
+            // Listen for selection confirmation
+            window.addEventListener('salesRepSelectionConfirmed', function(event) {
+                const selection = event.detail;
+                updateSalesRepDisplay(selection);
+                restrictLocationAccess(selection);
+                
+                // Reset customer to Walk-In Customer when selection changes
+                resetToWalkingCustomer();
+            });
+
+            // Change selection button
+            document.getElementById('changeSalesRepSelection').addEventListener('click', function() {
+                showSalesRepModal();
+            });
+        }
+
+        function updateSalesRepDisplay(selection) {
+            const salesRepDisplay = document.getElementById('salesRepDisplay');
+            const selectedVehicleDisplay = document.getElementById('selectedVehicleDisplay');
+            const selectedRouteDisplay = document.getElementById('selectedRouteDisplay');
+            const salesAccessBadge = document.getElementById('salesAccessBadge');
+            const salesAccessText = document.getElementById('salesAccessText');
+
+            selectedVehicleDisplay.textContent = `${selection.vehicle.name} (${selection.vehicle.vehicle_number})`;
+            selectedRouteDisplay.textContent = selection.route.name;
+            
+            if (selection.canSell) {
+                salesAccessBadge.className = 'badge bg-success text-white p-2';
+                salesAccessText.textContent = 'Sales Allowed';
+            } else {
+                salesAccessBadge.className = 'badge bg-warning text-dark p-2';
+                salesAccessText.textContent = 'View Only';
+            }
+
+            salesRepDisplay.style.display = 'flex';
+            
+            // Filter customers based on route cities
+            filterCustomersByRoute(selection);
+        }
+
+        function restrictLocationAccess(selection) {
+            // Override the fetchAllLocations to only include assigned vehicle
+            const originalFetchLocations = window.fetchAllLocations;
+            
+            window.fetchAllLocations = function() {
+                // Create a mock response with only the assigned vehicle
+                const mockResponse = {
+                    status: true,
+                    data: [selection.vehicle]
+                };
+                populateLocationDropdown(mockResponse.data);
+                
+                // Auto-select the vehicle in the dropdown
+                setTimeout(() => {
+                    const locationSelect = document.getElementById('locationSelect');
+                    if (locationSelect) {
+                        locationSelect.value = selection.vehicle.id;
+                        $(locationSelect).trigger('change');
+                    }
+                }, 100);
+            };
+
+            // Re-fetch locations with restriction
+            window.fetchAllLocations();
+        }
+
+        function filterCustomersByRoute(selection) {
+            if (!selection.route || !selection.route.cities || selection.route.cities.length === 0) {
+                console.log('No cities found for selected route');
+                return;
+            }
+
+            // Get the route cities
+            const routeCities = selection.route.cities.map(city => city.name.toLowerCase());
+            console.log('Filtering customers for cities:', routeCities);
+
+            // Get customer dropdown
+            const customerSelect = $('#customer-id');
+            if (!customerSelect.length) {
+                console.log('Customer dropdown not found');
+                return;
+            }
+
+            // Store original options if not already stored
+            if (!window.originalCustomerOptions) {
+                window.originalCustomerOptions = customerSelect.html();
+            }
+
+            // Filter customers based on city
+            fetch('/api/customers/filter-by-cities', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    cities: routeCities
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    populateFilteredCustomers(data.customers);
+                } else {
+                    console.error('Failed to filter customers:', data.message);
+                    // Fallback to show all customers
+                    restoreOriginalCustomers();
+                }
+            })
+            .catch(error => {
+                console.error('Error filtering customers:', error);
+                // Fallback to show all customers
+                restoreOriginalCustomers();
+            });
+        }
+
+        function populateFilteredCustomers(customers) {
+            const customerSelect = $('#customer-id');
+            
+            // Clear existing options except Walk-In Customer
+            customerSelect.empty();
+            
+            // Add Walk-In Customer (always available)
+            customerSelect.append('<option value="1">Walk-in Customer (Walk-in Customer)</option>');
+            
+            // Add filtered customers
+            customers.forEach(customer => {
+                const customerName = [customer.prefix, customer.first_name, customer.last_name]
+                    .filter(Boolean).join(' ');
+                const displayText = `${customerName} (${customer.mobile || 'No mobile'})`;
+                customerSelect.append(`<option value="${customer.id}">${displayText}</option>`);
+            });
+            
+            // Refresh Select2
+            customerSelect.trigger('change');
+            
+            // Show info message
+            if (typeof toastr !== 'undefined') {
+                toastr.info(`Showing ${customers.length} customers from your route cities`, 'Customer Filter Applied');
+            }
+        }
+
+        function restoreOriginalCustomers() {
+            if (window.originalCustomerOptions) {
+                const customerSelect = $('#customer-id');
+                customerSelect.html(window.originalCustomerOptions);
+                customerSelect.trigger('change');
+            }
+        }
+
+        // Function to handle when sales rep selection is cleared
+        function clearSalesRepFilters() {
+            // Restore original customer list
+            restoreOriginalCustomers();
+            
+            // Reset sales rep display
+            const salesRepDisplay = document.getElementById('salesRepDisplay');
+            if (salesRepDisplay) {
+                salesRepDisplay.style.display = 'none';
+            }
+            
+            // Clear selection storage
+            clearSalesRepSelection();
+        }
+
+        // Modify sale submission to check access rights
+        function checkSalesAccess() {
+            const selection = getSalesRepSelection();
+            if (!selection) {
+                toastr.error('Please select your vehicle and route before making a sale.', 'Selection Required');
+                return false;
+            }
+            
+            if (!selection.canSell) {
+                toastr.error('You only have view access for this vehicle/route. Sales are not permitted.', 'Access Denied');
+                return false;
+            }
+            
+            // Check if selected location matches the assigned vehicle
+            const selectedLocationId = document.getElementById('locationSelect')?.value;
+            if (selectedLocationId != selection.vehicle.id) {
+                toastr.error('You can only sell from your assigned vehicle location.', 'Location Mismatch');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // ---- Sales Rep Session Management (defined in modal component) ----
+        function storeSalesRepSelection(selection) {
+            sessionStorage.setItem('salesRepSelection', JSON.stringify(selection));
+        }
 
         // ---- Loader helpers ----
         function showLoader() {
@@ -2423,6 +2683,13 @@
 
 
             function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
+                // Check sales rep access before processing sale
+                if (!checkSalesAccess()) {
+                    toastr.error('You can only sell from your assigned vehicle location.');
+                    onComplete();
+                    return;
+                }
+                
                 // Extract saleId from the URL if not provided
                 if (!saleId) {
                     const pathSegments = window.location.pathname.split('/');
