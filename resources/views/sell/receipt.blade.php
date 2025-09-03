@@ -67,16 +67,22 @@
             .logo-container {
                 text-align: center;
                 font-weight: bold;
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             .logo-container img {
                 max-width: 100%;
                 height: auto;
-                width: 100%;
+                width: 50%;
+                filter: brightness(0.3) contrast(2);
+                -webkit-filter: brightness(0.3) contrast(2);
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             .billAddress div {
-                margin-bottom: 4px;
+                margin-bottom: 2px;
                 text-align: center;
             }
 
@@ -95,12 +101,12 @@
 
     <div id="printArea">
 
-        <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
+        <div class="logo-container" style="margin: 0 !important; padding: 0 !important;">
             <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Prany Logo" class="logo" width="50px" height="50px" />
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>
-        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
+        <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 4px; margin-top: 2px;">
             @if ($location)
                 @if ($location->address)
                     <div>{{ $location->address }}</div>
@@ -109,7 +115,7 @@
                     <div>{{ $location->mobile }}</div>
                 @endif
                 @if ($location->email)
-                    <div>{{ $location->email }}</div>
+                    <div style="text-transform: lowercase;">{{ $location->email }}</div>
                 @endif
             @else
                 <div>LOCATION DETAILS NOT AVAILABLE.</div>
