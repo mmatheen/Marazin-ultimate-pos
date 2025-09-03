@@ -262,6 +262,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
         Route::get('/customer-get-all', [CustomerController::class, 'index']);
         Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
+        Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
         Route::post('/customer-store', [CustomerController::class, 'store']);
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
@@ -472,6 +473,20 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             Route::get('/vehicle/my-live', [VehicleTrackingController::class, 'getMyLiveVehicle']);
             // });
 
+            // -------------------- Sales Rep CRUD Routes --------------------
+            Route::get('/sales-reps/index', [SalesRepController::class, 'index'])->name('sales-reps.index');
+            Route::post('/sales-reps/store', [SalesRepController::class, 'store'])->name('sales-reps.store');
+            Route::get('/sales-reps/show/{id}', [SalesRepController::class, 'show'])->name('sales-reps.show');
+            Route::put('/sales-reps/update/{id}', [SalesRepController::class, 'update'])->name('sales-reps.update');
+            Route::delete('/sales-reps/destroy/{id}', [SalesRepController::class, 'destroy'])->name('sales-reps.destroy');
+
+            // -------------------- Sales Rep Helper Routes --------------------
+            Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers'])->name('sales-reps.available-users');
+            Route::get('/sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes'])->name('sales-reps.available-routes');
+            Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations'])->name('sales-reps.assign-locations');
+            
+            // -------------------- Sales Rep POS Routes --------------------
+            Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
 
         });
 
