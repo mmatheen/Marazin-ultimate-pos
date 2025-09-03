@@ -255,46 +255,47 @@
 
         function fetchCustomerData() {
             return $.ajax({
-                url: '/customer-get-all',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    const customerSelect = $('#customer-id');
-                    customerSelect.empty();
+            url: '/customer-get-all',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                const customerSelect = $('#customer-id');
+                customerSelect.empty();
 
-                    if (data && data.status === 200 && Array.isArray(data.message)) {
-                        const sortedCustomers = data.message.sort((a, b) => {
-                            if (a.first_name === 'Walk-in') return -1;
-                            if (b.first_name === 'Walk-in') return 1;
-                            return 0;
-                        });
+                if (data && data.status === 200 && Array.isArray(data.message)) {
+                const sortedCustomers = data.message.sort((a, b) => {
+                    if (a.first_name === 'Walk-in') return -1;
+                    if (b.first_name === 'Walk-in') return 1;
+                    return 0;
+                });
 
-                        sortedCustomers.forEach(customer => {
-                            const option = $('<option></option>');
-                            option.val(customer.id);
-                            option.text(
-                                `${customer.first_name || ''} ${customer.last_name || ''} (${customer.mobile_no || ''})`
-                            );
-                            option.data('due', customer.current_due ||
-                                0); // Default due to 0
-                            customerSelect.append(option);
-                        });
-
-                        // Always select Walking Customer by default
-                        const walkingCustomer = sortedCustomers.find(customer => customer
-                            .first_name === 'Walk-in');
-                        if (walkingCustomer) {
-                            customerSelect.val(walkingCustomer.id);
-                            updateDueAmount(walkingCustomer.current_due || 0);
-                        }
+                sortedCustomers.forEach(customer => {
+                    const option = $('<option></option>');
+                    option.val(customer.id);
+                    if (customer.first_name === 'Walk-in') {
+                    option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
                     } else {
-                        console.error('Failed to fetch customer data:', data ? data.message :
-                            'No data received');
+                    option.text(
+                        `${customer.first_name || ''} ${customer.last_name || ''} (${customer.mobile_no || ''})`
+                    );
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching customer data:', error);
+                    option.data('due', customer.current_due || 0); // Default due to 0
+                    customerSelect.append(option);
+                });
+
+                // Always select Walking Customer by default
+                const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walk-in');
+                if (walkingCustomer) {
+                    customerSelect.val(walkingCustomer.id);
+                    updateDueAmount(walkingCustomer.current_due || 0);
                 }
+                } else {
+                console.error('Failed to fetch customer data:', data ? data.message : 'No data received');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching customer data:', error);
+            }
             });
         }
 
