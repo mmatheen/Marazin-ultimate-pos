@@ -1029,7 +1029,7 @@
                                 </select>
                                 
                                 <!-- Sales Rep Vehicle/Route Display -->
-                                <div id="salesRepDisplay" style="display: none;" class="d-flex align-items-center gap-2">
+                                <div id="salesRepDisplay" style="display: none;" class="align-items-center gap-2">
                                     <div class="badge bg-success text-white p-2">
                                         <i class="fas fa-truck me-1"></i>
                                         <span id="selectedVehicleDisplay">-</span>

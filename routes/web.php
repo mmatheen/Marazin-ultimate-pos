@@ -349,6 +349,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
         Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
         
+        // POS Pricing Error Logging
+        Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
+        
         // Generic sales route - This MUST come last
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 

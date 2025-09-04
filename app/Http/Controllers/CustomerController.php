@@ -66,6 +66,7 @@ class CustomerController extends Controller
             'city_id' => $customer->city_id,
             'city_name' => $customer->city?->name ?? '',
             'credit_limit' => (float)$customer->credit_limit,
+            'customer_type' => $customer->customer_type,
         ];
     });
 
@@ -129,6 +130,7 @@ class CustomerController extends Controller
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
             'city_id' => 'nullable|integer|exists:cities,id',
+            'customer_type' => 'nullable|in:wholesaler,retailer',
         ]);
 
         if ($validator->fails()) {
@@ -151,6 +153,7 @@ class CustomerController extends Controller
                 'opening_balance',
                 'credit_limit',
                 'city_id',
+                'customer_type',
             ]);
 
             // Auto-calculate credit limit if not provided but city is selected
@@ -202,6 +205,7 @@ class CustomerController extends Controller
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
             'city_id' => 'nullable|integer|exists:cities,id',
+            'customer_type' => 'nullable|in:wholesaler,retailer',
         ]);
 
         if ($validator->fails()) {
@@ -226,6 +230,7 @@ class CustomerController extends Controller
                     'opening_balance',
                     'credit_limit',
                     'city_id',
+                    'customer_type',
                 ]);
 
                 // Auto-calculate credit limit if city changed and credit limit wasn't manually provided
@@ -356,6 +361,55 @@ class CustomerController extends Controller
                 'name' => $route->name,
                 'cities' => $route->cities->pluck('name')->toArray()
             ],
+            'customers' => $customers,
+            'total_customers' => $customers->count()
+        ]);
+    }
+
+    /**
+     * Filter customers by cities
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function filterByCities(Request $request)
+    {
+        $cityIds = $request->input('city_ids', []);
+
+        if (empty($cityIds)) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'City IDs are required'
+            ]);
+        }
+
+        $customers = Customer::with(['city'])
+            ->where(function ($query) use ($cityIds) {
+                $query->whereIn('city_id', $cityIds)
+                      ->orWhereNull('city_id');
+            })
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'prefix' => $customer->prefix,
+                    'first_name' => $customer->first_name,
+                    'last_name' => $customer->last_name,
+                    'full_name' => $customer->full_name,
+                    'mobile' => $customer->mobile_no,
+                    'email' => $customer->email,
+                    'address' => $customer->address,
+                    'city_id' => $customer->city_id,
+                    'city_name' => $customer->city?->name ?? '',
+                    'customer_type' => $customer->customer_type,
+                    'credit_limit' => (float)$customer->credit_limit,
+                    'current_balance' => (float)$customer->current_balance,
+                ];
+            });
+
+        return response()->json([
+            'status' => 200,
             'customers' => $customers,
             'total_customers' => $customers->count()
         ]);

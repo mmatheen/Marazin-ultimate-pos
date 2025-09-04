@@ -120,6 +120,7 @@
                         row.append('<td>' + item.mobile_no + '</td>');
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' + item.city_name + '</td>');
+                        row.append('<td>' + (item.customer_type ? item.customer_type.charAt(0).toUpperCase() + item.customer_type.slice(1) : 'Not Set') + '</td>');
                         row.append('<td>' + item.address + '</td>');
                         row.append('<td>' + item.opening_balance + '</td>');
                         row.append('<td>' + item.credit_limit + '</td>');
@@ -198,6 +199,8 @@
                             '');
                         $('#edit_credit_limit').val(response.customer.credit_limit || '');
                         $('#edit_city_id').val(response.customer.city_id || '').trigger(
+                            'change');
+                        $('#edit_customer_type').val(response.customer.customer_type || '').trigger(
                             'change');
                         $('#addAndEditCustomerModal').modal('show');
                     } else {
@@ -326,11 +329,14 @@
                     const option = $('<option></option>');
                     option.val(customer.id);
                     if (customer.first_name === 'Walk-in') {
-                    option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
+                        option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
+                        option.attr('data-customer-type', 'retailer'); // Walk-in customer is always retailer
                     } else {
-                    option.text(
-                        `${customer.first_name || ''} ${customer.last_name || ''} (${customer.mobile_no || ''})`
-                    );
+                        const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
+                        option.text(
+                            `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`
+                        );
+                        option.attr('data-customer-type', customer.customer_type || 'retailer'); // Include customer type data attribute
                     }
                     option.data('due', customer.current_due || 0); // Default due to 0
                     customerSelect.append(option);

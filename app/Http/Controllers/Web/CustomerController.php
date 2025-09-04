@@ -33,8 +33,8 @@ class CustomerController extends Controller
         return view('contact.customer.customer', compact('cities', 'customerGroups'));
     }
 
-
- public function index()
+  
+    public function index()
 {
     /** @var User $user */
     $user = auth()->user();
@@ -69,6 +69,7 @@ class CustomerController extends Controller
             'city_id' => $customer->city_id,
             'city_name' => $customer->city?->name ?? '',
             'credit_limit' => (float)$customer->credit_limit,
+            'customer_type' => $customer->customer_type,
         ];
     });
 
@@ -79,32 +80,22 @@ class CustomerController extends Controller
         'sales_rep_info' => $user->isSalesRep() ? $this->getSalesRepInfo($user) : null
     ]);
 }
-    /**
-     * Apply filter for sales reps based on cities in their active route assignments
-     */
+
     private function applySalesRepFilter($query, $user)
     {
-        // Get all **active** SalesRep assignments for this user
-        $salesRepAssignments = SalesRep::where('user_id', $user->id)
-            ->where('status', 'active') // SalesRep assignment is active
-            ->with(['route' => function ($q) {
-                $q->where('status', 'active'); // Only include routes that are active
-            }, 'route.cities'])
-            ->get();
+        $salesRep = SalesRep::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with(['route.cities'])
+            ->first();
 
-        // Extract all city IDs from all active routes
-        $cityIds = $salesRepAssignments
-            ->pluck('route.cities') // Get cities from each route
-            ->flatten()
-            ->pluck('id')
-            ->unique()
-            ->toArray();
+        if ($salesRep && $salesRep->route) {
+            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
 
-        if (!empty($cityIds)) {
-            $query->whereIn('city_id', $cityIds);
-        } else {
-            // No cities assigned → only show walk-in customers (city_id = null)
-            $query->whereNull('city_id');
+            if (!empty($routeCityIds)) {
+                $query->whereIn('city_id', $routeCityIds);
+            } else {
+                $query->whereNull('city_id');
+            }
         }
 
         return $query;
@@ -112,32 +103,22 @@ class CustomerController extends Controller
 
     private function getSalesRepInfo($user)
     {
-        $salesRepAssignments = SalesRep::where('user_id', $user->id)
+        $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')
-            ->with(['route' => function ($q) {
-                $q->where('status', 'active');
-            }, 'route.cities'])
-            ->get();
+            ->with(['route.cities'])
+            ->first();
 
-        if ($salesRepAssignments->isEmpty() || !$salesRepAssignments->contains('route')) {
+        if (!$salesRep || !$salesRep->route) {
             return null;
         }
 
-        // Collect all unique cities across all active routes
-        $allCities = $salesRepAssignments
-            ->pluck('route.cities')
-            ->flatten()
-            ->unique('id');
-
         return [
-            'assigned_routes' => $salesRepAssignments->pluck('route.name')->filter()->toArray(),
-            'total_routes'    => $salesRepAssignments->count(),
-            'assigned_cities' => $allCities->pluck('name')->toArray(),
-            'total_cities'    => $allCities->count(),
-            'sales_rep_id'    => $salesRepAssignments->first()->id,
+            'route_name' => $salesRep->route->name,
+            'assigned_cities' => $salesRep->route->cities->pluck('name')->toArray(),
+            'total_cities' => $salesRep->route->cities->count(),
+            'sales_rep_id' => $salesRep->id
         ];
     }
-
 
 
     public function store(Request $request)
@@ -152,6 +133,7 @@ class CustomerController extends Controller
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
             'city_id' => 'nullable|integer|exists:cities,id',
+            'customer_type' => 'nullable|in:wholesaler,retailer',
         ]);
 
         if ($validator->fails()) {
@@ -174,6 +156,7 @@ class CustomerController extends Controller
                 'opening_balance',
                 'credit_limit',
                 'city_id',
+                'customer_type',
             ]);
 
             // Auto-calculate credit limit if not provided but city is selected
@@ -225,6 +208,7 @@ class CustomerController extends Controller
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
             'city_id' => 'nullable|integer|exists:cities,id',
+            'customer_type' => 'nullable|in:wholesaler,retailer',
         ]);
 
         if ($validator->fails()) {
@@ -249,6 +233,7 @@ class CustomerController extends Controller
                     'opening_balance',
                     'credit_limit',
                     'city_id',
+                    'customer_type',
                 ]);
 
                 // Auto-calculate credit limit if city changed and credit limit wasn't manually provided
@@ -385,54 +370,50 @@ class CustomerController extends Controller
     }
 
     /**
-     * Filter customers by city names for web routes
+     * Filter customers by cities
      * 
-     * @param Request $request
+     * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function filterByCities(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'cities' => 'required|array',
-            'cities.*' => 'string'
-        ]);
+        $cityIds = $request->input('city_ids', []);
 
-        if ($validator->fails()) {
+        if (empty($cityIds)) {
             return response()->json([
-                'status' => false,
-                'message' => 'Invalid cities data',
-                'errors' => $validator->messages()
-            ], 400);
+                'status' => 400,
+                'message' => 'City IDs are required'
+            ]);
         }
 
-        $cityNames = array_map('strtolower', $request->cities);
-
-        // Get city IDs from names
-        $cityIds = City::whereIn(DB::raw('LOWER(name)'), $cityNames)
-            ->pluck('id')
-            ->toArray();
-
-        // Get customers from these cities + walk-in customers
-        $query = Customer::with(['city']);
-
-        if (!empty($cityIds)) {
-            $query->where(function ($q) use ($cityIds) {
-                $q->whereIn('city_id', $cityIds)
-                    ->orWhereNull('city_id'); // Include walk-in customers
+        $customers = Customer::with(['city'])
+            ->where(function ($query) use ($cityIds) {
+                $query->whereIn('city_id', $cityIds)
+                      ->orWhereNull('city_id');
+            })
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'prefix' => $customer->prefix,
+                    'first_name' => $customer->first_name,
+                    'last_name' => $customer->last_name,
+                    'full_name' => $customer->full_name,
+                    'mobile' => $customer->mobile_no,
+                    'email' => $customer->email,
+                    'address' => $customer->address,
+                    'city_id' => $customer->city_id,
+                    'city_name' => $customer->city?->name ?? '',
+                    'customer_type' => $customer->customer_type,
+                    'credit_limit' => (float)$customer->credit_limit,
+                    'current_balance' => (float)$customer->current_balance,
+                ];
             });
-        } else {
-            // If no cities found, only show walk-in customers
-            $query->whereNull('city_id');
-        }
-
-        $customers = $query->orderBy('first_name')->get();
 
         return response()->json([
-            'status' => true,
-            'message' => 'Customers filtered successfully',
+            'status' => 200,
             'customers' => $customers,
-            'filtered_cities' => $cityNames,
-            'found_city_ids' => $cityIds,
             'total_customers' => $customers->count()
         ]);
     }

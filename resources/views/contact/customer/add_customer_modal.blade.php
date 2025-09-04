@@ -91,6 +91,18 @@
                                 </div>
                             </div>
 
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label>Customer Type</label>
+                                    <select class="form-control form-select" id="edit_customer_type" name="customer_type">
+                                        <option value="">Select Customer Type</option>
+                                        <option value="wholesaler">Wholesaler</option>
+                                        <option value="retailer">Retailer</option>
+                                    </select>
+                                    <span class="text-danger" id="customer_type_error"></span>
+                                </div>
+                            </div>
+
                             <div class="col-md-12">
                                 <div class="mb-3">
                                     <label>Address</label>

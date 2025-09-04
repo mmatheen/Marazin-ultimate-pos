@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('city_id')->nullable()
                 ->constrained('cities')->onDelete('set null');
             $table->decimal('credit_limit', 15, 2)->default(0.00)->after('current_balance');
+             $table->enum('customer_type', ['wholesaler', 'retailer'])->default('retailer')->after('credit_limit');
         });
     }
 
@@ -28,6 +29,7 @@ return new class extends Migration
             $table->dropForeign(['city_id']);
             $table->dropColumn('city_id');
             $table->dropColumn('credit_limit');
+            $table->dropColumn('customer_type');
         });
     }
 };

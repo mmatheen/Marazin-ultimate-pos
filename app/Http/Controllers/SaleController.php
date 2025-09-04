@@ -1383,4 +1383,53 @@ class SaleController extends Controller
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
+
+    /**
+     * Log pricing errors for admin review
+     */
+    public function logPricingError(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'product_id' => 'required|integer',
+                'product_name' => 'required|string',
+                'customer_type' => 'required|string',
+                'batch_id' => 'nullable|integer',
+                'batch_no' => 'nullable|string',
+                'timestamp' => 'required|string',
+                'location_id' => 'required|integer'
+            ]);
+
+            // Log to Laravel log file with structured data
+            Log::warning('POS Pricing Error', [
+                'user_id' => auth()->id(),
+                'user_name' => auth()->user()->name ?? 'Unknown',
+                'product_id' => $validated['product_id'],
+                'product_name' => $validated['product_name'],
+                'customer_type' => $validated['customer_type'],
+                'batch_id' => $validated['batch_id'],
+                'batch_no' => $validated['batch_no'],
+                'location_id' => $validated['location_id'],
+                'timestamp' => $validated['timestamp'],
+                'user_agent' => $request->userAgent(),
+                'ip_address' => $request->ip()
+            ]);
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Pricing error logged successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to log pricing error', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to log pricing error'
+            ], 500);
+        }
+    }
 }

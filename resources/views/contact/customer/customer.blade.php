@@ -47,6 +47,7 @@
                                         <th>Mobile No</th>
                                         <th>Email</th>
                                         <th>City</th>
+                                        <th>Customer Type</th>
                                         <th>Address</th>
                                         <th>Opening Balance</th>
                                         <th>Credit Limit</th>

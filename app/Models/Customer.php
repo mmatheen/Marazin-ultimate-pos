@@ -23,6 +23,7 @@ class Customer extends Model
         'current_balance',
         'credit_limit',
         'city_id',
+        'customer_type',
     ];
 
     protected $appends = ['full_name', 'total_sale_due', 'total_return_due', 'current_due', 'available_credit'];
