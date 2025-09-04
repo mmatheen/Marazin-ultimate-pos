@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return Promise.resolve(true);
         }
         
-        return fetch('/sales-rep/sales-rep/my-assignments', {
+        return fetch('/sales-rep/my-assignments', {
             method: 'GET',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

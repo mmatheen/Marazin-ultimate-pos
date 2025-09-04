@@ -30,7 +30,7 @@
         // ---- SALES REP FUNCTIONS ----
         function checkSalesRepStatus() {
             // Check if user has sales rep role
-            fetch('/sales-rep/sales-rep/my-assignments', {
+            fetch('/sales-rep/my-assignments', {
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

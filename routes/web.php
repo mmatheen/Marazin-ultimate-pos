@@ -486,7 +486,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations'])->name('sales-reps.assign-locations');
             
             // -------------------- Sales Rep POS Routes --------------------
-            Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
+            Route::get('/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
 
         });
 
