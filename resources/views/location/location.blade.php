@@ -50,6 +50,7 @@
                                     <th>Email</th>
                                     <th>Mobile</th>
                                     <th>Telephone No</th>
+                                    <th>Logo</th>
                                     <th>Action</th>
 
                                 </tr>
@@ -74,7 +75,7 @@
                         <div class="text-center mt-2 mb-4">
                             <h5 id="modalTitle"></h5>
                         </div>
-                        <form id="addAndLocationUpdateForm">
+                        <form id="addAndLocationUpdateForm" enctype="multipart/form-data">
                             <div class="row">
                                 <input type="hidden" name="edit_id" id="edit_id">
 
@@ -179,6 +180,18 @@
                                             <label>Telephone<span class="login-danger"></span></label>
                                             <input type="text" class="form-control" id="edit_telephone_no" name="telephone_no" placeholder="Telephone No">
                                             <span class="text-danger" id="telephone_no_error">Email is required</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <div class="form-group local-forms">
+                                            <label>Location Logo<span class="login-danger"></span></label>
+                                            <input type="file" class="form-control" id="edit_logo_image" name="logo_image" accept="image/*">
+                                            <span class="text-danger" id="logo_image_error"></span>
+                                            <div id="logo_preview" style="margin-top: 10px;">
+                                                <!-- Logo preview will be shown here -->
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

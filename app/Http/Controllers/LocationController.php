@@ -84,11 +84,15 @@ class LocationController extends Controller
                 'email' => 'required|email|unique:locations',
                 'mobile' => ['required', 'regex:/^(0?\d{9})$/'],
                 'telephone_no' => ['required', 'regex:/^(0?\d{9})$/'],
+                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
             ],
             [
                 'mobile.required' => 'Please enter a valid mobile number with 10 digits.',
                 'telephone_no.required' => 'Please enter a valid telephone number with 10 digits.',
                 'location_id.unique' => 'The location_id has already been taken.',
+                'logo_image.image' => 'The logo must be an image file.',
+                'logo_image.mimes' => 'The logo must be a file of type: jpeg, jpg, png, gif.',
+                'logo_image.max' => 'The logo must not be greater than 2MB.',
             ]
         );
 
@@ -120,6 +124,15 @@ class LocationController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
+            // Handle logo image upload
+            $logoImagePath = null;
+            if ($request->hasFile('logo_image')) {
+                $file = $request->file('logo_image');
+                $filename = time() . '_' . $location_id . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('storage/location_logos'), $filename);
+                $logoImagePath = 'storage/location_logos/' . $filename;
+            }
+
             // Create the location and assign to Super Admin
             $location = Location::create([
                 'name' => $request->name,
@@ -131,6 +144,7 @@ class LocationController extends Controller
                 'email' => $request->email,
                 'mobile' => $request->mobile,
                 'telephone_no' => $request->telephone_no,
+                'logo_image' => $logoImagePath,
             ]);
 
             if ($location) {
@@ -213,6 +227,7 @@ class LocationController extends Controller
                 'email' => 'required|email',
                 'mobile' => ['required', 'regex:/^(0?\d{9})$/'],  // Matches 10 digits with or without leading 0
                 'telephone_no' => ['required', 'regex:/^(0?\d{9})$/'],  // Matches 10 digits with or without leading 0
+                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
             ],
 
             [
@@ -220,6 +235,9 @@ class LocationController extends Controller
                 'telephone_no.required' => 'Please enter a valid telephone number with 10 digits.',
                 'mobile.regex' => 'Please enter a valid mobile number with 10 digits.',
                 'telephone_no.regex' => 'Please enter a valid telephone number with 10 digits.',
+                'logo_image.image' => 'The logo must be an image file.',
+                'logo_image.mimes' => 'The logo must be a file of type: jpeg, jpg, png, gif.',
+                'logo_image.max' => 'The logo must not be greater than 2MB.',
             ]
         );
 
@@ -233,6 +251,20 @@ class LocationController extends Controller
             $getValue = Location::find($id);
 
             if ($getValue) {
+                // Handle logo image upload
+                $logoImagePath = $getValue->logo_image; // Keep existing image by default
+                if ($request->hasFile('logo_image')) {
+                    // Delete old image if it exists
+                    if ($getValue->logo_image && file_exists(public_path($getValue->logo_image))) {
+                        unlink(public_path($getValue->logo_image));
+                    }
+                    
+                    $file = $request->file('logo_image');
+                    $filename = time() . '_' . $getValue->location_id . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('storage/location_logos'), $filename);
+                    $logoImagePath = 'storage/location_logos/' . $filename;
+                }
+
                 $getValue->update([
 
                     'name' => $request->name,
@@ -244,6 +276,7 @@ class LocationController extends Controller
                     'email' => $request->email,
                     'mobile' => $request->mobile,
                     'telephone_no' => $request->telephone_no,
+                    'logo_image' => $logoImagePath,
 
                 ]);
                 return response()->json([

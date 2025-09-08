@@ -102,7 +102,11 @@
     <div id="printArea">
 
         <div class="logo-container" style="margin: 0 !important; padding: 0 !important;">
-            <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Prany Logo" class="logo" width="50px" height="50px" />
+            @if ($location && $location->logo_image)
+                <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo" class="logo" width="50px" height="50px" />
+            @else
+                <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Default Logo" class="logo" width="50px" height="50px" />
+            @endif
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
         </div>

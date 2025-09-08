@@ -21,6 +21,7 @@ class Location extends Model
         'mobile',
         'telephone_no',
         'invoice_prefix',
+        'logo_image',
     ];
 
     public function purchaseProducts()

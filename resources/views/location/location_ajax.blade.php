@@ -134,6 +134,17 @@
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' + item.mobile + '</td>');
                         row.append('<td>' + item.telephone_no + '</td>');
+                        
+                        // Logo column
+                        let logoColumn = '<td>';
+                        if (item.logo_image) {
+                            logoColumn += '<img src="/' + item.logo_image + '" alt="Logo" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">';
+                        } else {
+                            logoColumn += '<span class="text-muted">No logo</span>';
+                        }
+                        logoColumn += '</td>';
+                        row.append(logoColumn);
+                        
                          row.append('<td><button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
@@ -153,6 +164,9 @@
             }
             $('.text-danger').text('');
             $('#edit_id').val(id);
+            
+            // Clear logo preview
+            $('#logo_preview').html('');
 
             $.ajax({
                 url: 'location-edit/' + id,
@@ -172,6 +186,12 @@
                         $('#edit_email').val(response.message.email);
                         $('#edit_mobile').val(response.message.mobile);
                         $('#edit_telephone_no').val(response.message.telephone_no);
+                        
+                        // Show current logo if exists
+                        if (response.message.logo_image) {
+                            $('#logo_preview').html('<img src="/' + response.message.logo_image + '" alt="Current Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">');
+                        }
+                        
                         $('#addAndEditLocationModal').modal('show');
                     }
                 }
@@ -318,6 +338,21 @@
     });
 }
 
+    // Logo image preview functionality
+    $('#edit_logo_image').on('change', function() {
+        const file = this.files[0];
+        const preview = $('#logo_preview');
+        
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.html('<img src="' + e.target.result + '" alt="Logo Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            preview.html('');
+        }
+    });
 
     });
 </script>
