@@ -75,10 +75,28 @@
                 max-width: 100%;
                 height: auto;
                 width: 50%;
-                filter: brightness(0.3) contrast(2);
-                -webkit-filter: brightness(0.3) contrast(2);
+                /* Removed dark filters to show colored logos properly */
                 margin: 0 !important;
                 padding: 0 !important;
+                /* Ensure logo prints well */
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* Fallback for default logo only */
+            .logo-container img.default-logo {
+                filter: brightness(0.3) contrast(2);
+                -webkit-filter: brightness(0.3) contrast(2);
+            }
+
+            /* Print optimization for colored logos */
+            @media print {
+                .logo-container img {
+                    -webkit-print-color-adjust: exact !important;
+                    color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
             }
 
             .billAddress div {
@@ -105,7 +123,7 @@
             @if ($location && $location->logo_image)
                 <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo" class="logo" width="50px" height="50px" />
             @else
-                <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Default Logo" class="logo" width="50px" height="50px" />
+                <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Default Logo" class="logo default-logo" width="50px" height="50px" />
             @endif
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
