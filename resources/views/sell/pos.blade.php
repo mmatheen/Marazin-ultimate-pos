@@ -4,9 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+    <!-- Dynamic Favicon -->
     <title>POS Page</title>
+    <link rel="icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ $activeSetting?->favicon_url }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
