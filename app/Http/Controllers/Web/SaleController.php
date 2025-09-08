@@ -1,8 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
+namespace App\Http\Controllers;
 
 use App\Models\Batch;
 use App\Models\Customer;
@@ -86,6 +84,7 @@ class SaleController extends Controller
         return response()->json(['sales' => $sales], 200);
     }
 
+    
     public function salesDetails($id)
     {
         try {
@@ -101,118 +100,6 @@ class SaleController extends Controller
     {
         return view('reports.daily_sales_report');
     }
-
-    // public function dailyReport(Request $request)
-    // {
-    //     try {
-    //         // Get start and end date from request or default to today
-    //         $startDate = $request->input('start_date', Carbon::today()->startOfDay());
-    //         $endDate = $request->input('end_date', Carbon::today()->endOfDay());
-
-    //         // Convert inputs to Carbon instances if they are strings
-    //         $startDate = Carbon::parse($startDate)->startOfDay();
-    //         $endDate = Carbon::parse($endDate)->endOfDay();
-
-    //         // Build the base query
-    //         $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
-    //             ->whereBetween('sales_date', [$startDate, $endDate]);
-
-    //         // Apply customer filter if provided
-    //         if ($request->has('customer_id') && $request->customer_id) {
-    //             $salesQuery->where('customer_id', $request->customer_id);
-    //         }
-
-    //         // Apply user filter if provided
-    //         if ($request->has('user_id') && $request->user_id) {
-    //             $salesQuery->where('user_id', $request->user_id);
-    //         }
-
-    //         // Apply location filter if provided
-    //         if ($request->has('location_id') && $request->location_id) {
-    //             $salesQuery->where('location_id', $request->location_id);
-    //         }
-
-    //         $sales = $salesQuery->get();
-
-    //         // Initialize totals
-    //         $cashPayments = 0;
-    //         $chequePayments = 0;
-    //         $bankTransferPayments = 0;
-    //         $cardPayments = 0;
-    //         $creditTotal = 0;
-
-    //         foreach ($sales as $sale) {
-    //             foreach ($sale->payments as $payment) {
-    //                 switch ($payment->payment_method) {
-    //                     case 'cash':
-    //                         $cashPayments += $payment->amount;
-    //                         break;
-    //                     case 'cheque':
-    //                         $chequePayments += $payment->amount;
-    //                         break;
-    //                     case 'bank_transfer':
-    //                         $bankTransferPayments += $payment->amount;
-    //                         break;
-    //                     case 'card':
-    //                         $cardPayments += $payment->amount;
-    //                         break;
-    //                 }
-    //             }
-    //             $creditTotal += $sale->total_due;
-    //         }
-
-    //         // Calculate sales returns for the filtered sales
-    //         $salesReturnsQuery = SalesReturn::whereBetween('return_date', [$startDate, $endDate]);
-
-    //         if ($request->has('customer_id') && $request->customer_id) {
-    //             $salesReturnsQuery->where('customer_id', $request->customer_id);
-    //         }
-
-    //         if ($request->has('location_id') && $request->location_id) {
-    //             $salesReturnsQuery->where('location_id', $request->location_id);
-    //         }
-
-    //         $salesReturns = $salesReturnsQuery->sum('return_total');
-    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-    //             ->whereBetween('return_date', [$startDate, $endDate])
-    //             ->whereIn('sale_id', $sales->pluck('id'))
-    //             ->get();
-
-    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-    //             ->whereBetween('return_date', [$startDate, $endDate])
-    //             ->whereIn('sale_id', $sales->pluck('id'))
-    //             ->whereHas('sale', function ($query) use ($startDate, $endDate) {
-    //                 $query->whereBetween('sales_date', [$startDate, $endDate]);
-    //             })
-    //             ->get();
-
-    //         // Summaries
-    //         $summaries = [
-    //             'billTotal' => $sales->sum('final_total'),
-    //             'discounts' => $sales->sum('discount_amount'),
-    //             'cashPayments' => $cashPayments,
-    //             'chequePayments' => $chequePayments,
-    //             'bankTransfer' => $bankTransferPayments,
-    //             'cardPayments' => $cardPayments,
-    //             'salesReturns' => $salesReturns,
-    //             'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
-    //             'creditTotal' => $creditTotal,
-    //             'netIncome' => ($sales->sum('final_total') - $salesReturns),
-    //             'cashInHand' => ($cashPayments - $salesReturns),
-    //         ];
-
-    //         return response()->json([
-    //             'sales' => $sales,
-    //             'summaries' => $summaries,
-    //             'salesReturns' => $salesReturnsDetails
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'error' => 'An error occurred while fetching sales data.',
-    //             'details' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
 
 
     public function dailyReport(Request $request)
@@ -392,7 +279,7 @@ class SaleController extends Controller
     }
 
 
- public function storeOrUpdate(Request $request, $id = null)
+    public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
@@ -690,7 +577,11 @@ class SaleController extends Controller
 
                 // ----- Products Logic (allow multiple for jobticket) -----
                 if ($isUpdate) {
+                    // Store original quantities for stock validation during update
+                    $originalProducts = [];
                     foreach ($sale->products as $product) {
+                        $originalProducts[$product->product_id][$product->batch_id] = ($originalProducts[$product->product_id][$product->batch_id] ?? 0) + $product->quantity;
+                        
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         }
@@ -703,15 +594,16 @@ class SaleController extends Controller
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
-                        if (
-                            in_array($newStatus, ['final', 'suspend']) &&
-                            (
-                                !$isUpdate ||
-                                in_array($oldStatus, ['draft', 'quotation', 'jobticket'])
-                            )
-                        ) {
+                        // For updates, check stock availability considering the original sale quantities
+                        if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
+                            $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
+                        }
+                        
+                        // Always process sale for final/suspend status
+                        if (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
                         } else {
+                            // For non-final statuses, just simulate batch selection
                             $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
                         }
                     }
@@ -748,19 +640,19 @@ class SaleController extends Controller
             $user = User::find($sale->user_id);
             $location = $user ? $user->locations()->first() : null;
 
-            $viewData = [
-                'sale' => $sale,
-                'customer' => $customer,
-                'products' => $products,
-                'payments' => $payments,
-                'total_discount' => $request->discount_amount ?? 0,
-                'amount_given' => $sale->amount_given,
-                'balance_amount' => $sale->balance_amount,
-                'user' => $user,
-                'location' => $location,
-            ];
+        $viewData = [
+            'sale' => $sale,
+            'customer' => $customer,
+            'products' => $products,
+            'payments' => $payments,
+            'total_discount' => $request->discount_amount ?? 0,
+            'amount_given' => $sale->amount_given,
+            'balance_amount' => $sale->balance_amount,
+            'user' => $user,
+            'location' => $location,
+        ];
 
-            $html = view('sell.receipt', $viewData)->render();
+        $html = view('sell.receipt', $viewData)->render();
 
           
 
@@ -810,14 +702,15 @@ class SaleController extends Controller
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-                'data' => $viewData,
-                'invoice_html' => $html
+                'invoice_html' => $html,
+                'data' => $viewData
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
             
         }
     }
+
 
     private function calculateNewBalance($customerId, $amount, $type)
     {
@@ -1118,6 +1011,48 @@ class SaleController extends Controller
     }
 
 
+    private function validateStockForUpdate($productData, $locationId, $originalProducts)
+    {
+        $totalQuantity = $productData['quantity'];
+        $productId = $productData['product_id'];
+        $batchId = $productData['batch_id'];
+        
+        // Get original quantity sold for this product/batch combination
+        $originalQuantity = 0;
+        if (isset($originalProducts[$productId])) {
+            if ($batchId === 'all') {
+                // For 'all' batches, sum all original quantities for this product
+                $originalQuantity = array_sum($originalProducts[$productId]);
+            } else {
+                // For specific batch, get original quantity for this batch
+                $originalQuantity = $originalProducts[$productId][$batchId] ?? 0;
+            }
+        }
+
+        if (!empty($batchId) && $batchId != 'all') {
+            // Specific batch selected
+            $currentStock = Sale::getAvailableStock($batchId, $locationId);
+            $availableStock = $currentStock + $originalQuantity;
+            
+            if ($totalQuantity > $availableStock) {
+                throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
+            }
+        } else {
+            // All batches selected - check total available stock
+            $currentTotalStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productId)
+                ->where('location_batches.location_id', $locationId)
+                ->sum('location_batches.qty');
+                
+            $availableStock = $currentTotalStock + $originalQuantity;
+            
+            if ($totalQuantity > $availableStock) {
+                throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
+            }
+        }
+    }
+
     private function restoreStock($product, $stockType)
     {
         Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}");
@@ -1315,11 +1250,8 @@ class SaleController extends Controller
                     }
 
                     $batchId = $product->batch_id ?? 'all';
-                    $totalAllowedQuantity = $sale->getBatchQuantityPlusSold(
-                        $batchId,
-                        $product->location_id,
-                        $product->product_id
-                    );
+                    
+                    // Get current available stock
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
                         ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
@@ -1327,6 +1259,10 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
+                    
+                    // For editing: max allowed = current stock + quantity from this sale
+                    // This represents what would be available if we "undo" this sale
+                    $totalAllowedQuantity = $currentStock + $product->quantity;
 
                     return [
                         'id' => $product->id,
@@ -1493,6 +1429,55 @@ class SaleController extends Controller
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Log pricing errors for admin review
+     */
+    public function logPricingError(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'product_id' => 'required|integer',
+                'product_name' => 'required|string',
+                'customer_type' => 'required|string',
+                'batch_id' => 'nullable|integer',
+                'batch_no' => 'nullable|string',
+                'timestamp' => 'required|string',
+                'location_id' => 'required|integer'
+            ]);
+
+            // Log to Laravel log file with structured data
+            Log::warning('POS Pricing Error', [
+                'user_id' => auth()->id(),
+                'user_name' => auth()->user()->name ?? 'Unknown',
+                'product_id' => $validated['product_id'],
+                'product_name' => $validated['product_name'],
+                'customer_type' => $validated['customer_type'],
+                'batch_id' => $validated['batch_id'],
+                'batch_no' => $validated['batch_no'],
+                'location_id' => $validated['location_id'],
+                'timestamp' => $validated['timestamp'],
+                'user_agent' => $request->userAgent(),
+                'ip_address' => $request->ip()
+            ]);
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Pricing error logged successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to log pricing error', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to log pricing error'
+            ], 500);
         }
     }
 }

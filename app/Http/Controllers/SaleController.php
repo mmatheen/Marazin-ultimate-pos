@@ -577,7 +577,11 @@ class SaleController extends Controller
 
                 // ----- Products Logic (allow multiple for jobticket) -----
                 if ($isUpdate) {
+                    // Store original quantities for stock validation during update
+                    $originalProducts = [];
                     foreach ($sale->products as $product) {
+                        $originalProducts[$product->product_id][$product->batch_id] = ($originalProducts[$product->product_id][$product->batch_id] ?? 0) + $product->quantity;
+                        
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
                         }
@@ -590,15 +594,16 @@ class SaleController extends Controller
                     if ($product->stock_alert === 0) {
                         $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
                     } else {
-                        if (
-                            in_array($newStatus, ['final', 'suspend']) &&
-                            (
-                                !$isUpdate ||
-                                in_array($oldStatus, ['draft', 'quotation', 'jobticket'])
-                            )
-                        ) {
+                        // For updates, check stock availability considering the original sale quantities
+                        if ($isUpdate && in_array($newStatus, ['final', 'suspend'])) {
+                            $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
+                        }
+                        
+                        // Always process sale for final/suspend status
+                        if (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
                         } else {
+                            // For non-final statuses, just simulate batch selection
                             $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
                         }
                     }
@@ -1006,6 +1011,48 @@ class SaleController extends Controller
     }
 
 
+    private function validateStockForUpdate($productData, $locationId, $originalProducts)
+    {
+        $totalQuantity = $productData['quantity'];
+        $productId = $productData['product_id'];
+        $batchId = $productData['batch_id'];
+        
+        // Get original quantity sold for this product/batch combination
+        $originalQuantity = 0;
+        if (isset($originalProducts[$productId])) {
+            if ($batchId === 'all') {
+                // For 'all' batches, sum all original quantities for this product
+                $originalQuantity = array_sum($originalProducts[$productId]);
+            } else {
+                // For specific batch, get original quantity for this batch
+                $originalQuantity = $originalProducts[$productId][$batchId] ?? 0;
+            }
+        }
+
+        if (!empty($batchId) && $batchId != 'all') {
+            // Specific batch selected
+            $currentStock = Sale::getAvailableStock($batchId, $locationId);
+            $availableStock = $currentStock + $originalQuantity;
+            
+            if ($totalQuantity > $availableStock) {
+                throw new \Exception("Batch ID {$batchId} does not have enough stock. Available: {$availableStock}, Requested: {$totalQuantity}");
+            }
+        } else {
+            // All batches selected - check total available stock
+            $currentTotalStock = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productId)
+                ->where('location_batches.location_id', $locationId)
+                ->sum('location_batches.qty');
+                
+            $availableStock = $currentTotalStock + $originalQuantity;
+            
+            if ($totalQuantity > $availableStock) {
+                throw new \Exception("Not enough stock available. Available: {$availableStock}, Requested: {$totalQuantity}");
+            }
+        }
+    }
+
     private function restoreStock($product, $stockType)
     {
         Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}");
@@ -1203,11 +1250,8 @@ class SaleController extends Controller
                     }
 
                     $batchId = $product->batch_id ?? 'all';
-                    $totalAllowedQuantity = $sale->getBatchQuantityPlusSold(
-                        $batchId,
-                        $product->location_id,
-                        $product->product_id
-                    );
+                    
+                    // Get current available stock
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
                         ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
@@ -1215,6 +1259,10 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
+                    
+                    // For editing: max allowed = current stock + quantity from this sale
+                    // This represents what would be available if we "undo" this sale
+                    $totalAllowedQuantity = $currentStock + $product->quantity;
 
                     return [
                         'id' => $product->id,

@@ -1,3 +1,0 @@
-product_name,sku,unit_name,brand_name,main_category_name,sub_category_name,stock_alert_quantity,original_price,retail_price,whole_sale_price,special_price,max_retail_price,qty,batch_no,expiry_date,product_image_name,description,is_imeiserial_no,is_for_selling,product_type,pax
-Test Product,TEST001,Piece,TestBrand,TestCategory,,0,10,20,15,18,25,100,BATCH001,2025-12-31,,,1,1,Simple,1
-Test Product 2,TEST002,Piece,TestBrand,TestCategory,, ,10,20,15,18,25,100,BATCH002,2025-12-31,,,1,1,Simple,1

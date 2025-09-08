@@ -999,10 +999,14 @@
         function initAutocomplete() {
             let autoAddTimeout = null;
             let lastSearchResults = [];
+            let currentSearchTerm = '';
 
             $("#productSearchInput").autocomplete({
                 source: function(request, response) {
                     if (!selectedLocationId) return response([]);
+                    
+                    // Store the current search term
+                    currentSearchTerm = request.term;
                     
                     // Clear any pending auto-add timeout
                     if (autoAddTimeout) {
@@ -1034,12 +1038,29 @@
                                         )
                                     )
                                 );
-                                const results = filtered.map(stock => ({
-                                    label: `${stock.product.product_name} (${stock.product.sku || ''}) [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
-                                    value: stock.product.product_name,
-                                    product: stock.product,
-                                    stockData: stock
-                                }));
+                                const results = filtered.map(stock => {
+                                    // Check if this product was found by IMEI search
+                                    let imeiMatch = '';
+                                    let exactImeiMatch = false;
+                                    if (stock.imei_numbers && stock.imei_numbers.length > 0) {
+                                        const matchingImei = stock.imei_numbers.find(imei => 
+                                            imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
+                                        );
+                                        if (matchingImei) {
+                                            imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
+                                            exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
+                                        }
+                                    }
+                                    
+                                    return {
+                                        label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
+                                        value: stock.product.product_name,
+                                        product: stock.product,
+                                        stockData: stock,
+                                        imeiMatch: imeiMatch ? true : false,
+                                        exactImeiMatch: exactImeiMatch
+                                    };
+                                });
                                 
                                 if (results.length === 0) {
                                     results.push({
@@ -1051,22 +1072,25 @@
                                 // Store results for Enter key handling
                                 lastSearchResults = results.filter(r => r.product);
 
-                                // Check for exact SKU match and auto-add after delay
+                                // Check for exact SKU match or IMEI match and auto-add after delay
                                 const exactMatch = results.find(r => 
-                                    r.product && 
-                                    r.product.sku && 
-                                    r.product.sku.toLowerCase() === request.term.toLowerCase()
+                                    r.product && (
+                                        (r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) ||
+                                        r.exactImeiMatch
+                                    )
                                 );
 
                                 if (exactMatch && request.term.length >= 3) {
-                                    console.log('Exact SKU match found:', exactMatch.product.sku);
+                                    const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
+                                    console.log(`Exact ${matchType} match found:`, exactMatch.product.sku || request.term);
                                     showSearchIndicator("⚡ Auto-adding...", "orange");
                                     autoAddTimeout = setTimeout(() => {
                                         $("#productSearchInput").autocomplete('close');
-                                        addProductFromAutocomplete(exactMatch);
+                                        // Pass the search term to handle IMEI pre-selection
+                                        addProductFromAutocomplete(exactMatch, request.term, matchType);
                                         $("#productSearchInput").val('');
                                         hideSearchIndicator();
-                                    }, 500); // 500ms delay for exact SKU match
+                                    }, 500); // 500ms delay for exact match
                                 }
 
                                 response(results);
@@ -1097,7 +1121,10 @@
                     }
                     
                     $("#productSearchInput").val("");
-                    addProductFromAutocomplete(ui.item);
+                    
+                    // Pass search term and match type for manual selection
+                    const isImeiMatch = ui.item.imeiMatch || false;
+                    addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
                     return false;
                 },
                 open: function() {
@@ -1119,8 +1146,11 @@
             }).autocomplete("instance")._renderItem = function(ul, item) {
                 const li = $("<li>");
                 if (item.product) {
-                    // Regular product item
-                    li.append(`<div style="padding: 8px;">${item.label}</div>`);
+                    // Regular product item with special styling for IMEI matches
+                    const style = item.imeiMatch ? 
+                        "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
+                        "padding: 8px;";
+                    li.append(`<div style="${style}">${item.label}</div>`);
                 } else {
                     // No results item
                     li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
@@ -1211,6 +1241,7 @@
 
                     const widget = $("#productSearchInput").autocomplete("widget");
                     const focused = widget.find(".ui-state-focus");
+                    const currentSearchTerm = $("#productSearchInput").val().trim();
                     
                     if (widget.is(":visible") && focused.length > 0) {
                         // If dropdown is open and an item is focused, select it
@@ -1223,17 +1254,27 @@
                         // If dropdown is not visible but we have results, add the first one
                         $("#productSearchInput").autocomplete('close');
                         showSearchIndicator("✓ Adding first match...", "#28a745");
+                        
+                        // Determine if the search term matches an IMEI in the first result
+                        const firstResult = lastSearchResults[0];
+                        const isImeiMatch = firstResult.imeiMatch || (
+                            firstResult.stockData && 
+                            firstResult.stockData.imei_numbers && 
+                            firstResult.stockData.imei_numbers.some(imei => 
+                                imei.imei_number.toLowerCase() === currentSearchTerm.toLowerCase()
+                            )
+                        );
+                        
                         setTimeout(() => {
-                            addProductFromAutocomplete(lastSearchResults[0]);
+                            addProductFromAutocomplete(firstResult, currentSearchTerm, isImeiMatch ? 'IMEI' : 'ENTER');
                             $("#productSearchInput").val('');
                             hideSearchIndicator();
                         }, 200);
                     } else {
                         // Force search if no results yet
-                        const searchTerm = $("#productSearchInput").val().trim();
-                        if (searchTerm.length >= 1) {
+                        if (currentSearchTerm.length >= 1) {
                             showSearchIndicator("🔍 Searching...", "#007bff");
-                            $("#productSearchInput").autocomplete('search', searchTerm);
+                            $("#productSearchInput").autocomplete('search', currentSearchTerm);
                         }
                     }
                 }
@@ -1250,10 +1291,10 @@
                 }
             });
 
-            function addProductFromAutocomplete(item) {
+            function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
                 if (!item.product) return;
                 
-                console.log('Adding product from autocomplete:', item.product.product_name);
+                console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
                 
                 // Try to find the stock entry in stockData
                 let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
@@ -1271,7 +1312,7 @@
                             if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
                                 stockData.push(data.data[0]);
                                 allProducts.push(data.data[0]);
-                                addProductToTable(data.data[0].product);
+                                addProductToTable(data.data[0].product, searchTerm, matchType);
                             } else {
                                 toastr.error('Stock entry not found for the product', 'Error');
                             }
@@ -1281,7 +1322,7 @@
                         });
                     return;
                 }
-                addProductToTable(item.product);
+                addProductToTable(item.product, searchTerm, matchType);
             }
 
             $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
@@ -1369,8 +1410,8 @@
         let priceType = 'retail';
         let selectedRow;
 
-        function addProductToTable(product) {
-            console.log("Product to be added:", product);
+        function addProductToTable(product, searchTerm = '', matchType = '') {
+            console.log("Product to be added:", product, "Search term:", searchTerm, "Match type:", matchType);
 
             if (!stockData || stockData.length === 0) {
                 console.error('stockData is not defined or empty');
@@ -1437,11 +1478,11 @@
                 );
 
                 if (existingRows.length > 0) {
-                    showImeiSelectionModal(product, stockEntry, availableImeis);
+                    showImeiSelectionModal(product, stockEntry, availableImeis, searchTerm, matchType);
                     return;
                 }
 
-                showImeiSelectionModal(product, stockEntry, availableImeis);
+                showImeiSelectionModal(product, stockEntry, availableImeis, searchTerm, matchType);
                 return;
             }
 
@@ -1718,9 +1759,11 @@
         let currentImeiProduct = null;
         let currentImeiStockEntry = null;
 
-        function showImeiSelectionModal(product, stockEntry, imeis) {
+        function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', matchType = '') {
             currentImeiProduct = product;
             currentImeiStockEntry = stockEntry;
+            
+            console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType);
 
             const availableImeis = (stockEntry.imei_numbers || []).filter(imei =>
                 imei.status === "available" && imei.location_id == selectedLocationId
@@ -1754,13 +1797,25 @@
             // Populate existing IMEIs
             availableImeis.forEach((imei, index) => {
                 const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+                
+                // Check if this IMEI matches the search term (for auto-selection)
+                const isSearchedImei = matchType === 'IMEI' && searchTerm && 
+                    imei.imei_number.toLowerCase() === searchTerm.toLowerCase();
+                
                 const row = document.createElement('tr');
                 row.dataset.imei = imei.imei_number;
                 row.dataset.imeiId = imei.id; // <-- Store primary key for edit
+                
+                // Add special styling for searched IMEI
+                if (isSearchedImei) {
+                    row.style.backgroundColor = '#e8f4f8';
+                    row.style.border = '2px solid #17a2b8';
+                }
+                
                 row.innerHTML = `
             <td>${index + 1}</td>
-            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked ? 'checked' : ''} data-status="${imei.status}" /></td>
-            <td class="imei-display">${imei.imei_number}</td>
+            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked || isSearchedImei ? 'checked' : ''} data-status="${imei.status}" /></td>
+            <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
             <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
             <td>
                 <button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>
@@ -1792,7 +1847,7 @@
             const modal = new bootstrap.Modal(modalElement);
             modal.show();
 
-            setupSearchAndFilter(tbody, imeiRows);
+            setupSearchAndFilter(tbody, imeiRows, searchTerm, matchType);
             setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, imeiRows);
             setupAddButtonContainer(missingImeiCount, tbody, imeiRows);
             attachEditRemoveHandlers();
@@ -1800,9 +1855,21 @@
 
         // --- Helper Functions ---
 
-        function setupSearchAndFilter(tbody, imeiRows) {
+        function setupSearchAndFilter(tbody, imeiRows, searchTerm = '', matchType = '') {
             const searchInput = document.getElementById('imeiSearch');
             const filterSelect = document.getElementById('checkboxFilter');
+            
+            // Pre-populate search field if we searched by IMEI
+            if (matchType === 'IMEI' && searchTerm && searchInput) {
+                searchInput.value = searchTerm;
+                searchInput.focus();
+                
+                // Add visual indication that this was auto-filled
+                searchInput.style.backgroundColor = '#e8f4f8';
+                setTimeout(() => {
+                    searchInput.style.backgroundColor = '';
+                }, 2000);
+            }
 
             function applyFilters() {
                 const searchTerm = (searchInput?.value || '').toLowerCase();
@@ -2391,6 +2458,13 @@
                 }
             }
 
+            // In edit mode, use the provided batchQuantity (which comes from backend calculation)
+            // This already includes the correct max available for editing
+            if (isEditing) {
+                adjustedBatchQuantity = batchQuantity; // Trust the backend calculation
+                console.log(`Edit mode: Using backend calculated max quantity: ${adjustedBatchQuantity}`);
+            }
+
             // Get unit name and allow_decimal from product.unit (if available)
             const unitName = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
             const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit
@@ -2409,7 +2483,10 @@
 
             // Determine initial quantity value for input
             let initialQuantityValue;
-            if (imeis.length > 0) {
+            if (isEditing && saleQuantity !== undefined) {
+                // In edit mode, use the actual sale quantity
+                initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/, '') : parseInt(saleQuantity, 10);
+            } else if (imeis.length > 0) {
                 initialQuantityValue = imeis.length;
             } else if (allowDecimal) {
                 // For decimal units, use the available stock as default if less than 1, else 1
@@ -2423,8 +2500,8 @@
                 initialQuantityValue = 1;
             }
 
-            // If not IMEI, try to merge row
-            if (imeis.length === 0) {
+            // If not IMEI and not in edit mode, try to merge row
+            if (imeis.length === 0 && !isEditing) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
                     const rowProductId = row.querySelector('.product-id').textContent.trim();
                     const rowBatchId = row.querySelector('.batch-id').textContent.trim();
@@ -3249,6 +3326,9 @@
         }
 
         function fetchEditSale(saleId) {
+            // Set editing mode to true
+            isEditing = true;
+            
             fetch(`/sales/edit/${saleId}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
@@ -3288,87 +3368,46 @@
                             }
                         }
 
+                        // Clear existing billing body before adding edit products
+                        const billingBody = document.getElementById('billing-body');
+                        if (billingBody) {
+                            billingBody.innerHTML = '';
+                            console.log('Billing body cleared for edit mode');
+                        }
+
                         // Populate sale products
                         saleDetails.sale_products.forEach(saleProduct => {
                             const price = saleProduct.price || saleProduct.product.retail_price;
-                            const stockEntry = stockData.find(stock =>
-                                stock.product.id === saleProduct.product.id
-                            );
-                            let batches = [];
-                            if (stockEntry && Array.isArray(stockEntry.batches)) {
-                                batches = [...stockEntry.batches];
-                            }
-
-                            // Add sold quantity back to batch temporarily
-                            const originalBatchExists = batches.some(batch =>
-                                batch.id === saleProduct.batch?.id
-                            );
-                            if (originalBatchExists && saleProduct.batch) {
-                                batches = batches.map(batch => {
-                                    if (batch.id === saleProduct.batch.id) {
-                                        const updatedLocationBatches = batch
-                                            .location_batches.map(lb => {
-                                                if (lb.location_id === saleProduct
-                                                    .location_id) {
-                                                    return {
-                                                        ...lb,
-                                                        quantity: lb.quantity +
-                                                            saleProduct.quantity
-                                                    };
-                                                }
-                                                return lb;
-                                            });
-                                        return {
-                                            ...batch,
-                                            location_batches: updatedLocationBatches
-                                        };
-                                    }
-                                    return batch;
-                                });
-                            } else if (saleProduct.batch) {
-                                batches.push({
-                                    id: saleProduct.batch.id,
-                                    batch_no: saleProduct.batch.batch_no,
-                                    retail_price: parseFloat(saleProduct.batch
-                                        .retail_price),
-                                    wholesale_price: parseFloat(saleProduct.batch
-                                        .wholesale_price),
-                                    special_price: parseFloat(saleProduct.batch
-                                        .special_price),
+                            
+                            // Use the corrected total_quantity from backend as the max available stock
+                            const maxAvailableStock = saleProduct.total_quantity;
+                            
+                            // Create a normalized stock entry for the frontend
+                            const normalizedStockEntry = {
+                                batches: [{
+                                    id: saleProduct.batch_id,
+                                    batch_no: saleProduct.batch?.batch_no || 'BATCH-' + saleProduct.batch_id,
+                                    retail_price: parseFloat(saleProduct.batch?.retail_price || saleProduct.product.retail_price),
+                                    wholesale_price: parseFloat(saleProduct.batch?.wholesale_price || saleProduct.product.whole_sale_price),
+                                    special_price: parseFloat(saleProduct.batch?.special_price || saleProduct.product.special_price),
                                     location_batches: [{
                                         location_id: saleProduct.location_id,
-                                        quantity: saleProduct.total_quantity +
-                                            saleProduct.quantity
-                                    }],
-                                });
-                            }
-
-                            let totalStock = saleProduct.total_quantity + saleProduct.quantity;
-                            if (stockEntry) {
-                                totalStock = batches.reduce((sum, batch) => {
-                                    return sum + batch.location_batches.reduce((batchSum,
-                                        lb) => {
-                                        return batchSum + lb.quantity;
-                                    }, 0);
-                                }, 0);
-                            }
-
-                            const normalizedStockEntry = {
-                                batches: batches,
-                                total_stock: totalStock,
+                                        quantity: maxAvailableStock // This is the key fix
+                                    }]
+                                }],
+                                total_stock: maxAvailableStock,
                                 product: saleProduct.product
                             };
 
-                            // Pass only saleProduct.quantity as saleQuantity
+                            // Add product to billing with correct stock calculation
                             addProductToBillingBody(
                                 saleProduct.product,
                                 normalizedStockEntry,
                                 price,
                                 saleProduct.batch_id,
-                                saleProduct.quantity, // Batch quantity
+                                maxAvailableStock, // Batch quantity (max available)
                                 saleProduct.price_type,
-                                saleProduct
-                                .quantity, // Sale quantity (this is what should be shown)
+                                saleProduct.quantity, // Sale quantity (current quantity in sale)
                                 saleProduct.imei_numbers || [],
                                 saleProduct.discount_type,
                                 saleProduct.discount_amount
@@ -4315,6 +4354,9 @@
         }
 
         function resetForm() {
+            // Reset editing mode
+            isEditing = false;
+            
             resetToWalkingCustomer();
             const quantityInputs = document.querySelectorAll('.quantity-input');
             quantityInputs.forEach(input => {

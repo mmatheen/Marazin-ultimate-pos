@@ -20,8 +20,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use App\Models\JobTicket;
+use Barryvdh\DomPDF\Facade\Pdf;
+
 
 class SaleController extends Controller
 {
@@ -75,14 +78,13 @@ class SaleController extends Controller
     public function index()
     {
 
-
-
         $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
             ->get();
 
         return response()->json(['sales' => $sales], 200);
     }
 
+    
     public function salesDetails($id)
     {
         try {
@@ -98,118 +100,6 @@ class SaleController extends Controller
     {
         return view('reports.daily_sales_report');
     }
-
-    // public function dailyReport(Request $request)
-    // {
-    //     try {
-    //         // Get start and end date from request or default to today
-    //         $startDate = $request->input('start_date', Carbon::today()->startOfDay());
-    //         $endDate = $request->input('end_date', Carbon::today()->endOfDay());
-
-    //         // Convert inputs to Carbon instances if they are strings
-    //         $startDate = Carbon::parse($startDate)->startOfDay();
-    //         $endDate = Carbon::parse($endDate)->endOfDay();
-
-    //         // Build the base query
-    //         $salesQuery = Sale::with(['customer', 'location', 'user', 'payments', 'products'])
-    //             ->whereBetween('sales_date', [$startDate, $endDate]);
-
-    //         // Apply customer filter if provided
-    //         if ($request->has('customer_id') && $request->customer_id) {
-    //             $salesQuery->where('customer_id', $request->customer_id);
-    //         }
-
-    //         // Apply user filter if provided
-    //         if ($request->has('user_id') && $request->user_id) {
-    //             $salesQuery->where('user_id', $request->user_id);
-    //         }
-
-    //         // Apply location filter if provided
-    //         if ($request->has('location_id') && $request->location_id) {
-    //             $salesQuery->where('location_id', $request->location_id);
-    //         }
-
-    //         $sales = $salesQuery->get();
-
-    //         // Initialize totals
-    //         $cashPayments = 0;
-    //         $chequePayments = 0;
-    //         $bankTransferPayments = 0;
-    //         $cardPayments = 0;
-    //         $creditTotal = 0;
-
-    //         foreach ($sales as $sale) {
-    //             foreach ($sale->payments as $payment) {
-    //                 switch ($payment->payment_method) {
-    //                     case 'cash':
-    //                         $cashPayments += $payment->amount;
-    //                         break;
-    //                     case 'cheque':
-    //                         $chequePayments += $payment->amount;
-    //                         break;
-    //                     case 'bank_transfer':
-    //                         $bankTransferPayments += $payment->amount;
-    //                         break;
-    //                     case 'card':
-    //                         $cardPayments += $payment->amount;
-    //                         break;
-    //                 }
-    //             }
-    //             $creditTotal += $sale->total_due;
-    //         }
-
-    //         // Calculate sales returns for the filtered sales
-    //         $salesReturnsQuery = SalesReturn::whereBetween('return_date', [$startDate, $endDate]);
-
-    //         if ($request->has('customer_id') && $request->customer_id) {
-    //             $salesReturnsQuery->where('customer_id', $request->customer_id);
-    //         }
-
-    //         if ($request->has('location_id') && $request->location_id) {
-    //             $salesReturnsQuery->where('location_id', $request->location_id);
-    //         }
-
-    //         $salesReturns = $salesReturnsQuery->sum('return_total');
-    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-    //             ->whereBetween('return_date', [$startDate, $endDate])
-    //             ->whereIn('sale_id', $sales->pluck('id'))
-    //             ->get();
-
-    //         $salesReturnsDetails = SalesReturn::with(['customer', 'location', 'returnProducts'])
-    //             ->whereBetween('return_date', [$startDate, $endDate])
-    //             ->whereIn('sale_id', $sales->pluck('id'))
-    //             ->whereHas('sale', function ($query) use ($startDate, $endDate) {
-    //                 $query->whereBetween('sales_date', [$startDate, $endDate]);
-    //             })
-    //             ->get();
-
-    //         // Summaries
-    //         $summaries = [
-    //             'billTotal' => $sales->sum('final_total'),
-    //             'discounts' => $sales->sum('discount_amount'),
-    //             'cashPayments' => $cashPayments,
-    //             'chequePayments' => $chequePayments,
-    //             'bankTransfer' => $bankTransferPayments,
-    //             'cardPayments' => $cardPayments,
-    //             'salesReturns' => $salesReturns,
-    //             'paymentTotal' => ($cashPayments + $chequePayments + $bankTransferPayments + $cardPayments),
-    //             'creditTotal' => $creditTotal,
-    //             'netIncome' => ($sales->sum('final_total') - $salesReturns),
-    //             'cashInHand' => ($cashPayments - $salesReturns),
-    //         ];
-
-    //         return response()->json([
-    //             'sales' => $sales,
-    //             'summaries' => $summaries,
-    //             'salesReturns' => $salesReturnsDetails
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'error' => 'An error occurred while fetching sales data.',
-    //             'details' => $e->getMessage()
-    //         ], 500);
-    //     }
-    // }
 
 
     public function dailyReport(Request $request)
@@ -389,310 +279,6 @@ class SaleController extends Controller
     }
 
 
-    // public function storeOrUpdate(Request $request, $id = null)
-    // {
-
-    //     $validator = Validator::make($request->all(), [
-    //         'customer_id' => 'required|integer|exists:customers,id',
-    //         'location_id' => 'required|integer|exists:locations,id',
-    //         'sales_date' => 'required|date',
-    //         'status' => 'required|string',
-    //         'invoice_no' => 'nullable|string|unique:sales,invoice_no',
-    //         'products' => 'required|array',
-    //         'products.*.product_id' => 'required|integer|exists:products,id',
-    //         'products.*.quantity' => 'required|integer|min:1',
-    //         'products.*.unit_price' => 'required|numeric|min:0',
-    //         'products.*.subtotal' => 'required|numeric|min:0',
-    //         'products.*.batch_id' => 'nullable|string|max:255',
-    //         'products.*.price_type' => 'required|string|in:retail,wholesale,special',
-    //         'products.*.discount' => 'nullable|numeric|min:0',
-    //         'products.*.tax' => 'nullable|numeric|min:0',
-    //         'products.*.imei_numbers' => 'nullable|array',
-    //         'products.*.imei_numbers.*' => 'string|max:255',
-    //         'payments' => 'nullable|array',
-    //         'payments.*.payment_method' => 'required_with:payments|string',
-    //         'payments.*.payment_date' => 'required_with:payments|date',
-    //         'payments.*.amount' => 'required_with:payments|numeric|min:0',
-    //         'total_paid' => 'nullable|numeric|min:0',
-    //         'payment_mode' => 'nullable|string',
-    //         'payment_status' => 'nullable|string',
-    //         'payment_reference' => 'nullable|string',
-    //         'payment_date' => 'nullable|date',
-    //         'total_amount' => 'nullable|numeric|min:0',
-    //         'discount_type' => 'required|string|in:fixed,percentage',
-    //         'discount_amount' => 'nullable|numeric|min:0',
-    //         'amount_given' => 'nullable|numeric|min:0',
-    //         'balance_amount' => 'nullable|numeric|min:0',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['status' => 400, 'errors' => $validator->messages()]);
-    //     }
-
-    //     try {
-    //         $sale = DB::transaction(function () use ($request, $id) {
-    //             $isUpdate = $id !== null;
-    //             $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
-    //             $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
-
-    //             // Detect status change from draft/quotation to final/suspend
-    //             $statusChangingToFinal = false;
-    //             $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
-    //             $newStatus = $request->status;
-
-    //             // Generate Invoice Number Based on Status and Status Change
-    //             if (!$isUpdate) {
-    //                 if (in_array($newStatus, ['quotation', 'draft'])) {
-    //                     $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
-    //                     $year = now()->format('Y');
-    //                     $lastSale = Sale::whereYear('created_at', now())
-    //                         ->where('invoice_no', 'like', "$prefix$year%")
-    //                         ->latest()
-    //                         ->first();
-    //                     $number = $lastSale ? ((int)substr($lastSale->invoice_no, -4)) + 1 : 1;
-    //                     $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
-    //                 } else {
-    //                     $invoiceNo = Sale::generateInvoiceNo($request->location_id);
-    //                 }
-    //             } else {
-    //                 // If updating and status is changing from draft/quotation to final/suspend, generate new invoice number
-    //                 if (
-    //                     in_array($oldStatus, ['draft', 'quotation']) &&
-    //                     in_array($newStatus, ['final', 'suspend']) &&
-    //                     !preg_match('/^\d+$/', $sale->invoice_no)
-    //                 ) {
-    //                     // Only generate if not already a numeric invoice_no
-    //                     $invoiceNo = Sale::generateInvoiceNo($request->location_id);
-    //                     $statusChangingToFinal = true;
-    //                 } else {
-    //                     $invoiceNo = $sale->invoice_no;
-    //                 }
-    //             }
-
-    //             // Calculate amounts
-    //             $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
-    //             $discount = $request->discount_amount ?? 0;
-    //             $finalTotal = $request->discount_type === 'percentage'
-    //                 ? $subtotal - ($subtotal * $discount / 100)
-    //                 : $subtotal - $discount;
-
-    //             // Create the sale record first to get the ID
-    //             $sale->fill([
-    //                 'customer_id' => $request->customer_id,
-    //                 'location_id' => $request->location_id,
-    //                 'sales_date' => Carbon::parse($sale->created_at)
-    //                     ->setTimezone('Asia/Colombo')
-    //                     ->format('Y-m-d H:i:s'),
-    //                 'sale_type' => $request->sale_type ?? 'retail',
-    //                 'status' => $newStatus,
-    //                 'invoice_no' => $invoiceNo,
-    //                 'reference_no' => $referenceNo,
-    //                 'subtotal' => $subtotal,
-    //                 'final_total' => $finalTotal,
-    //                 'discount_type' => $request->discount_type,
-    //                 'discount_amount' => $discount,
-    //                 'user_id' => auth()->id(),
-    //                 'total_paid' => 0,
-    //                 'total_due' => $finalTotal,
-    //                 'amount_given' => 0,
-    //                 'balance_amount' => 0,
-    //             ])->save();
-
-
-
-
-    //             if ($sale->status === 'jobticket') {
-    //                 // Get advance and balance from request
-    //                 $advanceAmount = floatval($request->advance_amount ?? 0);
-    //                 $finalTotal = floatval($sale->final_total); // from your earlier calculation
-
-    //                 // Payment logic
-    //                 if ($advanceAmount >= $finalTotal) {
-    //                     // Full payment or excess (change to return)
-    //                     $totalPaid = $finalTotal;
-    //                     $amountGiven = $advanceAmount;
-    //                     $balanceAmount = $advanceAmount - $finalTotal;
-    //                 } else {
-    //                     // Partial payment, balance to be paid later
-    //                     $totalPaid = $advanceAmount;
-    //                     $amountGiven = $advanceAmount;
-    //                     $balanceAmount = $finalTotal - $advanceAmount;
-    //                 }
-
-    //                 // Update sale payment fields accordingly
-    //                 $sale->update([
-    //                     'total_paid'     => $totalPaid,
-    //                     'amount_given'   => $amountGiven,
-    //                     'balance_amount' => $balanceAmount,
-    //                 ]);
-
-    //                 // Create or update the job ticket record
-    //                 $jobTicket = JobTicket::updateOrCreate(
-    //                     ['sale_id' => $sale->id],
-    //                     [
-    //                         'customer_id'      => $sale->customer_id,
-    //                         // job_ticket_no auto-generated in model (see below)
-    //                         'description'      => $request->jobticket_description ?? null,
-    //                         'job_ticket_date'  => Carbon::now('Asia/Colombo'),
-    //                         'status'           => 'open',
-    //                         'advance_amount'   => $advanceAmount,
-    //                         'balance_amount'   => $balanceAmount,
-    //                     ]
-    //                 );
-    //             }
-
-    //             // Handle payments
-    //             $totalPaid = 0;
-    //             if (!empty($request->payments)) {
-    //                 $totalPaid = $request->has('payments')
-    //                     ? array_sum(array_column($request->payments, 'amount'))
-    //                     : $sale->final_total;
-
-    //                 if ($isUpdate) {
-    //                     Payment::where('reference_id', $sale->id)->delete();
-    //                     Ledger::where('reference_no', $referenceNo)
-    //                         ->where('transaction_type', 'payments')
-    //                         ->delete();
-    //                 }
-
-    //                 foreach ($request->payments as $paymentData) {
-    //                     $payment = Payment::create([
-    //                         'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-    //                         'amount' => $paymentData['amount'],
-    //                         'payment_method' => $paymentData['payment_method'],
-    //                         'reference_no' => $referenceNo,
-    //                         'notes' => $paymentData['notes'] ?? '',
-    //                         'payment_type' => 'sale',
-    //                         'reference_id' => $sale->id,
-    //                         'customer_id' => $request->customer_id,
-    //                         'card_number' => $paymentData['card_number'] ?? null,
-    //                         'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-    //                         'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-    //                         'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-    //                         'card_security_code' => $paymentData['card_security_code'] ?? null,
-    //                         'cheque_number' => $paymentData['cheque_number'] ?? null,
-    //                         'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-    //                         'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-    //                         'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-    //                         'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-    //                     ]);
-
-    //                     Ledger::create([
-    //                         'transaction_date' => $payment->payment_date,
-    //                         'reference_no' => $referenceNo,
-    //                         'transaction_type' => 'payments',
-    //                         'debit' => $payment->amount,
-    //                         'credit' => 0,
-    //                         'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-    //                         'contact_type' => 'customer',
-    //                         'user_id' => $request->customer_id,
-    //                     ]);
-    //                 }
-    //             } elseif ($isUpdate) {
-    //                 $totalPaid = $sale->total_paid;
-    //             }
-
-    //             $amountGiven = $request->amount_given ?? $sale->final_total;
-    //             $sale->update([
-    //                 'total_paid' => $amountGiven,
-    //                 'total_due' => max(0, $sale->final_total - $amountGiven),
-    //                 'amount_given' => $amountGiven,
-    //                 'balance_amount' => max(0, $amountGiven - $sale->final_total),
-    //             ]);
-
-    //             // Check for partial payments for Walk-In Customer
-    //             if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
-    //                 throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
-    //             }
-
-    //             // Handle products
-    //             if ($isUpdate) {
-    //                 foreach ($sale->products as $product) {
-    //                     // Only restore stock if previous status was 'final' or 'suspend'
-    //                     if (in_array($oldStatus, ['final', 'suspend'])) {
-    //                         $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
-    //                     }
-    //                     $product->delete();
-    //                 }
-    //             }
-
-    //             foreach ($request->products as $productData) {
-    //                 $product = Product::findOrFail($productData['product_id']);
-
-    //                 // Always add sales_product rows for all statuses
-    //                 if ($product->stock_alert === 0) {
-    //                     $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
-    //                 } else {
-    //                     // If status is final/suspend, or if status is changing from draft/quotation to final/suspend, deduct stock
-    //                     if (
-    //                         in_array($newStatus, ['final', 'suspend']) &&
-    //                         (
-    //                             !$isUpdate ||
-    //                             in_array($oldStatus, ['draft', 'quotation']) ||
-    //                             $statusChangingToFinal
-    //                         )
-    //                     ) {
-    //                         $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
-    //                     } else {
-    //                         $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
-    //                     }
-    //                 }
-    //             }
-
-    //             // Update sale ledger entry
-    //             if ($isUpdate) {
-    //                 Ledger::where('reference_no', $referenceNo)
-    //                     ->where('transaction_type', 'sale')
-    //                     ->update([
-    //                         'credit' => $finalTotal,
-    //                         'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
-    //                     ]);
-    //             } else {
-    //                 Ledger::create([
-    //                     'transaction_date' => $request->sales_date,
-    //                     'reference_no' => $referenceNo,
-    //                     'transaction_type' => 'sale',
-    //                     'debit' => 0,
-    //                     'credit' => $finalTotal,
-    //                     'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
-    //                     'contact_type' => 'customer',
-    //                     'user_id' => $request->customer_id,
-    //                 ]);
-    //             }
-
-    //             $this->updatePaymentStatus($sale);
-    //             return $sale;
-    //         });
-
-    //         // Generate receipt and return response
-    //         $customer = Customer::findOrFail($sale->customer_id);
-    //         $products = SalesProduct::where('sale_id', $sale->id)->get();
-    //         $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-
-    //         $user = User::find($sale->user_id);
-    //         $location = $user ? $user->locations()->first() : null;
-
-    //         $html = view('sell.receipt', [
-    //             'sale' => $sale,
-    //             'customer' => $customer,
-    //             'products' => $products,
-    //             'payments' => $payments,
-    //             'total_discount' => $request->discount_amount ?? 0,
-    //             'amount_given' => $sale->amount_given,
-    //             'balance_amount' => $sale->balance_amount,
-    //             'user' => $user,
-    //             'location' => $location,
-    //         ])->render();
-
-    //         return response()->json([
-    //             'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-    //             'invoice_html' => $html
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json(['message' => $e->getMessage()], 400);
-    //     }
-    // }
-
     public function storeOrUpdate(Request $request, $id = null)
     {
         $validator = Validator::make($request->all(), [
@@ -703,7 +289,24 @@ class SaleController extends Controller
             'invoice_no' => 'nullable|string|unique:sales,invoice_no',
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
-            'products.*.quantity' => 'required|integer|min:1',
+            'products.*.quantity' => [
+                'required',
+                'numeric',
+                'min:0.0001',
+                function ($attribute, $value, $fail) use ($request) {
+                    // Extract the index from the attribute, e.g., products.0.quantity => 0
+                    if (preg_match('/products\.(\d+)\.quantity/', $attribute, $matches)) {
+                        $index = $matches[1];
+                        $productData = $request->input("products.$index");
+                        if ($productData && isset($productData['product_id'])) {
+                            $product = Product::find($productData['product_id']);
+                            if ($product && $product->unit && !$product->unit->allow_decimal && floor($value) != $value) {
+                                $fail("The quantity must be an integer for this unit.");
+                            }
+                        }
+                    }
+                },
+            ],
             'products.*.unit_price' => 'required|numeric|min:0',
             'products.*.subtotal' => 'required|numeric|min:0',
             'products.*.batch_id' => 'nullable|string|max:255',
@@ -736,282 +339,303 @@ class SaleController extends Controller
 
         try {
             $sale = DB::transaction(function () use ($request, $id) {
-            $isUpdate = $id !== null;
-            $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
-            $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
+                $isUpdate = $id !== null;
+                $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
+                $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
-            $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
-            $newStatus = $request->status;
+                $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
+                $newStatus = $request->status;
 
-            // ----- Invoice No Generation -----
-            if (
-                $isUpdate &&
-                $oldStatus === 'jobticket' &&
-                in_array($newStatus, ['final', 'suspend'])
-            ) {
-                $invoiceNo = Sale::generateInvoiceNo($request->location_id);
-            } elseif ($newStatus === 'jobticket') {
-                $prefix = 'J/';
-                $year = now()->format('Y');
-                $lastJobTicketSale = Sale::whereYear('created_at', now())
-                ->where('invoice_no', 'like', "$prefix$year/%")
-                ->latest()
-                ->first();
-                $number = $lastJobTicketSale ? ((int)substr($lastJobTicketSale->invoice_no, -4)) + 1 : 1;
-                $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
-            } elseif (!$isUpdate) {
-                if (in_array($newStatus, ['quotation', 'draft'])) {
-                $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
-                $year = now()->format('Y');
-                $lastSale = Sale::whereYear('created_at', now())
-                    ->where('invoice_no', 'like', "$prefix$year/%")
-                    ->latest()
-                    ->first();
-                $number = $lastSale ? ((int)substr($lastSale->invoice_no, -4)) + 1 : 1;
-                $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
-                } else {
-                $invoiceNo = Sale::generateInvoiceNo($request->location_id);
-                }
-            } else {
+                // ----- Invoice No Generation -----
                 if (
-                in_array($oldStatus, ['draft', 'quotation']) &&
-                in_array($newStatus, ['final', 'suspend']) &&
-                !preg_match('/^\d+$/', $sale->invoice_no)
+                    $isUpdate &&
+                    $oldStatus === 'jobticket' &&
+                    in_array($newStatus, ['final', 'suspend'])
                 ) {
-                $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+                    $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+                } elseif ($newStatus === 'jobticket') {
+                    $prefix = 'J/';
+                    $year = now()->format('Y');
+                    $lastJobTicketSale = Sale::whereYear('created_at', now())
+                        ->where('invoice_no', 'like', "$prefix$year/%")
+                        ->latest()
+                        ->first();
+                    $number = $lastJobTicketSale ? ((int)substr($lastJobTicketSale->invoice_no, -4)) + 1 : 1;
+                    $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
+                } elseif (!$isUpdate) {
+                    if (in_array($newStatus, ['quotation', 'draft'])) {
+                        $prefix = $newStatus === 'quotation' ? 'Q/' : 'D/';
+                        $year = now()->format('Y');
+                        $lastSale = Sale::whereYear('created_at', now())
+                            ->where('invoice_no', 'like', "$prefix$year/%")
+                            ->latest()
+                            ->first();
+                        $number = $lastSale ? ((int)substr($lastSale->invoice_no, -4)) + 1 : 1;
+                        $invoiceNo = "$prefix$year/" . str_pad($number, 4, '0', STR_PAD_LEFT);
+                    } else {
+                        $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+                    }
                 } else {
-                $invoiceNo = $sale->invoice_no;
+                    if (
+                        in_array($oldStatus, ['draft', 'quotation']) &&
+                        in_array($newStatus, ['final', 'suspend']) &&
+                        !preg_match('/^\d+$/', $sale->invoice_no)
+                    ) {
+                        $invoiceNo = Sale::generateInvoiceNo($request->location_id);
+                    } else {
+                        $invoiceNo = $sale->invoice_no;
+                    }
                 }
-            }
 
-            // ----- Amount Calculation -----
-            $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
-            $discount = $request->discount_amount ?? 0;
-            $finalTotal = $request->discount_type === 'percentage'
-                ? $subtotal - ($subtotal * $discount / 100)
-                : $subtotal - $discount;
+                // ----- Amount Calculation -----
+                $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
+                $discount = $request->discount_amount ?? 0;
+                $finalTotal = $request->discount_type === 'percentage'
+                    ? $subtotal - ($subtotal * $discount / 100)
+                    : $subtotal - $discount;
 
-            // ----- Jobticket Payment Logic -----
-            $advanceAmount = floatval($request->advance_amount ?? 0);
+                // ----- Jobticket Payment Logic -----
+                $advanceAmount = floatval($request->advance_amount ?? 0);
 
-            if ($newStatus === 'jobticket') {
-                if ($advanceAmount >= $finalTotal) {
-                $totalPaid = $finalTotal;
-                $totalDue = 0;
-                $amountGiven = $advanceAmount;
-                $balanceAmount = $advanceAmount - $finalTotal;
+                if ($newStatus === 'jobticket') {
+                    if ($advanceAmount >= $finalTotal) {
+                        $totalPaid = $finalTotal;
+                        $totalDue = 0;
+                        $amountGiven = $advanceAmount;
+                        $balanceAmount = $advanceAmount - $finalTotal;
+                    } else {
+                        $totalPaid = $advanceAmount;
+                        $totalDue = $finalTotal - $advanceAmount;
+                        $amountGiven = $advanceAmount;
+                        $balanceAmount = 0;
+                    }
                 } else {
-                $totalPaid = $advanceAmount;
-                $totalDue = $finalTotal - $advanceAmount;
-                $amountGiven = $advanceAmount;
-                $balanceAmount = 0;
+                    // Normal sale logic, default values
+                    $amountGiven = $request->amount_given ?? $finalTotal;
+                    // --- FIX: total_paid should be min(amount_given, final_total) ---
+                    $totalPaid = min($amountGiven, $finalTotal);
+                    $totalDue = max(0, $finalTotal - $totalPaid);
+                    $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
-            } else {
-                // Normal sale logic, default values
-                $amountGiven = $request->amount_given ?? $finalTotal;
-                // --- FIX: total_paid should be min(amount_given, final_total) ---
-                $totalPaid = min($amountGiven, $finalTotal);
-                $totalDue = max(0, $finalTotal - $totalPaid);
-                $balanceAmount = max(0, $amountGiven - $finalTotal);
-            }
 
-            // ----- Save Sale -----
-            $sale->fill([
-                'customer_id' => $request->customer_id,
-                'location_id' => $request->location_id,
-                'sales_date' => Carbon::parse($sale->created_at)
-                ->setTimezone('Asia/Colombo')
-                ->format('Y-m-d H:i:s'),
-                'status' => $newStatus,
-                'invoice_no' => $invoiceNo,
-                'reference_no' => $referenceNo,
-                'subtotal' => $subtotal,
-                'final_total' => $finalTotal,
-                'discount_type' => $request->discount_type,
-                'discount_amount' => $discount,
-                'user_id' => auth()->id(),
-                'total_paid' => $totalPaid,
-                'total_due' => $totalDue,
-                'amount_given' => $amountGiven,
-                'balance_amount' => $balanceAmount,
-            ])->save();
+                // Credit limit check
+                $customer = Customer::findOrFail($request->customer_id);
 
-            // ----- Job Ticket Logic -----
-            if ($sale->status === 'jobticket') {
-                JobTicket::updateOrCreate(
-                ['sale_id' => $sale->id],
-                [
-                    'customer_id'      => $sale->customer_id,
-                    'description'      => $request->jobticket_description ?? null,
-                    'job_ticket_date'  => Carbon::now('Asia/Colombo'),
-                    'status'           => 'open',
-                    'advance_amount'   => $advanceAmount,
-                    'balance_amount'   => $balanceAmount,
-                ]
-                );
-                $sale->update([
-                'total_paid' => $totalPaid,
-                'total_due' => $totalDue,
-                'amount_given' => $amountGiven,
-                'balance_amount' => $balanceAmount,
-                ]);
-                if ($advanceAmount > 0) {
-                $paymentAmount = min($advanceAmount, $finalTotal);
-                Payment::create([
-                    'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
-                    'amount' => $paymentAmount,
-                    'payment_method' => 'cash',
-                    'reference_no' => $referenceNo,
-                    'notes' => 'Advance payment for job ticket',
-                    'payment_type' => 'sale',
-                    'reference_id' => $sale->id,
-                    'customer_id' => $sale->customer_id,
-                ]);
-                Ledger::create([
-                    'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
-                    'reference_no' => $referenceNo,
-                    'transaction_type' => 'payments',
-                    'debit' => $paymentAmount,
-                    'credit' => 0,
-                    'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
-                    'contact_type' => 'customer',
-                    'user_id' => $sale->customer_id,
-                ]);
-                }
-            }
-
-            // ----- Handle Payments (if not jobticket) -----
-            if ($sale->status !== 'jobticket') {
-                $totalPaid = 0;
+                // Calculate payments amount sent in request
+                $paymentAmount = 0;
                 if (!empty($request->payments)) {
-                $totalPaid = $request->has('payments')
-                    ? array_sum(array_column($request->payments, 'amount'))
-                    : $sale->final_total;
-
-                if ($isUpdate) {
-                    Payment::where('reference_id', $sale->id)->delete();
-                    Ledger::where('reference_no', $referenceNo)
-                    ->where('transaction_type', 'payments')
-                    ->delete();
+                    $paymentAmount = array_sum(array_column($request->payments, 'amount'));
+                } elseif ($newStatus === 'jobticket' && $advanceAmount > 0) {
+                    $paymentAmount = $advanceAmount;
+                } else {
+                    $paymentAmount = 0;
                 }
 
-                foreach ($request->payments as $paymentData) {
-                    $payment = Payment::create([
-                    'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-                    'amount' => $paymentData['amount'],
-                    'payment_method' => $paymentData['payment_method'],
-                    'reference_no' => $referenceNo,
-                    'notes' => $paymentData['notes'] ?? '',
-                    'payment_type' => 'sale',
-                    'reference_id' => $sale->id,
+                $netSaleAmount = $finalTotal - $paymentAmount;
+                $currentBalance = $customer->current_balance;
+
+                $newBalance = $currentBalance + $netSaleAmount;
+
+                if ($customer->id != 1 && $customer->credit_limit > 0 && $newBalance > $customer->credit_limit) {
+                    throw new \Exception("Credit limit exceeded for {$customer->full_name}. Current balance: {$currentBalance}, Sale amount due after payment: {$netSaleAmount}, Credit limit: {$customer->credit_limit}");
+                }
+
+
+                // ----- Save Sale -----
+                $sale->fill([
                     'customer_id' => $request->customer_id,
-                    'card_number' => $paymentData['card_number'] ?? null,
-                    'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                    'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                    'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                    'card_security_code' => $paymentData['card_security_code'] ?? null,
-                    'cheque_number' => $paymentData['cheque_number'] ?? null,
-                    'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                    'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                    'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                    'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                    ]);
-
-                    Ledger::create([
-                    'transaction_date' => $payment->payment_date,
+                    'location_id' => $request->location_id,
+                    'sales_date' => Carbon::parse($sale->created_at)
+                        ->setTimezone('Asia/Colombo')
+                        ->format('Y-m-d H:i:s'),
+                    'status' => $newStatus,
+                    'invoice_no' => $invoiceNo,
                     'reference_no' => $referenceNo,
-                    'transaction_type' => 'payments',
-                    'debit' => $payment->amount,
-                    'credit' => 0,
-                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                    'contact_type' => 'customer',
-                    'user_id' => $request->customer_id,
+                    'subtotal' => $subtotal,
+                    'final_total' => $finalTotal,
+                    'discount_type' => $request->discount_type,
+                    'discount_amount' => $discount,
+                    'user_id' => auth()->id(),
+                    'total_paid' => $totalPaid,
+                    'total_due' => $totalDue,
+                    'amount_given' => $amountGiven,
+                    'balance_amount' => $balanceAmount,
+                ])->save();
+
+                // ----- Job Ticket Logic -----
+                if ($sale->status === 'jobticket') {
+                    JobTicket::updateOrCreate(
+                        ['sale_id' => $sale->id],
+                        [
+                            'customer_id'      => $sale->customer_id,
+                            'description'      => $request->jobticket_description ?? null,
+                            'job_ticket_date'  => Carbon::now('Asia/Colombo'),
+                            'status'           => 'open',
+                            'advance_amount'   => $advanceAmount,
+                            'balance_amount'   => $balanceAmount,
+                        ]
+                    );
+                    $sale->update([
+                        'total_paid' => $totalPaid,
+                        'total_due' => $totalDue,
+                        'amount_given' => $amountGiven,
+                        'balance_amount' => $balanceAmount,
+                    ]);
+                    if ($advanceAmount > 0) {
+                        $paymentAmount = min($advanceAmount, $finalTotal);
+                        Payment::create([
+                            'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
+                            'amount' => $paymentAmount,
+                            'payment_method' => 'cash',
+                            'reference_no' => $referenceNo,
+                            'notes' => 'Advance payment for job ticket',
+                            'payment_type' => 'sale',
+                            'reference_id' => $sale->id,
+                            'customer_id' => $sale->customer_id,
+                        ]);
+                        Ledger::create([
+                            'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
+                            'reference_no' => $referenceNo,
+                            'transaction_type' => 'payments',
+                            'debit' => $paymentAmount,
+                            'credit' => 0,
+                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
+                            'contact_type' => 'customer',
+                            'user_id' => $sale->customer_id,
+                        ]);
+                    }
+                }
+
+                // ----- Handle Payments (if not jobticket) -----
+                if ($sale->status !== 'jobticket') {
+                    $totalPaid = 0;
+                    if (!empty($request->payments)) {
+                        $totalPaid = $request->has('payments')
+                            ? array_sum(array_column($request->payments, 'amount'))
+                            : $sale->final_total;
+
+                        if ($isUpdate) {
+                            Payment::where('reference_id', $sale->id)->delete();
+                            Ledger::where('reference_no', $referenceNo)
+                                ->where('transaction_type', 'payments')
+                                ->delete();
+                        }
+
+                        foreach ($request->payments as $paymentData) {
+                            $payment = Payment::create([
+                                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                                'amount' => $paymentData['amount'],
+                                'payment_method' => $paymentData['payment_method'],
+                                'reference_no' => $referenceNo,
+                                'notes' => $paymentData['notes'] ?? '',
+                                'payment_type' => 'sale',
+                                'reference_id' => $sale->id,
+                                'customer_id' => $request->customer_id,
+                                'card_number' => $paymentData['card_number'] ?? null,
+                                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                                'card_security_code' => $paymentData['card_security_code'] ?? null,
+                                'cheque_number' => $paymentData['cheque_number'] ?? null,
+                                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                                'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                                'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                            ]);
+
+                            Ledger::create([
+                                'transaction_date' => $payment->payment_date,
+                                'reference_no' => $referenceNo,
+                                'transaction_type' => 'payments',
+                                'debit' => $payment->amount,
+                                'credit' => 0,
+                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                'contact_type' => 'customer',
+                                'user_id' => $request->customer_id,
+                            ]);
+                        }
+                    } elseif ($isUpdate) {
+                        $totalPaid = $sale->total_paid;
+                    }
+
+                    // --- FIX: total_paid should be min(amount_given, final_total) ---
+                    $amountGiven = $request->amount_given ?? $sale->final_total;
+                    $totalPaid = min($amountGiven, $finalTotal);
+
+                    $sale->update([
+                        'total_paid' => $totalPaid,
+                        'total_due' => max(0, $sale->final_total - $totalPaid),
+                        'amount_given' => $amountGiven,
+                        'balance_amount' => max(0, $amountGiven - $sale->final_total),
                     ]);
                 }
-                } elseif ($isUpdate) {
-                $totalPaid = $sale->total_paid;
+
+                // Check for partial payments for Walk-In Customer
+                if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
+                    throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
                 }
 
-                // --- FIX: total_paid should be min(amount_given, final_total) ---
-                $amountGiven = $request->amount_given ?? $sale->final_total;
-                $totalPaid = min($amountGiven, $finalTotal);
-                
-                $sale->update([
-                    'total_paid' => $totalPaid,
-                    'total_due' => max(0, $sale->final_total - $totalPaid),
-                    'amount_given' => $amountGiven,
-                    'balance_amount' => max(0, $amountGiven - $sale->final_total),
-                ]);
-            }
-
-            // Check for partial payments for Walk-In Customer
-            if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
-                throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
-            }
-
-            // ----- Products Logic (allow multiple for jobticket) -----
-            if ($isUpdate) {
-                foreach ($sale->products as $product) {
-                if (in_array($oldStatus, ['final', 'suspend'])) {
-                    $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                // ----- Products Logic (allow multiple for jobticket) -----
+                if ($isUpdate) {
+                    foreach ($sale->products as $product) {
+                        if (in_array($oldStatus, ['final', 'suspend'])) {
+                            $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                        }
+                        $product->delete();
+                    }
                 }
-                $product->delete();
-                }
-            }
 
-            foreach ($request->products as $productData) {
-                $product = Product::findOrFail($productData['product_id']);
-                if ($product->stock_alert === 0) {
-                $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
+                foreach ($request->products as $productData) {
+                    $product = Product::findOrFail($productData['product_id']);
+                    if ($product->stock_alert === 0) {
+                        $this->processUnlimitedStockProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE);
+                    } else {
+                        if (
+                            in_array($newStatus, ['final', 'suspend']) &&
+                            (
+                                !$isUpdate ||
+                                in_array($oldStatus, ['draft', 'quotation', 'jobticket'])
+                            )
+                        ) {
+                            $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
+                        } else {
+                            $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
+                        }
+                    }
+                }
+
+                // ----- Ledger -----
+                if ($isUpdate) {
+                    Ledger::where('reference_no', $referenceNo)
+                        ->where('transaction_type', 'sale')
+                        ->update([
+                            'credit' => $finalTotal,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
+                        ]);
                 } else {
-                if (
-                    in_array($newStatus, ['final', 'suspend']) &&
-                    (
-                    !$isUpdate ||
-                    in_array($oldStatus, ['draft', 'quotation', 'jobticket'])
-                    )
-                ) {
-                    $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
-                } else {
-                    $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
+                    Ledger::create([
+                        'transaction_date' => $request->sales_date,
+                        'reference_no' => $referenceNo,
+                        'transaction_type' => 'sale',
+                        'debit' => 0,
+                        'credit' => $finalTotal,
+                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
+                        'contact_type' => 'customer',
+                        'user_id' => $request->customer_id,
+                    ]);
                 }
-                }
-            }
 
-            // ----- Ledger -----
-            if ($isUpdate) {
-                Ledger::where('reference_no', $referenceNo)
-                ->where('transaction_type', 'sale')
-                ->update([
-                    'credit' => $finalTotal,
-                    'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
-                ]);
-            } else {
-                Ledger::create([
-                'transaction_date' => $request->sales_date,
-                'reference_no' => $referenceNo,
-                'transaction_type' => 'sale',
-                'debit' => 0,
-                'credit' => $finalTotal,
-                'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
-                'contact_type' => 'customer',
-                'user_id' => $request->customer_id,
-                ]);
-            }
-
-            $this->updatePaymentStatus($sale);
-            return $sale;
+                $this->updatePaymentStatus($sale);
+                return $sale;
             });
 
-            // Generate receipt and return response
             $customer = Customer::findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-
             $user = User::find($sale->user_id);
             $location = $user ? $user->locations()->first() : null;
 
-            $html = view('sell.receipt', [
+        $viewData = [
             'sale' => $sale,
             'customer' => $customer,
             'products' => $products,
@@ -1021,24 +645,89 @@ class SaleController extends Controller
             'balance_amount' => $sale->balance_amount,
             'user' => $user,
             'location' => $location,
-            ])->render();
+        ];
+
+        $html = view('sell.receipt', $viewData)->render();
+
+          
+
+
+            try {
+                $mobileNo = ltrim($customer->mobile_no, '0');
+                $whatsAppApiUrl = env('WHATSAPP_API_URL'); // load from .env
+
+                if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
+
+
+
+                    // Render the 80mm thermal receipt view to HTML
+                    $thermalHtml = view('sell.receipt', $viewData)->render();
+
+                    // Generate PDF (no saving to disk)
+                    $pdf = Pdf::loadHTML($thermalHtml)
+                        ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm x 297mm
+                    $pdfContent = $pdf->output();
+
+                    // Send to WhatsApp API
+                    $response = Http::withHeaders([])
+                        ->attach(
+                            'files',
+                            $pdfContent, // Directly attach binary content
+                            "invoice_{$sale->invoice_no}_80mm.pdf"
+                        )
+                        ->post($whatsAppApiUrl, [
+                            'number' => "+94" . $mobileNo,
+                            'message' => "Dear {$customer->first_name}, your invoice #{$sale->invoice_no} has been generated successfully. Total amount: Rs. {$sale->final_total}. Thank you for your business!",
+                        ]);
+
+                    if ($response->successful()) {
+                        Log::info('WhatsApp message sent successfully to: ' . $mobileNo);
+                    } else {
+                        Log::error('WhatsApp send failed: ' . $response->body());
+                    }
+                } else {
+                    Log::info("WhatsApp skipped: API URL not set or mobile number missing.");
+                }
+            } catch (\Exception $ex) {
+                Log::error('WhatsApp send error: ' . $ex->getMessage());
+            }
+
+
+
 
             return response()->json([
-            'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-            'invoice_html' => $html
+                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'invoice_html' => $html,
+                'data' => $viewData
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
+            
         }
     }
 
 
-    private function calculateNewBalance($userId, $amount, $type)
+    private function calculateNewBalance($customerId, $amount, $type)
     {
-        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
+        $lastLedger = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->orderBy('transaction_date', 'desc')
+            ->first();
+
         $previousBalance = $lastLedger ? $lastLedger->balance : 0;
 
-        return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
+        $newBalance = $type === 'debit'
+            ? $previousBalance - $amount
+            : $previousBalance + $amount;
+
+        // Sync to customer current balance
+        $customer = Customer::find($customerId);
+        if ($customer) {
+            $customer->current_balance = $newBalance;
+            $customer->saveQuietly();
+        }
+
+        return $newBalance;
     }
 
     private function updatePaymentStatus($sale)
@@ -1059,6 +748,12 @@ class SaleController extends Controller
         }
 
         $sale->save();
+
+        // Credit limit alert
+        $customer = $sale->customer;
+        if ($customer && $customer->current_balance > $customer->credit_limit) {
+            Log::warning("Customer {$customer->id} exceeded credit limit.");
+        }
     }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
@@ -1351,17 +1046,31 @@ class SaleController extends Controller
         return null;
     }
 
+    // test
+
     public function getSaleByInvoiceNo($invoiceNo)
     {
-        $sale = Sale::with('products.product')->where('invoice_no', $invoiceNo)->first();
+        $sale = Sale::with([
+            'products.product.unit' // eager load product and its unit
+        ])->where('invoice_no', $invoiceNo)->first();
 
         if (!$sale) {
             return response()->json(['error' => 'Sale not found'], 404);
         }
 
         $products = $sale->products->map(function ($product) use ($sale) {
-            $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id); // Fixed line
+            $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id);
             $product->current_quantity = $currentQuantity;
+
+            // Add unit details if available
+            $unit = optional(optional($product->product)->unit);
+            $product->unit = $unit ? $unit->only([
+                'id',
+                'name',
+                'short_name',
+                'allow_decimal'
+            ]) : null;
+
             return $product;
         });
 
@@ -1398,10 +1107,14 @@ class SaleController extends Controller
     public function editSale($id)
     {
         try {
-            // Fetch sale details with related models
-            $sale = Sale::with(['products.product', 'products.batch', 'customer', 'location'])
-                ->findOrFail($id);
-            // Prepare detailed response
+            // Fetch sale details with related models, including product.unit
+            $sale = Sale::with([
+                'products.product.unit', // eager load unit relation
+                'products.batch',
+                'customer',
+                'location'
+            ])->findOrFail($id);
+
             $saleDetails = [
                 'sale' => $sale->only([
                     'id',
@@ -1422,7 +1135,6 @@ class SaleController extends Controller
                     'updated_at'
                 ]),
                 'sale_products' => $sale->products->map(function ($product) use ($sale) {
-                    // Handle unlimited stock products
                     // IMEI Numbers from SaleImei model
                     $imeiDetails = $product->imeis->map(function ($imei) {
                         return [
@@ -1434,12 +1146,22 @@ class SaleController extends Controller
                             'updated_at' => $imei->updated_at,
                         ];
                     });
-                    if ($product->product->stock_alert === 0) {
+
+                    // Get unit details if available
+                    $unit = optional(optional($product->product)->unit);
+                    $unitDetails = $unit ? $unit->only([
+                        'id',
+                        'name',
+                        'short_name',
+                        'allow_decimal'
+                    ]) : null;
+
+                    if ($product->product && $product->product->stock_alert === 0) {
                         return [
                             'id' => $product->id,
                             'sale_id' => $product->sale_id,
                             'product_id' => $product->product_id,
-                            'batch_id' => 'all', // No batches for unlimited stock
+                            'batch_id' => 'all',
                             'location_id' => $product->location_id,
                             'quantity' => $product->quantity,
                             'price_type' => $product->price_type,
@@ -1449,8 +1171,8 @@ class SaleController extends Controller
                             'tax' => $product->tax,
                             'created_at' => $product->created_at,
                             'updated_at' => $product->updated_at,
-                            'total_quantity' => 'Unlimited', // Indicate unlimited stock
-                            'current_stock' => 'Unlimited',  // Indicate unlimited stock
+                            'total_quantity' => 'Unlimited',
+                            'current_stock' => 'Unlimited',
                             'product' => optional($product->product)->only([
                                 'id',
                                 'product_name',
@@ -1473,20 +1195,19 @@ class SaleController extends Controller
                                 'special_price',
                                 'max_retail_price'
                             ]),
-                            'batch' => null, // No batch data for unlimited stock
+                            'unit' => $unitDetails,
+                            'batch' => null,
                             'imei_numbers' => $product->imeis->pluck('imei_number')->toArray(),
-                            'imeis' => $imeiDetails, // Full IMEI details
+                            'imeis' => $imeiDetails,
                         ];
                     }
-                    // Handle regular products
+
                     $batchId = $product->batch_id ?? 'all';
-                    // Calculate the total allowed quantity (current stock + sold in this sale)
                     $totalAllowedQuantity = $sale->getBatchQuantityPlusSold(
                         $batchId,
                         $product->location_id,
                         $product->product_id
                     );
-                    // Get current stock without the sold quantity for reference
                     $currentStock = $batchId === 'all'
                         ? DB::table('location_batches')
                         ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
@@ -1494,6 +1215,7 @@ class SaleController extends Controller
                         ->where('location_batches.location_id', $product->location_id)
                         ->sum('location_batches.qty')
                         : Sale::getAvailableStock($batchId, $product->location_id);
+
                     return [
                         'id' => $product->id,
                         'sale_id' => $product->sale_id,
@@ -1508,8 +1230,8 @@ class SaleController extends Controller
                         'tax' => $product->tax,
                         'created_at' => $product->created_at,
                         'updated_at' => $product->updated_at,
-                        'total_quantity' => $totalAllowedQuantity, // Stock + sold in this sale
-                        'current_stock' => $currentStock,   // Just current stock
+                        'total_quantity' => $totalAllowedQuantity,
+                        'current_stock' => $currentStock,
                         'product' => optional($product->product)->only([
                             'id',
                             'product_name',
@@ -1532,6 +1254,7 @@ class SaleController extends Controller
                             'special_price',
                             'max_retail_price'
                         ]),
+                        'unit' => $unitDetails,
                         'batch' => optional($product->batch)->only([
                             'id',
                             'batch_no',
@@ -1572,7 +1295,7 @@ class SaleController extends Controller
                     'telephone_no'
                 ])
             ];
-            // Handle API or AJAX requests
+
             if (request()->ajax() || request()->is('api/*')) {
                 return response()->json([
                     'status' => 200,
@@ -1585,6 +1308,14 @@ class SaleController extends Controller
         } catch (\Exception $e) {
             return response()->json(['status' => 400, 'message' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Handle PUT requests for sale updates - delegates to storeOrUpdate
+     */
+    public function update(Request $request, $id)
+    {
+        return $this->storeOrUpdate($request, $id);
     }
 
 
@@ -1637,11 +1368,6 @@ class SaleController extends Controller
                 return $carry + ($product['discount'] ?? 0);
             }, 0);
 
-            // Fetch amount_given and balance_amount from the sale
-            $amount_given = $sale->amount_given;
-            $balance_amount = $sale->balance_amount;
-
-
             // Fetch the user associated with the sale
             $user = User::find($sale->user_id);
 
@@ -1663,6 +1389,55 @@ class SaleController extends Controller
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Log pricing errors for admin review
+     */
+    public function logPricingError(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'product_id' => 'required|integer',
+                'product_name' => 'required|string',
+                'customer_type' => 'required|string',
+                'batch_id' => 'nullable|integer',
+                'batch_no' => 'nullable|string',
+                'timestamp' => 'required|string',
+                'location_id' => 'required|integer'
+            ]);
+
+            // Log to Laravel log file with structured data
+            Log::warning('POS Pricing Error', [
+                'user_id' => auth()->id(),
+                'user_name' => auth()->user()->name ?? 'Unknown',
+                'product_id' => $validated['product_id'],
+                'product_name' => $validated['product_name'],
+                'customer_type' => $validated['customer_type'],
+                'batch_id' => $validated['batch_id'],
+                'batch_no' => $validated['batch_no'],
+                'location_id' => $validated['location_id'],
+                'timestamp' => $validated['timestamp'],
+                'user_agent' => $request->userAgent(),
+                'ip_address' => $request->ip()
+            ]);
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Pricing error logged successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to log pricing error', [
+                'error' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to log pricing error'
+            ], 500);
         }
     }
 }
