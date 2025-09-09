@@ -3,23 +3,49 @@
 namespace App\Traits;
 
 use App\Scopes\LocationScope;
-
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
-trait LocationTrait{
+trait LocationTrait
+{
+    protected static $bypassLocationScope = false;
 
-    // it will insert the location_id using auth user location id to every insert
-    protected static function booted(): void
+    protected static function booted()
     {
         static::addGlobalScope(new LocationScope);
 
         static::creating(function ($model) {
             if (empty($model->location_id)) {
-                // If multiple locations, decide how to default:
-                // You can take first accessible location or pass from request
-                $model->location_id = Auth::user()->locations->first()->id ?? null;
+                $user = auth()->user();
+                if ($user && $user->locations->isNotEmpty()) {
+                    $model->location_id = $user->locations->first()->id;
+                }
             }
         });
     }
 
+    /**
+     * Scope to bypass location scope
+     */
+    public function scopeWithoutLocationScope($query)
+    {
+        static::$bypassLocationScope = true;
+        return $query;
+    }
+
+    /**
+     * Check if location scope should be bypassed
+     */
+    public function shouldBypassLocationScope()
+    {
+        return (bool) static::$bypassLocationScope;
+    }
+
+    /**
+     * Reset the bypass flag (optional)
+     */
+    public static function resetLocationScope()
+    {
+        static::$bypassLocationScope = false;
+    }
 }

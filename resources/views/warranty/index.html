@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Rep Assignment Manager - Real-Time Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Custom CSS Variables */
+:root {
+    --primary-color: #2563eb;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --danger-color: #dc2626;
+    --info-color: #0891b2;
+    --dark-color: #1f2937;
+    --light-bg: #f8fafc;
+    --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-success: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    --gradient-info: linear-gradient(135deg, #0891b2 0%, #0ea5e9 100%);
+    --gradient-warning: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+}
+
+/* Global Styles */
+* {
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: var(--gradient-primary);
+    min-height: 100vh;
+    padding-top: 80px;
+}
+
+/* Navigation */
+.navbar-custom {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--card-shadow);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--dark-color) !important;
+    font-size: 1.25rem;
+}
+
+.time-display {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.connection-status {
+    background: rgba(5, 150, 105, 0.1);
+    color: var(--success-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    animation: pulse 2s infinite;
+}
+
+/* Main Container */
+.main-container {
+    background: var(--light-bg);
+    min-height: calc(100vh - 80px);
+    border-radius: 20px 20px 0 0;
+    box-shadow: var(--card-shadow-hover);
+    margin-top: 20px;
+}
+
+/* Stats Header */
+.stats-header {
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--gradient-primary);
+}
+
+.stat-card.stat-success::before {
+    background: var(--gradient-success);
+}
+
+.stat-card.stat-info::before {
+    background: var(--gradient-info);
+}
+
+.stat-card.stat-warning::before {
+    background: var(--gradient-warning);
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    background: var(--gradient-primary);
+}
+
+.stat-card.stat-success .stat-icon {
+    background: var(--gradient-success);
+}
+
+.stat-card.stat-info .stat-icon {
+    background: var(--gradient-info);
+}
+
+.stat-card.stat-warning .stat-icon {
+    background: var(--gradient-warning);
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.stat-trend {
+    color: var(--success-color);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Navigation Pills */
+.nav-custom {
+    background: white;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: var(--card-shadow);
+}
+
+.nav-custom .nav-link {
+    border-radius: 8px;
+    color: #6b7280;
+    font-weight: 500;
+    padding: 12px 20px;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.nav-custom .nav-link:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-color);
+}
+
+.nav-custom .nav-link.active {
+    background: var(--gradient-primary);
+    color: white;
+    box-shadow: var(--card-shadow);
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.dashboard-card:hover {
+    box-shadow: var(--card-shadow-hover);
+}
+
+.dashboard-card .card-header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+}
+
+/* User Selection Card */
+.user-selection-card {
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    box-shadow: var(--card-shadow);
+}
+
+.user-selection-card .form-label {
+    color: white;
+}
+
+.assignment-summary {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.summary-label {
+    font-weight: 500;
+    opacity: 0.9;
+}
+
+.summary-value {
+    font-weight: 700;
+}
+
+/* Assignment Cards */
+.assignments-container {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.assignment-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    border-left: 4px solid var(--primary-color);
+    background: white;
+}
+
+.assignment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.assignment-header {
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+}
+
+.assignment-title {
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.assignment-number {
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 8px;
+}
+
+.assignment-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.assignment-preview {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    border-left: 4px solid var(--info-color);
+}
+
+.preview-text {
+    font-weight: 500;
+}
+
+/* Form Styles */
+.form-select, .form-control {
+    border-radius: 10px;
+    border: 2px solid #e5e7eb;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.form-select:focus, .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.1);
+}
+
+.form-check-input:checked {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+/* Save Section */
+.save-section {
+    margin-top: 3rem;
+}
+
+.save-card {
+    background: var(--gradient-success);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    box-shadow: var(--card-shadow);
+}
+
+/* Live Table */
+.table-hover tbody tr:hover {
+    background-color: rgba(37, 99, 235, 0.05);
+}
+
+.status-badge {
+    border-radius: 12px;
+    padding: 0.375rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.status-active {
+    background: var(--gradient-success);
+    color: white;
+}
+
+.status-scheduled {
+    background: var(--gradient-info);
+    color: white;
+}
+
+.status-break {
+    background: var(--gradient-warning);
+    color: white;
+}
+
+/* Alerts */
+.alerts-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.alert-item {
+    border-left: 4px solid var(--danger-color);
+    background: #fef2f2;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.alert-item:hover {
+    background: #fee2e2;
+}
+
+.alert-warning {
+    border-left-color: var(--warning-color);
+    background: #fffbeb;
+}
+
+.alert-warning:hover {
+    background: #fef3c7;
+}
+
+.alert-info {
+    border-left-color: var(--info-color);
+    background: #f0f9ff;
+}
+
+.alert-info:hover {
+    background: #e0f2fe;
+}
+
+/* Location List */
+.location-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.location-item {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.location-item:hover {
+    background: #f8fafc;
+}
+
+.location-item:last-child {
+    border-bottom: none;
+}
+
+.location-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-online {
+    background: var(--success-color);
+    animation: pulse 2s infinite;
+}
+
+.status-offline {
+    background: #6b7280;
+}
+
+/* Section Titles */
+.section-title {
+    font-weight: 700;
+    color: var(--dark-color);
+    margin: 0;
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-container {
+        margin-top: 10px;
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+    }
+    
+    .assignment-card {
+        margin-bottom: 1rem;
+    }
+    
+    .nav-custom .nav-link {
+        padding: 8px 12px;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-header .row {
+        gap: 1rem;
+    }
+    
+    .assignment-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .save-section .d-md-flex {
+        flex-direction: column !important;
+        gap: 0.5rem;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-bg: #1f2937;
+        --card-shadow: 0 1px 3px 0 rgba(255, 255, 255, 0.1);
+    }
+    
+    .dashboard-card {
+        background: #374151;
+        color: white;
+    }
+    
+    .assignment-card {
+        background: #374151;
+        color: white;
+    }
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    .assignment-actions,
+    .save-section {
+        display: none !important;
+    }
+    
+    .main-container {
+        background: white;
+        box-shadow: none;
+        margin-top: 0;
+    }
+}
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-custom fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-truck-front-fill"></i>
+                Sales Rep Manager
+            </a>
+            
+            <div class="navbar-nav d-flex flex-row align-items-center ms-auto">
+                <div class="nav-item me-3">
+                    <span class="time-display">
+                        <i class="bi bi-clock-fill"></i>
+                        <span id="currentTime">2025-08-28 07:19:18</span> UTC
+                    </span>
+                </div>
+                
+                <div class="nav-item me-3">
+                    <span class="connection-status" id="connectionStatus">
+                        <i class="bi bi-wifi"></i> Connected
+                    </span>
+                </div>
+                
+                <div class="dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle"></i> mgriggsbrazos
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="container-fluid py-4">
+            
+            <!-- Real-Time Stats Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stats-header">
+                        <div class="row g-3">
+                            <div class="col-lg-3 col-md-6">
+                                <div class="stat-card stat-primary">
+                                    <div class="stat-icon">
+                                        <i class="bi bi-people-fill"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-number" id="activeRepsCount">8</div>
+                                        <div class="stat-label">Active Reps</div>
+                                    </div>
+                                    <div class="stat-trend">
+                                        <i class="bi bi-arrow-up"></i> +2
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-3 col-md-6">
+                                <div class="stat-card stat-success">
+                                    <div class="stat-icon">
+                                        <i class="bi bi-cart-check-fill"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-number" id="todaySalesCount">156</div>
+                                        <div class="stat-label">Sales Today</div>
+                                    </div>
+                                    <div class="stat-trend">
+                                        <i class="bi bi-arrow-up"></i> +23
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-3 col-md-6">
+                                <div class="stat-card stat-info">
+                                    <div class="stat-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-number" id="todayRevenue">$42,580</div>
+                                        <div class="stat-label">Revenue Today</div>
+                                    </div>
+                                    <div class="stat-trend">
+                                        <i class="bi bi-arrow-up"></i> +15%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-3 col-md-6">
+                                <div class="stat-card stat-warning">
+                                    <div class="stat-icon">
+                                        <i class="bi bi-truck"></i>
+                                    </div>
+                                    <div class="stat-content">
+                                        <div class="stat-number" id="activeVehicles">15</div>
+                                        <div class="stat-label">Vehicles Active</div>
+                                    </div>
+                                    <div class="stat-trend">
+                                        <i class="bi bi-dash"></i> 0
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <ul class="nav nav-pills nav-custom" id="mainTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="dashboard-tab" data-bs-toggle="pill" data-bs-target="#dashboard" type="button" role="tab">
+                                <i class="bi bi-speedometer2"></i> Live Dashboard
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="assignments-tab" data-bs-toggle="pill" data-bs-target="#assignments" type="button" role="tab">
+                                <i class="bi bi-calendar-week"></i> Create Assignments
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tracking-tab" data-bs-toggle="pill" data-bs-target="#tracking" type="button" role="tab">
+                                <i class="bi bi-geo-alt"></i> Location Tracking
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="reports-tab" data-bs-toggle="pill" data-bs-target="#reports" type="button" role="tab">
+                                <i class="bi bi-graph-up"></i> Reports
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="mainTabContent">
+                
+                <!-- Dashboard Tab -->
+                <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                    <div class="row">
+                        <!-- Active Assignments -->
+                        <div class="col-lg-8 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-activity"></i> Live Assignments Today
+                                        <span class="badge bg-success ms-2" id="liveAssignmentCount">8 Active</span>
+                                    </h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Rep</th>
+                                                    <th>Vehicle</th>
+                                                    <th>Route</th>
+                                                    <th>Status</th>
+                                                    <th>Sales</th>
+                                                    <th>Revenue</th>
+                                                    <th>Last Update</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="liveAssignmentsTable">
+                                                <!-- Dynamic content will be loaded here -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions & Alerts -->
+                        <div class="col-lg-4">
+                            <!-- Quick Actions -->
+                            <div class="card dashboard-card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-lightning-fill"></i> Quick Actions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-primary" onclick="createEmergencyAssignment()">
+                                            <i class="bi bi-plus-circle"></i> Emergency Assignment
+                                        </button>
+                                        <button class="btn btn-info" onclick="bulkShiftEnd()">
+                                            <i class="bi bi-clock-history"></i> End All Shifts
+                                        </button>
+                                        <button class="btn btn-warning" onclick="exportData()">
+                                            <i class="bi bi-download"></i> Export Report
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Real-Time Alerts -->
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-bell-fill"></i> Live Alerts
+                                        <span class="badge bg-danger ms-2" id="alertCount">3</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="alerts-container" id="alertsContainer">
+                                        <!-- Dynamic alerts will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assignments Tab -->
+                <div class="tab-pane fade" id="assignments" role="tabpanel">
+                    <!-- User Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card user-selection-card">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-6">
+                                            <h5 class="mb-3">
+                                                <i class="bi bi-person-plus-fill"></i> Create Sales Rep Assignments
+                                            </h5>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Select Sales Representative</label>
+                                                <select class="form-select form-select-lg" id="userSelect" onchange="loadUserAssignments()">
+                                                    <option value="">Choose a sales representative...</option>
+                                                    <option value="1">John Smith (johnsmith) - Senior Rep</option>
+                                                    <option value="2">Sarah Johnson (sarah.johnson) - Team Lead</option>
+                                                    <option value="3">Mike Davis (mdavis) - Junior Rep</option>
+                                                    <option value="4">Lisa Wong (lwong) - Senior Rep</option>
+                                                    <option value="5">Ahmed Hassan (ahassan) - Junior Rep</option>
+                                                    <option value="6">Maria Rodriguez (mrodriguez) - Team Lead</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <div class="assignment-summary">
+                                                <div class="summary-item">
+                                                    <span class="summary-label">Total Assignments:</span>
+                                                    <span class="summary-value" id="assignmentCounter">0</span>
+                                                </div>
+                                                <div class="summary-item">
+                                                    <span class="summary-label">Date Range:</span>
+                                                    <span class="summary-value" id="dateRange">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assignments Section -->
+                    <div class="row" id="assignmentsSection" style="display: none;">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h4 class="section-title">
+                                    <i class="bi bi-calendar-week-fill"></i> Assignment Schedule
+                                </h4>
+                                <div class="btn-group">
+                                    <button class="btn btn-success" onclick="addAssignment()">
+                                        <i class="bi bi-plus-circle-fill"></i> Add Assignment
+                                    </button>
+                                    <button class="btn btn-info" onclick="duplicateLastAssignment()">
+                                        <i class="bi bi-files"></i> Duplicate Last
+                                    </button>
+                                    <button class="btn btn-warning" onclick="clearAllAssignments()">
+                                        <i class="bi bi-trash"></i> Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="assignmentsList" class="assignments-container">
+                                <!-- Dynamic assignments will be added here -->
+                            </div>
+
+                            <!-- Save Section -->
+                            <div class="save-section text-center mt-4">
+                                <div class="row">
+                                    <div class="col-md-8 mx-auto">
+                                        <div class="card save-card">
+                                            <div class="card-body">
+                                                <h6 class="mb-3">Ready to save assignments?</h6>
+                                                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                                                    <button class="btn btn-primary btn-lg" onclick="saveAllAssignments()">
+                                                        <i class="bi bi-check-circle-fill"></i> Save All Assignments
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary btn-lg" onclick="previewAssignments()">
+                                                        <i class="bi bi-eye"></i> Preview
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Tracking Tab -->
+                <div class="tab-pane fade" id="tracking" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="bi bi-geo-alt-fill"></i> Live Location Tracking
+                                    </h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="mapContainer" style="height: 500px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                                        <div class="text-center">
+                                            <i class="bi bi-map" style="font-size: 3rem; color: #6c757d;"></i>
+                                            <p class="mt-2 text-muted">Map integration would be implemented here<br>
+                                            <small>(Google Maps, Leaflet, etc.)</small></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-list-ul"></i> Active Rep Locations</h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="location-list" id="locationList">
+                                        <!-- Dynamic location data will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div class="tab-pane fade" id="reports" role="tabpanel">
+                    <div class="row">
+                        <div class="col-lg-6 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="bi bi-bar-chart-fill"></i> Sales Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="salesChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-6 mb-4">
+                            <div class="card dashboard-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0"><i class="bi bi-pie-chart-fill"></i> Route Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="routeChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Template (Hidden) -->
+    <div id="assignmentTemplate" style="display: none;">
+        <div class="card assignment-card fade-in">
+            <div class="card-body">
+                <div class="assignment-header">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="assignment-title">
+                            <i class="bi bi-truck-front-fill"></i> 
+                            Assignment <span class="assignment-number"></span>
+                        </h6>
+                        <div class="assignment-actions">
+                            <button class="btn btn-sm btn-outline-info" onclick="duplicateAssignment(this)" title="Duplicate">
+                                <i class="bi bi-files"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeAssignment(this)" title="Remove">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row g-3">
+                    <!-- Vehicle Selection -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-truck"></i> Vehicle/Sub-Location
+                        </label>
+                        <select class="form-select sublocation-select" name="sublocation" required onchange="updateAssignmentPreview(this)">
+                            <option value="">Select Vehicle...</option>
+                            <optgroup label="Kalmunai Branch">
+                                <option value="201" data-type="van">🚐 Van 01 - Capacity: 500kg</option>
+                                <option value="202" data-type="bike">🏍️ Bike 07 - Capacity: 50kg</option>
+                                <option value="205" data-type="truck">🚛 Truck 05 - Capacity: 2000kg</option>
+                            </optgroup>
+                            <optgroup label="Batticaloa Branch">
+                                <option value="203" data-type="van">🚐 Van 02 - Capacity: 500kg</option>
+                                <option value="204" data-type="bike">🏍️ Bike 12 - Capacity: 50kg</option>
+                                <option value="206" data-type="truck">🚛 Truck 08 - Capacity: 2000kg</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <!-- Route Selection -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-map"></i> Route
+                        </label>
+                        <select class="form-select route-select" name="route" required onchange="updateAssignmentPreview(this)">
+                            <option value="">Select Route...</option>
+                            <option value="301" data-cities="Kalmunai,Sainthamaruthu" data-duration="4h">🗺️ Route East - 4h (Kalmunai → Sainthamaruthu)</option>
+                            <option value="302" data-cities="Nintavur" data-duration="3h">🗺️ Route South - 3h (Nintavur)</option>
+                            <option value="303" data-cities="Batticaloa,Kallady" data-duration="5h">🗺️ Route North - 5h (Batticaloa → Kallady)</option>
+                            <option value="304" data-cities="Ampara,Uhana" data-duration="6h">🗺️ Route West - 6h (Ampara → Uhana)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Date Selection -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-calendar"></i> Assignment Date
+                        </label>
+                        <input type="date" class="form-control" name="assignmentDate" required onchange="updateAssignmentPreview(this)">
+                    </div>
+                    
+                    <!-- Time Range -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-clock"></i> Time Range
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="time" class="form-control" name="startTime" placeholder="Start" required onchange="updateAssignmentPreview(this)">
+                            </div>
+                            <div class="col-6">
+                                <input type="time" class="form-control" name="endTime" placeholder="End" required onchange="updateAssignmentPreview(this)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Can Sell Toggle -->
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-cart-check"></i> Permissions
+                        </label>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" name="canSell" checked onchange="updateAssignmentPreview(this)">
+                            <label class="form-check-label fw-semibold">
+                                Enable Sales Permission
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Assignment Preview -->
+                    <div class="col-12">
+                        <div class="assignment-preview">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> 
+                                <span class="preview-text">Complete the form to see assignment preview</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Conflict Detection Modal -->
+    <div class="modal fade" id="conflictModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Assignment Conflicts Detected
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="conflictDetails"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" onclick="saveWithConflicts()">Save Anyway</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-check-circle-fill"></i> Success!
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="successMessage"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Global variables
+let assignmentCounter = 0;
+let currentUserId = null;
+let realTimeInterval = null;
+let webSocket = null;
+
+// Dummy data
+const dummyData = {
+    users: [
+        { id: 1, name: 'John Smith', username: 'johnsmith', role: 'Senior Rep' },
+        { id: 2, name: 'Sarah Johnson', username: 'sarah.johnson', role: 'Team Lead' },
+        { id: 3, name: 'Mike Davis', username: 'mdavis', role: 'Junior Rep' },
+        { id: 4, name: 'Lisa Wong', username: 'lwong', role: 'Senior Rep' },
+        { id: 5, name: 'Ahmed Hassan', username: 'ahassan', role: 'Junior Rep' },
+        { id: 6, name: 'Maria Rodriguez', username: 'mrodriguez', role: 'Team Lead' }
+    ],
+    
+    liveAssignments: [
+        {
+            id: 1,
+            rep: 'John Smith',
+            vehicle: 'Van 01',
+            route: 'Route East',
+            status: 'active',
+            sales: 12,
+            revenue: 4580,
+            lastUpdate: '2 min ago',
+            startTime: '08:00',
+            endTime: '16:00'
+        },
+        {
+            id: 2,
+            rep: 'Sarah Johnson',
+            vehicle: 'Bike 07',
+            route: 'Route South',
+            status: 'active',
+            sales: 8,
+            revenue: 2340,
+            lastUpdate: '5 min ago',
+            startTime: '09:00',
+            endTime: '17:00'
+        },
+        {
+            id: 3,
+            rep: 'Mike Davis',
+            vehicle: 'Truck 05',
+            route: 'Route North',
+            status: 'break',
+            sales: 15,
+            revenue: 6750,
+            lastUpdate: '12 min ago',
+            startTime: '07:00',
+            endTime: '15:00'
+        },
+        {
+            id: 4,
+            rep: 'Lisa Wong',
+            vehicle: 'Van 02',
+            route: 'Route West',
+            status: 'active',
+            sales: 9,
+            revenue: 3120,
+            lastUpdate: '3 min ago',
+            startTime: '10:00',
+            endTime: '18:00'
+        },
+        {
+            id: 5,
+            rep: 'Ahmed Hassan',
+            vehicle: 'Bike 12',
+            route: 'Route East',
+            status: 'scheduled',
+            sales: 0,
+            revenue: 0,
+            lastUpdate: 'Not started',
+            startTime: '14:00',
+            endTime: '22:00'
+        }
+    ],
+    
+    alerts: [
+        {
+            type: 'danger',
+            icon: 'exclamation-triangle-fill',
+            title: 'Low Stock Alert',
+            message: 'Van 01 - Route East: Product SKU-001 below minimum level',
+            time: '2 min ago'
+        },
+        {
+            type: 'warning',
+            icon: 'clock-fill',
+            title: 'Shift Overtime',
+            message: 'Mike Davis - Truck 05: Shift extended beyond scheduled time',
+            time: '8 min ago'
+        },
+        {
+            type: 'info',
+            icon: 'geo-alt-fill',
+            title: 'Location Update',
+            message: 'Sarah Johnson: Outside designated route area',
+            time: '15 min ago'
+        }
+    ],
+    
+    locations: [
+        {
+            rep: 'John Smith',
+            vehicle: 'Van 01',
+            status: 'online',
+            lastSeen: '2 min ago',
+            location: 'Kalmunai Market',
+            coordinates: { lat: 7.4166, lng: 81.8166 }
+        },
+        {
+            rep: 'Sarah Johnson',
+            vehicle: 'Bike 07',
+            status: 'online',
+            lastSeen: '5 min ago',
+            location: 'Nintavur Center',
+            coordinates: { lat: 7.3833, lng: 81.7833 }
+        },
+        {
+            rep: 'Mike Davis',
+            vehicle: 'Truck 05',
+            status: 'offline',
+            lastSeen: '12 min ago',
+            location: 'Rest Area - A5',
+            coordinates: { lat: 7.7167, lng: 81.6833 }
+        },
+        {
+            rep: 'Lisa Wong',
+            vehicle: 'Van 02',
+            status: 'online',
+            lastSeen: '3 min ago',
+            location: 'Ampara Junction',
+            coordinates: { lat: 7.2917, lng: 81.6750 }
+        }
+    ]
+};
+
+// Initialize application
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRealTime();
+    loadDashboardData();
+    updateCurrentTime();
+    setupEventListeners();
+    
+    // Update time every second
+    setInterval(updateCurrentTime, 1000);
+    
+    // Update real-time data every 30 seconds
+    setInterval(updateRealTimeData, 30000);
+});
+
+// Real-time initialization
+function initializeRealTime() {
+    console.log('Initializing real-time connection...');
+    updateConnectionStatus(true);
+}
+
+function updateConnectionStatus(connected) {
+    const statusElement = document.getElementById('connectionStatus');
+    if (connected) {
+        statusElement.innerHTML = '<i class="bi bi-wifi"></i> Connected';
+        statusElement.className = 'connection-status';
+    } else {
+        statusElement.innerHTML = '<i class="bi bi-wifi-off"></i> Disconnected';
+        statusElement.className = 'connection-status text-danger';
+    }
+}
+
+// Time functions
+function updateCurrentTime() {
+    const now = new Date();
+    const utc = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+    const timeString = utc.toISOString().slice(0, 19).replace('T', ' ');
+    document.getElementById('currentTime').textContent = timeString;
+}
+
+// Dashboard functions
+function loadDashboardData() {
+    loadLiveAssignments();
+    loadAlerts();
+    loadLocationData();
+    updateStats();
+}
+
+function loadLiveAssignments() {
+    const tableBody = document.getElementById('liveAssignmentsTable');
+    tableBody.innerHTML = '';
+    
+    dummyData.liveAssignments.forEach(assignment => {
+        const row = createAssignmentRow(assignment);
+        tableBody.appendChild(row);
+    });
+    
+    document.getElementById('liveAssignmentCount').textContent = 
+        `${dummyData.liveAssignments.filter(a => a.status === 'active').length} Active`;
+}
+
+function createAssignmentRow(assignment) {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td>
+            <div class="d-flex align-items-center">
+                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                    ${assignment.rep.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                    <div class="fw-semibold">${assignment.rep}</div>
+                    <small class="text-muted">${assignment.startTime} - ${assignment.endTime}</small>
+                </div>
+            </div>
+        </td>
+        <td>
+            <span class="badge bg-light text-dark">
+                <i class="bi bi-truck"></i> ${assignment.vehicle}
+            </span>
+        </td>
+        <td>
+            <span class="badge bg-light text-dark">
+                <i class="bi bi-map"></i> ${assignment.route}
+            </span>
+        </td>
+        <td>
+            <span class="status-badge ${getStatusClass(assignment.status)}">
+                ${getStatusIcon(assignment.status)} ${assignment.status.toUpperCase()}
+            </span>
+        </td>
+        <td>
+            <div class="fw-bold text-success">${assignment.sales}</div>
+            <small class="text-muted">orders</small>
+        </td>
+        <td>
+            <div class="fw-bold text-primary">$${assignment.revenue.toLocaleString()}</div>
+            <small class="text-muted">revenue</small>
+        </td>
+        <td>
+            <small class="text-muted">
+                <i class="bi bi-clock"></i> ${assignment.lastUpdate}
+            </small>
+        </td>
+        <td>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="viewAssignmentDetails(${assignment.id})" title="View Details">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-outline-info" onclick="trackLocation(${assignment.id})" title="Track Location">
+                    <i class="bi bi-geo-alt"></i>
+                </button>
+                <button class="btn btn-outline-warning" onclick="sendMessage(${assignment.id})" title="Send Message">
+                    <i class="bi bi-chat"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    return row;
+}
+
+function getStatusClass(status) {
+    switch(status) {
+        case 'active': return 'status-active';
+        case 'scheduled': return 'status-scheduled';
+        case 'break': return 'status-break';
+        default: return 'bg-secondary';
+    }
+}
+
+function getStatusIcon(status) {
+    switch(status) {
+        case 'active': return '<i class="bi bi-play-fill"></i>';
+        case 'scheduled': return '<i class="bi bi-clock"></i>';
+        case 'break': return '<i class="bi bi-pause-fill"></i>';
+        default: return '<i class="bi bi-question"></i>';
+    }
+}
+
+function loadAlerts() {
+    const alertsContainer = document.getElementById('alertsContainer');
+    alertsContainer.innerHTML = '';
+    
+    dummyData.alerts.forEach(alert => {
+        const alertElement = createAlertElement(alert);
+        alertsContainer.appendChild(alertElement);
+    });
+    
+    document.getElementById('alertCount').textContent = dummyData.alerts.length;
+}
+
+function createAlertElement(alert) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert-item alert-${alert.type}`;
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-start">
+            <i class="bi bi-${alert.icon} me-2 mt-1"></i>
+            <div class="flex-grow-1">
+                <div class="fw-semibold">${alert.title}</div>
+                <div class="small">${alert.message}</div>
+                <div class="text-muted small mt-1">
+                    <i class="bi bi-clock"></i> ${alert.time}
+                </div>
+            </div>
+        </div>
+    `;
+    return alertDiv;
+}
+
+function loadLocationData() {
+    const locationList = document.getElementById('locationList');
+    locationList.innerHTML = '';
+    
+    dummyData.locations.forEach(location => {
+        const locationElement = createLocationElement(location);
+        locationList.appendChild(locationElement);
+    });
+}
+
+function createLocationElement(location) {
+    const locationDiv = document.createElement('div');
+    locationDiv.className = 'location-item';
+    locationDiv.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <div class="fw-semibold">
+                    <span class="location-status status-${location.status}"></span>
+                    ${location.rep}
+                </div>
+                <div class="small text-muted">${location.vehicle}</div>
+                <div class="small text-info">
+                    <i class="bi bi-geo-alt"></i> ${location.location}
+                </div>
+            </div>
+            <div class="text-end">
+                <button class="btn btn-sm btn-outline-primary" onclick="centerMap(${location.coordinates.lat}, ${location.coordinates.lng})">
+                    <i class="bi bi-crosshair"></i>
+                </button>
+            </div>
+        </div>
+        <div class="mt-2">
+            <small class="text-muted">Last seen: ${location.lastSeen}</small>
+        </div>
+    `;
+    return locationDiv;
+}
+
+function updateStats() {
+    // Update real-time statistics
+    const activeReps = dummyData.liveAssignments.filter(a => a.status === 'active').length;
+    const totalSales = dummyData.liveAssignments.reduce((sum, a) => sum + a.sales, 0);
+    const totalRevenue = dummyData.liveAssignments.reduce((sum, a) => sum + a.revenue, 0);
+    const activeVehicles = new Set(dummyData.liveAssignments.filter(a => a.status === 'active').map(a => a.vehicle)).size;
+    
+    document.getElementById('activeRepsCount').textContent = activeReps;
+    document.getElementById('todaySalesCount').textContent = totalSales;
+    document.getElementById('todayRevenue').textContent = `$${totalRevenue.toLocaleString()}`;
+    document.getElementById('activeVehicles').textContent = activeVehicles;
+}
+
+// Assignment management functions
+function loadUserAssignments() {
+    const userSelect = document.getElementById('userSelect');
+    const assignmentsSection = document.getElementById('assignmentsSection');
+    
+    currentUserId = userSelect.value;
+    
+    if (currentUserId) {
+        assignmentsSection.style.display = 'block';
+        document.getElementById('assignmentsList').innerHTML = '';
+        assignmentCounter = 0;
+        updateAssignmentCounter();
+        addAssignment();
+    } else {
+        assignmentsSection.style.display = 'none';
+    }
+}
+
+function addAssignment() {
+    if (!currentUserId) {
+        showNotification('Please select a sales representative first.', 'warning');
+        return;
+    }
+
+    assignmentCounter++;
+    const template = document.getElementById('assignmentTemplate');
+    const newAssignment = template.cloneNode(true);
+    
+    newAssignment.id = 'assignment-' + assignmentCounter;
+    newAssignment.style.display = 'block';
+    newAssignment.querySelector('.assignment-number').textContent = assignmentCounter;
+    
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    newAssignment.querySelector('input[name="assignmentDate"]').value = today;
+    
+    // Set default times
+    newAssignment.querySelector('input[name="startTime"]').value = '08:00';
+    newAssignment.querySelector('input[name="endTime"]').value = '16:00';
+    
+    document.getElementById('assignmentsList').appendChild(newAssignment);
+    updateAssignmentCounter();
+    updateDateRange();
+    
+    // Animate in
+    setTimeout(() => {
+        newAssignment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+}
+
+function duplicateAssignment(button) {
+    const sourceCard = button.closest('.assignment-card');
+    const sourceData = extractAssignmentData(sourceCard);
+    
+    addAssignment();
+    
+    // Fill with source data
+    const newCard = document.getElementById('assignment-' + assignmentCounter);
+    fillAssignmentData(newCard, sourceData);
+    
+    showNotification('Assignment duplicated successfully!', 'success');
+}
+
+function duplicateLastAssignment() {
+    const assignments = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    if (assignments.length === 0) {
+        showNotification('No assignments to duplicate.', 'warning');
+        return;
+    }
+    
+    const lastAssignment = assignments[assignments.length - 1];
+    duplicateAssignment(lastAssignment.querySelector('.btn-outline-info'));
+}
+
+function removeAssignment(button) {
+    const assignmentCard = button.closest('.assignment-card');
+    
+    // Animate out
+    assignmentCard.style.transition = 'all 0.3s ease';
+    assignmentCard.style.transform = 'translateX(100%)';
+    assignmentCard.style.opacity = '0';
+    
+    setTimeout(() => {
+        assignmentCard.remove();
+        renumberAssignments();
+        updateAssignmentCounter();
+        updateDateRange();
+        
+        if (assignmentCounter === 0) {
+            showNotification('All assignments removed.', 'info');
+        }
+    }, 300);
+}
+
+function clearAllAssignments() {
+    if (assignmentCounter === 0) {
+        showNotification('No assignments to clear.', 'info');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to clear all ${assignmentCounter} assignments?`)) {
+        document.getElementById('assignmentsList').innerHTML = '';
+        assignmentCounter = 0;
+        updateAssignmentCounter();
+        updateDateRange();
+        showNotification('All assignments cleared.', 'success');
+    }
+}
+
+function renumberAssignments() {
+    const assignments = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    assignments.forEach((assignment, index) => {
+        assignment.querySelector('.assignment-number').textContent = index + 1;
+        assignment.id = 'assignment-' + (index + 1);
+    });
+    assignmentCounter = assignments.length;
+}
+
+function updateAssignmentCounter() {
+    document.getElementById('assignmentCounter').textContent = assignmentCounter;
+}
+
+function updateDateRange() {
+    const assignments = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    const dates = Array.from(assignments)
+        .map(card => card.querySelector('input[name="assignmentDate"]').value)
+        .filter(date => date)
+        .sort();
+    
+    if (dates.length === 0) {
+        document.getElementById('dateRange').textContent = '-';
+    } else if (dates.length === 1) {
+        document.getElementById('dateRange').textContent = dates[0];
+    } else {
+        document.getElementById('dateRange').textContent = `${dates[0]} → ${dates[dates.length - 1]}`;
+    }
+}
+
+function updateAssignmentPreview(element) {
+    const card = element.closest('.assignment-card');
+    const preview = card.querySelector('.preview-text');
+    
+    const sublocation = card.querySelector('select[name="sublocation"]').value;
+    const route = card.querySelector('select[name="route"]').value;
+    const date = card.querySelector('input[name="assignmentDate"]').value;
+    const startTime = card.querySelector('input[name="startTime"]').value;
+    const endTime = card.querySelector('input[name="endTime"]').value;
+    const canSell = card.querySelector('input[name="canSell"]').checked;
+    
+    if (sublocation && route && date && startTime && endTime) {
+        const sublocationText = card.querySelector(`option[value="${sublocation}"]`).textContent;
+        const routeText = card.querySelector(`option[value="${route}"]`).textContent;
+        const routeData = card.querySelector(`option[value="${route}"]`).dataset;
+        
+        const formattedDate = new Date(date).toLocaleDateString('en-US', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+        
+        preview.innerHTML = `
+            <div class="preview-summary">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <strong>📅 ${formattedDate}</strong><br>
+                        🕐 ${startTime} - ${endTime} (${calculateDuration(startTime, endTime)})
+                    </div>
+                    <div class="col-md-6">
+                        🚛 ${sublocationText.split(' - ')[0]}<br>
+                        🗺️ ${routeText.split(' - ')[0]}
+                    </div>
+                    <div class="col-12">
+                        📍 Coverage: ${routeData.cities || 'N/A'}<br>
+                        💰 Sales Permission: <strong class="${canSell ? 'text-success' : 'text-warning'}">${canSell ? '✓ Enabled' : '✗ View Only'}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Check for conflicts
+        checkAssignmentConflicts(card);
+    } else {
+        preview.innerHTML = '<small class="text-muted"><i class="bi bi-info-circle"></i> Complete the form to see assignment preview</small>';
+    }
+}
+
+function calculateDuration(startTime, endTime) {
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(`2000-01-01 ${endTime}`);
+    const diff = end - start;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (minutes === 0) {
+        return `${hours}h`;
+    } else {
+        return `${hours}h ${minutes}m`;
+    }
+}
+
+function checkAssignmentConflicts(currentCard) {
+    const currentData = extractAssignmentData(currentCard);
+    const allAssignments = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    
+    let hasConflict = false;
+    
+    allAssignments.forEach(card => {
+        if (card === currentCard) return;
+        
+        const otherData = extractAssignmentData(card);
+        
+        // Check for time overlap on same date
+        if (currentData.date === otherData.date && currentData.date) {
+            const currentStart = new Date(`${currentData.date} ${currentData.startTime}`);
+            const currentEnd = new Date(`${currentData.date} ${currentData.endTime}`);
+            const otherStart = new Date(`${otherData.date} ${otherData.startTime}`);
+            const otherEnd = new Date(`${otherData.date} ${otherData.endTime}`);
+            
+            if ((currentStart < otherEnd && currentEnd > otherStart) || 
+                (currentData.sublocation === otherData.sublocation && currentData.sublocation)) {
+                hasConflict = true;
+            }
+        }
+    });
+    
+    // Update card styling based on conflict
+    if (hasConflict) {
+        currentCard.style.borderLeftColor = '#dc2626';
+        currentCard.querySelector('.assignment-title').style.color = '#dc2626';
+        
+        const warningDiv = currentCard.querySelector('.conflict-warning') || document.createElement('div');
+        warningDiv.className = 'conflict-warning alert alert-warning mt-2';
+        warningDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> <strong>Conflict detected!</strong> Time overlap or vehicle conflict with another assignment.';
+        
+        if (!currentCard.querySelector('.conflict-warning')) {
+            currentCard.querySelector('.assignment-preview').appendChild(warningDiv);
+        }
+    } else {
+        currentCard.style.borderLeftColor = 'var(--primary-color)';
+        currentCard.querySelector('.assignment-title').style.color = 'var(--primary-color)';
+        
+        const warningDiv = currentCard.querySelector('.conflict-warning');
+        if (warningDiv) {
+            warningDiv.remove();
+        }
+    }
+}
+
+function extractAssignmentData(card) {
+    return {
+        sublocation: card.querySelector('select[name="sublocation"]').value,
+        route: card.querySelector('select[name="route"]').value,
+        date: card.querySelector('input[name="assignmentDate"]').value,
+        startTime: card.querySelector('input[name="startTime"]').value,
+        endTime: card.querySelector('input[name="endTime"]').value,
+        canSell: card.querySelector('input[name="canSell"]').checked
+    };
+}
+
+function fillAssignmentData(card, data) {
+    card.querySelector('select[name="sublocation"]').value = data.sublocation;
+    card.querySelector('select[name="route"]').value = data.route;
+    card.querySelector('input[name="assignmentDate"]').value = data.date;
+    card.querySelector('input[name="startTime"]').value = data.startTime;
+    card.querySelector('input[name="endTime"]').value = data.endTime;
+    card.querySelector('input[name="canSell"]').checked = data.canSell;
+    
+    updateAssignmentPreview(card.querySelector('select[name="sublocation"]'));
+}
+
+function saveAllAssignments() {
+    if (!currentUserId) {
+        showNotification('Please select a sales representative first.', 'error');
+        return;
+    }
+
+    const assignments = [];
+    const assignmentCards = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    
+    let isValid = true;
+    let hasConflicts = false;
+    
+    assignmentCards.forEach((card, index) => {
+        const data = extractAssignmentData(card);
+
+        // Validation
+        if (!data.sublocation || !data.route || !data.date || !data.startTime || !data.endTime) {
+            isValid = false;
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.style.borderLeft = '4px solid #dc2626';
+            setTimeout(() => {
+                card.style.borderLeft = '4px solid var(--primary-color)';
+            }, 3000);
+            return;
+        }
+        
+        // Check for conflicts
+        if (card.querySelector('.conflict-warning')) {
+            hasConflicts = true;
+        }
+
+        assignments.push({
+            user_id: currentUserId,
+            sub_location_id: data.sublocation,
+            route_id: data.route,
+            start_datetime: `${data.date} ${data.startTime}:00`,
+            end_datetime: `${data.date} ${data.endTime}:00`,
+            can_sell: data.canSell ? 1 : 0
+        });
+    });
+
+    if (!isValid) {
+        showNotification('Please fill in all required fields for all assignments.', 'error');
+        return;
+    }
+
+    if (assignments.length === 0) {
+        showNotification('Please add at least one assignment.', 'warning');
+        return;
+    }
+    
+    if (hasConflicts) {
+        showConflictModal(assignments);
+        return;
+    }
+
+    performSave(assignments);
+}
+
+function showConflictModal(assignments) {
+    const modal = new bootstrap.Modal(document.getElementById('conflictModal'));
+    const conflictDetails = document.getElementById('conflictDetails');
+    
+    conflictDetails.innerHTML = `
+        <div class="alert alert-warning">
+            <h6><i class="bi bi-exclamation-triangle"></i> The following conflicts were detected:</h6>
+            <ul class="mb-0">
+                <li>Time overlaps between assignments</li>
+                <li>Same vehicle assigned to multiple routes</li>
+            </ul>
+        </div>
+        <p>You can still save these assignments, but conflicts may cause operational issues.</p>
+        <p><strong>Total assignments to save:</strong> ${assignments.length}</p>
+    `;
+    
+    // Store assignments for later use
+    window.pendingAssignments = assignments;
+    modal.show();
+}
+
+function saveWithConflicts() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('conflictModal'));
+    modal.hide();
+    performSave(window.pendingAssignments);
+}
+
+function performSave(assignments) {
+    // Show loading state
+    const saveBtn = document.querySelector('.btn-primary[onclick="saveAllAssignments()"]');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Saving...';
+    saveBtn.disabled = true;
+
+    // Simulate API call
+    console.log('Saving assignments:', assignments);
+    
+    setTimeout(() => {
+        // Reset button
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+        
+        // Show success
+        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        const successMessage = document.getElementById('successMessage');
+        
+        const userName = dummyData.users.find(u => u.id == currentUserId)?.name || 'Selected user';
+        
+        successMessage.innerHTML = `
+            <div class="text-center">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Assignments Saved Successfully!</h5>
+                <p class="mb-3">Successfully created <strong>${assignments.length}</strong> assignment(s) for <strong>${userName}</strong>.</p>
+                <div class="bg-light p-3 rounded">
+                    <small class="text-muted">
+                        <strong>Database Records Created:</strong><br>
+                        ${assignments.length} rows in sales_rep_assignments table<br>
+                        User ID: ${currentUserId}<br>
+                        Created by: mgriggsbrazos<br>
+                        Timestamp: ${new Date().toISOString()}
+                    </small>
+                </div>
+            </div>
+        `;
+        
+        successModal.show();
+        
+        // Update real-time stats
+        updateRealTimeData();
+        
+    }, 2000);
+}
+
+function previewAssignments() {
+    const assignments = [];
+    const assignmentCards = document.querySelectorAll('.assignment-card:not(#assignmentTemplate)');
+    
+    assignmentCards.forEach(card => {
+        const data = extractAssignmentData(card);
+        if (data.sublocation && data.route && data.date && data.startTime && data.endTime) {
+            assignments.push(data);
+        }
+    });
+    
+    if (assignments.length === 0) {
+        showNotification('No valid assignments to preview.', 'warning');
+        return;
+    }
+    
+    // Create preview modal content
+    const previewContent = assignments.map((assignment, index) => {
+        const sublocationText = document.querySelector(`option[value="${assignment.sublocation}"]`).textContent;
+        const routeText = document.querySelector(`option[value="${assignment.route}"]`).textContent;
+        
+        return `
+            <div class="border rounded p-3 mb-2">
+                <h6>Assignment ${index + 1}</h6>
+                <div class="row">
+                    <div class="col-6"><strong>Vehicle:</strong> ${sublocationText}</div>
+                    <div class="col-6"><strong>Route:</strong> ${routeText}</div>
+                    <div class="col-6"><strong>Date:</strong> ${assignment.date}</div>
+                    <div class="col-6"><strong>Time:</strong> ${assignment.startTime} - ${assignment.endTime}</div>
+                    <div class="col-12"><strong>Sales:</strong> ${assignment.canSell ? 'Enabled' : 'View Only'}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    const modal = document.createElement('div');
+    modal.innerHTML = `
+        <div class="modal fade" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-eye"></i> Assignment Preview</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Total Assignments:</strong> ${assignments.length}</p>
+                        ${previewContent}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="saveAllAssignments(); bootstrap.Modal.getInstance(this.closest('.modal')).hide();">Save All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal.firstElementChild);
+    bootstrapModal.show();
+    
+    modal.firstElementChild.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+// Real-time update functions
+function updateRealTimeData() {
+    // Simulate real-time data updates
+    dummyData.liveAssignments.forEach(assignment => {
+        if (assignment.status === 'active') {
+            // Randomly update sales and revenue
+            assignment.sales += Math.floor(Math.random() * 3);
+            assignment.revenue += Math.floor(Math.random() * 500);
+            
+            // Update last update time
+            const minutes = Math.floor(Math.random() * 10) + 1;
+            assignment.lastUpdate = `${minutes} min ago`;
+        }
+    });
+    
+    // Refresh dashboard
+    loadLiveAssignments();
+    updateStats();
+    
+    // Add new alert occasionally
+    if (Math.random() < 0.3) {
+        addRandomAlert();
+    }
+}
+
+function addRandomAlert() {
+    const alertTypes = ['info', 'warning', 'danger'];
+    const alertTitles = ['Inventory Update', 'Route Change', 'System Notification', 'Performance Alert'];
+    const alertMessages = [
+        'Stock level updated for Route East',
+        'Weather conditions affecting Route South',
+        'New customer added to database',
+        'Rep exceeded daily target'
+    ];
+    
+    const newAlert = {
+        type: alertTypes[Math.floor(Math.random() * alertTypes.length)],
+        icon: 'bell-fill',
+        title: alertTitles[Math.floor(Math.random() * alertTitles.length)],
+        message: alertMessages[Math.floor(Math.random() * alertMessages.length)],
+        time: 'Just now'
+    };
+    
+    dummyData.alerts.unshift(newAlert);
+    if (dummyData.alerts.length > 5) {
+        dummyData.alerts.pop();
+    }
+    
+    loadAlerts();
+}
+
+// Event listeners and utility functions
+function setupEventListeners() {
+    // Tab change listeners
+    document.querySelectorAll('[data-bs-toggle="pill"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            if (e.target.id === 'tracking-tab') {
+                loadLocationData();
+            } else if (e.target.id === 'reports-tab') {
+                initializeCharts();
+            }
+        });
+    });
+    
+    // Form change listeners
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('input[name="assignmentDate"], input[name="startTime"], input[name="endTime"]')) {
+            updateDateRange();
+        }
+    });
+}
+
+function showNotification(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type} border-0 position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="bi bi-${getNotificationIcon(type)}"></i> ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        document.body.removeChild(toast);
+    });
+}
+
+function getNotificationIcon(type) {
+    switch(type) {
+        case 'success': return 'check-circle-fill';
+        case 'warning': return 'exclamation-triangle-fill';
+        case 'error': case 'danger': return 'x-circle-fill';
+        default: return 'info-circle-fill';
+    }
+}
+
+// Dashboard action functions
+function viewAssignmentDetails(id) {
+    const assignment = dummyData.liveAssignments.find(a => a.id === id);
+    if (assignment) {
+        showNotification(`Viewing details for ${assignment.rep} - ${assignment.vehicle}`, 'info');
+    }
+}
+
+function trackLocation(id) {
+    const assignment = dummyData.liveAssignments.find(a => a.id === id);
+    if (assignment) {
+        // Switch to tracking tab
+        document.getElementById('tracking-tab').click();
+        showNotification(`Tracking location for ${assignment.rep}`, 'info');
+    }
+}
+
+function sendMessage(id) {
+    const assignment = dummyData.liveAssignments.find(a => a.id === id);
+    if (assignment) {
+        showNotification(`Message sent to ${assignment.rep}`, 'success');
+    }
+}
+
+function centerMap(lat, lng) {
+    showNotification(`Centering map on coordinates: ${lat}, ${lng}`, 'info');
+}
+
+function createEmergencyAssignment() {
+    showNotification('Emergency assignment creation started', 'warning');
+}
+
+function bulkShiftEnd() {
+    if (confirm('Are you sure you want to end all active shifts?')) {
+        showNotification('All active shifts have been ended', 'success');
+        
+        // Update dummy data
+        dummyData.liveAssignments.forEach(assignment => {
+            if (assignment.status === 'active') {
+                assignment.status = 'completed';
+            }
+        });
+        
+        loadLiveAssignments();
+        updateStats();
+    }
+}
+
+function exportData() {
+    showNotification('Exporting assignment data...', 'info');
+    
+    // Simulate export
+    setTimeout(() => {
+        showNotification('Assignment report exported successfully', 'success');
+    }, 2000);
+}
+
+function initializeCharts() {
+    // Sales Performance Chart
+    const salesCtx = document.getElementById('salesChart');
+    if (salesCtx && !salesCtx.chartInstance) {
+        salesCtx.chartInstance = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Sales',
+                    data: [120, 150, 180, 220, 160, 190, 240],
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    
+    // Route Distribution Chart
+    const routeCtx = document.getElementById('routeChart');
+    if (routeCtx && !routeCtx.chartInstance) {
+        routeCtx.chartInstance = new Chart(routeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Route East', 'Route South', 'Route North', 'Route West'],
+                datasets: [{
+                    data: [35, 25, 20, 20],
+                    backgroundColor: ['#2563eb', '#059669', '#d97706', '#dc2626']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+}
+    </script>
+</body>
+</html>

@@ -3,15 +3,16 @@
 use Illuminate\Http\Request;
 use App\Models\VariationTitle;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SaleController;
+// use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CustomerController;
+// use App\Http\Controllers\ProductController;
+// use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\SupplierController;
@@ -32,7 +33,19 @@ use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\VariationTitleController;
 use App\Http\Controllers\StockAdjustmentController;
 
-use App\Http\Controllers\Api\RestaurantController;
+use App\Http\Controllers\Api\{
+  VehicleController,
+  VehicleLocationController,
+  SalesRepController,
+  RouteController,
+  CityController,
+  RouteCityController,
+  SalesRepTargetController,
+  VehicleTrackingController,
+  ProductController,
+  CustomerController,
+  SaleController
+};
 
 
 /*
@@ -45,10 +58,14 @@ use App\Http\Controllers\Api\RestaurantController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+// Login (mobile)
+Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
   return $request->user();
 });
+
+
 
 
 Route::post('/warranty-store', [WarrantyController::class, 'store']);
@@ -167,13 +184,7 @@ Route::post('/customer-update/{id}', [SupplierController::class, 'update']);
 Route::delete('/customer-delete/{id}', [SupplierController::class, 'destroy']);
 //stop  Customer route
 
-//start Customer route
-Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
-Route::get('/customer-get-all', [CustomerController::class, 'index']);
-Route::post('/customer-store', [CustomerController::class, 'store']);
-Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
-Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
-//stop  Customer route
+
 
 //start location route
 Route::get('/location', [LocationController::class, 'location']);
@@ -193,15 +204,78 @@ Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class,
 Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
 //stop  import-opening-stock route
 
-//start product route
-Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
-Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
-Route::get('/update-price', [ProductController::class, 'updatePrice'])->name('update-price');
-Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
-Route::get('/product-get-all', [ProductController::class, 'index']);
-Route::post('/product-store', [ProductController::class, 'store']);
-Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+// Route::middleware('auth:sanctum')->group(function () {
+//   //live tracking
+//   // Sales rep sends vehicle location
+//   Route::get('/vehicle/track', [VehicleTrackingController::class, 'trackVehicle'])->name('vehicle.track');
+//   Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
 
+//   // Admin gets all live vehicles
+//   Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
+
+
+
+//   //// Product Details & Stock
+// });
+// Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
+Route::middleware('auth:sanctum')->group(function () {
+  Route::get('/customer-get-all', [CustomerController::class, 'index']);
+  Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+  Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+  Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
+});
+//start Customer route
+Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
+// Route::get('/customer-get-all', [CustomerController::class, 'index']);
+Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
+Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
+Route::post('/customer-store', [CustomerController::class, 'store']);
+Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
+Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
+Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
+
+Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
+
+Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+// Product Details & Stock
+Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
+Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
+Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
+
+Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
+// Product Store/Update
+Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
+Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
+// Category/Subcategory
+Route::get('/product-get-by-category/{categoryId}', [ProductController::class, 'getProductsByCategory']);
+Route::get('/sub_category-details-get-by-main-category-id/{main_category_id}', [ProductController::class, 'showSubCategoryDetailsUsingByMainCategoryId'])->name('sub_category-details-get-by-main-category-id');
+// Import/Export
+Route::get('/import-product', [ProductController::class, 'importProduct'])->name('import-product');
+Route::post('/import-product-excel-store', [ProductController::class, 'importProductStore'])->name('import-product-excel-store');
+Route::get('/excel-product-blank-template-export', [ProductController::class, 'exportBlankTemplate'])->name('excel-product-blank-template-export');
+Route::get('/products/export-template', [ProductController::class, 'exportProducts'])->name('products.export-template');
+// Opening Stock
+Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
+Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
+Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
+Route::get('/opening-stocks-get-all', [ProductController::class, 'OpeningStockGetAll']);
+Route::get('/get-last-product', [ProductController::class, 'getLastProduct']);
+// Notifications
+Route::get('/notifications', [ProductController::class, 'getNotifications']);
+Route::post('/notifications/seen', [ProductController::class, 'markNotificationsAsSeen']);
+// IMEI Management
+Route::post('/save-or-update-imei', [ProductController::class, 'saveOrUpdateImei']);
+Route::post('/update-imei', [ProductController::class, 'updateSingleImei']);
+Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
+Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
+// Save Changes & Discount
+Route::post('/save-changes', [ProductController::class, 'saveChanges']);
+Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
+
+
+
+
+//stop  Customer route
 //stop product route
 
 //start unit route
@@ -213,20 +287,7 @@ Route::post('/unit-update/{id}', [UnitController::class, 'update']);
 Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
 //stop  brand route
 
-Route::post('/product-update/{id}', [ProductController::class, 'UpdateProduct']);
-Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct']);
 
-
-
-
-Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
-Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);
-Route::get('/edit-opening-stock/{productId}', [ProductController::class, 'editOpeningStock'])->name('product.editOpeningStock');
-
-// Route::post('/opening-stock-store/{productId}', [OpeningStockController::class, 'storeOrUpdateOpeningStock'])->name('opening-stock.store');
-// Route::post('/update-opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock'])->name('product.updateOpeningStock');
-// Route::post('/opening-stock/{productId}', [ProductController::class, 'storeOrUpdateOpeningStock']);
-Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 // Store a new purchase
 // Store a new purchase
 Route::post('/purchases/store', [PurchaseController::class, 'storeOrUpdate']);
@@ -245,8 +306,8 @@ Route::get('purchase_return/edit/{id}', [PurchaseReturnController::class, 'edit'
 Route::post('/purchase-return/store', [PurchaseReturnController::class, 'storeOrUpdate']);
 Route::post('/purchase-return/update/{id}', [PurchaseReturnController::class, 'storeOrUpdate']);
 
-Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
-Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+// Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
+// Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
 Route::get('/opening-stock/{productId}', [ProductController::class, 'showOpeningStock'])->name('opening.stock');
 
 Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
@@ -260,11 +321,9 @@ Route::put('sale-return/update/{id}', [SaleReturnController::class, 'storeOrUpda
 Route::get('sale-return/edit/{id}', [SaleReturnController::class, 'editSaleReturn']);
 
 
-Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
-Route::get('sales_details/{id}', [SaleController::class, 'selesDetails']);
+
+Route::get('sales_details/{id}', [SaleController::class, 'salesDetails']);
 // Route::get('sales/edit/{id}', [SaleController::class, 'edit'])->name('sales.edit');
-Route::put('sales/{id}', [SaleController::class, 'update'])->name('sales.update');
-Route::delete('sales/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
 Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
 
@@ -304,12 +363,6 @@ Route::post('/stock-adjustment/store', [StockAdjustmentController::class, 'store
 Route::put('/stock-adjustment/update/{id}', [StockAdjustmentController::class, 'storeOrUpdate']);
 
 
-Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
-Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
-Route::delete('/cart/remove/{rowId}', [CartController::class, 'remove'])->name('cart.remove');
-Route::put('/cart/update/{rowId}', [CartController::class, 'update'])->name('cart.update');
-Route::get('/products/stocks', [ProductController::class, 'getAllStocks'])->name('products.stocks');
-
 Route::get('payments', [PaymentController::class, 'index']);
 Route::post('payments', [PaymentController::class, 'storeOrUpdate']);
 Route::get('payments/{payment}', [PaymentController::class, 'show']);
@@ -326,10 +379,36 @@ Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
 
 
 
-//resturants routes
+// Sales rep and vehicle routes
+Route::apiResource('vehicle-locations', VehicleLocationController::class);
+Route::apiResource('sales-reps', SalesRepController::class);
+Route::apiResource('routes', RouteController::class);
+Route::apiResource('cities', CityController::class);
+Route::apiResource('route-cities', RouteCityController::class);
+Route::apiResource('sales-rep-targets', SalesRepTargetController::class);
 
-Route::post('/table', [RestaurantController::class, 'createTable']);
-Route::post('/waiter', [RestaurantController::class, 'createWaiter']);
-Route::post('/table/{id}/assign-waiters', [RestaurantController::class, 'assignWaitersToTable']);
-Route::get('/tables', [RestaurantController::class, 'getTables']);
-Route::get('/waiters', [RestaurantController::class, 'getWaiters']);
+// Sales Rep helper routes
+Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers']);
+Route::get('/sales-reps/user-locations/{userId}', [SalesRepController::class, 'getUserAccessibleLocations']);
+Route::get('/sales-reps/routes/available', [SalesRepController::class, 'getAvailableRoutes']);
+Route::get('sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes']);
+Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations']);
+// Sales rep specific routes for POS
+Route::get('/sales-rep/my-assignments', [SalesRepController::class, 'getMyAssignments']);
+// Route helper routes
+Route::get('/routes/cities/available', [RouteController::class, 'getAvailableCities']);
+Route::get('/routes/{routeId}/cities', [RouteController::class, 'getRouteCities']);
+Route::post('/routes/{routeId}/cities/add', [RouteController::class, 'addCities']);
+Route::delete('/routes/{routeId}/cities/remove', [RouteController::class, 'removeCities']);
+// Vehicle helper routes
+
+
+//change routes status routecontroller
+Route::put('/routes/{routeId}/status', [RouteController::class, 'changeStatus']);
+
+
+
+
+// RouteCity helper routes
+Route::get('/route-cities/cities/all', [RouteCityController::class, 'getAllCities']);
+Route::get('/route-cities/routes/all', [RouteCityController::class, 'getAllRoutes']);

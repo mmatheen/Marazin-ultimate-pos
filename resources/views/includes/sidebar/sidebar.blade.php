@@ -58,14 +58,6 @@
                                 <li><a href="{{ route('customer') }}" class="{{ set_active(['customer']) }}">Customer</a></li>
                             @endcan
 
-                            @can('view customer')
-                                <li><a href="{{ route('customer.ledger') }}" class="{{ set_active(['customer-ledger']) }}">Customer Ledger</a></li>
-                            @endcan
-
-                            @can('view supplier')
-                                <li><a href="{{ route('supplier.ledger') }}" class="{{ set_active(['supplier-ledger']) }}">Supplier Ledger</a></li>
-                            @endcan
-
                             {{-- @can('view customer-group')
                         <li><a href="{{ route('customer-group') }}" class="{{ set_active(['customer-group'])}}">Customer Groups</a></li>
                         @endcan
@@ -290,6 +282,43 @@
                     </ul>
                 </li>
                 @endcanany --}}
+
+                {{-- @canany(['view sales-rep']) --}}
+                <li class="submenu">
+                    <a href="#">
+                        <i class="fas fa-user-tie"></i>
+                        <span class="sidebar-text">Sales Rep Module</span>
+                        <span class="menu-arrow"></span>
+                    </a>
+                    <ul>
+                       
+                        {{-- @can('view sales-rep') --}}
+                        <li><a href="{{ route('routes.create') }}"
+                                class="{{ set_active(['routes.create']) }}">Routes</a></li>
+                        {{-- @endcan --}}
+
+                        {{-- @can('view sales-rep') --}}
+                        <li><a href="{{ route('cities.create') }}"
+                                class="{{ set_active(['cities.create']) }}">Cities</a></li>
+                        {{-- @endcan --}}
+
+                        {{-- @can('view sales-rep') --}}
+                        <li><a href="{{ route('route-cities.create') }}"
+                                class="{{ set_active(['route-cities.create']) }}">Route Cities</a></li>
+                        {{-- @endcan --}}
+
+                        {{-- @can('view sales-rep') --}}
+                        <li><a href="{{ route('sales-reps.create') }}"
+                                class="{{ set_active(['sales-reps.create']) }}">Sales Reps</a></li>
+                        {{-- @endcan --}}
+
+                        {{-- @can('view sales-rep') --}}
+                        <li><a href="{{ route('targets.create') }}"
+                                class="{{ set_active(['targets.create']) }}">Targets</a></li>
+                        {{-- @endcan --}}
+                    </ul>
+                </li>
+                {{-- @endcanany --}}
 
                 @canany(['view daily-report'])
                     <li class="submenu">

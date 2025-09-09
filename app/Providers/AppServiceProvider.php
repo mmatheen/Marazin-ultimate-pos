@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Darryldecode\Cart\Cart;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,7 +18,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Properly bind the Cart service
+        $this->app->singleton(Cart::class, function ($app) {
+            return new Cart(
+                $app['session.store'],
+                $app['events'],
+                'default',
+                'cart',
+                config('shopping_cart', [])
+            );
+        });
     }
 
     /**
@@ -63,4 +73,7 @@ class AppServiceProvider extends ServiceProvider
             Log::error($e->getMessage());
         }
     }
+
+
+    
 }

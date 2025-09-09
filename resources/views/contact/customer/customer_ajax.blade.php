@@ -3,6 +3,7 @@
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
         showFetchData();
         fetchCustomerData();
+        fetchCities();
 
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
@@ -18,6 +19,16 @@
 
                 },
 
+                city_id: {
+                    required: true,
+                },
+
+                credit_limit: {
+                    required: true,
+                    number: true,
+                },
+
+
 
             },
             messages: {
@@ -30,6 +41,13 @@
 
                 mobile_no: {
                     required: "Mobile No  is required",
+                },
+                city_id: {
+                    required: "City is required",
+                },
+                credit_limit: {
+                    required: "Credit Limit is required",
+                    number: "Credit Limit must be a number",
                 },
 
 
@@ -83,6 +101,12 @@
                 url: '/customer-get-all',
                 type: 'GET',
                 dataType: 'json',
+                xhrFields: {
+                    withCredentials: true // 🔥 Required
+                },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(response) {
                     var table = $('#customer').DataTable();
                     table.clear().draw();
@@ -95,10 +119,15 @@
                         row.append('<td>' + item.last_name + '</td>');
                         row.append('<td>' + item.mobile_no + '</td>');
                         row.append('<td>' + item.email + '</td>');
+                        row.append('<td>' + item.city_name + '</td>');
+                        row.append('<td>' + (item.customer_type ? item.customer_type.charAt(0).toUpperCase() + item.customer_type.slice(1) : 'Not Set') + '</td>');
                         row.append('<td>' + item.address + '</td>');
                         row.append('<td>' + item.opening_balance + '</td>');
+                        row.append('<td>' + item.credit_limit + '</td>');
                         row.append('<td>' + item.total_sale_due + '</td>');
                         row.append('<td>' + item.total_return_due + '</td>');
+
+
                         row.append('<td>' +
                             '@can('view customer')<button type="button" value="' +
                             item.id +
@@ -114,6 +143,30 @@
                         counter++;
                     });
                 },
+            });
+        }
+
+        //Fetch cities
+        function fetchCities() {
+            $.ajax({
+                url: '/api/cities',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    var citySelect = $('#edit_city_id');
+                    citySelect.empty();
+                    citySelect.append('<option value="">Select City</option>');
+
+                    if (response.status && response.data) {
+                        response.data.forEach(function(city) {
+                            citySelect.append('<option value="' + city.id + '">' + city
+                                .name + '</option>');
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching cities:', error);
+                }
             });
         }
 
@@ -137,15 +190,28 @@
                             "positionClass": "toast-top-right"
                         };
                         toastr.error(response.message, 'Error');
-                    } else if (response.status == 200) {
-                        $('#edit_prefix').val(response.message.prefix).trigger('change');
-                        $('#edit_first_name').val(response.message.first_name);
-                        $('#edit_last_name').val(response.message.last_name);
-                        $('#edit_mobile_no').val(response.message.mobile_no);
-                        $('#edit_email').val(response.message.email);
-                        $('#edit_address').val(response.message.address);
-                        $('#edit_opening_balance').val(response.message.opening_balance);
+                    } else if (response.status == 200 && response.customer) {
+                        $('#edit_prefix').val(response.customer.prefix || '').trigger(
+                            'change');
+                        $('#edit_first_name').val(response.customer.first_name || '');
+                        $('#edit_last_name').val(response.customer.last_name || '');
+                        $('#edit_mobile_no').val(response.customer.mobile_no || '');
+                        $('#edit_email').val(response.customer.email || '');
+                        $('#edit_address').val(response.customer.address || '');
+                        $('#edit_opening_balance').val(response.customer.opening_balance ||
+                            '');
+                        $('#edit_credit_limit').val(response.customer.credit_limit || '');
+                        $('#edit_city_id').val(response.customer.city_id || '').trigger(
+                            'change');
+                        $('#edit_customer_type').val(response.customer.customer_type || '').trigger(
+                            'change');
                         $('#addAndEditCustomerModal').modal('show');
+                    } else {
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
+                        toastr.error('Failed to load customer data', 'Error');
                     }
                 }
             });
@@ -273,11 +339,14 @@
                     const option = $('<option></option>');
                     option.val(customer.id);
                     if (customer.first_name === 'Walk-in') {
-                    option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
+                        option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
+                        option.attr('data-customer-type', 'retailer'); // Walk-in customer is always retailer
                     } else {
-                    option.text(
-                        `${customer.first_name || ''} ${customer.last_name || ''} (${customer.mobile_no || ''})`
-                    );
+                        const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
+                        option.text(
+                            `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`
+                        );
+                        option.attr('data-customer-type', customer.customer_type || 'retailer'); // Include customer type data attribute
                     }
                     option.data('due', customer.current_due || 0); // Default due to 0
                     customerSelect.append(option);
@@ -298,6 +367,7 @@
             }
             });
         }
+
 
         function updateDueAmount(dueAmount) {
             // Ensure dueAmount is a valid number before calling toFixed

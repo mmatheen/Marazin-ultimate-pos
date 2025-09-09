@@ -12,9 +12,9 @@ use App\Http\Controllers\{
     UserController,
     BrandController,
     ContactController,
-    ProductController,
+    // ProductController,
     ProfileController,
-    CustomerController,
+    // CustomerController,
     LocationController,
     PurchaseController,
     SupplierController,
@@ -44,6 +44,20 @@ use App\Http\Controllers\{
     ReportController,
     SettingController
 };
+use App\Http\Controllers\Web\{
+    VehicleController,
+    SalesRepController,
+    RouteController,
+    RouteCityController,
+    VehicleLocationController,
+    CityController,
+    SalesRepTargetController,
+    VehicleTrackingController,
+    ProductController,
+    CustomerController
+};
+
+
 
 
 
@@ -128,7 +142,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/unit-store', [UnitController::class, 'store']);
         Route::post('/unit-update/{id}', [UnitController::class, 'update']);
         Route::delete('/unit-delete/{id}', [UnitController::class, 'destroy']);
-
         // -------------------- Dropdowns (Brand/Unit) --------------------
         Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
         Route::get('/get-unit', [UnitController::class, 'unitDropdown']);
@@ -249,6 +262,8 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
         Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
         Route::get('/customer-get-all', [CustomerController::class, 'index']);
+        Route::get('/customer-get-by-route/{routeId}', [CustomerController::class, 'getCustomersByRoute']);
+        Route::post('/customers/filter-by-cities', [CustomerController::class, 'filterByCities']);
         Route::post('/customer-store', [CustomerController::class, 'store']);
         Route::post('/customer-update/{id}', [CustomerController::class, 'update']);
         Route::delete('/customer-delete/{id}', [CustomerController::class, 'destroy']);
@@ -313,22 +328,33 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
         Route::get('/draft-list', [SaleController::class, 'draft'])->name('draft-list');
         Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
+        
+        // Sales Routes - Specific routes BEFORE generic ones
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
         Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
-        Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
-        // Sales Reports
+        Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
+        
+        // Sales Reports - These need to come before the generic routes
         Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
         Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
-        // Suspended Sales
+        
+        // Suspended Sales - These need to come before the generic routes
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
-        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
         Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
-        // Print Sales
+        
+        // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
+        Route::get('/pos/sales/edit/{id}', [SaleController::class, 'show']);
+        
+        // POS Pricing Error Logging
+        Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
+        
+        // Generic sales route - This MUST come last
+        Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 
         // -------------------- ExpenseParentCategoryController Routes --------------------
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
@@ -361,6 +387,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/location-store', [LocationController::class, 'store']);
         Route::post('/location-update/{id}', [LocationController::class, 'update']);
         Route::delete('/location-delete/{id}', [LocationController::class, 'destroy']);
+        
+        // New vehicle and hierarchy routes
+        Route::get('/location-parents', [LocationController::class, 'getParentLocations']);
+        Route::get('/location-sublocations/{parentId}', [LocationController::class, 'getSublocations']);
+        Route::get('/location-by-vehicle-type/{vehicleType}', [LocationController::class, 'getLocationsByVehicleType']);
+        Route::get('/location-search-by-vehicle', [LocationController::class, 'searchByVehicleNumber']);
+        Route::get('/location-hierarchy/{id}', [LocationController::class, 'getLocationHierarchy']);
 
         // -------------------- OpeningStockController Routes --------------------
         Route::get('/import-opening-stock', [OpeningStockController::class, 'importOpeningStock'])->name('import-opening-stock');
@@ -432,5 +465,55 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // -------------------- Site Setting Routes --------------------
       Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
+
+        //Salesrep routes
+
+        //Grouped Routes for SalesRep, Vehicle, and Route
+        Route::group(['prefix' => 'sales-rep'], function () {
+            //vehicle location
+            Route::get('/vehicle-locations', [VehicleLocationController::class, 'create'])->name('vehicle-locations.create');
+            //sales reps
+            Route::get('/sales-reps', [SalesRepController::class, 'create'])->name('sales-reps.create');
+            //routes
+            Route::get('/routes', [RouteController::class, 'create'])->name('routes.create');
+            //cities
+            Route::get('/cities', [CityController::class, 'create'])->name('cities.create');
+            //route-cities
+            Route::get('/route-cities', [RouteCityController::class, 'create'])->name('route-cities.create');
+
+            //targets
+            Route::get('/targets', [SalesRepTargetController::class, 'create'])->name('targets.create');
+
+            //sales rep targets
+
+            // Route::middleware(['auth', 'verified'])->group(function () {
+            Route::get('/vehicle-tracking', [VehicleTrackingController::class, 'index'])->name('vehicle-tracking.index');
+            Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
+            Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
+            Route::get('/vehicle/my-live', [VehicleTrackingController::class, 'getMyLiveVehicle']);
+            // });
+
+            // -------------------- Sales Rep CRUD Routes --------------------
+            Route::get('/sales-reps/index', [SalesRepController::class, 'index'])->name('sales-reps.index');
+            Route::post('/sales-reps/store', [SalesRepController::class, 'store'])->name('sales-reps.store');
+            Route::get('/sales-reps/show/{id}', [SalesRepController::class, 'show'])->name('sales-reps.show');
+            Route::put('/sales-reps/update/{id}', [SalesRepController::class, 'update'])->name('sales-reps.update');
+            Route::delete('/sales-reps/destroy/{id}', [SalesRepController::class, 'destroy'])->name('sales-reps.destroy');
+
+            // -------------------- Sales Rep Helper Routes --------------------
+            Route::get('/sales-reps/available-users', [SalesRepController::class, 'getAvailableUsers'])->name('sales-reps.available-users');
+            Route::get('/sales-reps/available-routes', [SalesRepController::class, 'getAvailableRoutes'])->name('sales-reps.available-routes');
+            Route::post('/sales-reps/assign-locations', [SalesRepController::class, 'assignUserToLocations'])->name('sales-reps.assign-locations');
+            
+            // -------------------- Sales Rep POS Routes --------------------
+            Route::get('/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
+
+        });
+
+        if (app()->isLocal()) {
+            Route::prefix('sales-rep')->middleware(['auth', 'verified'])->group(function () {
+                Route::post('/test/move-vehicle', [VehicleTrackingController::class, 'simulateMovement']);
+            });
+        }
     });
 });

@@ -93,88 +93,128 @@
 
         function fetchLocations() {
             $.ajax({
-                url: '/location-get-all',
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    const locationSelect = $('#services');
-                    locationSelect.html(
-                        '<option selected disabled>Please Select Locations</option>');
+            url: '/location-get-all',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                const locationSelect = $('#services');
+                locationSelect.html('<option selected disabled>Select Location</option>');
 
-                    if (data.status === 200) {
-                        data.message.forEach(function(location) {
-                            const option = $('<option></option>').val(location.id).text(
-                                location.name);
-                            locationSelect.append(option);
-                        });
-                    } else {
-                        console.error('Failed to fetch location data:', data.message);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching location data:', error);
+                if (data.status === true) {
+                // Filter locations to only show parent_id === null
+                const mainLocations = data.data.filter(location => location.parent_id === null);
+                
+                mainLocations.forEach(function(location) {
+                    const option = $('<option></option>').val(location.id).text(
+                    location.name);
+                    locationSelect.append(option);
+                });
+
+                // Trigger change for the first location by default
+                if (mainLocations.length > 0) {
+                    locationSelect.val(mainLocations[0].id).trigger('change');
                 }
+                } else {
+                console.error('Failed to fetch location data:', data.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching location data:', error);
+            }
             });
         }
 
         let allProducts = []; // Store all product data
+        let currentPage = 1;
+        let hasMore = true;
 
-        function fetchProducts() {
-            fetch('/products/stocks')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        allProducts = data.data.map(stock => {
-                            if (!stock.product) {
-                                console.error("Product data is missing:", stock);
-                                return null;
-                            }
-                            return {
-                                id: stock.product.id,
-                                name: stock.product.product_name,
-                                sku: stock.product.sku || "N/A",
-                                quantity: stock.total_stock || 0,
-                                price: stock.batches?.[0]?.unit_cost || 0,
-                                wholesale_price: stock.batches?.[0]?.wholesale_price || 0,
-                                special_price: stock.batches?.[0]?.special_price || 0,
-                                max_retail_price: stock.batches?.[0]?.max_retail_price || 0,
-                                retail_price: stock.batches?.[0]?.retail_price || 0,
-                                expiry_date: stock.batches?.[0]?.expiry_date || '',
-                                batch_no: stock.batches?.[0]?.batch_no || ''
-                            };
-                        }).filter(product => product !== null);
-                        initAutocomplete(allProducts); // Initialize autocomplete
-                    } else {
-                        console.error("Failed to fetch product data:", data);
-                    }
-                })
-                .catch(error => console.error("Error fetching products:", error));
+        function normalizeString(str) {
+            return (str || '').toString().toLowerCase().replace(/[^a-z0-9]/gi, '');
         }
 
-        function initAutocomplete(products) {
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    const searchTerm = request.term.toLowerCase();
-                    const filteredProducts = products.filter(
-                        product =>
-                        product.name.toLowerCase().includes(searchTerm) ||
-                        product.sku.toLowerCase().includes(searchTerm)
-                    );
+        function initAutocomplete() {
+            const $input = $("#productSearchInput");
 
-                    if (filteredProducts.length === 0) {
-                        response([{
-                            label: "No products found",
-                            value: ""
-                        }]);
-                    } else {
-                        response(
-                            filteredProducts.map(product => ({
-                                label: `${product.name} (${product.sku})`,
-                                value: product.name,
-                                product: product,
-                            }))
-                        );
-                    }
+            $input.autocomplete({
+                minLength: 1,
+                source: function(request, response) {
+                    const locationId = $('#services').val();
+                    const searchTermRaw = request.term.trim();
+                    const searchTerm = normalizeString(searchTermRaw);
+
+                    $.ajax({
+                        url: '/products/stocks/autocomplete',
+                        data: {
+                            search: searchTermRaw,
+                            location_id: locationId,
+                            per_page: 50, // fetch more for better filtering
+                            page: 1
+                        },
+                        dataType: 'json',
+                        success: function(data) {
+                            if (data.status === 200 && Array.isArray(data.data)) {
+                                let items = data.data
+                                    .map(item => ({
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                                        value: item.product.product_name,
+                                        product: {
+                                            id: item.product.id,
+                                            name: item.product.product_name,
+                                            sku: item.product.sku || "N/A",
+                                            quantity: item.total_stock || 0,
+                                            price: item.product
+                                                .original_price || 0,
+                                            wholesale_price: item.product
+                                                .whole_sale_price || 0,
+                                            special_price: item.product
+                                                .special_price || 0,
+                                            max_retail_price: item.product
+                                                .max_retail_price || 0,
+                                            retail_price: item.product
+                                                .retail_price || 0,
+                                            expiry_date: '', // Not available in autocomplete
+                                            batch_no: '', // Not available in autocomplete
+                                            stock_alert: item.product
+                                                .stock_alert || 0,
+                                            allow_decimal: item.product.unit
+                                                ?.allow_decimal || false
+                                        }
+                                    }));
+
+                                // Strict filter: only show products that match search term in name or sku (anywhere)
+                                const filtered = items.filter(item => {
+                                    const normSku = normalizeString(item.product
+                                        .sku);
+                                    const normName = normalizeString(item
+                                        .product.name);
+                                    return normSku.includes(searchTerm) ||
+                                        normName.includes(searchTerm);
+                                });
+
+                                if (filtered.length > 0) {
+                                    response(filtered.slice(0, 10));
+                                } else {
+                                    response([{
+                                        label: "No products found",
+                                        value: "",
+                                        product: null
+                                    }]);
+                                }
+                            } else {
+                                response([{
+                                    label: "No products found",
+                                    value: "",
+                                    product: null
+                                }]);
+                            }
+                        },
+                        error: function() {
+                            response([{
+                                label: "Error fetching products",
+                                value: ""
+                            }]);
+                        }
+                    });
                 },
                 select: function(event, ui) {
                     if (!ui.item.product) {
@@ -182,12 +222,18 @@
                     }
                     addProductToTable(ui.item.product);
                     $("#productSearchInput").val("");
+                    currentPage = 1;
                     return false;
                 },
+                open: function() {
+                    setTimeout(() => {
+                        $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
+                    }, 0);
+                }
             });
 
-            // Ensure the autocomplete widget is initialized before setting _renderItem
-            const autocompleteInstance = $("#productSearchInput").data("ui-autocomplete");
+            // Custom render for autocomplete
+            const autocompleteInstance = $input.data("ui-autocomplete");
             if (autocompleteInstance) {
                 autocompleteInstance._renderItem = function(ul, item) {
                     if (!item.product) {
@@ -202,6 +248,59 @@
             }
         }
 
+        // Fetch all products for other usages (not autocomplete)
+        function fetchProducts(locationId) {
+            let url = '/products/stocks';
+            if (locationId) {
+                url += `?location_id=${locationId}`;
+            }
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        allProducts = data.data.map(stock => {
+                            if (!stock.product) return null;
+                            return {
+                                id: stock.product.id,
+                                name: stock.product.product_name,
+                                sku: stock.product.sku || "N/A",
+                                quantity: stock.total_stock || 0,
+                                price: stock.batches?.[0]?.unit_cost || stock.product
+                                    .original_price || 0,
+                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
+                                    .product.whole_sale_price || 0,
+                                special_price: stock.batches?.[0]?.special_price || stock.product
+                                    .special_price || 0,
+                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
+                                    .product.max_retail_price || 0,
+                                retail_price: stock.batches?.[0]?.retail_price || stock.product
+                                    .retail_price || 0,
+                                expiry_date: stock.batches?.[0]?.expiry_date || '',
+                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                stock_alert: stock.product.stock_alert || 0,
+                                allow_decimal: stock.product.unit?.allow_decimal ||
+                                    false // Pass allow_decimal
+                            };
+                        }).filter(product => product !== null);
+                    } else {
+                        console.error("Failed to fetch product data:", data);
+                    }
+                })
+                .catch(error => console.error("Error fetching products:", error));
+        }
+
+        $(document).ready(function() {
+            fetchLocations(); // Fetch all locations
+            initAutocomplete(); // Initialize backend autocomplete
+
+            $('#services').on('change', function() {
+                const selectedLocationId = $(this).val();
+                if (selectedLocationId) {
+                    fetchProducts(selectedLocationId);
+                }
+            });
+        });
+
         function addProductToTable(product, isEditing = false, prices = {}) {
             const table = $("#purchase_product").DataTable();
             let existingRow = null;
@@ -214,12 +313,18 @@
                 }
             });
 
+            // Determine if decimal is allowed for this product
+            const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
+            const quantityStep = allowDecimal ? "0.01" : "1";
+            const quantityMin = allowDecimal ? "0.01" : "1";
+            const quantityPattern = allowDecimal ? "[0-9]+([.][0-9]{1,2})?" : "[0-9]+";
+
             if (existingRow && !isEditing) {
                 const quantityInput = existingRow.find('.purchase-quantity');
-                const newQuantity = parseFloat(quantityInput.val()) + 1;
+                let currentVal = parseFloat(quantityInput.val());
+                let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                 quantityInput.val(newQuantity).trigger('input');
             } else {
-                // const price = parseFloat(prices.price || product.price) || 0;
                 const wholesalePrice = parseFloat(prices.wholesale_price || product.wholesale_price) || 0;
                 const specialPrice = parseFloat(prices.special_price || product.special_price) || 0;
                 const maxRetailPrice = parseFloat(prices.max_retail_price || product.max_retail_price) || 0;
@@ -228,26 +333,27 @@
 
                 const newRow = `
             <tr data-id="${product.id}">
-                <td>${product.id}</td>
-                <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
-                <td><input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="1"></td>
-                <td>
-                    <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
-                </td>
-                <td>
-                    <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
-                </td>
-                <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
-                <td class="sub-total">0</td>
-                <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
-                <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
-
-                <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
-                <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0"></td>
-                <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
-                <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
-                <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
+            <td>${product.id}</td>
+            <td>${product.name} <br><small>Stock: ${product.quantity}</small></td>
+            <td>
+                <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
+            </td>
+            <td>
+                <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
+            </td>
+            <td>
+                <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
+            </td>
+            <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
+            <td class="sub-total">0</td>
+            <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
+            <td><input type="number" class="form-control profit-margin" value="0" min="0"></td>
+            <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" required></td>
+            <td><input type="date" class="form-control expiry-date" value="${product.expiry_date}"></td>
+            <td><input type="text" class="form-control batch_no" value="${product.batch_no}"></td>
+            <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
 
@@ -522,7 +628,7 @@
                     resetFormAndValidation();
                 }
                 setTimeout(function() {
-                    window.location.href = "list-purchase";
+                    window.location.href = "/list-purchase";
                 }, 300);
 
             }
@@ -565,12 +671,12 @@
                     reader.onload = function(e) {
                         $("#pdfViewer").attr("src", e.target.result);
                         $("#pdfViewer").show();
-                        $("#selectedImage").hide();
+                        $("#purchase-selectedImage").hide();
                     };
                 } else if (file.type.startsWith("image/")) {
                     reader.onload = function(e) {
-                        $("#selectedImage").attr("src", e.target.result);
-                        $("#selectedImage").show();
+                        $("#purchase-selectedImage").attr("src", e.target.result);
+                        $("#purchase-selectedImage").show();
                         $("#pdfViewer").hide();
                     };
                 }
@@ -685,6 +791,14 @@
                         var table = $('#purchase-list').DataTable();
                         table.clear().draw();
                         if (response.purchases && response.purchases.length > 0) {
+                            // Sort purchases by id descending (or by purchase_date if you prefer)
+                            response.purchases.sort(function(a, b) {
+                                // Sort by id descending
+                                return b.id - a.id;
+
+                                return new Date(b.purchase_date) - new Date(a
+                                    .purchase_date);
+                            });
                             response.purchases.forEach(function(item) {
                                 let row = $('<tr data-id="' + item.id + '">');
                                 row.append(
@@ -721,11 +835,28 @@
                                     ?.last_name || '') + '</td>');
                                 row.append('<td>' + item.purchasing_status +
                                     '</td>');
-                                row.append('<td>' + item.payment_status + '</td>');
+                                let paymentStatusBadge = '';
+                                if (item.payment_status === 'Due') {
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-danger">Due</span>';
+                                } else if (item.payment_status === 'Partial') {
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-warning">Partial</span>';
+                                } else if (item.payment_status === 'Paid') {
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-success">Paid</span>';
+                                } else {
+                                    paymentStatusBadge =
+                                        '<span class="badge bg-secondary">' + item
+                                        .payment_status + '</span>';
+                                }
+                                row.append('<td>' + paymentStatusBadge + '</td>');
                                 row.append('<td>' + item.final_total + '</td>');
                                 row.append('<td>' + item.total_due + '</td>');
-                                row.append('<td>' + (item.supplier?.assign_to ||
-                                    '') + '</td>');
+                                // Show user name based on user object
+                                row.append('<td>' + (item.user?.user_name || item
+                                        .user?.user_name || 'Unknown') +
+                                    '</td>');
                                 table.row.add(row).draw(false);
                             });
                         } else {
@@ -745,219 +876,245 @@
                     }
                 });
             }
-// Show the modal when the button is clicked
-$('#bulkPaymentBtn').click(function() {
-    $('#bulkPaymentModal').modal('show');
-});
-
-// Fetch suppliers and populate the dropdown
-$.ajax({
-    url: '/supplier-get-all',
-    type: 'GET',
-    dataType: 'json',
-    success: function(response) {
-        var supplierSelect = $('#supplierSelect');
-        supplierSelect.empty();
-        supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
-        if (response.message && response.message.length > 0) {
-            response.message.forEach(function(supplier) {
-                supplierSelect.append(
-                    '<option value="' + supplier.id +
-                    '" data-opening-balance="' + supplier.opening_balance + '">' +
-                    supplier.first_name + ' ' + supplier.last_name + '</option>'
-                );
+            // Show the modal when the button is clicked
+            $('#bulkPaymentBtn').click(function() {
+                $('#bulkPaymentModal').modal('show');
             });
-        } else {
-            console.error("No suppliers found or response.message is undefined.");
-        }
-    },
-    error: function(xhr, status, error) {
-        console.error("AJAX error: ", status, error);
-    }
-});
 
-let originalOpeningBalance = 0; // Store the actual supplier opening balance
+            // Fetch suppliers and populate the dropdown
+            $.ajax({
+                url: '/supplier-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    var supplierSelect = $('#supplierSelect');
+                    supplierSelect.empty();
+                    supplierSelect.append(
+                        '<option value="" selected disabled>Select Supplier</option>');
+                    if (response.message && response.message.length > 0) {
+                        response.message.forEach(function(supplier) {
+                            supplierSelect.append(
+                                '<option value="' + supplier.id +
+                                '" data-opening-balance="' + supplier
+                                .opening_balance + '">' +
+                                supplier.first_name + ' ' + supplier.last_name +
+                                '</option>'
+                            );
+                        });
+                    } else {
+                        console.error(
+                            "No suppliers found or response.message is undefined.");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX error: ", status, error);
+                }
+            });
 
-$('#supplierSelect').change(function() {
-    var supplierId = $(this).val();
-    originalOpeningBalance = parseFloat($(this).find(':selected').data('opening-balance')) || 0;
+            let originalOpeningBalance = 0; // Store the actual supplier opening balance
 
-    $('#openingBalance').text(originalOpeningBalance.toFixed(2)); // Display initial balance
+            $('#supplierSelect').change(function() {
+                var supplierId = $(this).val();
+                originalOpeningBalance = parseFloat($(this).find(':selected').data(
+                    'opening-balance')) || 0;
 
-    $.ajax({
-        url: '/get-all-purchases',
-        type: 'GET',
-        dataType: 'json',
-        data: { supplier_id: supplierId }, // Ensure supplier_id is sent
-        success: function(response) {
-            var purchaseTable = $('#purchaseTable').DataTable();
-            purchaseTable.clear(); // Clear the table before adding new data
-            var totalPurchaseAmount = 0, totalPaidAmount = 0, totalDueAmount = 0;
+                $('#openingBalance').text(originalOpeningBalance.toFixed(
+                    2)); // Display initial balance
 
-            if (response.purchases && response.purchases.length > 0) {
-                response.purchases.forEach(function(purchase) {
-                    if (purchase.supplier_id == supplierId) { // Filter by supplier ID
-                        var finalTotal = parseFloat(purchase.final_total) || 0;
-                        var totalPaid = parseFloat(purchase.total_paid) || 0;
-                        var totalDue = parseFloat(purchase.total_due) || 0;
+                $.ajax({
+                    url: '/get-all-purchases',
+                    type: 'GET',
+                    dataType: 'json',
+                    data: {
+                        supplier_id: supplierId
+                    }, // Ensure supplier_id is sent
+                    success: function(response) {
+                        var purchaseTable = $('#purchaseTable').DataTable();
+                        purchaseTable
+                            .clear(); // Clear the table before adding new data
+                        var totalPurchaseAmount = 0,
+                            totalPaidAmount = 0,
+                            totalDueAmount = 0;
 
-                        if (totalDue > 0) {
-                            totalPurchaseAmount += finalTotal;
-                            totalPaidAmount += totalPaid;
-                            totalDueAmount += totalDue;
+                        if (response.purchases && response.purchases.length > 0) {
+                            response.purchases.forEach(function(purchase) {
+                                if (purchase.supplier_id ==
+                                    supplierId) { // Filter by supplier ID
+                                    var finalTotal = parseFloat(purchase
+                                        .final_total) || 0;
+                                    var totalPaid = parseFloat(purchase
+                                        .total_paid) || 0;
+                                    var totalDue = parseFloat(purchase
+                                        .total_due) || 0;
 
-                            purchaseTable.row.add([
-                                purchase.id + " (" + purchase.reference_no + ")",
-                                finalTotal.toFixed(2),
-                                totalPaid.toFixed(2),
-                                totalDue.toFixed(2),
-                                '<input type="number" class="form-control purchase-amount" data-purchase-id="' + purchase.id + '">'
-                            ]).draw();
+                                    if (totalDue > 0) {
+                                        totalPurchaseAmount += finalTotal;
+                                        totalPaidAmount += totalPaid;
+                                        totalDueAmount += totalDue;
+
+                                        purchaseTable.row.add([
+                                            purchase.id + " (" +
+                                            purchase.reference_no +
+                                            ")",
+                                            finalTotal.toFixed(2),
+                                            totalPaid.toFixed(2),
+                                            totalDue.toFixed(2),
+                                            '<input type="number" class="form-control purchase-amount" data-purchase-id="' +
+                                            purchase.id + '">'
+                                        ]).draw();
+                                    }
+                                }
+                            });
                         }
+
+                        $('#totalPurchaseAmount').text(totalPurchaseAmount.toFixed(
+                            2));
+                        $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
+                        $('#totalDueAmount').text(totalDueAmount.toFixed(2));
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("AJAX error: ", status, error);
                     }
                 });
+            });
+
+            $('#globalPaymentAmount').on('input', function() {
+                var globalAmount = parseFloat($(this).val()) || 0;
+                var supplierOpeningBalance =
+                    originalOpeningBalance; // Always use original balance
+                var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
+                var remainingAmount = globalAmount;
+
+                // Validate global amount
+                if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
+                    $(this).addClass('is-invalid').after(
+                        '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
+                    );
+                    return;
+                } else {
+                    $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
+                }
+
+                // Deduct from opening balance first
+                let newOpeningBalance = supplierOpeningBalance;
+                if (newOpeningBalance > 0) {
+                    if (remainingAmount <= newOpeningBalance) {
+                        newOpeningBalance -= remainingAmount;
+                        remainingAmount = 0;
+                    } else {
+                        remainingAmount -= newOpeningBalance;
+                        newOpeningBalance = 0;
+                    }
+                }
+                $('#openingBalance').text(newOpeningBalance.toFixed(2));
+
+                // Apply the remaining amount to the purchases dynamically
+                $('.purchase-amount').each(function() {
+                    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)')
+                        .text());
+                    if (remainingAmount > 0) {
+                        var paymentAmount = Math.min(remainingAmount, purchaseDue);
+                        $(this).val(paymentAmount);
+                        remainingAmount -= paymentAmount;
+                    } else {
+                        $(this).val(0);
+                    }
+                });
+            });
+
+            // Validate individual payment amounts
+            $(document).on('input', '.purchase-amount', function() {
+                var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
+                var paymentAmount = parseFloat($(this).val());
+                if (paymentAmount > purchaseDue) {
+                    $(this).addClass('is-invalid');
+                    $(this).next('.invalid-feedback').remove();
+                    $(this).after(
+                        '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
+                    );
+                } else {
+                    $(this).removeClass('is-invalid');
+                    $(this).next('.invalid-feedback').remove();
+                }
+            });
+
+            // Function to update the opening balance
+            function updateOpeningBalance() {
+                var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
+                var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data(
+                    'opening-balance')) || 0;
+                var totalPayment = 0;
+
+                // Calculate the total payment from individual amounts
+                $('.purchase-amount').each(function() {
+                    totalPayment += parseFloat($(this).val()) || 0;
+                });
+
+                var remainingAmount = globalAmount - totalPayment;
+
+                // Adjust the opening balance based on the remaining amount
+                if (remainingAmount >= 0) {
+                    $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
+                } else {
+                    $('#openingBalance').text("0.00");
+                }
             }
 
-            $('#totalPurchaseAmount').text(totalPurchaseAmount.toFixed(2));
-            $('#totalPaidAmount').text(totalPaidAmount.toFixed(2));
-            $('#totalDueAmount').text(totalDueAmount.toFixed(2));
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-        }
-    });
-});
-
-$('#globalPaymentAmount').on('input', function() {
-    var globalAmount = parseFloat($(this).val()) || 0;
-    var supplierOpeningBalance = originalOpeningBalance; // Always use original balance
-    var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
-    var remainingAmount = globalAmount;
-
-    // Validate global amount
-    if (globalAmount > (supplierOpeningBalance + totalDueAmount)) {
-        $(this).addClass('is-invalid').after('<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>');
-        return;
-    } else {
-        $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
-    }
-
-    // Deduct from opening balance first
-    let newOpeningBalance = supplierOpeningBalance;
-    if (newOpeningBalance > 0) {
-        if (remainingAmount <= newOpeningBalance) {
-            newOpeningBalance -= remainingAmount;
-            remainingAmount = 0;
-        } else {
-            remainingAmount -= newOpeningBalance;
-            newOpeningBalance = 0;
-        }
-    }
-    $('#openingBalance').text(newOpeningBalance.toFixed(2));
-
-    // Apply the remaining amount to the purchases dynamically
-    $('.purchase-amount').each(function() {
-        var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-        if (remainingAmount > 0) {
-            var paymentAmount = Math.min(remainingAmount, purchaseDue);
-            $(this).val(paymentAmount);
-            remainingAmount -= paymentAmount;
-        } else {
-            $(this).val(0);
-        }
-    });
-});
-
-// Validate individual payment amounts
-$(document).on('input', '.purchase-amount', function() {
-    var purchaseDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-    var paymentAmount = parseFloat($(this).val());
-    if (paymentAmount > purchaseDue) {
-        $(this).addClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-        $(this).after('<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
-    } else {
-        $(this).removeClass('is-invalid');
-        $(this).next('.invalid-feedback').remove();
-    }
-});
-
-// Function to update the opening balance
-function updateOpeningBalance() {
-    var globalAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
-    var supplierOpeningBalance = parseFloat($('#supplierSelect').find(':selected').data('opening-balance')) || 0;
-    var totalPayment = 0;
-
-    // Calculate the total payment from individual amounts
-    $('.purchase-amount').each(function() {
-        totalPayment += parseFloat($(this).val()) || 0;
-    });
-
-    var remainingAmount = globalAmount - totalPayment;
-
-    // Adjust the opening balance based on the remaining amount
-    if (remainingAmount >= 0) {
-        $('#openingBalance').text((supplierOpeningBalance - remainingAmount).toFixed(2));
-    } else {
-        $('#openingBalance').text("0.00");
-    }
-}
-
-// Handle global payment amount input
-$('#globalPaymentAmount').change(function() {
-    updateOpeningBalance();
-});
-
-// Initialize DataTable
-$(document).ready(function() {
-    $('#purchaseTable').DataTable();
-});
-
-// Handle payment submission
-$('#submitBulkPayment').click(function() {
-    var supplierId = $('#supplierSelect').val();
-    var paymentMethod = $('#paymentMethod').val();
-    var paymentDate = $('#paidOn').val();
-    var globalPaymentAmount = $('#globalPaymentAmount').val();
-    var purchasePayments = [];
-
-    $('.purchase-amount').each(function() {
-        var purchaseId = $(this).data('purchase-id');
-        var paymentAmount = parseFloat($(this).val());
-        if (paymentAmount > 0) {
-            purchasePayments.push({
-                reference_id: purchaseId,
-                amount: paymentAmount
+            // Handle global payment amount input
+            $('#globalPaymentAmount').change(function() {
+                updateOpeningBalance();
             });
-        }
-    });
 
-    var paymentData = {
-        entity_type: 'supplier',
-        entity_id: supplierId,
-        payment_method: paymentMethod,
-        payment_date: paymentDate,
-        global_amount: globalPaymentAmount,
-        payments: purchasePayments
-    };
+            // Initialize DataTable
+            $(document).ready(function() {
+                $('#purchaseTable').DataTable();
+            });
 
-    $.ajax({
-        url: '/api/submit-bulk-payment',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(paymentData),
-        success: function(response) {
-            toastr.success(response.message, 'Payment Submitted');
-            $('#bulkPaymentModal').modal('hide');
-            $('#bulkPaymentForm')[0].reset(); // Reset the form
-            fetchPurchases();
-        },
-        error: function(xhr, status, error) {
-            console.error("AJAX error: ", status, error);
-            alert('Failed to submit payment.');
-        }
-    });
-});
+            // Handle payment submission
+            $('#submitBulkPayment').click(function() {
+                var supplierId = $('#supplierSelect').val();
+                var paymentMethod = $('#paymentMethod').val();
+                var paymentDate = $('#paidOn').val();
+                var globalPaymentAmount = $('#globalPaymentAmount').val();
+                var purchasePayments = [];
+
+                $('.purchase-amount').each(function() {
+                    var purchaseId = $(this).data('purchase-id');
+                    var paymentAmount = parseFloat($(this).val());
+                    if (paymentAmount > 0) {
+                        purchasePayments.push({
+                            reference_id: purchaseId,
+                            amount: paymentAmount
+                        });
+                    }
+                });
+
+                var paymentData = {
+                    entity_type: 'supplier',
+                    entity_id: supplierId,
+                    payment_method: paymentMethod,
+                    payment_date: paymentDate,
+                    global_amount: globalPaymentAmount,
+                    payments: purchasePayments
+                };
+
+                $.ajax({
+                    url: '/api/submit-bulk-payment',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(paymentData),
+                    success: function(response) {
+                        toastr.success(response.message, 'Payment Submitted');
+                        $('#bulkPaymentModal').modal('hide');
+                        $('#bulkPaymentForm')[0].reset(); // Reset the form
+                        fetchPurchases();
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("AJAX error: ", status, error);
+                        // alert('Failed to submit payment.');
+                    }
+                });
+            });
             // Define the openPaymentModal function
             window.openPaymentModal = function(event, purchaseId) {
                 event.preventDefault();
@@ -1009,7 +1166,7 @@ $('#submitBulkPayment').click(function() {
                         });
                     },
                     error: function(xhr) {
-                        alert(xhr.responseJSON.message);
+                        console.log(xhr.responseJSON.message);
                     }
                 });
             }
@@ -1076,7 +1233,7 @@ $('#submitBulkPayment').click(function() {
                         $('#viewPaymentModal').modal('show');
                     },
                     error: function(xhr) {
-                        alert(xhr.responseJSON.message);
+                        console.log(xhr.responseJSON.message);
                     }
                 });
             }
@@ -1093,7 +1250,7 @@ $('#submitBulkPayment').click(function() {
                             fetchPurchases();
                         },
                         error: function(xhr) {
-                            alert(xhr.responseJSON.message);
+                            console.log(xhr.responseJSON.message);
                         }
                     });
                 }
@@ -1157,6 +1314,11 @@ $('#submitBulkPayment').click(function() {
             // View Purchase Details
             // Row Click Event
             $('#purchase-list').on('click', 'tr', function(e) {
+                // Prevent action if clicking on thead or if no data-id (header/footer rows)
+                if ($(this).closest('thead').length || typeof $(this).data('id') === 'undefined') {
+                    e.stopPropagation();
+                    return;
+                }
                 if (!$(e.target).closest('.action-icon, .dropdown-menu').length) {
                     var purchaseId = $(this).data(
                         'id'); // Extract product ID from data-id attribute
@@ -1187,7 +1349,7 @@ $('#submitBulkPayment').click(function() {
                                     '</td>');
                                 row.append('<td>' + product.quantity +
                                     '</td>');
-                                row.append('<td>' + product.price +
+                                row.append('<td>' + (product.unit_cost || 0) +
                                     '</td>');
                                 row.append('<td>' + product.total +
                                     '</td>');
@@ -1226,7 +1388,7 @@ $('#submitBulkPayment').click(function() {
                             $('#viewPurchaseProductModal').modal('show');
                         },
                         error: function(xhr) {
-                            alert(xhr.responseJSON.message);
+                            console.log(xhr.responseJSON.message);
                         }
                     });
                 }

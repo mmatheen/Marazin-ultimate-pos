@@ -159,7 +159,7 @@
                         <td>&nbsp;</td>
                         <td width="120" align="center">
                             <div style="font-size: 12px; color: #000;">{{ $sale->invoice_no }}</div>
-                            <div style="font-size: 10px; color: #000;">({{ Auth::user()->user_name }})</div>
+                            <div style="font-size: 10px; color: #000;">({{ $user->user_name ?? 'System User' }})</div>
                         </td>
                     </tr>
                 </tbody>

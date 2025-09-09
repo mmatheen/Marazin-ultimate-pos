@@ -125,8 +125,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'add sale',
                 'edit sale',
                 'pos page',
-               
-            
+
+
             ],
             // sale-return management
             '16. sale-return-management' => [
@@ -199,7 +199,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit product-discount',
                 'delete product-discount'
             ],
-        
+
             // pos button management
             '27. pos-button-management' => [
                 'job ticket',
@@ -207,32 +207,115 @@ class RolesAndPermissionsSeeder extends Seeder
                 'draft',
                 'suspend',
                 'credit sale',
-                'card',  
+                'card',
                 'cheque',
                 'multiple pay',
                 'cash',
-              
+
+            ],
+
+            // sales rep management
+            '28. sales-rep-management' => [
+                'view sales-rep',
+                'create sales-rep',
+                'edit sales-rep',
+                'delete sales-rep',
+                'assign routes',
+                'view assigned routes',
+                'manage sales targets'
             ],
 
         ];
 
-        // Create Each Permission & Assign Group using firstOrCre cb ate
+        // Insert or update permissions first
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-            Permission::firstOrCreate(
-                ['name' => $permission],
-                ['group_name' => $group]
-            );
+                Permission::updateOrCreate(
+                    ['name' => $permission, 'guard_name' => 'web'],
+                    ['group_name' => $group]
+                );
             }
         }
 
-          // Roles & give permissions
+
+
+        // Clear cache again after permissions inserted
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Roles & give permissions
         $roles = [
             'Super Admin' => Permission::all()->pluck('name')->toArray(),
+            'Manager' => [
+                'view user',
+                'view role',
+                'view product',
+                'view sale',
+                'add sale',
+                'view purchase',
+                'view daily-report'
+            ],
+            'Cashier' => [
+                'pos page',
+                'add sale',
+                'view sale',
+                'add return-sale',
+                'view return-sale',
+                'job ticket',
+                'quotation',
+                'draft',
+                'suspend',
+                'credit sale',
+                'card',
+                'cheque',
+                'multiple pay',
+                'cash'
+            ],
+            'Admin' => [
+                'create user',
+                'edit user',
+                'view user',
+                'delete user',
+                'create role',
+                'edit role',
+                'view role',
+                'delete role',
+                'create product',
+                'edit product',
+                'view product',
+                'delete product',
+                'job ticket'
+            ],
+            'Sales Rep' => [
+                'view sale',
+                'add sale',
+                'pos page',
+                'view customer',
+                'create customer',
+                'edit customer',
+                'view product',
+                'view assigned routes',
+                'cash',
+                'card',
+                'credit sale'
+            ]
         ];
 
+
+        // Now assign roles after all permissions exist
         foreach ($roles as $roleName => $rolePermissions) {
-            $role = Role::firstOrCreate(['name' => $roleName]);
+            // Generate role key from name
+            $roleKey = strtolower(str_replace(' ', '_', $roleName));
+            
+            $role = Role::firstOrCreate(
+                ['name' => $roleName, 'guard_name' => 'web'],
+                ['key' => $roleKey]
+            );
+            
+            // Update key if it doesn't exist
+            if (!$role->key) {
+                $role->update(['key' => $roleKey]);
+            }
+            
             $role->syncPermissions($rolePermissions);
         }
     }

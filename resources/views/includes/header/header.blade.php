@@ -225,7 +225,7 @@
         fetchNotifications();
 
         function fetchNotifications() {
-            fetch('/notifications')
+            fetch('/api/notifications')
                 .then(async response => {
                     const text = await response.text();
                     try {

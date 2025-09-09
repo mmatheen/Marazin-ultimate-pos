@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Vehicle extends Model
+{
+    use HasFactory;
+    protected $table = 'vehicles';
+
+    protected $fillable = [
+        "vehicle_number",
+        "vehicle_type",
+        "description",
+        "location_id",
+    ];
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
+
+    public function salesReps()
+    {
+        return $this->hasMany(SalesRep::class);
+    }
+
+    public function routes()
+    {
+        return $this->belongsToMany(Route::class, 'vehicle_route', 'vehicle_id', 'route_id');
+    }
+
+    public function getVehicleTypeAttribute($value)
+    {
+        return ucfirst($value);
+    }
+
+    public function setVehicleTypeAttribute($value)
+    {
+        $this->attributes['vehicle_type'] = strtolower($value);
+    }
+
+    // ✅ Single relationship for location logs
+    public function locationLogs()
+    {
+        return $this->hasMany(VehicleLocationLog::class);
+    }
+
+    public function latestLocation()
+    {
+        return $this->hasOne(VehicleLocationLog::class)->latest('recorded_at');
+    }
+}

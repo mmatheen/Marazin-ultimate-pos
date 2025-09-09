@@ -58,25 +58,38 @@
         // Fetch dropdown data
         function fetchDropdownData(url, targetSelect, placeholder, selectedId) {
             $.ajax({
-                url: url,
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.message)) {
-                        targetSelect.html(`<option selected disabled>${placeholder}</option>`);
-                        data.message.forEach(item => {
-                            const option = $('<option></option>').val(item.id).text(item
-                                .name || (item.first_name + ' ' + item.last_name));
-                            if (item.id == selectedId) option.attr('selected', 'selected');
-                            targetSelect.append(option);
-                        });
-                    } else {
-                        console.error(`Failed to fetch data: ${data.message}`);
+            url: url,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                if (data.status === true && Array.isArray(data.data)) {
+                targetSelect.html(`<option selected disabled>${placeholder}</option>`);
+                data.data.forEach(item => {
+                    // Only show locations where parent_id is null
+                    if (url.includes('location') && item.parent_id !== null) {
+                    return; // Skip this item
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error(`Error fetching data: ${error}`);
+                    const option = $('<option></option>').val(item.id).text(item
+                    .name || (item.first_name + ' ' + item.last_name));
+                    if (item.id == selectedId) option.attr('selected', 'selected');
+                    targetSelect.append(option);
+                });
+                } else if (data.status === 200 && Array.isArray(data.message)) {
+                // Fallback for supplier API format
+                targetSelect.html(`<option selected disabled>${placeholder}</option>`);
+                data.message.forEach(item => {
+                    const option = $('<option></option>').val(item.id).text(item
+                    .name || (item.first_name + ' ' + item.last_name));
+                    if (item.id == selectedId) option.attr('selected', 'selected');
+                    targetSelect.append(option);
+                });
+                } else {
+                console.error(`Failed to fetch data: ${data.message}`);
                 }
+            },
+            error: function(xhr, status, error) {
+                console.error(`Error fetching data: ${error}`);
+            }
             });
         }
 

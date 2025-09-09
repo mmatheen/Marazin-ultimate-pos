@@ -7,36 +7,176 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Log;
+use App\Models\User; // Ensure User model is imported
 
 class LocationScope implements Scope
 {
+    /**
+     * Apply the scope to a given Eloquent query builder.
+     */
     public function apply(Builder $builder, Model $model)
     {
-        if (Auth::check() && !(Auth::user()->role === 'Super Admin')) {
-            // Works for both Breeze and Sanctum as long as the correct authentication middleware is applied
-            $user = Auth::user();
-            $selectedLocation = Session::get('selected_location');
+        // Skip scope if model requests bypass
+        if (method_exists($model, 'shouldBypassLocationScope') && $model->shouldBypassLocationScope()) {
+            return;
+        }
 
+        $user = $this->getAuthenticatedUser();
+
+        // No filter if no user is logged in
+        if (!$user) {
+            return;
+        }
+
+        // Super Admin sees everything
+        if ($this->isSuperAdmin($user)) {
+            return;
+        }
+
+        // Sales Rep: Skip location filter — they are filtered by route/city in controller
+        if ($this->isSalesRep($user)) {
+            return;
+        }
+
+        // For all other users (admin, manager, cashier, etc.), apply location filter
+        $selectedLocation = $this->getSelectedLocation();
+        $locationIds = $this->getUserLocationIds($user);
+
+        $builder->where(function ($query) use ($selectedLocation, $locationIds) {
+            // Priority 1: Use selected location (from session or header)
             if ($selectedLocation) {
-                // எல்லா users-ன் data-வும் show ஆகும்
-                $builder->where(function ($query) use ($selectedLocation) {
-                    $query->where('location_id', $selectedLocation)
-                        ->orWhereNull('location_id');
-                });
-            } else {
-                $locationIds = $user->locations->pluck('id')->toArray();
-                $builder->where(function ($query) use ($locationIds) {
-                    $query->whereIn('location_id', $locationIds)
-                        ->orWhereNull('location_id');
-                });
+                $query->where('location_id', $selectedLocation);
+            }
+            // Priority 2: Use assigned locations
+            elseif (!empty($locationIds)) {
+                $query->whereIn('location_id', $locationIds);
             }
 
-        //   // Add user_id based filtering only if the table has user_id column
-        //     if (in_array('user_id', $builder->getModel()->getConnection()->getSchemaBuilder()->getColumnListing($builder->getModel()->getTable()))) {
-        //         $builder->where('user_id', $user->id);
-        //     }
-            
-            
+            // Always allow walk-in/null location customers
+            $query->orWhereNull('location_id');
+        });
+
+        // Optionally filter by user_id if the table has that column
+        $this->applyUserIdFilter($builder, $model, $user);
+    }
+
+    /**
+     * Check if the user is a Super Admin
+     */
+    private function isSuperAdmin($user): bool
+    {
+        if (!$user instanceof User) {
+            return false;
+        }
+
+        // Load roles if not already loaded
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        return $user->roles->pluck('key')->contains('super_admin');
+    }
+
+    /**
+     * Check if the user is a Sales Rep
+     */
+    private function isSalesRep($user): bool
+    {
+        if (!$user instanceof User) {
+            return false;
+        }
+
+        // Use the method if available
+        if (method_exists($user, 'isSalesRep')) {
+            return $user->isSalesRep();
+        }
+
+        // Fallback: check role key directly
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        return $user->roles->pluck('key')->contains('sales_rep');
+    }
+
+    /**
+     * Get authenticated user from Sanctum, web guard, or default
+     */
+    private function getAuthenticatedUser()
+    {
+        try {
+            if (Auth::guard('sanctum')->check()) {
+                return Auth::guard('sanctum')->user();
+            }
+
+            if (Auth::guard('web')->check()) {
+                return Auth::guard('web')->user();
+            }
+
+            return Auth::user(); // fallback
+        } catch (\Exception $e) {
+            Log::warning("LocationScope: Failed to get authenticated user: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get selected location from session (web) or header (API)
+     */
+    private function getSelectedLocation()
+    {
+        try {
+            // Web: from session
+            if (!app()->runningInConsole() && Session::has('selected_location')) {
+                return Session::get('selected_location');
+            }
+
+            // API: from header
+            $request = request();
+            if ($request && $request->hasHeader('X-Selected-Location')) {
+                return $request->header('X-Selected-Location');
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            Log::warning("LocationScope: Failed to get selected location: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get location IDs assigned to the user
+     */
+    private function getUserLocationIds($user): array
+    {
+        try {
+            if (!$user->relationLoaded('locations')) {
+                $user->load('locations');
+            }
+
+            return $user->locations->pluck('id')->toArray();
+        } catch (\Exception $e) {
+            Log::warning("LocationScope: Failed to load user locations: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Apply user_id filter if the column exists on the model's table
+     */
+    private function applyUserIdFilter(Builder $builder, Model $model, $user)
+    {
+        $table = $model->getTable();
+
+        try {
+            $columns = $model->getConnection()->getSchemaBuilder()->getColumnListing($table);
+
+            if (in_array('user_id', $columns)) {
+                $builder->where('user_id', $user->id);
+            }
+        } catch (\Exception $e) {
+            Log::warning("LocationScope: Could not fetch columns for table {$table}: " . $e->getMessage());
         }
     }
 }

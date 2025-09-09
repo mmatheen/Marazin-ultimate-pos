@@ -201,7 +201,8 @@
             }
 
             $.ajax({
-                url: 'product-store'
+                url: '/api/product-store'
+
                 , type: 'POST'
                 , headers: {
                     'X-CSRF-TOKEN': csrfToken
@@ -227,7 +228,8 @@
 
       // Fetch main category, sub category, location, unit, brand details to select box code start
             $.ajax({
-                url: 'initial-product-details', // Replace with your endpoint URL
+                url: '/api/initial-product-details', // Replace with your endpoint URL
+
                 type: 'GET',
                 success: function(response) {
                     if (response.status === 200) {
@@ -336,7 +338,8 @@
             }
 
             $.ajax({
-                url: 'product-store'
+                url: '/api/product-store'
+
                 , type: 'POST'
                 , headers: {
                     'X-CSRF-TOKEN': csrfToken
@@ -382,7 +385,7 @@
             }
 
             $.ajax({
-                url: 'product-store'
+                url: '/api/product-store'
                 , type: 'POST'
                 , headers: {
                     'X-CSRF-TOKEN': csrfToken

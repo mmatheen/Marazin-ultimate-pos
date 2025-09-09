@@ -243,10 +243,10 @@
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.message)) {
+                    if (data.status === true && Array.isArray(data.data)) {
                         targetSelect.html(
                             `<option value="" selected disabled>${placeholder}</option>`);
-                        data.message.forEach(item => {
+                        data.data.forEach(item => {
                             const option = $('<option></option>').val(item.id).text(item
                                 .name || item.first_name + ' ' + item.last_name);
                             if (item.id == selectedId) {

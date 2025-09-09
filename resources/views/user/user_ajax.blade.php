@@ -241,7 +241,7 @@
                             $('#' + key + '_error').html(err_value);
                             toastr.error(err_value, 'Validation Error');
                             document.getElementsByClassName('errorSound')[0]
-                        .play(); //for sound
+                                .play(); //for sound
                         });
 
                     } else {
@@ -249,7 +249,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -289,7 +289,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -299,6 +299,39 @@
                 }
             });
         });
+
+        populateLocationDropdown();
+
+        // Populate Location Dropdown Based on User Role & Vehicle
+        function populateLocationDropdown() {
+            $.ajax({
+                url: '/location-get-all',
+                type: 'GET',
+                dataType: 'json',
+                success: function(res) {
+                    const dropdown = $('#edit_location_id');
+                    dropdown.empty().append('<option value="">Select Location</option>');
+
+                    if (res.status && Array.isArray(res.data)) {
+                        res.data.forEach(function(loc) {
+                            // Optional: Show hierarchy
+                            let label = loc.parent ? `${loc.parent.name} → ${loc.name}` :
+                                loc.name;
+                            dropdown.append(`<option value="${loc.id}">${label}</option>`);
+                        });
+                    } else {
+                        dropdown.append(
+                            '<option value="" disabled>No locations available</option>');
+                    }
+                },
+                error: function(xhr) {
+                    console.error("Failed to load locations:", xhr.responseJSON?.message);
+                    $('#edit_location_id').html(
+                        '<option value="" disabled>Failed to load locations</option>');
+                    toastr.error('Could not load locations.');
+                }
+            });
+        }
 
     });
 </script>

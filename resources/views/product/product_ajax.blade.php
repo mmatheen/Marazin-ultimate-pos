@@ -103,7 +103,19 @@
                 url: url,
                 type: 'GET',
                 dataType: 'json',
-                success: successCallback,
+                success: function(response) {
+                    // Handle different response structures
+                    if (response.status === true || response.status === 200) {
+                        // If response has a 'data' property, use it; otherwise use 'message'
+                        const data = response.data || response.message;
+                        successCallback({
+                            status: 200,
+                            message: data
+                        });
+                    } else {
+                        successCallback(response);
+                    }
+                },
                 error: errorCallback || function(xhr, status, error) {
                     console.error('Error fetching data from ' + url + ':', error);
                 }
@@ -128,6 +140,7 @@
 
         function fetchInitialDropdowns(callback) {
             fetchData('/initial-product-details', function(response) {
+
                 if (response.status === 200) {
                     const brands = response.message.brands;
                     const mainCategories = response.message.mainCategories;
@@ -250,6 +263,7 @@
             if (selectedLocations && selectedProductIds.length > 0) {
                 $.ajax({
                     url: '/save-changes',
+
                     type: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -752,6 +766,7 @@
         function getFormActionUrl() {
             const productId = $('#product_id').val();
             return productId ? `/product/update/${productId}` : '/product/store';
+
         }
 
         // Function to handle form submission
@@ -847,7 +862,8 @@
 
 
         function fetchLastAddedProducts() {
-            fetchData('get-last-product', function(response) {
+            fetchData('/get-last-product', function(response) {
+
                 if (response.status === 200) {
                     const product = response.product;
                     addProductToTable(product);
@@ -1287,7 +1303,9 @@
                     return location;
                 });
 
-                let url = isEditMode ? `/opening-stock/${productId}` : `/opening-stock/${productId}`;
+                let url = isEditMode ? `/opening-stock/${productId}` :
+                    `/opening-stock/${productId}`;
+
 
                 $.ajax({
                     url: url,
@@ -1632,7 +1650,6 @@
 
     });
 </script>
-
 
 <script>
     $(document).on('submit', '#importProductForm', function(e) {
