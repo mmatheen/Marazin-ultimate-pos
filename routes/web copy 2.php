@@ -458,7 +458,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
 
         // -------------------- Site Setting Routes --------------------
-        Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
+      Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/site-settings/update', [SettingController::class, 'update'])->name('settings.update');
 
         //Salesrep routes

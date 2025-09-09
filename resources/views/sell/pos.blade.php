@@ -1471,28 +1471,28 @@
                 <div class="col-md-7 text-end">
                     <div class="d-flex justify-content-end gap-2 flex-wrap">
 
-                        @can('job ticket')
+                        @can('create job-ticket')
                             {{-- job ticket --}}
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="jobTicketButton">
                                 <i class="fas fa-ticket-alt"></i> Job Ticket
                             </button>
                         @endcan
 
-                        @can('quotation')
+                        @can('create quotation')
                             {{-- <!-- Quotation Button --> --}}
                             <button type="button" class="btn btn-outline-warning btn-sm" id="quotationButton">
                                 <i class="fas fa-file-alt"></i> Quotation
                             </button>
                         @endcan
 
-                        @can('draft')
+                        @can('save draft')
                             <!-- Draft Button -->
                             <button type="button" class="btn btn-outline-info btn-sm" id="draftButton">
                                 <i class="fas fa-edit"></i> Draft
                             </button>
                         @endcan
 
-                        @can('suspend')
+                        @can('suspend sale')
                             <!-- Existing Buttons -->
                             <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#suspendModal">
@@ -1506,25 +1506,25 @@
                             </button>
                         @endcan
 
-                        @can('card')
+                        @can('card payment')
                             <button class="btn btn-outline-primary btn-sm" id="cardButton">
                                 <i class="fas fa-credit-card"></i> Card
                             </button>
                         @endcan
 
-                        @can('cheque')
+                        @can('cheque payment')
                             <button class="btn btn-outline-warning btn-sm" id="chequeButton">
                                 <i class="fas fa-money-check"></i> Cheque
                             </button>
                         @endcan
 
-                        @can('multiple pay')
+                        @can('multiple payment methods')
                             <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#paymentModal">
                                 <i class="fas fa-list"></i> Multiple Pay
                             </button>
                         @endcan
-                        @can('cash')
+                        @can('cash payment')
                             <button class="btn btn-outline-secondary btn-sm" id="cashButton">
                                 <i class="fas fa-cash-register"></i> Cash
                             </button>
@@ -1552,21 +1552,21 @@
                             <a class="nav-link active" data-bs-toggle="tab" href="#final"
                                 onclick="loadTableData('final')">Final</a>
                         </li>
-                        @can('quotation')
+                        @can('create quotation')
                             <li class="nav-item">
                                 <a class="nav-link" data-bs-toggle="tab" href="#quotation"
                                     onclick="loadTableData('quotation')">Quotation</a>
                             </li>
                         @endcan
 
-                        @can('draft')
+                        @can('save draft')
                             <li class="nav-item">
                                 <a class="nav-link" data-bs-toggle="tab" href="#draft"
                                     onclick="loadTableData('draft')">Draft</a>
                             </li>
                         @endcan
 
-                        @can('job ticket')
+                        @can('create job-ticket')
                             <li class="nav-item">
                                 <a class="nav-link" data-bs-toggle="tab" href="#jobticket"
                                     onclick="loadTableData('jobticket')">Job Tickets</a>

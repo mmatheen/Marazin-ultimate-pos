@@ -57,7 +57,7 @@
                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                     <!-- Button to Add Stock Adjustment -->
 
-                                    @can('add stock-adjustment')
+                                    @can('create stock-adjustment')
                                         <a href="{{ route('add-stock-adjustment') }}">
                                             <button type="button" class="btn btn-outline-info">
                                                 <i class="fas fa-plus px-2"></i>Add

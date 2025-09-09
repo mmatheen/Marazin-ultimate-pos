@@ -1,6 +1,14 @@
 <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
 
 <script>
+    // Pass user permissions to JavaScript
+    const userPermissions = {
+        canEditSale: @json(auth()->user()->can('edit sale')),
+        canDeleteSale: @json(auth()->user()->can('delete sale')),
+        canEditProduct: @json(auth()->user()->can('edit product')),
+        canDeleteProduct: @json(auth()->user()->can('delete product'))
+    };
+
     document.addEventListener("DOMContentLoaded", function() {
         let selectedLocationId = null;
         let currentProductsPage = 1;
@@ -1818,8 +1826,8 @@
             <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
             <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
             <td>
-                <button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>
-                <button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>
+                ${userPermissions.canEditProduct ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
+                ${userPermissions.canDeleteProduct ? `<button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>` : ''}
             </td>
         `;
                 row.classList.add('clickable-row');
@@ -4212,8 +4220,8 @@
                     <td>${sale.products.length}</td>
                     <td>$${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
                     <td>
-                        <a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>
-                        <button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>
+                        ${userPermissions.canEditSale ? `<a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>` : ''}
+                        ${userPermissions.canDeleteSale ? `<button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>` : ''}
                     </td>
                 </tr>`;
                     suspendedSalesContainer.append(saleRow);

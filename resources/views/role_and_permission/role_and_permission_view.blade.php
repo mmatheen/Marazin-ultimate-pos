@@ -37,7 +37,7 @@
                         <div class="row align-items-center">
                             <div class="col-auto text-end float-end ms-auto download-grp">
                                 <!-- Button trigger modal -->
-                                 @can('create role & permission')
+                                 @can('create role-permission')
                                  <a type="button" class="btn btn-outline-info " href="{{ route('group-role-and-permission') }}">+ New Role & Permissions</a>
                                  @endcan
                             </div>

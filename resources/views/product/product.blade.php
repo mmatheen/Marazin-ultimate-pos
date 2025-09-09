@@ -94,7 +94,7 @@
                                 <li class="nav-item"><a class="nav-link active" href="#solid-justified-tab1"
                                         data-bs-toggle="tab"><i class="fas fa-boxes"></i> &nbsp;All Products</a></li>
                                 {{-- <li class="nav-item"><a class="nav-link" href="#solid-justified-tab2" data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Stock Report</a></li> --}}
-                                @can('view import-product')
+                                @can('import product')
                                     <li class="nav-item"><a class="nav-link" href="#solid-justified-tab3"
                                             data-bs-toggle="tab"><i class="fas fa-hourglass-half"></i>&nbsp;Import Bulk
                                             Product</a></li>
@@ -110,7 +110,7 @@
                                         <div class="page-header">
                                             <div class="row align-items-center">
                                                 <div class="col-auto text-end float-end ms-auto download-grp">
-                                                    @can('add product')
+                                                    @can('create product')
                                                         <a href="{{ route('add-product') }}"><button type="button"
                                                                 class="btn btn-outline-info"><i class="fas fa-plus px-2">
                                                                 </i>Add</button></a>

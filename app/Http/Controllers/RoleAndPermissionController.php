@@ -124,9 +124,6 @@ class RoleAndPermissionController extends Controller
             ], 404);
         }
 
-        // Get all roles
-        $roles = Role::all(); // Fetch all roles for the dropdown
-
         // Get permissions, optionally grouped by their 'type' or 'group' attribute
         $permissions = Permission::all(); // Or group them if necessary
 
@@ -135,7 +132,6 @@ class RoleAndPermissionController extends Controller
 
         return view('role_and_permission.role_and_permission_edit', [
             'role' => $role,
-            'roles' => $roles, // Pass the roles to the view
             'permissionsData' => $permissionsData,
             'selectedRoleId' => $role->id, // Pass the selected role's ID to the view
         ]);

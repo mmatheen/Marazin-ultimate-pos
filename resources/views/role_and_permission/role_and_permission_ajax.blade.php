@@ -64,8 +64,8 @@
                 // Combine all permissions' names into a single string
                 let permissions = item.permissions.map(permission =>'<span class="badge rounded-pill bg-dark me-1">' + permission.name + '</span>').join(', ');
                 row.append('<td>' + permissions + '</td>');
-                row.append('<td>' + '@can("edit role & permission")<button type="button" value="' + item.role_id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                    '@can("delete role & permission")<button type="button" value="' + item.role_id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
+                row.append('<td>' + '@can("edit role-permission")<button type="button" value="' + item.role_id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                    '@can("delete role-permission")<button type="button" value="' + item.role_id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                 table.row.add(row).draw(false);
                 counter++;
             });

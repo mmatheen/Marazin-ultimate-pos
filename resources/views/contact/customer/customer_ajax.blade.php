@@ -129,13 +129,13 @@
 
 
                         row.append('<td>' +
-                            '@can('view customer')<button type="button" value="' +
+                            '@can("view customer")<button type="button" value="' +
                             item.id +
                             '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>@endcan' +
-                            '@can('edit customer')<button type="button" value="' +
+                            '@can("edit customer")<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can('delete customer')<button type="button" value="' +
+                            '@can("delete customer")<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');

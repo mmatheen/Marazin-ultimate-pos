@@ -87,10 +87,10 @@
                         row.append('<td>' + item.subCategoryCode + '</td>');
                         row.append('<td>' + item.description + '</td>');
                         row.append('<td>' +
-                            '@can('edit sub-category')<button type="button" value="' +
+                            '@can("edit sub-category")<button type="button" value="' +
                             item.id +
                             '" class="sub_category_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can('delete sub-category')<button type="button" value="' +
+                            '@can("delete sub-category")<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');

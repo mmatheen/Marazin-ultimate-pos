@@ -107,7 +107,7 @@
                                     '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
 
                                     
-                                    '@can('edit sale')<li><button type="button" value="' + item.id +
+                                    '@can("edit sale")<li><button type="button" value="' + item.id +
                                     '"class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>@endcan' +
 
                                     '<li><button type="button" value="' + item.id +

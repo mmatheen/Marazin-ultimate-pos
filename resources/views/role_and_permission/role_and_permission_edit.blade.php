@@ -31,15 +31,11 @@
                                         <div class="col-md-5">
                                             <div class="form-group local-forms d-flex justify-content-center">
                                                 <label>Role Name<span class="login-danger">*</span></label>
-                                                <select id="edit_role_name" name="role_id" class="form-control form-select">
-                                                    <option value="" selected disabled>Select Role</option>
-                                                    @foreach ($roles as $roleOption)
-                                                        <option value="{{ $roleOption->id }}"
-                                                            @if ($roleOption->id == $selectedRoleId) selected @endif>
-                                                            {{ $roleOption->name }}
-                                                        </option>
-                                                    @endforeach
+                                                <select id="edit_role_name" name="role_id" class="form-control form-select" readonly disabled>
+                                                    <option value="{{ $role->id }}" selected>{{ $role->name }}</option>
                                                 </select>
+                                                <!-- Hidden input to ensure the role_id is still sent with the form -->
+                                                <input type="hidden" name="role_id" value="{{ $role->id }}">
                                             </div>
                                         </div>
                                         <div class="col-md-7">
@@ -192,13 +188,47 @@
 
     <script>
         $(document).ready(function() {
+            // Function to check if all permissions in a group are selected
+            function checkGroupSelectAll() {
+                $('.group-select-all').each(function() {
+                    var groupId = $(this).val();
+                    var groupCheckboxes = $('input[data-group-id="' + groupId + '"]').not('.group-select-all');
+                    var checkedCount = groupCheckboxes.filter(':checked').length;
+                    var totalCount = groupCheckboxes.length;
+                    
+                    // Check the group "Select All" if all permissions in the group are checked
+                    $(this).prop('checked', checkedCount === totalCount && totalCount > 0);
+                });
+                
+                // Check global "Select All" if all individual permissions are checked
+                var allPermissions = $('input[name="permission_id[]"]');
+                var allCheckedPermissions = allPermissions.filter(':checked');
+                $('#selectAllGlobal').prop('checked', allPermissions.length === allCheckedPermissions.length && allPermissions.length > 0);
+            }
+
+            // Initial check on page load
+            checkGroupSelectAll();
+
+            // Global Select All functionality
             $('#selectAllGlobal').on('change', function() {
-                $('.form-check-input').not(this).prop('checked', this.checked);
+                var isChecked = this.checked;
+                $('input[name="permission_id[]"]').prop('checked', isChecked);
+                $('.group-select-all').prop('checked', isChecked);
             });
 
+            // Group Select All functionality
             $('.group-select-all').on('change', function() {
                 var groupId = $(this).val();
-                $('input[data-group-id="' + groupId + '"]').prop('checked', this.checked);
+                var isChecked = this.checked;
+                $('input[data-group-id="' + groupId + '"]').not('.group-select-all').prop('checked', isChecked);
+                
+                // Update global select all
+                checkGroupSelectAll();
+            });
+
+            // Individual permission checkbox change
+            $('input[name="permission_id[]"]').on('change', function() {
+                checkGroupSelectAll();
             });
         });
     </script>

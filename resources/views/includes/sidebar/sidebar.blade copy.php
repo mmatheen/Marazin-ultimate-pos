@@ -14,7 +14,7 @@
                 </li>
 
                 @canany(['view user', 'view role', 'view role-permission', 'view sales-commission-agent'])
-                    <li class="submenu {{ set_active(['user', 'role', 'group-role-and-permission-view', 'group-role-and-permission', 'role-and-permission-edit']) }}">
+                    <li class="submenu {{ set_active(['user']) }}">
                         <a href="#">
                             <i class="fas fa-graduation-cap"></i>
                             <span class="sidebar-text">User Management</span>
@@ -43,7 +43,7 @@
                 @endcanany
 
                 @canany(['view supplier', 'view customer', 'view customer-group'])
-                    <li class="submenu {{ set_active(['supplier', 'customer', 'customer-ledger', 'supplier-ledger', 'customer-group', 'import-contact']) }}">
+                    <li class="submenu {{ set_active(['supplier']) }}">
                         <a href="#">
                             <i class="fas fa-chalkboard-teacher"></i>
                             <span class="sidebar-text">Contacts</span>
@@ -75,7 +75,7 @@
                 @endcanany
 
                 @canany(['create product', 'view product', 'view unit', 'view main-category', 'view sub-category', 'view brand', 'view warranty', 'import product'])
-                    <li class="submenu {{ set_active(['list-product', 'add-product', 'discounts.index', 'import-product', 'unit', 'main-category', 'sub-category', 'brand', 'warranty']) }}">
+                    <li class="submenu {{ set_active(['warranty']) }}">
                         <a href="#">
                             <i class="fas fa-building"></i>
                             <span class="sidebar-text">Products</span>
@@ -135,7 +135,7 @@
                 @endcanany
 
                 @canany(['view purchase', 'create purchase', 'view purchase-return'])
-                    <li class="submenu {{ set_active(['list-purchase', 'add-purchase', 'purchase-return']) }}">
+                    <li class="submenu {{ set_active(['list-purchase']) }}">
                         <a href="#">
                             <i class="fas fa-book-reader"></i>
                             <span class="sidebar-text">Purchases</span>
@@ -161,7 +161,7 @@
                 @endcanany
 
                 @canany(['view all sales', 'view own sales', 'create sale', 'access pos', 'view sale-return', 'create sale-return'])
-                    <li class="submenu {{ set_active(['list-sale', 'pos-create', 'add-sale', 'quotation-list', 'draft-list', 'sale-return/list', 'sale-return/add']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-clipboard"></i>
                             <span class="sidebar-text">Sell</span>
@@ -208,7 +208,7 @@
                 @endcanany
 
                 @canany(['bulk sale payment', 'bulk purchase payment'])
-                    <li class="submenu {{ set_active(['add-sale-bulk-payments', 'add-purchase-bulk-payments']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-clipboard"></i>
                             <span class="sidebar-text">Add Bulk Payments</span>
@@ -234,7 +234,7 @@
                 </li>
 
                 @canany(['view stock-transfer', 'create stock-transfer'])
-                    <li class="submenu {{ set_active(['list-stock-transfer', 'add-stock-transfer']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="sidebar-text">Stock Transfers</span>
@@ -255,7 +255,7 @@
                 @endcanany
 
                 @canany(['view stock-adjustment', 'create stock-adjustment'])
-                    <li class="submenu {{ set_active(['list-stock-adjustment', 'add-stock-adjustment']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="sidebar-text">Stock Adjustment</span>
@@ -290,7 +290,7 @@
                 @endcanany --}}
 
                 @canany(['view sales-rep', 'view routes', 'assign routes'])
-                <li class="submenu {{ set_active(['sales-rep/routes', 'sales-rep/cities', 'sales-rep/route-cities', 'sales-rep/sales-reps', 'sales-rep/targets', 'sales-rep/vehicle-locations']) }}">
+                <li class="submenu">
                     <a href="#">
                         <i class="fas fa-user-tie"></i>
                         <span class="sidebar-text">Sales Rep Module</span>
@@ -300,34 +300,34 @@
                        
                         @can('view routes')
                         <li><a href="{{ route('routes.create') }}"
-                                class="{{ set_active(['sales-rep/routes']) }}">Routes</a></li>
+                                class="{{ set_active(['routes.create']) }}">Routes</a></li>
                         @endcan
 
                         @can('view routes')
                         <li><a href="{{ route('cities.create') }}"
-                                class="{{ set_active(['sales-rep/cities']) }}">Cities</a></li>
+                                class="{{ set_active(['cities.create']) }}">Cities</a></li>
                         @endcan
 
                         @can('view routes')
                         <li><a href="{{ route('route-cities.create') }}"
-                                class="{{ set_active(['sales-rep/route-cities']) }}">Route Cities</a></li>
+                                class="{{ set_active(['route-cities.create']) }}">Route Cities</a></li>
                         @endcan
 
                         @can('view sales-rep')
                         <li><a href="{{ route('sales-reps.create') }}"
-                                class="{{ set_active(['sales-rep/sales-reps']) }}">Sales Reps</a></li>
+                                class="{{ set_active(['sales-reps.create']) }}">Sales Reps</a></li>
                         @endcan
 
                         @can('manage sales targets')
                         <li><a href="{{ route('targets.create') }}"
-                                class="{{ set_active(['sales-rep/targets']) }}">Targets</a></li>
+                                class="{{ set_active(['targets.create']) }}">Targets</a></li>
                         @endcan
                     </ul>
                 </li>
                 @endcanany
 
                 @canany(['view daily-report', 'view sales-report', 'view purchase-report', 'view stock-report'])
-                    <li class="submenu {{ set_active(['sales-report', 'purchase-report', 'stock-report', 'daily-report']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="sidebar-text">Reports</span>
@@ -335,14 +335,14 @@
                         </a>
                         <ul>
                             @can('view daily-report')
-                                <li><a href="{{ route('sales-report') }}" class="{{ set_active(['sales-report']) }}">Daily Sales Report</a></li>
+                                <li><a href="{{ route('sales-report') }}">Daily Sales Report</a></li>
                             @endcan
                         </ul>
                     </li>
                 @endcanany
 
                 @canany(['view location', 'view settings'])
-                    <li class="submenu {{ set_active(['location', 'settings.index']) }}">
+                    <li class="submenu">
                         <a href="#">
                             <i class="fas fa-file-invoice-dollar"></i>
                             <span class="sidebar-text">Settings</span>
@@ -353,12 +353,6 @@
                                 <li><a href="{{ route('location') }}" class="{{ set_active(['location']) }}">Business
                                         Locations</a></li>
                             @endcan
-
-                            @can('view settings')
-                          
-                                <li><a href="{{ route('settings.index') }}" class="{{ set_active(['settings.index']) }}">Site Settings</a></li>
-                            @endcan
-
                         </ul>
                     </li>
                 @endcanany
