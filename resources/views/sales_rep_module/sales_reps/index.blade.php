@@ -280,7 +280,7 @@
             }
 
             const table = $('#salesRepsTable').DataTable({
-                processing: true,
+                processing: false,
                 serverSide: false,
                 ajax: {
                     url: "{{ url('/api/sales-reps') }}",
@@ -288,7 +288,7 @@
                     dataSrc: function(res) {
                         console.log('Sales Reps API Response:', res);
                         if (!res.status) {
-                            toastr.error(res.message || 'Failed to load data.');
+                            console.log('Failed to load sales reps:', res.message);
                             return [];
                         }
                         
@@ -333,8 +333,15 @@
                     },
                     error: function(xhr) {
                         console.error('DataTable Ajax Error:', xhr);
-                        toastr.error(xhr.responseJSON?.message || 'Failed to load data.');
+                        // Don't show toastr error, let table show "No data available"
+                        return [];
                     }
+                },
+                language: {
+                    emptyTable: "No sales representatives found",
+                    zeroRecords: "No sales representatives found",
+                    loadingRecords: "",
+                    processing: ""
                 },
                 columns: [
                     { 

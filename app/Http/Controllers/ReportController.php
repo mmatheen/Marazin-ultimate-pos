@@ -7,6 +7,19 @@ use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view daily-report', ['only' => ['dailyReport']]);
+        $this->middleware('permission:view sales-report', ['only' => ['salesReport']]);
+        $this->middleware('permission:view purchase-report', ['only' => ['purchaseReport']]);
+        $this->middleware('permission:view stock-report', ['only' => ['stockHistory', 'stockReport']]);
+        $this->middleware('permission:view profit-loss-report', ['only' => ['profitLossReport']]);
+        $this->middleware('permission:view payment-report', ['only' => ['paymentReport']]);
+        $this->middleware('permission:view customer-report', ['only' => ['customerReport']]);
+        $this->middleware('permission:view supplier-report', ['only' => ['supplierReport']]);
+        $this->middleware('permission:export reports', ['only' => ['exportReport']]);
+    }
+
     public function stockHistory()
     {
         // Dummy data for stock history

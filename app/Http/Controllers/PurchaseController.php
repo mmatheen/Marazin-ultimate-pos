@@ -19,10 +19,10 @@ class PurchaseController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view purchase', ['only' => ['listPurchase']]);
-        $this->middleware('permission:add purchase', ['only' => ['AddPurchase']]);
-        $this->middleware('permission:create purchase', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'storeOrUpdate']]);
+        $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show']]);
+        $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
+        $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
+        $this->middleware('permission:delete purchase', ['only' => ['destroy']]);
     }
 
     public function listPurchase()

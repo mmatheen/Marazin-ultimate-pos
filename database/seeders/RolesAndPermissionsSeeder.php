@@ -16,14 +16,16 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Define Permissions with Groups
+        // Define Permissions with Groups - Complete System Permissions
         $permissions = [
-            // user management
+            // 1. Authentication & User Management
             '1. user-management' => [
                 'create user',
                 'edit user',
                 'view user',
-                'delete user'
+                'delete user',
+                'manage user profile',
+                'change user password'
             ],
 
             '2. role-management' => [
@@ -33,12 +35,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'delete role'
             ],
 
-            '3. role & permission-management' => [
-                'create role & permission',
-                'edit role & permission',
-                'view role & permission',
-                'delete role & permission'
+            '3. role-permission-management' => [
+                'create role-permission',
+                'edit role-permission',
+                'view role-permission',
+                'delete role-permission',
+                'assign permissions'
             ],
+
             '4. sales-commission-agent-management' => [
                 'create sales-commission-agent',
                 'edit sales-commission-agent',
@@ -46,19 +50,25 @@ class RolesAndPermissionsSeeder extends Seeder
                 'delete sales-commission-agent'
             ],
 
-            // contact management
+            // 2. Contact Management
             '5. supplier-management' => [
                 'create supplier',
                 'edit supplier',
                 'view supplier',
-                'delete supplier'
+                'delete supplier',
+                'import supplier',
+                'export supplier'
             ],
+
             '6. customer-management' => [
                 'create customer',
                 'edit customer',
                 'view customer',
-                'delete customer'
+                'delete customer',
+                'import customer',
+                'export customer'
             ],
+
             '7. customer-group-management' => [
                 'create customer-group',
                 'edit customer-group',
@@ -66,18 +76,21 @@ class RolesAndPermissionsSeeder extends Seeder
                 'delete customer-group'
             ],
 
-            // product management
+            // 3. Product Management
             '8. product-management' => [
                 'create product',
                 'add product',
                 'edit product',
                 'view product',
                 'delete product',
-                'Add & Edit Opening Stock product',
-                'product Full History',
-                'show one product details'
+                'import product',
+                'export product',
+                'view product history',
+                'manage opening stock',
+                'view product details',
+                'manage product variations',
+                'duplicate product'
             ],
-
 
             '9. unit-management' => [
                 'create unit',
@@ -85,6 +98,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view unit',
                 'delete unit'
             ],
+
             '10. brand-management' => [
                 'create brand',
                 'edit brand',
@@ -99,9 +113,9 @@ class RolesAndPermissionsSeeder extends Seeder
                 'delete main-category'
             ],
 
-            '12. sub-catagory-management' => [
+            '12. sub-category-management' => [
                 'create sub-category',
-                'edit sub-catagory',
+                'edit sub-category',
                 'view sub-category',
                 'delete sub-category'
             ],
@@ -112,119 +126,241 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view warranty',
                 'delete warranty'
             ],
-            '14. import-product-management' => [
-                'view import-product',
-                'create import-product'
+
+            '14. variation-management' => [
+                'create variation',
+                'edit variation',
+                'view variation',
+                'delete variation',
+                'create variation-title',
+                'edit variation-title',
+                'view variation-title',
+                'delete variation-title'
             ],
 
-            // sale management
+            // 4. Sales Management
             '15. sale-management' => [
-                'all sale',
-                'own sale',
-                'view sale',
-                'add sale',
+                'view all sales',
+                'view own sales',
+                'create sale',
                 'edit sale',
-                'pos page',
-
-
+                'delete sale',
+                'view sale details',
+                'access pos',
+                'print sale invoice',
+                'email sale invoice'
             ],
-            // sale-return management
+
             '16. sale-return-management' => [
-                'view return-sale',
-                'add return-sale'
+                'view sale-return',
+                'create sale-return',
+                'edit sale-return',
+                'delete sale-return',
+                'print return invoice'
             ],
-            // bulk-payment-management
-            '17. bulk-payment-management' => [
-                'add bulk sale payment',
-                'add bulk purchase payment'
+
+            '17. pos-management' => [
+                'access pos',
+                'create job-ticket',
+                'create quotation',
+                'save draft',
+                'suspend sale',
+                'credit sale',
+                'card payment',
+                'cheque payment',
+                'multiple payment methods',
+                'cash payment',
+                'discount application'
             ],
-            // purchase management
-            '18. product-purchase-management' => [
+
+            // 5. Purchase Management
+            '18. purchase-management' => [
                 'view purchase',
-                'add purchase',
                 'create purchase',
-                'edit purchase'
+                'edit purchase',
+                'delete purchase',
+                'print purchase order',
+                'email purchase order'
             ],
-            // purchase-return management
-            '19. product-purchase-return-management' => [
+
+            '19. purchase-return-management' => [
                 'view purchase-return',
-                'add purchase-return',
                 'create purchase-return',
-                'edit purchase-return'
+                'edit purchase-return',
+                'delete purchase-return'
             ],
-            // expenses management
-            '20. parent-expenses-management' => [
+
+            // 6. Payment Management
+            '20. payment-management' => [
+                'view payments',
+                'create payment',
+                'edit payment',
+                'delete payment',
+                'bulk sale payment',
+                'bulk purchase payment',
+                'view payment history'
+            ],
+
+            // 7. Expense Management
+            '21. parent-expense-management' => [
                 'create parent-expense',
                 'edit parent-expense',
                 'view parent-expense',
                 'delete parent-expense'
             ],
-            '21. child-expenses-management' => [
+
+            '22. child-expense-management' => [
                 'create child-expense',
                 'edit child-expense',
                 'view child-expense',
                 'delete child-expense'
             ],
-            // stock-transfer management
-            '22. stock-transfer-management' => [
+
+            // 8. Stock Management
+            '23. stock-transfer-management' => [
                 'view stock-transfer',
-                'add stock-transfer',
                 'create stock-transfer',
                 'edit stock-transfer',
-                'delete stock-transfer'
+                'delete stock-transfer',
+                'approve stock-transfer'
             ],
-            // stock-transfer management
-            '23. stock-adjustment-management' => [
+
+            '24. stock-adjustment-management' => [
                 'view stock-adjustment',
-                'add stock-adjustment',
                 'create stock-adjustment',
                 'edit stock-adjustment',
                 'delete stock-adjustment'
             ],
-            // setting management
-            '24. location-management' => [
+
+            '25. opening-stock-management' => [
+                'view opening-stock',
+                'create opening-stock',
+                'edit opening-stock',
+                'import opening-stock',
+                'export opening-stock'
+            ],
+
+            // 9. Inventory Management
+            '26. inventory-management' => [
+                'view inventory',
+                'adjust inventory',
+                'view stock levels',
+                'low stock alerts',
+                'batch management',
+                'imei management'
+            ],
+
+            // 10. Location Management
+            '27. location-management' => [
                 'create location',
                 'edit location',
                 'view location',
-                'delete location'
-            ],
-            // daily-report management
-            '25. daily-report-management' => [
-                'view daily-report'
-            ],
-            // daily-report management
-            '26. product-discount-management' => [
-                'view product-discount',
-                'create product-discount',
-                'edit product-discount',
-                'delete product-discount'
+                'delete location',
+                'manage location settings'
             ],
 
-            // pos button management
-            '27. pos-button-management' => [
-                'job ticket',
-                'quotation',
-                'draft',
-                'suspend',
-                'credit sale',
-                'card',
-                'cheque',
-                'multiple pay',
-                'cash',
-
+            // 11. Discount Management
+            '28. discount-management' => [
+                'view discount',
+                'create discount',
+                'edit discount',
+                'delete discount'
             ],
 
-            // sales rep management
-            '28. sales-rep-management' => [
+            // 12. Sales Rep Management
+            '29. sales-rep-management' => [
                 'view sales-rep',
                 'create sales-rep',
                 'edit sales-rep',
                 'delete sales-rep',
                 'assign routes',
                 'view assigned routes',
-                'manage sales targets'
+                'manage sales targets',
+                'view sales rep performance'
             ],
 
+            // 13. Route Management
+            '30. route-management' => [
+                'view routes',
+                'create route',
+                'edit route',
+                'delete route',
+                'assign cities to route'
+            ],
+
+            // 14. Vehicle Management
+            '31. vehicle-management' => [
+                'view vehicles',
+                'create vehicle',
+                'edit vehicle',
+                'delete vehicle',
+                'track vehicle',
+                'assign vehicle to location'
+            ],
+
+            // 15. Reports Management
+            '32. report-management' => [
+                'view daily-report',
+                'view sales-report',
+                'view purchase-report',
+                'view stock-report',
+                'view profit-loss-report',
+                'view payment-report',
+                'view customer-report',
+                'view supplier-report',
+                'view expense-report',
+                'export reports'
+            ],
+
+            // 16. Settings Management
+            '33. settings-management' => [
+                'view settings',
+                'edit business-settings',
+                'edit tax-settings',
+                'edit email-settings',
+                'edit sms-settings',
+                'backup database',
+                'restore database',
+                'manage currencies',
+                'manage selling-price-groups'
+            ],
+
+            // 17. Print & Label Management
+            '34. print-label-management' => [
+                'print product-labels',
+                'print barcodes',
+                'design labels',
+                'batch print labels'
+            ],
+
+            // 18. Dashboard Management
+            '35. dashboard-management' => [
+                'view dashboard',
+                'view sales-analytics',
+                'view purchase-analytics',
+                'view stock-analytics',
+                'view financial-overview'
+            ],
+
+            // 19. Import/Export Management
+            '36. import-export-management' => [
+                'import products',
+                'export products',
+                'import customers',
+                'export customers',
+                'import suppliers',
+                'export suppliers',
+                'import opening-stock',
+                'export opening-stock',
+                'download templates'
+            ],
+
+            // 20. Profile Management
+            '37. profile-management' => [
+                'view own-profile',
+                'edit own-profile',
+                'change own-password'
+            ]
         ];
 
         // Insert or update permissions first
@@ -245,58 +381,140 @@ class RolesAndPermissionsSeeder extends Seeder
         // Roles & give permissions
         $roles = [
             'Super Admin' => Permission::all()->pluck('name')->toArray(),
-            'Manager' => [
-                'view user',
-                'view role',
-                'view product',
-                'view sale',
-                'add sale',
-                'view purchase',
-                'view daily-report'
-            ],
-            'Cashier' => [
-                'pos page',
-                'add sale',
-                'view sale',
-                'add return-sale',
-                'view return-sale',
-                'job ticket',
-                'quotation',
-                'draft',
-                'suspend',
-                'credit sale',
-                'card',
-                'cheque',
-                'multiple pay',
-                'cash'
-            ],
+            
             'Admin' => [
-                'create user',
-                'edit user',
-                'view user',
-                'delete user',
-                'create role',
-                'edit role',
-                'view role',
-                'delete role',
-                'create product',
-                'edit product',
-                'view product',
-                'delete product',
-                'job ticket'
+                // User Management
+                'create user', 'edit user', 'view user', 'delete user',
+                'create role', 'edit role', 'view role', 'delete role',
+                'create role-permission', 'edit role-permission', 'view role-permission', 'delete role-permission',
+                
+                // Product Management
+                'create product', 'edit product', 'view product', 'delete product', 'import product', 'export product',
+                'create unit', 'edit unit', 'view unit', 'delete unit',
+                'create brand', 'edit brand', 'view brand', 'delete brand',
+                'create main-category', 'edit main-category', 'view main-category', 'delete main-category',
+                'create sub-category', 'edit sub-category', 'view sub-category', 'delete sub-category',
+                'create warranty', 'edit warranty', 'view warranty', 'delete warranty',
+                
+                // Contact Management
+                'create customer', 'edit customer', 'view customer', 'delete customer',
+                'create supplier', 'edit supplier', 'view supplier', 'delete supplier',
+                'create customer-group', 'edit customer-group', 'view customer-group', 'delete customer-group',
+                
+                // Sales & Purchase
+                'view all sales', 'create sale', 'edit sale', 'view sale details', 'access pos',
+                'view purchase', 'create purchase', 'edit purchase',
+                
+                // Location & Settings
+                'create location', 'edit location', 'view location', 'delete location',
+                'view settings', 'edit business-settings',
+                
+                // Reports
+                'view daily-report', 'view sales-report', 'view purchase-report', 'view dashboard'
             ],
+            
+            'Manager' => [
+                // View permissions for most modules
+                'view user', 'view role', 'view product', 'view customer', 'view supplier',
+                'view all sales', 'view purchase', 'view sale-return', 'view purchase-return',
+                'view stock-transfer', 'view stock-adjustment', 'view inventory',
+                
+                // Limited create/edit permissions
+                'create sale', 'edit sale', 'access pos',
+                'create customer', 'edit customer',
+                'create purchase', 'edit purchase',
+                
+                // Reports access
+                'view daily-report', 'view sales-report', 'view purchase-report', 
+                'view stock-report', 'view dashboard',
+                
+                // POS permissions
+                'access pos', 'cash payment', 'card payment', 'credit sale',
+                'create job-ticket', 'create quotation', 'save draft'
+            ],
+            
+            'Cashier' => [
+                // POS focused permissions
+                'access pos', 'create sale', 'view own sales',
+                'create sale-return', 'view sale-return',
+                'view product', 'view customer', 'create customer',
+                
+                // Payment methods
+                'cash payment', 'card payment', 'cheque payment', 'credit sale',
+                'multiple payment methods',
+                
+                // POS features
+                'create job-ticket', 'create quotation', 'save draft', 'suspend sale',
+                'discount application',
+                
+                // Limited inventory
+                'view inventory', 'view stock levels',
+                
+                // Profile
+                'view own-profile', 'edit own-profile', 'change own-password'
+            ],
+            
             'Sales Rep' => [
-                'view sale',
-                'add sale',
-                'pos page',
-                'view customer',
-                'create customer',
-                'edit customer',
-                'view product',
+                // Customer focused
+                'view customer', 'create customer', 'edit customer',
                 'view assigned routes',
-                'cash',
-                'card',
-                'credit sale'
+                
+                // Sales
+                'view own sales', 'create sale', 'access pos',
+                'cash payment', 'card payment', 'credit sale',
+                
+                // Products
+                'view product', 'view product details',
+                
+                // Limited POS
+                'access pos', 'save draft', 'suspend sale',
+                
+                // Profile
+                'view own-profile', 'edit own-profile', 'change own-password'
+            ],
+            
+            'Inventory Manager' => [
+                // Product management
+                'view product', 'create product', 'edit product',
+                'manage opening stock', 'import product', 'export product',
+                
+                // Stock management
+                'view stock-transfer', 'create stock-transfer', 'edit stock-transfer',
+                'view stock-adjustment', 'create stock-adjustment', 'edit stock-adjustment',
+                'view inventory', 'adjust inventory', 'view stock levels', 'batch management',
+                
+                // Purchase related
+                'view purchase', 'create purchase', 'edit purchase',
+                'view purchase-return', 'create purchase-return',
+                
+                // Suppliers
+                'view supplier', 'create supplier', 'edit supplier',
+                
+                // Reports
+                'view stock-report', 'view purchase-report', 'view dashboard'
+            ],
+            
+            'Accountant' => [
+                // Financial permissions
+                'view payments', 'create payment', 'edit payment',
+                'bulk sale payment', 'bulk purchase payment',
+                
+                // Expenses
+                'view parent-expense', 'create parent-expense', 'edit parent-expense',
+                'view child-expense', 'create child-expense', 'edit child-expense',
+                
+                // Sales & Purchase (view only)
+                'view all sales', 'view purchase', 'view sale-return', 'view purchase-return',
+                
+                // Reports
+                'view daily-report', 'view sales-report', 'view purchase-report',
+                'view profit-loss-report', 'view payment-report', 'export reports',
+                
+                // Customers & Suppliers (limited)
+                'view customer', 'view supplier',
+                
+                // Dashboard
+                'view dashboard', 'view financial-overview'
             ]
         ];
 

@@ -30,23 +30,25 @@ class SaleController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view sale', ['only' => ['listSale']]);
-        $this->middleware('permission:add sale', ['only' => ['addSale']]);
-        $this->middleware('permission:pos page', ['only' => ['pos']]);
-        $this->middleware('permission:edit sale', ['only' => ['editSale']]);
+        $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show']]);
+        $this->middleware('permission:create sale', ['only' => ['addSale', 'store']]);
+        $this->middleware('permission:access pos', ['only' => ['pos']]);
+        $this->middleware('permission:edit sale', ['only' => ['editSale', 'update']]);
+        $this->middleware('permission:delete sale', ['only' => ['destroy']]);
+        $this->middleware('permission:print sale invoice', ['only' => ['printInvoice']]);
 
         // Middleware for sale permissions
-        // If user has 'own sale', restrict to their own sales; otherwise, allow all sales
+        // If user has 'view own sales', restrict to their own sales; otherwise, allow all sales
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
-            if ($user && $user->can('own sale') && !$user->can('all sale')) {
+            if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
                 // Only allow access to own sales
                 Sale::addGlobalScope('own_sale', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
                 });
             }
             return $next($request);
-        })->only(['index']);
+        })->only(['index', 'listSale']);
     }
 
     public function listSale()

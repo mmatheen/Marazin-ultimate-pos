@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view settings', ['only' => ['index']]);
+        $this->middleware('permission:edit business-settings', ['only' => ['update']]);
+    }
+
     /**
      * Show the settings form
      */

@@ -361,6 +361,7 @@ class LocationController extends Controller
                 'city' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
                 'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
+                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
                 'vehicle_number' => [
                     'nullable',
                     'string',
@@ -398,6 +399,9 @@ class LocationController extends Controller
                 'location_id.regex' => 'Location ID must be in format LOC0001.',
                 'location_id.unique' => 'This Location ID is already taken.',
                 'vehicle_number.unique' => 'This vehicle number is already in use.',
+                'logo_image.image' => 'The logo must be an image file.',
+                'logo_image.mimes' => 'The logo must be a file of type: jpeg, jpg, png, gif.',
+                'logo_image.max' => 'The logo must not be greater than 2MB.',
             ]);
 
             if ($validator->fails()) {
@@ -422,10 +426,11 @@ class LocationController extends Controller
                     $logoImagePath = 'storage/location_logos/' . $filename;
                 }
 
-                $location->update([
-
+            try {
+                $updateData = [
                     'name' => $request->name,
                     'location_id' => $request->location_id,
+                    'parent_id' => $request->parent_id,
                     'address' => $request->address,
                     'province' => $request->province,
                     'district' => $request->district,
@@ -434,17 +439,14 @@ class LocationController extends Controller
                     'mobile' => $request->mobile,
                     'telephone_no' => $request->telephone_no,
                     'logo_image' => $logoImagePath,
-
-                ]);
-                return response()->json([
-                    'status' => 200,
-                    'message' => "Old Location  Details Updated Successfully!"
-                ]);
-            try {
-                $updateData = $validator->validated();
+                ];
                 
                 // Handle vehicle details based on parent_id
-                if (!$request->parent_id) {
+                if ($request->parent_id) {
+                    // Sublocation - add vehicle details
+                    $updateData['vehicle_number'] = $request->vehicle_number;
+                    $updateData['vehicle_type'] = $request->vehicle_type;
+                } else {
                     // Parent location - remove vehicle details
                     $updateData['vehicle_number'] = null;
                     $updateData['vehicle_type'] = null;

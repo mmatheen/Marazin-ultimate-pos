@@ -9,6 +9,14 @@ use Illuminate\Support\Facades\Validator;
 
 class VariationController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view variation', ['only' => ['index', 'show', 'variation']]);
+        $this->middleware('permission:create variation', ['only' => ['store']]);
+        $this->middleware('permission:edit variation', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete variation', ['only' => ['destroy']]);
+    }
+
     public function variation()
     {
         $variationTitles = VariationTitle::all(); // this course come from modal

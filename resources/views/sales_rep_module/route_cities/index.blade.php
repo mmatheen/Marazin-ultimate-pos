@@ -280,11 +280,22 @@
                     $('#routeCitiesTable').DataTable().destroy();
                 }
                 table = $('#routeCitiesTable').DataTable({
-                    processing: true,
+                    processing: false,
                     serverSide: false,
                     ajax: {
                         url: "{{ url('/api/route-cities') }}",
-                        dataSrc: "data"
+                        dataSrc: "data",
+                        error: function(xhr) {
+                            console.log('Error loading route cities:', xhr);
+                            // Don't show toastr error, let table show "No data available"
+                            return [];
+                        }
+                    },
+                    language: {
+                        emptyTable: "No route cities found",
+                        zeroRecords: "No route cities found",
+                        loadingRecords: "",
+                        processing: ""
                     },
                     columns: [{
                             data: 'route_name',

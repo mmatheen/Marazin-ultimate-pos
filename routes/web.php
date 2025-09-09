@@ -42,7 +42,8 @@ use App\Http\Controllers\{
     PaymentController,
     DiscountController,
     ReportController,
-    SettingController
+    SettingController,
+    PermissionsDemoController
 };
 use App\Http\Controllers\Web\{
     VehicleController,
@@ -516,4 +517,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             });
         }
     });
+});
+
+// -------------------- Permissions Demo Routes --------------------
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/permissions-demo', [PermissionsDemoController::class, 'index'])->name('permissions.demo');
+    Route::get('/test-permissions-ajax', [PermissionsDemoController::class, 'testPermissionsAjax'])->name('permissions.test.ajax');
 });

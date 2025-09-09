@@ -19,10 +19,10 @@ class PurchaseReturnController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view purchase-return', ['only' => ['purchaseReturn']]);
-        $this->middleware('permission:add purchase-return', ['only' => ['addPurchaseReturn']]);
-        $this->middleware('permission:create purchase-return', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit purchase-return', ['only' => ['edit','storeOrUpdate']]);
+        $this->middleware('permission:view purchase-return', ['only' => ['purchaseReturn', 'index', 'show']]);
+        $this->middleware('permission:create purchase-return', ['only' => ['addPurchaseReturn', 'store', 'storeOrUpdate']]);
+        $this->middleware('permission:edit purchase-return', ['only' => ['edit', 'update', 'storeOrUpdate']]);
+        $this->middleware('permission:delete purchase-return', ['only' => ['destroy']]);
     }
 
     public function purchaseReturn()

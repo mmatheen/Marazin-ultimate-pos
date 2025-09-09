@@ -15,6 +15,15 @@ use App\Exports\ExportOpeningStockTemplate;
 
 class OpeningStockController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view opening-stock', ['only' => ['index', 'show']]);
+        $this->middleware('permission:create opening-stock', ['only' => ['importOpeningStock', 'store', 'import']]);
+        $this->middleware('permission:edit opening-stock', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:import opening-stock', ['only' => ['importOpeningStock', 'downloadTemplate', 'import']]);
+        $this->middleware('permission:export opening-stock', ['only' => ['export', 'exportOpeningStock']]);
+    }
+
     public function importOpeningStock(){
         $locations = Location::all();
         $products = Product::all();

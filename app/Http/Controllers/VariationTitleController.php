@@ -8,6 +8,14 @@ use Illuminate\Support\Facades\Validator;
 
 class VariationTitleController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view variation-title', ['only' => ['index', 'show', 'variationTitle']]);
+        $this->middleware('permission:create variation-title', ['only' => ['store']]);
+        $this->middleware('permission:edit variation-title', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete variation-title', ['only' => ['destroy']]);
+    }
+
     public function variationTitle(){
 
         return  view('variation.variation_title.variation_title');

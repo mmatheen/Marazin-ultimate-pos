@@ -301,6 +301,10 @@
                     {
                         data: 'mobile'
                     },
+                    {
+                        data: 'logo_url',
+                        render: data => data ? `<img src="${data}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">` : '—'
+                    },
 
                     {
                         data: null,
@@ -350,6 +354,11 @@
                         $('#edit_telephone_no').val(d.telephone_no);
                         $('#edit_vehicle_number').val(d.vehicle_number || '');
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
+                        
+                        // Display existing logo if available
+                        if (d.logo_url) {
+                            $('#logo_preview').html('<img src="' + d.logo_url + '" alt="Current Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">');
+                        }
                         
                         // Show/hide vehicle details based on parent_id
                         toggleVehicleDetails();

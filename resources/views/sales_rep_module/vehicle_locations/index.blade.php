@@ -192,7 +192,7 @@
 
             // --- Initialize DataTable ---
             const table = $('#vehicleLocationsTable').DataTable({
-                processing: true,
+                processing: false,
                 serverSide: false,
                 ajax: {
                     url: "/api/vehicle-locations",
@@ -205,8 +205,16 @@
                         }
                     },
                     error: function(xhr) {
-                        toastr.error(xhr.responseJSON?.message || 'Failed to load vehicle locations.');
+                        console.log('Error loading vehicle locations:', xhr);
+                        // Don't show toastr error, let table show "No data available"
+                        return [];
                     }
+                },
+                language: {
+                    emptyTable: "No vehicle locations found",
+                    zeroRecords: "No vehicle locations found",
+                    loadingRecords: "",
+                    processing: ""
                 },
                 columns: [{
                         data: 'id'

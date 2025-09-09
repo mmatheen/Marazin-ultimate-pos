@@ -14,10 +14,9 @@ class StockTransferController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view stock-transfer', ['only' => ['index', 'stockTransfer']]);
-        $this->middleware('permission:add stock-transfer', ['only' => ['addStockTransfer']]);
-        $this->middleware('permission:create stock-transfer', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit stock-transfer', ['only' => ['edit']]);
+        $this->middleware('permission:view stock-transfer', ['only' => ['index', 'stockTransfer', 'show']]);
+        $this->middleware('permission:create stock-transfer', ['only' => ['addStockTransfer', 'store', 'storeOrUpdate']]);
+        $this->middleware('permission:edit stock-transfer', ['only' => ['edit', 'update', 'storeOrUpdate']]);
         $this->middleware('permission:delete stock-transfer', ['only' => ['destroy']]);
     }
 

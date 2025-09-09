@@ -30,6 +30,17 @@ use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view product', ['only' => ['index', 'show', 'product', 'getStockHistory']]);
+        $this->middleware('permission:create product', ['only' => ['store', 'addProduct']]);
+        $this->middleware('permission:edit product', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete product', ['only' => ['destroy']]);
+        $this->middleware('permission:import product', ['only' => ['importProduct', 'downloadProductImportTemplate']]);
+        $this->middleware('permission:export product', ['only' => ['exportProduct']]);
+        $this->middleware('permission:duplicate product', ['only' => ['duplicateProduct']]);
+    }
+
     public function product()
     {
         return view('product.product');

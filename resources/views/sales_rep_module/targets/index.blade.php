@@ -141,19 +141,23 @@
 
             // --- Initialize DataTable ---
             const table = $('#targetsTable').DataTable({
-                processing: true,
+                processing: false,
                 serverSide: false,
                 ajax: {
                     url: "{{ url('/api/sales-rep-targets') }}",
                     type: "GET",
                     dataSrc: "data",
                     error: function(xhr) {
-                        let message = 'Failed to load sales targets.';
-                        if (xhr.responseJSON?.message) {
-                            message = xhr.responseJSON.message;
-                        }
-                        toastr.error(message);
+                        console.log('Error loading sales targets:', xhr);
+                        // Don't show toastr error, let table show "No data available"
+                        return [];
                     }
+                },
+                language: {
+                    emptyTable: "No sales targets found",
+                    zeroRecords: "No sales targets found",
+                    loadingRecords: "",
+                    processing: ""
                 },
                 columns: [{
                         data: 'id'

@@ -18,6 +18,16 @@ use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
+        $this->middleware('permission:create payment', ['only' => ['store', 'addSaleBulkPayments', 'addPurchaseBulkPayments']]);
+        $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete payment', ['only' => ['destroy']]);
+        $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments']]);
+        $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments']]);
+    }
+
     public function index()
     {
         $payments = Payment::all();

@@ -16,10 +16,10 @@ class StockAdjustmentController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view stock-adjustment', ['only' => ['index', 'stockAdjustmentList']]);
-        $this->middleware('permission:add stock-adjustment', ['only' => ['addStockAdjustment']]);
-        $this->middleware('permission:create stock-adjustment', ['only' => ['storeOrUpdate']]);
-        $this->middleware('permission:edit stock-adjustment', ['only' => ['edit', 'storeOrUpdate']]);
+        $this->middleware('permission:view stock-adjustment', ['only' => ['index', 'stockAdjustmentList', 'show']]);
+        $this->middleware('permission:create stock-adjustment', ['only' => ['addStockAdjustment', 'store', 'storeOrUpdate']]);
+        $this->middleware('permission:edit stock-adjustment', ['only' => ['edit', 'update', 'storeOrUpdate']]);
+        $this->middleware('permission:delete stock-adjustment', ['only' => ['destroy']]);
     }
 
     public function index()

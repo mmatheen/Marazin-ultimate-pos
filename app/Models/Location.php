@@ -27,6 +27,8 @@ class Location extends Model
         'vehicle_type',
     ];
 
+    protected $appends = ['logo_url'];
+
     public function parent()
     {
         return $this->belongsTo(Location::class, 'parent_id');
@@ -93,6 +95,17 @@ class Location extends Model
         }
 
         return $prefix;
+    }
+
+    /**
+     * Get the logo URL attribute
+     */
+    public function getLogoUrlAttribute()
+    {
+        if ($this->logo_image) {
+            return asset($this->logo_image);
+        }
+        return null;
     }
 
     /**

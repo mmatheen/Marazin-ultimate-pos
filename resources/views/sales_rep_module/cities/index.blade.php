@@ -182,19 +182,23 @@
 
             // --- Initialize DataTable ---
             const table = $('#citiesTable').DataTable({
-                processing: true,
+                processing: false,
                 serverSide: false,
                 ajax: {
                     url: "{{ url('/api/cities') }}",
                     type: "GET",
                     dataSrc: "data",
                     error: function(xhr) {
-                        let message = 'Failed to load cities.';
-                        if (xhr.responseJSON?.message) {
-                            message = xhr.responseJSON.message;
-                        }
-                        toastr.error(message);
+                        console.log('Error loading cities:', xhr);
+                        // Don't show toastr error, let table show "No data available"
+                        return [];
                     }
+                },
+                language: {
+                    emptyTable: "No cities found",
+                    zeroRecords: "No cities found",
+                    loadingRecords: "",
+                    processing: ""
                 },
                 columns: [{
                         data: 'id'

@@ -6,9 +6,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
-
-
 {
+    function __construct()
+    {
+        $this->middleware('permission:view dashboard', ['only' => ['index', 'getDashboardData']]);
+        $this->middleware('permission:view sales-analytics', ['only' => ['getSalesAnalytics']]);
+        $this->middleware('permission:view purchase-analytics', ['only' => ['getPurchaseAnalytics']]);
+        $this->middleware('permission:view stock-analytics', ['only' => ['getStockAnalytics']]);
+        $this->middleware('permission:view financial-overview', ['only' => ['getFinancialOverview']]);
+    }
 
    
     public function index()

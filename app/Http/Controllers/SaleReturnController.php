@@ -19,8 +19,10 @@ class SaleReturnController extends Controller
 {
     function __construct()
     {
-        $this->middleware('permission:view return-sale', ['only' => ['listSaleReturn']]);
-        $this->middleware('permission:add return-sale', ['only' => ['addSaleReturn']]);
+        $this->middleware('permission:view sale-return', ['only' => ['listSaleReturn', 'index', 'show']]);
+        $this->middleware('permission:create sale-return', ['only' => ['addSaleReturn', 'store']]);
+        $this->middleware('permission:edit sale-return', ['only' => ['edit', 'update']]);
+        $this->middleware('permission:delete sale-return', ['only' => ['destroy']]);
     }
 
     /**
