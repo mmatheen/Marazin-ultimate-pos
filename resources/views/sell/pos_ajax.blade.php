@@ -3112,6 +3112,12 @@
                 .toFixed(2));
             document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
                 totalAmountWithDiscount.toFixed(2));
+            
+            // Update modal total payable for payment modal
+            const modalTotalPayableElement = document.getElementById('modal-total-payable');
+            if (modalTotalPayableElement) {
+                modalTotalPayableElement.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+            }
         }
 
         // Price validation and editability management
@@ -4189,7 +4195,14 @@
                 return paymentData;
             }
 
-
+            // Add event listener for payment modal to ensure correct total is displayed
+            const paymentModal = document.getElementById('paymentModal');
+            if (paymentModal) {
+                paymentModal.addEventListener('show.bs.modal', function() {
+                    // Update modal total payable when modal is opened
+                    updateTotals();
+                });
+            }
 
             function fetchSuspendedSales() {
                 $.ajax({

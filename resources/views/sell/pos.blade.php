@@ -2335,7 +2335,7 @@
             const totalItems = fetchTotalItems();
             const totalAmount = fetchTotalAmount();
             // Apply discount if any
-            const discount = parseFloat((document.getElementById('discount') && document.getElementById('discount')
+            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById('global-discount')
                 .value) || 0);
             const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
                 .value) || 'fixed';
@@ -2397,7 +2397,15 @@
             document.getElementById('paymentForm').reset();
             document.getElementById('paymentRows').innerHTML = ''; // Clear all rows
             // Set default first cash row
-            const defaultAmount = fetchTotalAmount();
+            const totalAmount = fetchTotalAmount();
+            // Apply global discount to get the actual payable amount
+            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById('global-discount')
+                .value) || 0);
+            const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
+                .value) || 'fixed';
+            const defaultAmount = discountType === 'percentage' ?
+                totalAmount - (totalAmount * discount / 100) :
+                totalAmount - discount;
             const defaultRow = document.createElement('div');
             defaultRow.className = 'card mb-3 payment-row position-relative';
             defaultRow.innerHTML = `
