@@ -27,7 +27,18 @@ class UserController extends Controller
 
     public function index()
     {
-        $users = User::with(['roles', 'locations'])->get();
+        // Get users that current user can see based on hierarchy
+        $user = auth()->user();
+        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        if ($isMasterSuperAdmin) {
+            $users = User::with(['roles', 'locations'])->get();
+        } else {
+            // Non-Master Super Admin users cannot see Master Super Admin users
+            $users = User::whereDoesntHave('roles', function($query) {
+                $query->where('name', 'Master Super Admin');
+            })->with(['roles', 'locations'])->get();
+        }
 
         if ($users->isNotEmpty()) {
             return response()->json([
@@ -213,22 +224,57 @@ class UserController extends Controller
 
     public function destroy(int $id)
     {
-        $user = User::find($id);
+        $currentUser = auth()->user();
+        $userToDelete = User::find($id);
 
-        if ($user) {
-            $user->roles()->detach();
-            $user->locations()->detach();
-            $user->delete();
-
-            return response()->json([
-                'status' => 200,
-                'message' => "User Deleted Successfully!"
-            ]);
-        } else {
+        if (!$userToDelete) {
             return response()->json([
                 'status' => 404,
                 'message' => "No Such User Found!"
-            ]);
+            ], 404);
         }
+
+        // Prevent self-deletion
+        if ($currentUser->id === $userToDelete->id) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You cannot delete your own account! This would cause system access issues."
+            ], 403);
+        }
+
+        // Prevent deletion of Master Super Admin by non-Master Super Admin users
+        $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $targetUserIsMasterSuperAdmin = $userToDelete->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to delete Master Super Admin users."
+            ], 403);
+        }
+
+        // Prevent deletion of the last Master Super Admin
+        if ($targetUserIsMasterSuperAdmin) {
+            $masterSuperAdminCount = User::whereHas('roles', function($query) {
+                $query->where('name', 'Master Super Admin');
+            })->count();
+            
+            if ($masterSuperAdminCount <= 1) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => "Cannot delete the last Master Super Admin user. This would make the system inaccessible."
+                ], 403);
+            }
+        }
+
+        // Proceed with deletion
+        $userToDelete->roles()->detach();
+        $userToDelete->locations()->detach();
+        $userToDelete->delete();
+
+        return response()->json([
+            'status' => 200,
+            'message' => "User Deleted Successfully!"
+        ]);
     }
 }

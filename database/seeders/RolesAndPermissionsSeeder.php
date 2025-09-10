@@ -360,6 +360,25 @@ class RolesAndPermissionsSeeder extends Seeder
                 'view own-profile',
                 'edit own-profile',
                 'change own-password'
+            ],
+
+            // 21. Master Admin Management (Only for Master Super Admin)
+            '38. master-admin-management' => [
+                'access master admin panel',
+                'manage all locations',
+                'create super admin',
+                'edit super admin',
+                'delete super admin',
+                'view all shops data',
+                'system wide reports',
+                'global settings',
+                'manage system backups',
+                'view system logs',
+                'manage master permissions',
+                'override location scope',
+                'manage system roles',
+                'access production database',
+                'manage system maintenance'
             ]
         ];
 
@@ -380,7 +399,30 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Roles & give permissions
         $roles = [
-            'Super Admin' => Permission::all()->pluck('name')->toArray(),
+            // MASTER SUPER ADMIN - Has ALL permissions and cannot be restricted
+            'Master Super Admin' => Permission::all()->pluck('name')->toArray(),
+            
+            // REGULAR SUPER ADMIN - Can be customized per shop/location (excludes master admin permissions)
+            'Super Admin' => array_filter(Permission::all()->pluck('name')->toArray(), function($permission) {
+                $masterAdminPermissions = [
+                    'access master admin panel',
+                    'manage all locations', 
+                    'create super admin',
+                    'edit super admin',
+                    'delete super admin',
+                    'view all shops data',
+                    'system wide reports',
+                    'global settings',
+                    'manage system backups',
+                    'view system logs',
+                    'manage master permissions',
+                    'override location scope',
+                    'manage system roles',
+                    'access production database',
+                    'manage system maintenance'
+                ];
+                return !in_array($permission, $masterAdminPermissions);
+            }),
             
             'Admin' => [
                 // User Management
@@ -532,6 +574,26 @@ class RolesAndPermissionsSeeder extends Seeder
             // Update key if it doesn't exist
             if (!$role->key) {
                 $role->update(['key' => $roleKey]);
+            }
+            
+            // Set special flags for Master Super Admin
+            if ($roleName === 'Master Super Admin') {
+                $role->update([
+                    'key' => $roleKey,
+                    'is_system_role' => true,
+                    'is_master_role' => true,
+                    'bypass_location_scope' => true
+                ]);
+            }
+            
+            // Set flags for regular Super Admin (can be restricted per location)
+            if ($roleName === 'Super Admin') {
+                $role->update([
+                    'key' => $roleKey,
+                    'is_system_role' => false,
+                    'is_master_role' => false,
+                    'bypass_location_scope' => false // Can be changed per shop
+                ]);
             }
             
             $role->syncPermissions($rolePermissions);

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Traits\LocationTrait;
+use App\Traits\RolePermissionHelper;
 
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
@@ -32,7 +33,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles, LogsActivity, RolePermissionHelper;
 
     /**
      * The attributes that are mass assignable.
@@ -140,5 +141,25 @@ class User extends Authenticatable
     public function getRoleName(): ?string
     {
         return $this->roles->first()?->name;
+    }
+
+    /**
+     * Check if user has permission (includes Master Super Admin logic)
+     */
+    public function hasPermission($permission, $guardName = null): bool
+    {
+        if ($this->isMasterSuperAdmin()) {
+            return true; // Master Super Admin has all permissions
+        }
+
+        return $this->hasPermissionTo($permission, $guardName);
+    }
+
+    /**
+     * Check if user should bypass location scope
+     */
+    public function shouldBypassLocationScope(): bool
+    {
+        return $this->canBypassLocationScope();
     }
 }

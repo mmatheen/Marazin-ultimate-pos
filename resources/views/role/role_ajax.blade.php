@@ -210,15 +210,23 @@
 
 
         // Delete Role
-        $(document).on('click', '.delete_btn', function() {
+        $(document).off('click', '.delete_btn').on('click', '.delete_btn', function() {
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);
             $('#deleteName').text('Delete Role');
         });
 
-        $(document).on('click', '.confirm_delete_btn', function() {
+        $(document).off('click', '.confirm_delete_btn').on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
+            
+            // Prevent multiple clicks
+            if ($(this).data('processing')) {
+                return false;
+            }
+            
+            $(this).data('processing', true);
+            
             $.ajax({
                 url: 'role-delete/' + id,
                 type: 'delete',
@@ -244,6 +252,39 @@
                         };
                         toastr.success(response.message, 'Deleted');
                     }
+                },
+                error: function(xhr, status, error) {
+                    $('#deleteModal').modal('hide');
+                    
+                    // Reset processing flag
+                    $('.confirm_delete_btn').data('processing', false);
+                    
+                    // Clear any existing toastr messages first
+                    toastr.clear();
+                    
+                    var errorMessage = 'An error occurred while deleting the role.';
+                    
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    
+                    toastr.options = {
+                        "closeButton": true,
+                        "positionClass": "toast-top-right",
+                        "timeOut": 5000
+                    };
+                    
+                    if (xhr.status === 403) {
+                        toastr.warning(errorMessage, 'Access Denied');
+                    } else if (xhr.status === 404) {
+                        toastr.error(errorMessage, 'Not Found');
+                    } else {
+                        toastr.error(errorMessage, 'Error');
+                    }
+                },
+                complete: function() {
+                    // Reset processing flag when request completes
+                    $('.confirm_delete_btn').data('processing', false);
                 }
             });
         });

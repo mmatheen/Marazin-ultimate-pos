@@ -23,6 +23,16 @@ class UserSeeder extends Seeder
         $users = [
             [
                 'name_title' => 'Mr',
+                'full_name' => 'Master Super Admin',
+                'user_name' => 'masteradmin',
+                'is_admin' => true,
+                'email' => 'masteradmin@gmail.com',
+                'password' => 'master1234',
+                'role' => 'Master Super Admin',
+                'locations' => [] // Master Super Admin has access to all locations by default
+            ],
+            [
+                'name_title' => 'Mr',
                 'full_name' => 'Super Admin',
                 'user_name' => 'admin',
                 'is_admin' => true,
@@ -50,7 +60,10 @@ class UserSeeder extends Seeder
             $user->assignRole($userData['role']);
 
             // Attach locations via pivot table
-            if ($userData['role'] === 'Super Admin') {
+            if ($userData['role'] === 'Master Super Admin') {
+                // Master Super Admin gets access to all locations automatically (no need to attach)
+                // Location scope will be bypassed for Master Super Admin
+            } elseif ($userData['role'] === 'Super Admin') {
                 // Super Admin gets access to all locations
                 $user->locations()->attach($allLocations->values());
             } else {
