@@ -639,7 +639,8 @@ class SaleController extends Controller
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $user = User::find($sale->user_id);
-            $location = $user ? $user->locations()->first() : null;
+            // Use the location from the sale, not from user's first location
+            $location = $sale->location;
 
         $viewData = [
             'sale' => $sale,
@@ -1412,8 +1413,8 @@ class SaleController extends Controller
             // Fetch the user associated with the sale
             $user = User::find($sale->user_id);
 
-            // Fetch the first location associated with the user
-            $location = $user ? $user->locations()->first() : null;
+            // Use the location from the sale, not from user's first location
+            $location = $sale->location;
 
             $html = view('sell.receipt', [
                 'sale' => $sale,
