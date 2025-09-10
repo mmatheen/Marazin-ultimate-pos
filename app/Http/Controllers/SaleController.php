@@ -40,6 +40,7 @@ class SaleController extends Controller
         // Middleware for sale permissions
         // If user has 'view own sales', restrict to their own sales; otherwise, allow all sales
         $this->middleware(function ($request, $next) {
+            /** @var \App\Models\User|null $user */
             $user = auth()->user();
             if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
                 // Only allow access to own sales

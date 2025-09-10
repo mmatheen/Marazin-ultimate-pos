@@ -37,10 +37,11 @@ class SaleController extends Controller
         $this->middleware('permission:edit sale', ['only' => ['editSale']]);
 
         // Middleware for sale permissions
-        // If user has 'own sale', restrict to their own sales; otherwise, allow all sales
+        // If user has 'view own sales', restrict to their own sales; otherwise, allow all sales
         $this->middleware(function ($request, $next) {
+            /** @var \App\Models\User|null $user */
             $user = auth()->user();
-            if ($user && $user->can('own sale') && !$user->can('all sale')) {
+            if ($user && $user->can('view own sales') && !$user->can('view all sales')) {
                 // Only allow access to own sales
                 Sale::addGlobalScope('own_sale', function ($query) use ($user) {
                     $query->where('user_id', $user->id);
