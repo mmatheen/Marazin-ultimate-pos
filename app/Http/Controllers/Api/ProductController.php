@@ -794,6 +794,7 @@ class ProductController extends Controller
             $filterProductName = $request->input('product_name');
             $filterCategory = $request->input('main_category_id');
             $filterBrand = $request->input('brand_id');
+            $locationId = $request->input('location_id'); // Add location filter
 
             // Build product query
             $query = Product::select([
@@ -838,7 +839,10 @@ class ProductController extends Controller
                             'expiry_date'
                         ]);
                     },
-                    'batches.locationBatches' => function ($query) {
+                    'batches.locationBatches' => function ($query) use ($locationId) {
+                        if ($locationId) {
+                            $query->where('location_id', $locationId);
+                        }
                         $query->select(['id', 'batch_id', 'location_id', 'qty'])
                             ->with('location:id,name');
                     }
@@ -892,11 +896,15 @@ class ProductController extends Controller
             // Get product IDs for batch and IMEI filtering
             $productIds = $products->pluck('id');
 
-            // Load IMEIs grouped by product ID
-            $imeis = ImeiNumber::whereIn('product_id', $productIds)
-                ->with(['location:id,name'])
-                ->get()
-                ->groupBy('product_id');
+            // Load IMEIs grouped by product ID (filter by location if specified)
+            $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
+                ->with(['location:id,name']);
+            
+            if ($locationId) {
+                $imeisQuery->where('location_id', $locationId);
+            }
+            
+            $imeis = $imeisQuery->get()->groupBy('product_id');
 
             // Prepare response data
             $productStocks = [];
@@ -904,21 +912,40 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $productBatches = $product->batches;
 
-                // Filter batches with locationBatches
-                $filteredBatches = $productBatches->filter(function ($batch) {
-                    return $batch->locationBatches->isNotEmpty();
+                // Filter batches with locationBatches based on location filter
+                $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
+                    if ($locationId) {
+                        // If location is specified, only include batches that have stock in that location
+                        return $batch->locationBatches->isNotEmpty() && 
+                               $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
+                    } else {
+                        // If no location specified, include all batches with any location stock
+                        return $batch->locationBatches->isNotEmpty();
+                    }
                 });
 
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
-                // Calculate total stock (decimal or integer based on allow_decimal)
-                $totalStock = $filteredBatches->sum(
-                    fn($batch) =>
-                    $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
-                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
-                    })
-                );
+                // Calculate total stock based on location filter
+                if ($locationId) {
+                    // Calculate stock only for the specified location
+                    $totalStock = $filteredBatches->sum(
+                        fn($batch) =>
+                        $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
+                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                        })
+                    );
+                } else {
+                    // Calculate total stock across all locations
+                    $totalStock = $filteredBatches->sum(
+                        fn($batch) =>
+                        $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
+                            return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                        })
+                    );
+                }
+                
                 if ($allowDecimal) {
                     $totalStock = round($totalStock, 2);
                 } else {
@@ -986,7 +1013,12 @@ class ProductController extends Controller
                         'max_retail_price' => $product->max_retail_price,
                     ],
                     'total_stock' => $totalStock,
-                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
+                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
+                        // Filter location batches based on location filter
+                        $locationBatches = $locationId 
+                            ? $batch->locationBatches->where('location_id', $locationId)
+                            : $batch->locationBatches;
+
                         return [
                             'id' => $batch->id,
                             'batch_no' => $batch->batch_no,
@@ -997,9 +1029,9 @@ class ProductController extends Controller
                             'max_retail_price' => $batch->max_retail_price,
                             'expiry_date' => $batch->expiry_date,
                             'total_batch_quantity' => $allowDecimal
-                                ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                                : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
-                            'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
+                                ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
+                                : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                            'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
@@ -1101,30 +1133,50 @@ class ProductController extends Controller
 
         // Get product IDs for IMEI filtering
         $productIds = $products->pluck('id');
-        $imeis = ImeiNumber::whereIn('product_id', $productIds)
-            ->with(['location:id,name'])
-            ->get()
-            ->groupBy('product_id');
+        $imeisQuery = ImeiNumber::whereIn('product_id', $productIds)
+            ->with(['location:id,name']);
+            
+        if ($locationId) {
+            $imeisQuery->where('location_id', $locationId);
+        }
+        
+        $imeis = $imeisQuery->get()->groupBy('product_id');
 
         $results = $products->map(function ($product) use ($locationId, $imeis) {
             $productBatches = $product->batches;
 
-            // Filter batches with locationBatches
-            $filteredBatches = $productBatches->filter(function ($batch) {
-                return $batch->locationBatches->isNotEmpty();
+            // Filter batches with locationBatches based on location filter
+            $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
+                if ($locationId) {
+                    // If location is specified, only include batches that have stock in that location
+                    return $batch->locationBatches->isNotEmpty() && 
+                           $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
+                } else {
+                    // If no location specified, include all batches with any location stock
+                    return $batch->locationBatches->isNotEmpty();
+                }
             });
 
             // Determine if allow_decimal is true for this product's unit
             $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
             // Calculate total stock (for the location if provided)
-            $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
-                return $batch->locationBatches->filter(function ($lb) use ($locationId) {
-                    return !$locationId || $lb->location_id == $locationId;
-                })->sum(function ($lb) use ($allowDecimal) {
-                    return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+            if ($locationId) {
+                // Calculate stock only for the specified location
+                $totalStock = $filteredBatches->sum(function ($batch) use ($locationId, $allowDecimal) {
+                    return $batch->locationBatches->where('location_id', $locationId)->sum(function ($lb) use ($allowDecimal) {
+                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                    });
                 });
-            });
+            } else {
+                // Calculate total stock across all locations
+                $totalStock = $filteredBatches->sum(function ($batch) use ($allowDecimal) {
+                    return $batch->locationBatches->sum(function ($lb) use ($allowDecimal) {
+                        return $allowDecimal ? (float)$lb->qty : (int)$lb->qty;
+                    });
+                });
+            }
+            
             if ($allowDecimal) {
                 $totalStock = round($totalStock, 2);
             } else {
@@ -1191,7 +1243,12 @@ class ProductController extends Controller
                     'max_retail_price' => $product->max_retail_price,
                 ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
-                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
+                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
+                    // Filter location batches based on location filter
+                    $locationBatches = $locationId 
+                        ? $batch->locationBatches->where('location_id', $locationId)
+                        : $batch->locationBatches;
+
                     return [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
@@ -1202,9 +1259,9 @@ class ProductController extends Controller
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
                         'total_batch_quantity' => $allowDecimal
-                            ? round($batch->locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                            : (int)$batch->locationBatches->sum(fn($lb) => (int)$lb->qty),
-                        'location_batches' => $batch->locationBatches->map(function ($lb) use ($allowDecimal) {
+                            ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
+                            : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                        'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                             return [
                                 'batch_id' => $lb->batch_id,
                                 'location_id' => $lb->location_id,

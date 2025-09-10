@@ -135,6 +135,10 @@
             populateDropdown('#edit_brand_id', brands, 'name');
             populateDropdown('#edit_unit_id', units, 'name');
             populateDropdown('#edit_location_id', locations, 'name');
+            
+            // Populate location filter dropdown
+            populateDropdown('#locationFilter', locations, 'name');
+            
             if (callback) callback();
         }
 
@@ -430,13 +434,19 @@
             const productNameFilter = $('#productNameFilter');
             const categoryFilter = $('#categoryFilter');
             const brandFilter = $('#brandFilter');
+            const locationFilter = $('#locationFilter');
+            
             const productNames = [...new Set(pageData.map(item => item.product.product_name))];
             const categories = [...new Set(pageData.map(item => item.product.main_category_id))];
             const brands = [...new Set(pageData.map(item => item.product.brand_id))];
+            const locations = [...new Set(pageData.flatMap(item => item.locations.map(loc => loc.id)))];
 
             productNameFilter.empty().append('<option value="">Select Product</option>');
             categoryFilter.empty().append('<option value="">Select Category</option>');
             brandFilter.empty().append('<option value="">Select Brand</option>');
+            
+            // Don't clear location filter as it's populated from initial data
+            // locationFilter.empty().append('<option value="">Select Location</option>');
 
             productNames.forEach(name => {
                 productNameFilter.append(`<option value="${name}">${name}</option>`);
@@ -449,6 +459,12 @@
                 if (brandMap[brand]) brandFilter.append(
                     `<option value="${brand}">${brandMap[brand]}</option>`);
             });
+            
+            // Optionally filter locations based on current page data - but keep all for better UX
+            // locations.forEach(locationId => {
+            //     if (locationMap[locationId]) locationFilter.append(
+            //         `<option value="${locationId}">${locationMap[locationId]}</option>`);
+            // });
         }
 
         function buildActionsDropdown(row) {
@@ -499,7 +515,8 @@
                         // Custom filters
                         product_name: $('#productNameFilter').val(),
                         main_category_id: $('#categoryFilter').val(),
-                        brand_id: $('#brandFilter').val()
+                        brand_id: $('#brandFilter').val(),
+                        location_id: $('#locationFilter').val()
                     };
 
                     $.ajax({
@@ -737,7 +754,7 @@
         }
 
         // On filter change, reload DataTable (triggers ajax with filters)
-        $('#productNameFilter, #categoryFilter, #brandFilter').on('change', function() {
+        $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
             if ($.fn.DataTable.isDataTable('#productTable')) {
                 $('#productTable').DataTable().ajax.reload();
             }

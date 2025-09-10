@@ -72,7 +72,7 @@
 
         // Listen for customer changes to update pricing
         $('#customer-id').on('change', function() {
-            // Clear current billing if there are products and customer type changed
+            // Update pricing for existing products in billing table
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
             
@@ -80,8 +80,10 @@
                 const currentCustomer = getCurrentCustomer();
                 console.log('Customer changed to:', currentCustomer);
                 
-                // Show warning that prices will be recalculated
-                toastr.info(`Customer type changed to ${currentCustomer.customer_type}. Add products again to apply correct pricing.`, 'Customer Type Changed');
+                // Update all existing billing rows with new customer pricing
+                updateAllBillingRowsPricing(currentCustomer.customer_type);
+                
+                toastr.success('Product prices and discounts updated based on new customer type!');
             }
         });
 
@@ -155,28 +157,36 @@
             let priceSource = '';
 
             if (customerType === 'wholesaler') {
+                console.log('Processing wholesaler pricing...');
                 // Wholesaler pricing logic
                 if (batch && batch.wholesale_price && parseFloat(batch.wholesale_price) > 0) {
                     selectedPrice = parseFloat(batch.wholesale_price);
                     priceSource = 'batch_wholesale_price';
+                    console.log('Using batch wholesale price:', selectedPrice);
                 } else if (batch && batch.special_price && parseFloat(batch.special_price) > 0) {
                     selectedPrice = parseFloat(batch.special_price);
                     priceSource = 'batch_special_price';
+                    console.log('Using batch special price:', selectedPrice);
                 } else if (batch && batch.retail_price && parseFloat(batch.retail_price) > 0) {
                     selectedPrice = parseFloat(batch.retail_price);
                     priceSource = 'batch_retail_price';
+                    console.log('Using batch retail price:', selectedPrice);
                 } else if (batch && batch.max_retail_price && parseFloat(batch.max_retail_price) > 0) {
                     selectedPrice = parseFloat(batch.max_retail_price);
                     priceSource = 'batch_max_retail_price';
-                } else if (product.wholesale_price && parseFloat(product.wholesale_price) > 0) {
-                    selectedPrice = parseFloat(product.wholesale_price);
+                    console.log('Using batch max retail price:', selectedPrice);
+                } else if (product.whole_sale_price && parseFloat(product.whole_sale_price) > 0) {
+                    selectedPrice = parseFloat(product.whole_sale_price);
                     priceSource = 'product_wholesale_price';
+                    console.log('Using product wholesale price:', selectedPrice, 'from field whole_sale_price');
                 } else if (product.special_price && parseFloat(product.special_price) > 0) {
                     selectedPrice = parseFloat(product.special_price);
                     priceSource = 'product_special_price';
+                    console.log('Using product special price:', selectedPrice);
                 } else if (product.retail_price && parseFloat(product.retail_price) > 0) {
                     selectedPrice = parseFloat(product.retail_price);
                     priceSource = 'product_retail_price';
+                    console.log('Using product retail price as fallback:', selectedPrice);
                 } else if (product.max_retail_price && parseFloat(product.max_retail_price) > 0) {
                     selectedPrice = parseFloat(product.max_retail_price);
                     priceSource = 'product_max_retail_price';
@@ -251,6 +261,177 @@
             });
 
             console.error('Pricing Error Logged:', errorData);
+        }
+
+        /**
+         * Update all existing billing rows with new pricing based on customer type
+         */
+        function updateAllBillingRowsPricing(newCustomerType) {
+            const billingBody = document.getElementById('billing-body');
+            const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
+            
+            if (existingRows.length === 0) {
+                console.log('No existing billing rows to update');
+                return;
+            }
+
+            console.log(`Updating ${existingRows.length} billing rows for customer type: ${newCustomerType}`);
+
+            existingRows.forEach((row) => {
+                try {
+                    // Extract product data from row attributes
+                    const productId = row.getAttribute('data-product-id');
+                    const batchId = row.getAttribute('data-batch-id');
+                    
+                    if (!productId) {
+                        console.warn('Product ID not found in billing row, skipping update');
+                        return;
+                    }
+
+                    // Get product data from row or fetch from available data
+                    const productData = getProductDataById(productId);
+                    const batchData = batchId ? getBatchDataById(batchId) : null;
+                    
+                    if (!productData) {
+                        console.warn(`Product data not found for ID: ${productId}, skipping update`);
+                        return;
+                    }
+
+                    // Calculate new price based on customer type
+                    const pricingResult = getCustomerTypePrice(batchData, productData, newCustomerType);
+                    
+                    console.log(`Pricing result for ${productData.product_name}:`, pricingResult);
+                    
+                    if (pricingResult.hasError || pricingResult.price <= 0) {
+                        console.warn(`Invalid price calculated for product ${productData.product_name}: ${pricingResult.price}`);
+                        return;
+                    }
+
+                    // Update the price and discount in the billing row
+                    updateBillingRowPrice(row, pricingResult.price, pricingResult.source);
+                    
+                    console.log(`Updated ${productData.product_name}: Price ₹${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`);
+                } catch (error) {
+                    console.error('Error updating billing row pricing:', error);
+                }
+            });
+
+            // Recalculate total after all price updates
+            updateTotals();
+            
+            console.log('All billing rows updated successfully');
+        }
+
+        /**
+         * Update the price in a specific billing row with dynamic discount calculation
+         */
+        function updateBillingRowPrice(row, newPrice, priceSource) {
+            // Find the price input field
+            const priceInput = row.querySelector('.price-input.unit-price');
+            const quantityInput = row.querySelector('.quantity-input');
+            const totalCell = row.querySelector('.total-price');
+            
+            // Find discount fields
+            const fixedDiscountInput = row.querySelector('.fixed_discount');
+            const percentDiscountInput = row.querySelector('.percent_discount');
+            
+            // Get MRP from price input data attribute or calculate it
+            let mrp = 0;
+            if (priceInput) {
+                mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
+            }
+            
+            // If MRP not found, try to get it from product data
+            if (mrp === 0) {
+                const productId = row.getAttribute('data-product-id');
+                const productData = getProductDataById(productId);
+                if (productData && productData.max_retail_price) {
+                    mrp = parseFloat(productData.max_retail_price);
+                }
+            }
+            
+            if (priceInput) {
+                // Update the input value and data attribute
+                priceInput.value = parseFloat(newPrice).toFixed(2);
+                priceInput.setAttribute('data-price', newPrice);
+            }
+
+            // Calculate new discount values based on MRP and new price
+            if (mrp > 0) {
+                const newFixedDiscount = mrp - newPrice;
+                const newPercentDiscount = (newFixedDiscount / mrp) * 100;
+                
+                // Update fixed discount field
+                if (fixedDiscountInput) {
+                    fixedDiscountInput.value = newFixedDiscount.toFixed(2);
+                }
+                
+                // Update percentage discount field
+                if (percentDiscountInput) {
+                    percentDiscountInput.value = newPercentDiscount.toFixed(2);
+                }
+                
+                console.log(`Updated discounts - Fixed: ₹${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`);
+            } else {
+                console.warn('MRP not found, unable to calculate discount');
+            }
+
+            // Update total if quantity cell exists
+            if (quantityInput && totalCell) {
+                const quantity = parseFloat(quantityInput.value || 1);
+                const newTotal = (newPrice * quantity).toFixed(2);
+                totalCell.textContent = formatAmountWithSeparators(newTotal);
+                
+                // Update data attribute if exists
+                totalCell.setAttribute('data-total', newTotal);
+            }
+
+            // Update row's price data attributes
+            row.setAttribute('data-unit-price', newPrice);
+            row.setAttribute('data-price-source', priceSource);
+        }
+
+        /**
+         * Get product data by ID from available sources
+         */
+        function getProductDataById(productId) {
+            // Try to find product in allProducts array first
+            let product = allProducts.find(p => p.id == productId);
+            
+            if (!product) {
+                // Try to find in stockData if available
+                const stockEntry = stockData.find(s => s.product && s.product.id == productId);
+                if (stockEntry) {
+                    product = stockEntry.product;
+                }
+            }
+            
+            return product;
+        }
+
+        /**
+         * Get batch data by ID from available sources
+         */
+        function getBatchDataById(batchId) {
+            if (!batchId) return null;
+            
+            // Search through all products' batches
+            for (const product of allProducts) {
+                if (product.batches) {
+                    const batch = product.batches.find(b => b.id == batchId);
+                    if (batch) return batch;
+                }
+            }
+            
+            // Search through stockData
+            for (const stockEntry of stockData) {
+                if (stockEntry.batches) {
+                    const batch = stockEntry.batches.find(b => b.id == batchId);
+                    if (batch) return batch;
+                }
+            }
+            
+            return null;
         }
 
         // ---- SALES REP FUNCTIONS ----
@@ -2546,6 +2727,12 @@
             }
 
             const row = document.createElement('tr');
+            
+            // Add data attributes for price updating functionality
+            row.setAttribute('data-product-id', product.id);
+            row.setAttribute('data-batch-id', batchId);
+            row.setAttribute('data-unit-price', finalPrice);
+            row.setAttribute('data-price-source', priceType);
 
             row.innerHTML = `
         <td>
@@ -2573,21 +2760,22 @@
         <td>
             <div class="d-flex justify-content-center">
             <button class="btn btn-danger quantity-minus btn">-</button>
-            <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}">
+            <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}" data-quantity="${initialQuantityValue}">
             <button class="btn btn-success quantity-plus btn">+</button>
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
         <td><input type="number" name="discount_fixed[]" class="form-control fixed_discount" value="${discountFixed.toFixed(2)}"></td>
         <td><input type="number" name="discount_percent[]" class="form-control percent_discount" value="${discountPercent.toFixed(2)}"></td>
-        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input text-center" 
+        <td><input type="number" value="${finalPrice.toFixed(2)}" class="form-control price-input unit-price text-center" 
+            data-price="${finalPrice}"
             data-quantity="${adjustedBatchQuantity}" 
             data-retail-price="${batch ? batch.retail_price : product.retail_price}"
             data-wholesale-price="${batch ? batch.wholesale_price : (stockEntry.batches?.[0]?.wholesale_price || 0)}"
             data-special-price="${batch ? batch.special_price : (stockEntry.batches?.[0]?.special_price || 0)}"
             data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
             min="0" readonly></td>
-        <td class="subtotal">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
+        <td class="subtotal total-price" data-total="${(parseFloat(initialQuantityValue) * finalPrice).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice).toFixed(2))}</td>
         <td><button class="btn btn-danger btn-sm remove-btn">×</button></td>
         <td class="product-id d-none">${product.id}</td>
         <td class="location-id d-none">${locationId}</td>
