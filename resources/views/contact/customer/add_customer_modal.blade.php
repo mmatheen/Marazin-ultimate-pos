@@ -72,11 +72,20 @@
 
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label>City</label>
+                                    <label>City
+                                        @if(auth()->user()->hasRole('Sales Rep'))
+                                            <span class="login-danger">*</span>
+                                        @else
+                                            <small class="text-muted">(Optional)</small>
+                                        @endif
+                                    </label>
                                     <select class="form-control form-select" id="edit_city_id" name="city_id">
                                         <option value="">Select City</option>
                                     </select>
                                     <span class="text-danger" id="city_id_error"></span>
+                                    @if(!auth()->user()->hasRole('Sales Rep'))
+                                        <small class="text-muted">City selection helps sales reps filter customers by location</small>
+                                    @endif
                                 </div>
                             </div>
 

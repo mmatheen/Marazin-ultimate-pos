@@ -704,21 +704,50 @@
             // Add Walk-In Customer (always available)
             customerSelect.append('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
             
-            // Add filtered customers
-            customers.forEach(customer => {
+            // Separate customers with and without cities for better organization
+            const customersWithCity = customers.filter(c => c.city_name && c.city_name !== 'No City');
+            const customersWithoutCity = customers.filter(c => !c.city_name || c.city_name === 'No City');
+            
+            // Add customers with cities first
+            customersWithCity.forEach(customer => {
                 const customerName = [customer.prefix, customer.first_name, customer.last_name]
                     .filter(Boolean).join(' ');
                 const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
-                const displayText = `${customerName}${customerType} (${customer.mobile || 'No mobile'})`;
+                const cityInfo = ` [${customer.city_name}]`;
+                const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
+                customerSelect.append(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+            });
+            
+            // Add separator if there are customers without cities
+            if (customersWithoutCity.length > 0 && customersWithCity.length > 0) {
+                customerSelect.append('<option disabled>── Customers without city ──</option>');
+            }
+            
+            // Add customers without cities
+            customersWithoutCity.forEach(customer => {
+                const customerName = [customer.prefix, customer.first_name, customer.last_name]
+                    .filter(Boolean).join(' ');
+                const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
+                const cityInfo = ' [No City]';
+                const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
                 customerSelect.append(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
             });
             
             // Refresh Select2
             customerSelect.trigger('change');
             
-            // Show info message
+            // Show info message with breakdown
             if (typeof toastr !== 'undefined') {
-                toastr.info(`Showing ${customers.length} customers from your route cities`, 'Customer Filter Applied');
+                const withCityCount = customersWithCity.length;
+                const withoutCityCount = customersWithoutCity.length;
+                const totalCount = customers.length;
+                
+                let message = `Showing ${totalCount} customers from your route`;
+                if (withoutCityCount > 0) {
+                    message += ` (${withCityCount} with city, ${withoutCityCount} without city)`;
+                }
+                
+                toastr.info(message, 'Customer Filter Applied');
             }
         }
 
@@ -4039,6 +4068,7 @@
                 const chequeReceivedDate = $('#cheque_received_date').val().trim();
                 const chequeValidDate = $('#cheque_valid_date').val().trim();
                 const chequeGivenBy = $('#cheque_given_by').val().trim();
+                const chequeStatus = $('#cheque_status').val() || 'pending'; // Default to pending
                 const totalAmount = parseFormattedAmount($('#final-total-amount').text()
                     .trim()); // Ensure #total-amount element exists
                 const today = new Date().toISOString().slice(0, 10);
@@ -4048,10 +4078,11 @@
                     payment_date: today,
                     amount: totalAmount,
                     cheque_number: chequeNumber,
-                    bank_branch: bankBranch,
+                    cheque_bank_branch: bankBranch,
                     cheque_received_date: chequeReceivedDate,
                     cheque_valid_date: chequeValidDate,
-                    cheque_given_by: chequeGivenBy
+                    cheque_given_by: chequeGivenBy,
+                    cheque_status: chequeStatus
                 }];
             }
 

@@ -201,6 +201,12 @@
                                         Sale Return</a></li>
                             @endcan
 
+                            {{-- Cheque Management --}}
+                            @canany(['view all sales', 'view own sales'])
+                                <li><a href="{{ route('cheque-management') }}" class="{{ set_active(['cheque-management']) }}">
+                                    <i class="fas fa-money-check"></i> Cheque Management</a></li>
+                            @endcanany
+
                             {{-- <li><a href="{{ route('pos-list') }}" class="{{ set_active(['pos-list'])}}">List POS</a>
                         </li> --}}
                         </ul>

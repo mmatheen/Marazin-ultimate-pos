@@ -5,53 +5,50 @@
         fetchCustomerData();
         fetchCities();
 
+        // Check if current user is a sales rep
+        var isSalesRep = @json(auth()->user()->hasRole('Sales Rep'));
+        
+        // Build validation rules conditionally
+        var validationRules = {
+            first_name: {
+                required: true,
+            },
+            mobile_no: {
+                required: true,
+            },
+            credit_limit: {
+                required: true,
+                number: true,
+            },
+        };
+        
+        var validationMessages = {
+            first_name: {
+                required: "First Name is required",
+            },
+            mobile_no: {
+                required: "Mobile No is required",
+            },
+            credit_limit: {
+                required: "Credit Limit is required",
+                number: "Credit Limit must be a number",
+            },
+        };
+        
+        // Add city validation only for sales reps
+        if (isSalesRep) {
+            validationRules.city_id = {
+                required: true,
+            };
+            validationMessages.city_id = {
+                required: "City is required for sales representatives",
+            };
+        }
+
         // add form and update validation rules code start
         var addAndUpdateValidationOptions = {
-            rules: {
-
-                first_name: {
-                    required: true,
-
-                },
-
-                mobile_no: {
-                    required: true,
-
-                },
-
-                city_id: {
-                    required: true,
-                },
-
-                credit_limit: {
-                    required: true,
-                    number: true,
-                },
-
-
-
-            },
-            messages: {
-
-
-
-                first_name: {
-                    required: "First Name is required",
-                },
-
-                mobile_no: {
-                    required: "Mobile No  is required",
-                },
-                city_id: {
-                    required: "City is required",
-                },
-                credit_limit: {
-                    required: "Credit Limit is required",
-                    number: "Credit Limit must be a number",
-                },
-
-
-            },
+            rules: validationRules,
+            messages: validationMessages,
             errorElement: 'span',
             errorPlacement: function(error, element) {
                 error.addClass('text-danger');
@@ -79,6 +76,8 @@
             $('#addAndUpdateForm').validate().resetForm();
             $('#addAndUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
             $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            // Remove info banner
+            $('.city-info-banner').remove();
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -86,13 +85,29 @@
             resetFormAndValidation();
         });
 
-        // Show Add Warranty Modal
+        // Show Add Customer Modal
         $('#addCustomerButton').click(function() {
             $('#modalTitle').text('New Customer');
             $('#modalButton').text('Save');
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
+            
+            // Show helpful message for non-sales rep users
+            if (!isSalesRep) {
+                // Add a subtle info banner at the top of the modal
+                if ($('.city-info-banner').length === 0) {
+                    const infoBanner = `
+                        <div class="alert alert-info alert-dismissible fade show city-info-banner" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>City Selection:</strong> Adding a city is optional but helps sales representatives filter customers by location.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    $('.modal-body .text-center').after(infoBanner);
+                }
+            }
+            
             $('#addAndEditCustomerModal').modal('show');
         });
 

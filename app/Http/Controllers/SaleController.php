@@ -525,7 +525,8 @@ class SaleController extends Controller
                         }
 
                         foreach ($request->payments as $paymentData) {
-                            $payment = Payment::create([
+                            // Prepare payment data with enhanced cheque handling
+                            $paymentCreateData = [
                                 'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
                                 'amount' => $paymentData['amount'],
                                 'payment_method' => $paymentData['payment_method'],
@@ -534,29 +535,88 @@ class SaleController extends Controller
                                 'payment_type' => 'sale',
                                 'reference_id' => $sale->id,
                                 'customer_id' => $request->customer_id,
-                                'card_number' => $paymentData['card_number'] ?? null,
-                                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
-                                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
-                                'card_security_code' => $paymentData['card_security_code'] ?? null,
-                                'cheque_number' => $paymentData['cheque_number'] ?? null,
-                                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                                'cheque_received_date' => isset($paymentData['cheque_received_date']) ? Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                                'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                            ]);
+                            ];
 
-                            Ledger::create([
-                                'transaction_date' => $payment->payment_date,
-                                'reference_no' => $referenceNo,
-                                'transaction_type' => 'payments',
-                                'debit' => $payment->amount,
-                                'credit' => 0,
-                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                                'contact_type' => 'customer',
-                                'user_id' => $request->customer_id,
-                            ]);
+                            // Add payment method specific fields
+                            if ($paymentData['payment_method'] === 'card') {
+                                $paymentCreateData = array_merge($paymentCreateData, [
+                                    'card_number' => $paymentData['card_number'] ?? null,
+                                    'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                                    'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                                    'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                                    'card_security_code' => $paymentData['card_security_code'] ?? null,
+                                ]);
+                            } elseif ($paymentData['payment_method'] === 'cheque') {
+                                $paymentCreateData = array_merge($paymentCreateData, [
+                                    'cheque_number' => $paymentData['cheque_number'] ?? null,
+                                    'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                                    'cheque_received_date' => isset($paymentData['cheque_received_date']) ? 
+                                        Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                                    'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? 
+                                        Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                                    'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                                    // Enhanced cheque fields
+                                    'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
+                                    'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
+                                ]);
+                            } else {
+                                // For cash, bank_transfer, etc.
+                                $paymentCreateData['payment_status'] = 'completed';
+                            }
+
+                            $payment = Payment::create($paymentCreateData);
+
+                            // Create cheque reminders if it's a cheque payment
+                            if ($paymentData['payment_method'] === 'cheque' && isset($paymentData['cheque_valid_date'])) {
+                                $payment->createReminders();
+                            }
+
+                            // Create ledger entry - different handling for cheques vs other payments
+                            if ($paymentData['payment_method'] === 'cheque') {
+                                // For cheques: Always create ledger entry but note the status
+                                Ledger::create([
+                                    'transaction_date' => $payment->payment_date,
+                                    'reference_no' => $referenceNo,
+                                    'transaction_type' => 'payments',
+                                    'debit' => $payment->amount,
+                                    'credit' => 0,
+                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                    'contact_type' => 'customer',
+                                    'user_id' => $request->customer_id,
+                                    'notes' => 'Cheque payment - Status: ' . ($paymentData['cheque_status'] ?? 'pending')
+                                ]);
+                            } else {
+                                // For non-cheque payments: Standard ledger entry
+                                Ledger::create([
+                                    'transaction_date' => $payment->payment_date,
+                                    'reference_no' => $referenceNo,
+                                    'transaction_type' => 'payments',
+                                    'debit' => $payment->amount,
+                                    'credit' => 0,
+                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                    'contact_type' => 'customer',
+                                    'user_id' => $request->customer_id,
+                                ]);
+                            }
                         }
+
+                        // Calculate total paid for sale completion (include all payments except bounced)
+                        $totalPaid = $sale->payments()
+                            ->where(function($query) {
+                                $query->where('payment_method', '!=', 'cheque')
+                                      ->orWhere(function($subQuery) {
+                                          $subQuery->where('payment_method', 'cheque')
+                                                   ->where('cheque_status', '!=', 'bounced');
+                                      });
+                            })
+                            ->sum('amount');
+
+                        // Update sale totals
+                        $sale->update([
+                            'total_paid' => $totalPaid,
+                            'total_due' => max(0, $sale->final_total - $totalPaid),
+                            'payment_status' => $totalPaid >= $sale->final_total ? 'paid' : ($totalPaid > 0 ? 'partial' : 'due')
+                        ]);
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
                     }
@@ -1473,6 +1533,211 @@ class SaleController extends Controller
             return response()->json([
                 'status' => 500,
                 'message' => 'Failed to log pricing error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update cheque status
+     */
+    public function updateChequeStatus(Request $request, $paymentId)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,deposited,cleared,bounced,cancelled',
+            'remarks' => 'nullable|string',
+            'bank_charges' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $payment = Payment::where('id', $paymentId)
+                             ->where('payment_method', 'cheque')
+                             ->firstOrFail();
+
+            $payment->updateChequeStatus(
+                $request->status,
+                $request->remarks,
+                $request->bank_charges ?? 0,
+                auth()->id()
+            );
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Cheque status updated successfully',
+                'payment' => $payment->fresh(['sale', 'chequeStatusHistory'])
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update cheque status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get cheque management dashboard data
+     */
+    public function chequeManagement(Request $request)
+    {
+        $query = Payment::chequePayments()->with(['customer', 'sale']);
+
+        // Filter by status
+        if ($request->filled('status') && $request->status !== '' && $request->status !== 'all') {
+            $query->where('cheque_status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->filled('from_date') && $request->from_date !== '') {
+            $query->where('cheque_valid_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date') && $request->to_date !== '') {
+            $query->where('cheque_valid_date', '<=', $request->to_date);
+        }
+
+        // Filter by customer
+        if ($request->filled('customer_id') && $request->customer_id !== '' && $request->customer_id > 0) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        // Filter by cheque number
+        if ($request->filled('cheque_number') && $request->cheque_number !== '') {
+            $query->where('cheque_number', 'like', '%' . $request->cheque_number . '%');
+        }
+
+        $cheques = $query->orderBy('cheque_valid_date', 'asc')->paginate(50);
+
+        // Get summary stats with proper null handling
+        $stats = [
+            'total_pending' => Payment::pendingCheques()->sum('amount') ?? 0,
+            'total_cleared' => Payment::clearedCheques()->sum('amount') ?? 0,
+            'total_bounced' => Payment::bouncedCheques()->sum('amount') ?? 0,
+            'due_soon_count' => Payment::dueSoon(7)->count() ?? 0,
+            'overdue_count' => Payment::overdue()->count() ?? 0,
+        ];
+
+        if ($request->ajax()) {
+            return response()->json([
+                'cheques' => $cheques,
+                'stats' => $stats
+            ]);
+        }
+
+        return view('sell.cheque-management', compact('cheques', 'stats'));
+    }
+
+    /**
+     * Get cheque status history
+     */
+    public function chequeStatusHistory($paymentId)
+    {
+        try {
+            $payment = Payment::with(['chequeStatusHistory.user', 'customer', 'sale'])
+                             ->where('payment_method', 'cheque')
+                             ->findOrFail($paymentId);
+
+            return response()->json([
+                'status' => 200,
+                'payment' => $payment,
+                'history' => $payment->chequeStatusHistory()->with('user')->orderBy('created_at', 'desc')->get()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Cheque payment not found'
+            ], 404);
+        }
+    }
+
+    /**
+     * Get pending reminders for cheques
+     */
+    public function pendingChequeReminders()
+    {
+        $reminders = \App\Models\ChequeReminder::pending()
+                    ->with(['payment.customer', 'payment.sale'])
+                    ->orderBy('reminder_date', 'asc')
+                    ->get();
+
+        return response()->json([
+            'status' => 200,
+            'reminders' => $reminders
+        ]);
+    }
+
+    /**
+     * Mark reminder as sent
+     */
+    public function markReminderSent(Request $request, $reminderId)
+    {
+        try {
+            $reminder = \App\Models\ChequeReminder::findOrFail($reminderId);
+            $reminder->markAsSent($request->sent_to);
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Reminder marked as sent'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update reminder'
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk update cheque status
+     */
+    public function bulkUpdateChequeStatus(Request $request)
+    {
+        $request->validate([
+            'payment_ids' => 'required|array',
+            'payment_ids.*' => 'integer|exists:payments,id',
+            'status' => 'required|in:deposited,cleared,bounced,cancelled',
+            'remarks' => 'nullable|string',
+            'bank_charges' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $successCount = 0;
+            $errors = [];
+
+            foreach ($request->payment_ids as $paymentId) {
+                try {
+                    $payment = Payment::where('id', $paymentId)
+                                     ->where('payment_method', 'cheque')
+                                     ->first();
+
+                    if ($payment) {
+                        $payment->updateChequeStatus(
+                            $request->status,
+                            $request->remarks,
+                            $request->bank_charges ?? 0,
+                            auth()->id()
+                        );
+                        $successCount++;
+                    } else {
+                        $errors[] = "Payment ID {$paymentId} not found or not a cheque payment";
+                    }
+
+                } catch (\Exception $e) {
+                    $errors[] = "Failed to update payment ID {$paymentId}: " . $e->getMessage();
+                }
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => "{$successCount} cheques updated successfully",
+                'success_count' => $successCount,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Bulk update failed: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -348,6 +348,15 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // POS Pricing Error Logging
         Route::post('/pos/log-pricing-error', [SaleController::class, 'logPricingError']);
         
+        // -------------------- Cheque Management Routes --------------------
+        Route::get('/cheque-management', [SaleController::class, 'chequeManagement'])->name('cheque-management');
+        Route::get('/cheque-guide', function() { return view('sell.cheque-guide'); })->name('cheque-guide');
+        Route::post('/cheque/update-status/{paymentId}', [SaleController::class, 'updateChequeStatus'])->name('cheque.update-status');
+        Route::get('/cheque/status-history/{paymentId}', [SaleController::class, 'chequeStatusHistory'])->name('cheque.status-history');
+        Route::get('/cheque/pending-reminders', [SaleController::class, 'pendingChequeReminders'])->name('cheque.pending-reminders');
+        Route::post('/cheque/mark-reminder-sent/{reminderId}', [SaleController::class, 'markReminderSent'])->name('cheque.mark-reminder-sent');
+        Route::post('/cheque/bulk-update-status', [SaleController::class, 'bulkUpdateChequeStatus'])->name('cheque.bulk-update-status');
+        
         // Generic sales route - This MUST come last
         Route::put('/sales/{id}', [SaleController::class, 'update'])->name('sales.update');
 

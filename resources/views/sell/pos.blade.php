@@ -1894,6 +1894,21 @@
                             <input type="text" class="form-control" name="cheque_given_by" id="cheque_given_by">
                             <div id="chequeGivenByError" class="text-danger"></div>
                         </div>
+                        <div class="col-md-6">
+                            <label for="cheque_status" class="form-label">Cheque Status</label>
+                            <select class="form-control" name="cheque_status" id="cheque_status">
+                                <option value="pending">Pending</option>
+                                <option value="deposited">Deposited</option>
+                                <option value="cleared">Cleared</option>
+                            </select>
+                            <div id="chequeStatusError" class="text-danger"></div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                Pending: Cheque received but not yet deposited<br>
+                                Deposited: Cheque deposited but not yet cleared<br>
+                                Cleared: Cheque amount successfully credited
+                            </small>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -374,19 +374,28 @@ class CustomerController extends Controller
      */
     public function filterByCities(Request $request)
     {
-        $cityIds = $request->input('city_ids', []);
+        $cities = $request->input('cities', []);
 
-        if (empty($cityIds)) {
+        if (empty($cities)) {
             return response()->json([
                 'status' => 400,
-                'message' => 'City IDs are required'
+                'message' => 'Cities are required'
             ]);
         }
 
+        // Convert city names to lowercase for case-insensitive comparison
+        $cityNames = array_map('strtolower', $cities);
+
         $customers = Customer::with(['city'])
-            ->where(function ($query) use ($cityIds) {
-                $query->whereIn('city_id', $cityIds)
-                      ->orWhereNull('city_id');
+            ->where(function ($query) use ($cityNames) {
+                // Include customers from the specified cities
+                $query->whereHas('city', function ($cityQuery) use ($cityNames) {
+                    $cityQuery->whereRaw('LOWER(name) IN (' . implode(',', array_fill(0, count($cityNames), '?')) . ')', $cityNames);
+                });
+                
+                // Also include customers without any city assigned
+                // This allows sales reps to see customers who haven't been assigned a city yet
+                $query->orWhereNull('city_id');
             })
             ->orderBy('first_name')
             ->get()
@@ -401,7 +410,7 @@ class CustomerController extends Controller
                     'email' => $customer->email,
                     'address' => $customer->address,
                     'city_id' => $customer->city_id,
-                    'city_name' => $customer->city?->name ?? '',
+                    'city_name' => $customer->city?->name ?? 'No City',
                     'customer_type' => $customer->customer_type,
                     'credit_limit' => (float)$customer->credit_limit,
                     'current_balance' => (float)$customer->current_balance,
@@ -409,9 +418,10 @@ class CustomerController extends Controller
             });
 
         return response()->json([
-            'status' => 200,
+            'status' => true, // Changed to true to match the frontend expectation
             'customers' => $customers,
-            'total_customers' => $customers->count()
+            'total_customers' => $customers->count(),
+            'message' => "Found {$customers->count()} customers (including those without city assignment)"
         ]);
     }
 }

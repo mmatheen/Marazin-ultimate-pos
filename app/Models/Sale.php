@@ -6,6 +6,7 @@ use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Traits\LogsActivity;
 use App\Traits\CustomLogsActivity;
 
@@ -190,7 +191,16 @@ class Sale extends Model
 
     public function getTotalPaidAttribute()
     {
-        return $this->payments()->sum('amount');
+        // Return actual paid amount excluding bounced cheques
+        return $this->payments()
+            ->where(function($query) {
+                $query->where('payment_method', '!=', 'cheque')
+                      ->orWhere(function($q) {
+                          $q->where('payment_method', 'cheque')
+                            ->where('cheque_status', '!=', 'bounced');
+                      });
+            })
+            ->sum('amount');
     }
 
     public function getTotalDueAttribute()
@@ -227,5 +237,72 @@ class Sale extends Model
     public function imeis()
     {
         return $this->hasMany(SaleImei::class);
+    }
+
+    /**
+     * Recalculate payment totals considering cheque status
+     */
+    public function recalculatePaymentTotals()
+    {
+        // Get all payments regardless of cheque status (for sale completion)
+        $totalReceived = $this->payments()->sum('amount');
+        
+        // Get actual cleared/safe payments (for risk analysis)
+        $actualPaid = $this->payments()
+            ->where(function($query) {
+                $query->where('payment_method', '!=', 'cheque')
+                      ->orWhere(function($subQuery) {
+                          $subQuery->where('payment_method', 'cheque')
+                                   ->where('cheque_status', 'cleared');
+                      });
+            })
+            ->sum('amount');
+
+        // Get pending cheque amounts (risk tracking)
+        $pendingCheques = $this->payments()
+            ->where('payment_method', 'cheque')
+            ->whereIn('cheque_status', ['pending', 'deposited'])
+            ->sum('amount');
+
+        // Get bounced cheque amounts
+        $bouncedCheques = $this->payments()
+            ->where('payment_method', 'cheque')
+            ->where('cheque_status', 'bounced')
+            ->sum('amount');
+
+        // For sale completion: Count all payments EXCEPT bounced cheques
+        $newTotalPaid = $totalReceived - $bouncedCheques;
+        
+        // Debug logging
+        Log::info("Sale {$this->id} payment recalculation:", [
+            'total_received' => $totalReceived,
+            'bounced_cheques' => $bouncedCheques,
+            'old_total_paid' => $this->total_paid,
+            'new_total_paid' => $newTotalPaid,
+            'final_total' => $this->final_total
+        ]);
+        
+        $this->total_paid = $newTotalPaid;
+        $this->total_due = $this->final_total - $newTotalPaid; // Now we can set this directly
+        
+        // Update payment status based on totals
+        if ($this->total_due <= 0) {
+            $this->payment_status = 'Paid';
+        } elseif ($this->total_paid > 0) {
+            $this->payment_status = 'Partial';
+        } else {
+            $this->payment_status = 'Due';
+        }
+
+        $this->save();
+        
+        return [
+            'total_received' => $totalReceived,
+            'actual_paid' => $actualPaid,
+            'pending_cheques' => $pendingCheques,
+            'bounced_cheques' => $bouncedCheques,
+            'total_due' => $this->total_due,
+            'at_risk_amount' => $pendingCheques
+        ];
     }
 }

@@ -152,6 +152,34 @@ public function recalculateCurrentBalance()
     $this->saveQuietly();
 }
 
+    /**
+     * Check if customer has a city assigned
+     */
+    public function hasCity()
+    {
+        return !is_null($this->city_id);
+    }
+
+    /**
+     * Get city name with fallback
+     */
+    public function getCityNameAttribute()
+    {
+        return $this->city?->name ?? 'No City Assigned';
+    }
+
+    /**
+     * Scope to filter customers by cities (including those without cities)
+     */
+    public function scopeFilterByCityNames($query, array $cityNames)
+    {
+        return $query->where(function ($q) use ($cityNames) {
+            $q->whereHas('city', function ($cityQuery) use ($cityNames) {
+                $cityQuery->whereIn('name', $cityNames);
+            })->orWhereNull('city_id');
+        });
+    }
+
     public static function calculateCreditLimitForCity($cityId)
     {
         if (!$cityId) return 0;
