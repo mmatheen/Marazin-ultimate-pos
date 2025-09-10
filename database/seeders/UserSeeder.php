@@ -45,27 +45,58 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($users as $userData) {
-            $user = User::create([
-                'name_title' => $userData['name_title'],
-                'full_name' => $userData['full_name'],
-                'user_name' => $userData['user_name'],
-                'is_admin' => $userData['is_admin'],
-                'email' => $userData['email'],
-                'password' => Hash::make($userData['password']),
-                'created_at' => Carbon::now(),
-                'updated_at' => Carbon::now(),
-            ]);
+            // Check if user already exists to prevent duplicates
+            $existingUser = User::where('email', $userData['email'])->first();
+            
+            if ($existingUser) {
+                $this->command->info("User {$userData['email']} already exists, updating...");
+                $user = $existingUser;
+                $user->update([
+                    'name_title' => $userData['name_title'],
+                    'full_name' => $userData['full_name'],
+                    'user_name' => $userData['user_name'],
+                    'is_admin' => $userData['is_admin'],
+                    'password' => Hash::make($userData['password']),
+                    'updated_at' => Carbon::now(),
+                ]);
+            } else {
+                $this->command->info("Creating new user {$userData['email']}...");
+                $user = User::create([
+                    'name_title' => $userData['name_title'],
+                    'full_name' => $userData['full_name'],
+                    'user_name' => $userData['user_name'],
+                    'is_admin' => $userData['is_admin'],
+                    'email' => $userData['email'],
+                    'password' => Hash::make($userData['password']),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+            }
 
-            // Assign Role to User
-            $user->assignRole($userData['role']);
+            // Check if role exists before assigning
+            $role = Role::where('name', $userData['role'])->first();
+            if ($role) {
+                // Remove existing roles and assign new one
+                $user->syncRoles([$userData['role']]);
+                $this->command->info("Assigned role '{$userData['role']}' to {$userData['email']}");
+            } else {
+                $this->command->error("Role '{$userData['role']}' not found! Please run RolesAndPermissionsSeeder first.");
+                continue;
+            }
 
             // Attach locations via pivot table
             if ($userData['role'] === 'Master Super Admin') {
                 // Master Super Admin gets access to all locations automatically (no need to attach)
                 // Location scope will be bypassed for Master Super Admin
+                $this->command->info("Master Super Admin bypasses location scope");
             } elseif ($userData['role'] === 'Super Admin') {
                 // Super Admin gets access to all locations
-                $user->locations()->attach($allLocations->values());
+                if ($allLocations->isNotEmpty()) {
+                    $user->locations()->sync($allLocations->values());
+                    $this->command->info("Super Admin assigned to all locations");
+                } else {
+                    $this->command->warn("No locations found in database");
+                }
             } else {
                 $locationIds = [];
                 foreach ($userData['locations'] as $locName) {
@@ -74,9 +105,14 @@ class UserSeeder extends Seeder
                     }
                 }
                 if (!empty($locationIds)) {
-                    $user->locations()->attach($locationIds);
+                    $user->locations()->sync($locationIds);
+                    $this->command->info("User assigned to specific locations");
+                } else {
+                    $this->command->warn("No matching locations found for user");
                 }
             }
         }
+        
+        $this->command->info("User seeding completed successfully!");
     }
 }
