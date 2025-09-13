@@ -33,6 +33,13 @@
 
         // CSRF Token setup
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        // IMEI handling variables
+        let purchaseImeiData = {};
+        let pendingImeiProducts = [];
+        let currentImeiProductIndex = 0;
+        let isProcessingImei = false;
+        
         fetchProducts();
         fetchLocations();
 
@@ -690,7 +697,106 @@
                 return;
             }
 
+            // Check for IMEI products and collect them
+            collectImeiProducts(productTableRows);
+        });
+
+        function collectImeiProducts(productTableRows) {
+            pendingImeiProducts = [];
+            console.log('Collecting IMEI products from', productTableRows.length, 'rows');
+            
+            productTableRows.forEach((row, index) => {
+                const productId = $(row).data('id');
+                const quantity = parseInt($(row).find('.purchase-quantity').val()) || 0;
+                const productNameCell = $(row).find('td:eq(1)').text();
+                const productName = productNameCell.split(' ')[0] || productNameCell; // Get product name
+                
+                // Check if product has IMEI enabled
+                const isImeiEnabled = $(row).data('imei-enabled') == 1 || $(row).data('imei-enabled') === true;
+                
+                console.log(`Product ${productId}: IMEI enabled = ${isImeiEnabled}, Quantity = ${quantity}`);
+                
+                if (isImeiEnabled && quantity > 0) {
+                    pendingImeiProducts.push({
+                        productId: productId,
+                        productName: productName,
+                        quantity: quantity,
+                        rowIndex: index,
+                        row: row
+                    });
+                    console.log(`Added IMEI product: ${productName} (ID: ${productId}) with quantity ${quantity}`);
+                }
+            });
+
+            console.log('Total IMEI products found:', pendingImeiProducts.length);
+            
+            if (pendingImeiProducts.length > 0) {
+                currentImeiProductIndex = 0;
+                isProcessingImei = true;
+                showImeiModal();
+            } else {
+                // No IMEI products, proceed with purchase
+                console.log('No IMEI products found, proceeding with purchase');
+                processPurchase();
+            }
+        }
+
+        function showImeiModal() {
+            if (currentImeiProductIndex >= pendingImeiProducts.length) {
+                // All IMEI products processed, proceed with purchase
+                isProcessingImei = false;
+                processPurchase();
+                return;
+            }
+
+            const currentProduct = pendingImeiProducts[currentImeiProductIndex];
+            
+            console.log(`Showing IMEI modal for product: ${currentProduct.productName} (${currentImeiProductIndex + 1}/${pendingImeiProducts.length})`);
+            
+            // Set modal title and product info
+            $('#purchaseImeiModalLabel').text(`Enter IMEI Numbers for Purchase (${currentImeiProductIndex + 1}/${pendingImeiProducts.length})`);
+            $('#purchaseImeiProductName').text(currentProduct.productName);
+            $('#purchaseImeiTotalCount').text(currentProduct.quantity);
+            
+            // Clear previous data
+            $('#purchaseImeiTable tbody').empty();
+            $('#purchaseImeiInput').val('');
+            $('#purchaseImeiError').addClass('d-none');
+            
+            // Add rows for the required quantity
+            for (let i = 0; i < currentProduct.quantity; i++) {
+                addPurchaseImeiRow(i + 1);
+            }
+            
+            updatePurchaseImeiCount();
+            $('#purchaseImeiModal').modal('show');
+        }
+
+        function addPurchaseImeiRow(index) {
+            const row = `
+                <tr>
+                    <td>${index}</td>
+                    <td><input type="text" class="form-control purchase-imei-input" placeholder="Enter IMEI" /></td>
+                    <td><button type="button" class="btn btn-sm btn-danger remove-purchase-imei-row">Remove</button></td>
+                </tr>
+            `;
+            $('#purchaseImeiTable tbody').append(row);
+        }
+
+        function updatePurchaseImeiCount() {
+            const totalInputs = $('#purchaseImeiTable tbody tr').length;
+            const filledInputs = $('#purchaseImeiTable tbody input.purchase-imei-input').filter(function() {
+                return $(this).val().trim() !== '';
+            }).length;
+            
+            $('#purchaseImeiCountDisplay').text(`${filledInputs}/${totalInputs} filled`);
+        }
+
+        function processPurchase() {
+            console.log('Processing purchase with IMEI data:', purchaseImeiData);
+            
             const formData = new FormData($('#purchaseForm')[0]);
+            const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
 
             if (purchaseId && isNaN(purchaseId)) {
                 toastr.error('Invalid purchase ID.', 'Error');
@@ -735,6 +841,14 @@
                 formData.append(`products[${index}][total]`, total);
                 formData.append(`products[${index}][batch_no]`, batchNo);
                 formData.append(`products[${index}][expiry_date]`, expiryDate);
+                
+                // Add IMEI data if available
+                if (purchaseImeiData[productId]) {
+                    console.log(`Adding IMEI data for product ${productId}:`, purchaseImeiData[productId]);
+                    formData.append(`products[${index}][imei_numbers]`, JSON.stringify(purchaseImeiData[productId]));
+                } else {
+                    console.log(`No IMEI data found for product ${productId}`);
+                }
             });
 
             const url = purchaseId ? `/purchases/update/${purchaseId}` : '/purchases/store';
@@ -753,6 +867,116 @@
                 success: handleAjaxSuccess,
                 error: handleAjaxError('saving purchase')
             });
+        }
+
+        // IMEI Modal Event Handlers
+        $(document).on('click', '#purchaseSaveImeiButton', function() {
+            const currentProduct = pendingImeiProducts[currentImeiProductIndex];
+            const imeiInputs = $('#purchaseImeiTable tbody input.purchase-imei-input');
+            const imeiNumbers = [];
+            let hasError = false;
+            
+            // Validate and collect IMEI numbers
+            imeiInputs.each(function() {
+                const imeiValue = $(this).val().trim();
+                if (imeiValue) {
+                    if (imeiNumbers.includes(imeiValue)) {
+                        hasError = true;
+                        $(this).addClass('is-invalid');
+                        $('#purchaseImeiError').removeClass('d-none').text('Duplicate IMEI numbers found');
+                        return false;
+                    }
+                    imeiNumbers.push(imeiValue);
+                    $(this).removeClass('is-invalid');
+                } else {
+                    // Optional: You can make IMEI mandatory or allow empty
+                    // For now, we'll allow empty IMEI fields
+                }
+            });
+            
+            if (hasError) {
+                return;
+            }
+            
+            // Store IMEI data for this product
+            purchaseImeiData[currentProduct.productId] = imeiNumbers;
+            console.log('Saved IMEI data for product:', currentProduct.productId, imeiNumbers);
+            
+            // Hide error message
+            $('#purchaseImeiError').addClass('d-none');
+            
+            // Close modal and move to next product
+            $('#purchaseImeiModal').modal('hide');
+            currentImeiProductIndex++;
+            showImeiModal();
+        });
+
+        $(document).on('click', '#purchaseSkipImeiButton', function() {
+            // Skip IMEI entry for current product
+            const currentProduct = pendingImeiProducts[currentImeiProductIndex];
+            console.log('Skipped IMEI entry for product:', currentProduct.productId);
+            
+            // Close modal and move to next product
+            $('#purchaseImeiModal').modal('hide');
+            currentImeiProductIndex++;
+            showImeiModal();
+        });
+
+        $(document).on('click', '#purchaseAddImeiRow', function() {
+            const currentRowCount = $('#purchaseImeiTable tbody tr').length;
+            addPurchaseImeiRow(currentRowCount + 1);
+            updatePurchaseImeiCount();
+        });
+
+        $(document).on('click', '.remove-purchase-imei-row', function() {
+            $(this).closest('tr').remove();
+            // Re-number the rows
+            $('#purchaseImeiTable tbody tr').each(function(index) {
+                $(this).find('td:first').text(index + 1);
+            });
+            updatePurchaseImeiCount();
+        });
+
+        $(document).on('click', '#purchaseAutoFillImeis', function() {
+            const textareaValue = $('#purchaseImeiInput').val().trim();
+            if (!textareaValue) {
+                toastr.warning('Please enter IMEI numbers in the textarea first', 'Warning');
+                return;
+            }
+            
+            const imeiLines = textareaValue.split('\n').map(line => line.trim()).filter(line => line);
+            const currentRows = $('#purchaseImeiTable tbody tr');
+            
+            // Fill existing rows first
+            currentRows.each(function(index) {
+                if (index < imeiLines.length) {
+                    $(this).find('input.purchase-imei-input').val(imeiLines[index]);
+                }
+            });
+            
+            // Add new rows if we have more IMEIs than rows
+            for (let i = currentRows.length; i < imeiLines.length; i++) {
+                addPurchaseImeiRow(i + 1);
+                $('#purchaseImeiTable tbody tr:last input.purchase-imei-input').val(imeiLines[i]);
+            }
+            
+            updatePurchaseImeiCount();
+            toastr.success(`Auto-filled ${Math.min(imeiLines.length, currentRows.length + (imeiLines.length - currentRows.length))} IMEI numbers`, 'Success');
+        });
+
+        $(document).on('input', '.purchase-imei-input', function() {
+            updatePurchaseImeiCount();
+            $(this).removeClass('is-invalid');
+        });
+
+        // Handle modal close events
+        $('#purchaseImeiModal').on('hidden.bs.modal', function() {
+            // If modal is closed without completing the process, reset button state
+            if (isProcessingImei && currentImeiProductIndex < pendingImeiProducts.length) {
+                $('#purchaseButton').prop('disabled', false).html('Save Purchase');
+                isProcessingImei = false;
+                toastr.warning('IMEI entry cancelled. Purchase not saved.', 'Warning');
+            }
         });
 
         function handleAjaxSuccess(response) {
@@ -1535,6 +1759,10 @@
             });
         });
 
-
+            function deletePayment(paymentId) {
+                // Implement the delete payment functionality here
+                console.log('Delete payment:', paymentId);
+            }
     });
+</script>
 </script>

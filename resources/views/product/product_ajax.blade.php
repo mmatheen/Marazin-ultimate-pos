@@ -104,7 +104,15 @@
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    // Handle different response structures
+                    console.log('fetchData response for ' + url + ':', response);
+                    
+                    // For /get-last-product endpoint, pass the response as-is
+                    if (url.includes('/get-last-product')) {
+                        successCallback(response);
+                        return;
+                    }
+                    
+                    // Handle different response structures for other endpoints
                     if (response.status === true || response.status === 200) {
                         // If response has a 'data' property, use it; otherwise use 'message'
                         const data = response.data || response.message;
@@ -840,6 +848,10 @@
                             $('#new_purchase_product').modal('hide');
                         } else if (buttonType === 'saveAndAnother') {
                             resetFormAndValidation();
+                            // Also fetch and add the last product to purchase table if it exists
+                            if ($('#purchase_product').length > 0) {
+                                fetchLastAddedProducts();
+                            }
                         } else if (buttonType === 'saveAndOpeningStock') {
                             const productId = $('#product_id').val();
                             if (productId) {
@@ -880,19 +892,53 @@
 
         function fetchLastAddedProducts() {
             fetchData('/get-last-product', function(response) {
-
+                console.log('Last product response:', response);
+                
                 if (response.status === 200) {
                     const product = response.product;
+                    console.log('Adding product to table:', product);
+                    
+                    // Check if purchase_product table exists
+                    if ($('#purchase_product').length === 0) {
+                        console.error('Purchase product table not found');
+                        toastr.error('Purchase product table not found', 'Error');
+                        return;
+                    }
+                    
                     addProductToTable(product);
-                    // toastr.success('New product added to the table!', 'Success');
+                    toastr.success('New product added to the table!', 'Success');
                 } else {
                     toastr.error(response.message || 'Unable to fetch product details.', 'Error');
                 }
+            }, function(xhr, status, error) {
+                console.error('Error fetching last product:', error);
+                toastr.error('Failed to fetch last added product', 'Error');
             });
         }
 
         function addProductToTable(product, isEditing = false, prices = {}) {
-            const table = $("#purchase_product").DataTable();
+            console.log('Adding product to table:', product);
+            
+            // Check if the purchase_product table exists and is initialized as DataTable
+            if ($('#purchase_product').length === 0) {
+                console.error('Purchase product table element not found');
+                toastr.error('Purchase product table not found', 'Error');
+                return;
+            }
+            
+            let table;
+            let isDataTable = false;
+            
+            // Check if DataTable is initialized
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                table = $("#purchase_product").DataTable();
+                isDataTable = true;
+                console.log('Using existing DataTable');
+            } else {
+                console.log('DataTable not initialized, using regular table');
+                table = $("#purchase_product");
+            }
+            
             let existingRow = null;
 
             $('#purchase_product tbody tr').each(function() {
@@ -914,10 +960,14 @@
                 .qty : 0;
 
             if (existingRow && !isEditing) {
+                // Update IMEI data attribute for existing row
+                existingRow.attr('data-imei-enabled', product.is_imei_or_serial_no || 0);
+                
                 const quantityInput = existingRow.find('.purchase-quantity');
-                let currentVal = parseFloat(quantityInput.val());
+                let currentVal = parseFloat(quantityInput.val()) || 0;
                 let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
                 quantityInput.val(newQuantity).trigger('input');
+                console.log('Updated existing row quantity to:', newQuantity);
             } else {
                 // Use correct property names from the JSON response
                 const wholesalePrice = parseFloat(prices.wholesale_price || product.whole_sale_price) || 0;
@@ -927,9 +977,9 @@
                 const unitCost = parseFloat(prices.unit_cost || product.original_price) || 0;
 
                 const newRow = `
-            <tr data-id="${product.id}">
+            <tr data-id="${product.id}" data-imei-enabled="${product.is_imei_or_serial_no || 0}">
                 <td>${product.id}</td>
-                <td>${product.product_name} <br><small>Stock: ${currentStock}</small></td>
+                <td>${product.product_name} <br><small>Stock: ${currentStock}</small>${product.is_imei_or_serial_no ? ' <span class="badge badge-info">IMEI</span>' : ''}</td>
                 <td>
                     <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
                 </td>
@@ -952,9 +1002,26 @@
             </tr>
         `;
 
-                const $newRow = $(newRow);
-                table.row.add($newRow).draw();
-
+                try {
+                    const $newRow = $(newRow);
+                    
+                    if (isDataTable) {
+                        // Add to DataTable
+                        table.row.add($newRow).draw();
+                        console.log('Added new row to DataTable');
+                    } else {
+                        // Add to regular table
+                        $('#purchase_product tbody').append($newRow);
+                        console.log('Added new row to regular table');
+                    }
+                    
+                    // Trigger any necessary events
+                    $newRow.find('.purchase-quantity').trigger('input');
+                    
+                } catch (error) {
+                    console.error('Error adding row to table:', error);
+                    toastr.error('Failed to add product to table', 'Error');
+                }
             }
         }
 

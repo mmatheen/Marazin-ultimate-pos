@@ -6,6 +6,7 @@ use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Models\Batch;
 use App\Models\Ledger;
+use App\Models\ImeiNumber;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Models\Payment;
@@ -79,6 +80,7 @@ class PurchaseController extends Controller
             'products.*.total' => 'required|numeric|min:0',
             'products.*.batch_no' => 'nullable|string|max:255',
             'products.*.expiry_date' => 'nullable|date',
+            'products.*.imei_numbers' => 'nullable|json', // Add IMEI validation
             'paid_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|string',
             'payment_account' => 'nullable|string',
@@ -291,6 +293,11 @@ class PurchaseController extends Controller
             'quantity' => $productData['quantity'],
             'stock_type' => StockHistory::STOCK_TYPE_PURCHASE,
         ]);
+
+        // Handle IMEI numbers if provided
+        if (isset($productData['imei_numbers']) && !empty($productData['imei_numbers'])) {
+            $this->processImeiNumbers($productData, $batch->id, $locationId);
+        }
     }
 
     private function removeProductFromPurchase($productToRemove, $locationId)
@@ -313,6 +320,32 @@ class PurchaseController extends Controller
         ]);
 
         $productToRemove->delete();
+    }
+
+    private function processImeiNumbers($productData, $batchId, $locationId)
+    {
+        $imeiNumbers = json_decode($productData['imei_numbers'], true);
+        
+        if (is_array($imeiNumbers) && !empty($imeiNumbers)) {
+            foreach ($imeiNumbers as $imeiNumber) {
+                if (!empty(trim($imeiNumber))) {
+                    ImeiNumber::create([
+                        'imei_number' => trim($imeiNumber),
+                        'product_id' => $productData['product_id'],
+                        'location_id' => $locationId,
+                        'batch_id' => $batchId,
+                        'status' => 'available', // Default status for newly purchased IMEI
+                    ]);
+                }
+            }
+            
+            Log::info('IMEI numbers processed for product', [
+                'product_id' => $productData['product_id'],
+                'imei_count' => count($imeiNumbers),
+                'batch_id' => $batchId,
+                'location_id' => $locationId
+            ]);
+        }
     }
 
     private function handlePayment($request, $purchase)

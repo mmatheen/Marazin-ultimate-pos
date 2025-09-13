@@ -338,6 +338,19 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
+        // Validate walk-in customer cheque payment restriction
+        if ($request->customer_id == 1 && !empty($request->payments)) {
+            foreach ($request->payments as $payment) {
+                if (isset($payment['payment_method']) && $payment['payment_method'] === 'cheque') {
+                    return response()->json([
+                        'status' => 400, 
+                        'message' => 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.',
+                        'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
+                    ]);
+                }
+            }
+        }
+
         try {
             $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
@@ -585,6 +598,9 @@ class SaleController extends Controller
                         
                         if (in_array($oldStatus, ['final', 'suspend'])) {
                             $this->restoreStock($product, StockHistory::STOCK_TYPE_SALE_REVERSAL);
+                        } else {
+                            // For non-final statuses, still need to restore IMEI numbers
+                            $this->restoreImeiNumbers($product);
                         }
                         $product->delete();
                     }
@@ -1075,11 +1091,42 @@ class SaleController extends Controller
 
         Log::info("After restoration: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$product->batch->qty}");
 
+        // Restore IMEI numbers to 'available' status
+        $this->restoreImeiNumbers($product);
+
         StockHistory::create([
             'loc_batch_id' => $locationBatch->id,
             'quantity' => $product->quantity,
             'stock_type' => $stockType,
         ]);
+    }
+
+    private function restoreImeiNumbers($salesProduct)
+    {
+        Log::info("Restoring IMEI numbers for sale product ID {$salesProduct->id}");
+        
+        // Get all IMEI numbers associated with this sale product
+        $saleImeis = SaleImei::where('sale_product_id', $salesProduct->id)->get();
+        
+        foreach ($saleImeis as $saleImei) {
+            // Update IMEI status back to 'available'
+            $updated = ImeiNumber::where('imei_number', $saleImei->imei_number)
+                ->where('product_id', $saleImei->product_id)
+                ->where('batch_id', $saleImei->batch_id)
+                ->where('location_id', $saleImei->location_id)
+                ->update(['status' => 'available']);
+                
+            if ($updated) {
+                Log::info("IMEI {$saleImei->imei_number} restored to available status");
+            } else {
+                Log::warning("Failed to restore IMEI {$saleImei->imei_number} to available status");
+            }
+            
+            // Delete the sale IMEI record
+            $saleImei->delete();
+        }
+        
+        Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
     }
 
     private function generateReferenceNo()

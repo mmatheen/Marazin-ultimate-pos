@@ -50,6 +50,28 @@
                 border-bottom: none;
             }
 
+            /* IMEI Badge Styling */
+            .badge {
+                display: inline-block;
+                padding: 0.25em 0.4em;
+                font-size: 75%;
+                font-weight: 700;
+                line-height: 1;
+                text-align: center;
+                white-space: nowrap;
+                vertical-align: baseline;
+                border-radius: 0.25rem;
+            }
+
+            .badge-info {
+                color: #fff;
+                background-color: #17a2b8;
+            }
+
+            .purchase-imei-input.is-invalid {
+                border-color: #dc3545;
+            }
+
             .datatable tbody tr:hover {
                 background-color: #f9f9f9;
             }
@@ -647,6 +669,48 @@
         @include('category.main_category.main_category_modal')
         @include('category.sub_category.sub_category_modal')
         @include('category.sub_category.sub_category_ajax')
+
+        <!-- Purchase IMEI Entry Modal -->
+        <div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="purchaseImeiModalLabel">Enter IMEI Numbers for Purchase</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                        <p><strong>Product:</strong> <span id="purchaseImeiProductName"></span></p>
+                        <p>Total required: <strong><span id="purchaseImeiTotalCount"></span></strong></p>
+
+                        <!-- Textarea for Paste -->
+                        <textarea id="purchaseImeiInput" rows="6" class="form-control mb-2" placeholder="Paste or type one IMEI per line..."></textarea>
+                        <button type="button" class="btn btn-sm btn-info float-end text-white" id="purchaseAutoFillImeis">Auto Fill Rows</button>
+
+                        <!-- Table for IMEIs -->
+                        <table class="table table-bordered mt-3" id="purchaseImeiTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>IMEI Number</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+
+                        <!-- Buttons -->
+                        <button type="button" class="btn btn-sm btn-success mb-3" id="purchaseAddImeiRow">+ Add Row</button>
+                        <span id="purchaseImeiCountDisplay" class="ms-2 text-info"></span>
+                        <div id="purchaseImeiError" class="text-danger mt-2 d-none"></div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="purchaseSkipImeiButton">Skip</button>
+                        <button type="button" class="btn btn-primary" id="purchaseSaveImeiButton">Save IMEIs</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script>
             $(document).ready(function() {

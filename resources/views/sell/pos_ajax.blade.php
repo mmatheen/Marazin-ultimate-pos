@@ -17,6 +17,7 @@
         let allProducts = []; // paginated products for card display
         let stockData = []; // not used for cards/autocomplete in new version
         let isEditing = false;
+        let currentEditingSaleId = null; // Track the sale ID being edited
         let isSalesRep = false; // Track if current user is a sales rep
 
         const posProduct = document.getElementById('posProduct');
@@ -83,7 +84,7 @@
                 // Update all existing billing rows with new customer pricing
                 updateAllBillingRowsPricing(currentCustomer.customer_type);
                 
-                toastr.success('Product prices and discounts updated based on new customer type!');
+                // toastr.success('Product prices and discounts updated based on new customer type!');
             }
         });
 
@@ -1982,16 +1983,7 @@
             currentImeiStockEntry = stockEntry;
             
             console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType);
-
-            const availableImeis = (stockEntry.imei_numbers || []).filter(imei =>
-                imei.status === "available" && imei.location_id == selectedLocationId
-            );
-
-            const selectedBatch = stockEntry.batches.find(b =>
-                b.location_batches.some(lb => lb.location_id == selectedLocationId)
-            );
-            const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
-            let missingImeiCount = batchQty - availableImeis.length;
+            console.log('Is editing:', isEditing, 'Current sale ID:', currentEditingSaleId);
 
             // Collect already selected IMEIs in billing
             selectedImeisInBilling = [];
@@ -2000,60 +1992,171 @@
                 return row.querySelector('.product-id')?.textContent == product.id;
             });
             existingRows.forEach(row => {
-                const imei = row.querySelector('.imei-data')?.textContent.trim();
-                if (imei) selectedImeisInBilling.push(imei);
+                const imeiData = row.querySelector('.imei-data')?.textContent.trim();
+                if (imeiData) {
+                    // Split comma-separated IMEI values and add to selected list
+                    const rowImeis = imeiData.split(',').filter(Boolean);
+                    selectedImeisInBilling.push(...rowImeis);
+                }
             });
 
-            const tbody = document.getElementById('imei-table-body');
-            if (!tbody) {
-                toastr.error("IMEI table body not found");
-                return;
-            }
-            tbody.innerHTML = '';
-            const imeiRows = [];
+            console.log('Currently selected IMEIs in billing:', selectedImeisInBilling);
 
-            // Populate existing IMEIs
-            availableImeis.forEach((imei, index) => {
-                const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+            // Function to process and display IMEI data
+            const processImeiData = (allRelevantImeis) => {
+                const selectedBatch = stockEntry.batches.find(b =>
+                    b.location_batches.some(lb => lb.location_id == selectedLocationId)
+                );
+                const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
+                let missingImeiCount = Math.max(0, batchQty - allRelevantImeis.length);
+
+                const tbody = document.getElementById('imei-table-body');
+                if (!tbody) {
+                    toastr.error("IMEI table body not found");
+                    return;
+                }
+                tbody.innerHTML = '';
+                const imeiRows = [];
+
+                // Populate all relevant IMEIs
+                allRelevantImeis.forEach((imei, index) => {
+                    const isChecked = selectedImeisInBilling.includes(imei.imei_number);
+                    
+                    // Check if this IMEI matches the search term (for auto-selection)
+                    const isSearchedImei = matchType === 'IMEI' && searchTerm && 
+                        imei.imei_number.toLowerCase() === searchTerm.toLowerCase();
+                    
+                    const row = document.createElement('tr');
+                    row.dataset.imei = imei.imei_number;
+                    row.dataset.imeiId = imei.id; // <-- Store primary key for edit
+                    
+                    // Add special styling for searched IMEI
+                    if (isSearchedImei) {
+                        row.style.backgroundColor = '#e8f4f8';
+                        row.style.border = '2px solid #17a2b8';
+                    }
+                    
+                    row.innerHTML = `
+                <td>${index + 1}</td>
+                <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked || isSearchedImei ? 'checked' : ''} data-status="${imei.status}" /></td>
+                <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
+                <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
+                <td>
+                    ${userPermissions.canEditProduct ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
+                    ${userPermissions.canDeleteProduct ? `<button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>` : ''}
+                </td>
+            `;
+                    row.classList.add('clickable-row');
+                    row.addEventListener('click', function(event) {
+                        if (event.target.type !== 'checkbox') {
+                            const checkbox = row.querySelector('.imei-checkbox');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                    });
+                    tbody.appendChild(row);
+                    imeiRows.push(row);
+                });
+
+                // Add initial manual IMEI row
+                if (missingImeiCount > 0) {
+                    addNewImeiRow(missingImeiCount, tbody, imeiRows);
+                }
+
+                // Show modal
+                const modalElement = document.getElementById('imeiModal');
+                if (!modalElement) {
+                    toastr.error("IMEI modal not found");
+                    return;
+                }
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+
+                setupSearchAndFilter(tbody, imeiRows, searchTerm, matchType);
+                setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, imeiRows);
+                setupAddButtonContainer(missingImeiCount, tbody, imeiRows);
+                attachEditRemoveHandlers();
+            };
+
+            // If we're in edit mode, fetch the current sale's IMEI data and merge with available IMEIs
+            if (isEditing && currentEditingSaleId) {
+                fetch(`/sales/edit/${currentEditingSaleId}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 200) {
+                        // Get the current sale's IMEI numbers for this product
+                        const saleProducts = data.sale_details.sale_products.filter(sp => sp.product_id == product.id);
+                        let currentSaleImeis = [];
+                        
+                        saleProducts.forEach(sp => {
+                            if (sp.imei_numbers && sp.imei_numbers.length > 0) {
+                                sp.imei_numbers.forEach(imeiNumber => {
+                                    // Create IMEI object that matches the format from autocomplete
+                                    currentSaleImeis.push({
+                                        id: sp.id, // Use sale product ID as placeholder
+                                        imei_number: imeiNumber,
+                                        location_id: sp.location_id,
+                                        batch_id: sp.batch_id,
+                                        status: 'sold' // These are currently sold IMEIs
+                                    });
+                                });
+                            }
+                        });
+
+                        console.log('Current sale IMEIs:', currentSaleImeis);
+
+                        // Merge available IMEIs from stock with current sale IMEIs
+                        let allRelevantImeis = [];
+                        
+                        if (stockEntry.imei_numbers) {
+                            // Add available IMEIs
+                            const availableImeis = stockEntry.imei_numbers.filter(imei =>
+                                imei.status === "available" && imei.location_id == selectedLocationId
+                            );
+                            allRelevantImeis.push(...availableImeis);
+                        }
+                        
+                        // Add current sale IMEIs (these will show as sold but selectable)
+                        allRelevantImeis.push(...currentSaleImeis);
+                        
+                        // Remove duplicates based on IMEI number
+                        allRelevantImeis = allRelevantImeis.filter((imei, index, self) =>
+                            index === self.findIndex(i => i.imei_number === imei.imei_number)
+                        );
+
+                        console.log('All relevant IMEIs for edit mode:', allRelevantImeis);
+                        
+                        processImeiData(allRelevantImeis);
+                    } else {
+                        console.error('Failed to fetch sale data for IMEI editing');
+                        // Fallback to available IMEIs only
+                        processImeiDataFallback();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching sale IMEI data:', error);
+                    // Fallback to available IMEIs only
+                    processImeiDataFallback();
+                });
+            } else {
+                // Not in edit mode, use available IMEIs only
+                processImeiDataFallback();
+            }
+
+            // Fallback function for non-edit mode
+            function processImeiDataFallback() {
+                let allRelevantImeis = [];
                 
-                // Check if this IMEI matches the search term (for auto-selection)
-                const isSearchedImei = matchType === 'IMEI' && searchTerm && 
-                    imei.imei_number.toLowerCase() === searchTerm.toLowerCase();
-                
-                const row = document.createElement('tr');
-                row.dataset.imei = imei.imei_number;
-                row.dataset.imeiId = imei.id; // <-- Store primary key for edit
-                
-                // Add special styling for searched IMEI
-                if (isSearchedImei) {
-                    row.style.backgroundColor = '#e8f4f8';
-                    row.style.border = '2px solid #17a2b8';
+                if (stockEntry.imei_numbers) {
+                    // Add available IMEIs
+                    const availableImeis = stockEntry.imei_numbers.filter(imei =>
+                        imei.status === "available" && imei.location_id == selectedLocationId
+                    );
+                    allRelevantImeis.push(...availableImeis);
                 }
                 
-                row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked || isSearchedImei ? 'checked' : ''} data-status="${imei.status}" /></td>
-            <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
-            <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
-            <td>
-                ${userPermissions.canEditProduct ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
-                ${userPermissions.canDeleteProduct ? `<button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>` : ''}
-            </td>
-        `;
-                row.classList.add('clickable-row');
-                row.addEventListener('click', function(event) {
-                    if (event.target.type !== 'checkbox') {
-                        const checkbox = row.querySelector('.imei-checkbox');
-                        checkbox.checked = !checkbox.checked;
-                    }
-                });
-                tbody.appendChild(row);
-                imeiRows.push(row);
-            });
-
-            // Add initial manual IMEI row
-            if (missingImeiCount > 0) {
-                addNewImeiRow(missingImeiCount, tbody, imeiRows);
+                processImeiData(allRelevantImeis);
             }
 
             // Show modal
@@ -3559,6 +3662,7 @@
         function fetchEditSale(saleId) {
             // Set editing mode to true
             isEditing = true;
+            currentEditingSaleId = saleId; // Store the sale ID being edited
             
             fetch(`/sales/edit/${saleId}`, {
                     headers: {
@@ -3784,7 +3888,7 @@
 
                     // Get IMEI numbers if any
                     const imeiData = productRow.find('.imei-data').text().trim();
-                    const imeis = imeiData ? [imeiData] : []; // Create array with single IMEI
+                    const imeis = imeiData ? imeiData.split(',').filter(Boolean) : [];
 
                     if (!locationId) {
                         toastr.error('Location ID is missing for a product.');
@@ -3841,6 +3945,17 @@
                 if (!checkSalesAccess()) {
                     onComplete();
                     return;
+                }
+
+                // Validate walk-in customer cheque payment restriction
+                if (saleData.customer_id == 1 && saleData.payments) {
+                    for (let payment of saleData.payments) {
+                        if (payment.payment_method === 'cheque') {
+                            toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                            onComplete();
+                            return;
+                        }
+                    }
                 }
                 
                 // Extract saleId from the URL if not provided
@@ -4059,6 +4174,12 @@
             });
 
             $('#chequeButton').on('click', function() {
+                // Check if customer is walk-in customer (ID = 1)
+                const customerId = $('#customer-id').val();
+                if (customerId == 1) {
+                    toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                    return; // Prevent opening the modal
+                }
                 $('#chequeModal').modal('show');
             });
 
@@ -4116,6 +4237,14 @@
             $('#confirmChequePayment').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // Check if customer is walk-in customer (ID = 1)
+                    const customerId = $('#customer-id').val();
+                    if (customerId == 1) {
+                        toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                        enableButton(button);
+                        return;
+                    }
+
                     if (!validateChequeFields()) {
                         enableButton(button);
                         return;
@@ -4596,6 +4725,7 @@
         function resetForm() {
             // Reset editing mode
             isEditing = false;
+            currentEditingSaleId = null; // Reset the editing sale ID
             
             resetToWalkingCustomer();
             const quantityInputs = document.querySelectorAll('.quantity-input');

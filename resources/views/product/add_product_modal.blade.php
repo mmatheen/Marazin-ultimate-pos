@@ -41,25 +41,25 @@
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4">
-                                                        <div class="input-group mb-3">
-
-                                                            <label>Product Unit <span
-                                                                    class="login-danger">*</span></label>
-                                                            <select class="form-control form-select select"
-                                                                id="edit_unit_id" name="unit_id">
-                                                                <option>Select Unit</option>
-                                                            </select>
-
-                                                            <div class="input-group-text">
-                                                                <button type="button" class="btn btn-outline-info"
+                                                      <div class="col-md-4">
+                                                        <div class="mb-3 ">
+                                                            <div class="input-group local-forms d-flex">
+                                                                <label>Product Unit <span
+                                                                        class="login-danger">*</span></label>
+                                                                <select class="form-control form-select select"
+                                                                    id="edit_unit_id" name="unit_id">
+                                                                    <option>Select Unit</option>
+                                                                </select>
+                                                                <button type="button" class="btn btn-outline-info "
                                                                     id="addUnitButton">
                                                                     <i class="fas fa-plus-circle"></i>
                                                                 </button>
                                                             </div>
+                                                            <span class="text-danger" id="brand_id_error"></span>
                                                         </div>
-                                                        <span class="text-danger" id="unit_id_error"></span>
                                                     </div>
+
+                                                   
 
 
 
