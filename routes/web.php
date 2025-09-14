@@ -42,8 +42,7 @@ use App\Http\Controllers\{
     PaymentController,
     DiscountController,
     ReportController,
-    SettingController,
-    PermissionsDemoController
+    SettingController
 };
 use App\Http\Controllers\Web\{
     VehicleController,
@@ -520,86 +519,5 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             });
         }
     });
-});
-
-// -------------------- Permissions Demo Routes --------------------
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/permissions-demo', [PermissionsDemoController::class, 'index'])->name('permissions.demo');
-    Route::get('/test-permissions-ajax', [PermissionsDemoController::class, 'testPermissionsAjax'])->name('permissions.test.ajax');
-});
-
-// -------------------- Debug Permissions Route --------------------
-Route::middleware(['auth'])->get('/debug-permissions', function() {
-    $user = auth()->user();
-    
-    // Get all user permissions (direct + via roles)
-    $userDirectPermissions = $user->permissions;
-    $userRolePermissions = collect();
-    
-    foreach ($user->roles as $role) {
-        $userRolePermissions = $userRolePermissions->merge($role->permissions);
-    }
-    
-    $allUserPermissions = $userDirectPermissions->merge($userRolePermissions)->unique('id');
-    
-    $data = [
-        'user_info' => [
-            'name' => $user->full_name,
-            'email' => $user->email,
-            'roles' => $user->roles->pluck('name')->toArray(),
-        ],
-        'user_has_permissions' => $allUserPermissions->map(function($p) {
-            return ['id' => $p->id, 'name' => $p->name, 'group' => $p->group_name];
-        })->toArray(),
-        'all_permissions_in_system' => \Spatie\Permission\Models\Permission::all()->map(function($p) {
-            return ['id' => $p->id, 'name' => $p->name, 'group' => $p->group_name];
-        })->toArray(),
-        'is_master_super_admin' => $user->roles->where('name', 'Master Super Admin')->count() > 0,
-        'user_permissions_count' => $allUserPermissions->count(),
-        'total_permissions_count' => \Spatie\Permission\Models\Permission::count(),
-    ];
-    
-    return response()->json($data, 200, [], JSON_PRETTY_PRINT);
-})->name('debug.permissions');
-
-Route::get('/debug-role-permissions-page', function () {
-    $user = auth()->user();
-    
-    // Check if user is Master Super Admin
-    $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-    
-    // Filter permissions based on user role and their actual permissions
-    if ($isMasterSuperAdmin) {
-        // Master Super Admin sees all permissions
-        $allPermissions = \Spatie\Permission\Models\Permission::all();
-    } else {
-        // Other users only see permissions they actually have been granted
-        // Get both direct permissions and permissions through roles
-        $directPermissions = $user->permissions;
-        $rolePermissions = collect();
-        
-        foreach ($user->roles as $role) {
-            $rolePermissions = $rolePermissions->merge($role->permissions);
-        }
-        
-        // Merge and remove duplicates
-        $allPermissions = $directPermissions->merge($rolePermissions)->unique('id');
-    }
-    
-    $permissionsData = $allPermissions->groupBy('group_name');
-    
-    return response()->json([
-        'user' => $user->name,
-        'is_master_super_admin' => $isMasterSuperAdmin,
-        'total_permissions_shown' => $allPermissions->count(),
-        'total_system_permissions' => \Spatie\Permission\Models\Permission::count(),
-        'permission_groups' => $permissionsData->map(function($permissions, $groupName) {
-            return [
-                'group_name' => $groupName,
-                'permissions_count' => $permissions->count(),
-                'permissions' => $permissions->take(5)->pluck('name')
-            ];
-        })
-    ]);
 });
 

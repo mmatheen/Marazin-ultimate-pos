@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('city');
             $table->string('email');
             $table->integer('mobile');
-            $table->string('telephone_no');
+            $table->string('telephone_no')->nullable();
             $table->timestamps();
         });
     }

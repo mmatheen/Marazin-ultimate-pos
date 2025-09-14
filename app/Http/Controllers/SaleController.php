@@ -31,9 +31,9 @@ class SaleController extends Controller
     function __construct()
     {
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show']]);
-        $this->middleware('permission:create sale', ['only' => ['addSale', 'store']]);
+        $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
         $this->middleware('permission:access pos', ['only' => ['pos']]);
-        $this->middleware('permission:edit sale', ['only' => ['editSale', 'update']]);
+        $this->middleware('permission:edit sale', ['only' => ['editSale', 'storeOrUpdate']]);
         $this->middleware('permission:delete sale', ['only' => ['destroy']]);
         $this->middleware('permission:print sale invoice', ['only' => ['printInvoice']]);
 

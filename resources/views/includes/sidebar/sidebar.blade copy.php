@@ -356,18 +356,6 @@
                         </ul>
                     </li>
                 @endcanany
-
-                {{-- Permissions Demo Section --}}
-                <li class="menu-title">
-                    <span>System Demo</span>
-                </li>
-                
-                <li>
-                    <a href="{{ route('permissions.demo') }}" class="{{ set_active(['permissions-demo']) }}">
-                        <i class="fas fa-shield-alt text-primary"></i>
-                        <span class="sidebar-text">🚀 Permissions Demo</span>
-                    </a>
-                </li>
             </ul>
         </div>
     </div>
