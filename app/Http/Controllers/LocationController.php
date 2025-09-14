@@ -158,7 +158,6 @@ class LocationController extends Controller
             'city' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:locations,email',
             'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
-            'telephone_no' => ['required', 'regex:/^(0?\d{9,10})$/'],
             'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
             'vehicle_number' => [
                 'nullable',
@@ -190,8 +189,6 @@ class LocationController extends Controller
         ], [
             'mobile.required' => 'Please enter a valid mobile number with 10 digits.',
             'mobile.regex' => 'Mobile must be 9 or 10 digits.',
-            'telephone_no.required' => 'Please enter a valid telephone number with 10 digits.',
-            'telephone_no.regex' => 'Telephone must be 9 or 10 digits.',
             'location_id.regex' => 'Location ID must be in format LOC0001.',
             'location_id.unique' => 'This Location ID is already taken.',
             'vehicle_number.unique' => 'This vehicle number is already in use.',

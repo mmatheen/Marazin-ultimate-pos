@@ -180,7 +180,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    {{-- <div class="col-md-4">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
                                                 <label>Location ID<span class="login-danger">*</span></label>
@@ -189,7 +189,7 @@
                                                 <span class="text-danger" id="location_id_error"></span>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> --}}
                                     <div class="col-md-4">
                                         <div class="mb-3">
                                             <div class="form-group local-forms">
