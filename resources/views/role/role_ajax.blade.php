@@ -170,14 +170,24 @@
                         // Clear validation error messages
                         showFetchData();
                         populateRoleDropdown();
-                        document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                        document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
                         };
                         toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
+                        
+                        // If it's a new role creation and response indicates redirect to permissions
+                        if (!id && response.redirect_to_permissions) {
+                            // Show success message first, then redirect after a short delay
+                            setTimeout(function() {
+                                toastr.info('Redirecting to assign permissions to the new role...', 'Next Step');
+                                setTimeout(function() {
+                                    window.location.href = '/group-role-and-permission';
+                                }, 1500);
+                            }, 2000);
+                        }
                     }
                 }
             });

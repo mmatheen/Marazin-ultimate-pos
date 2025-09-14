@@ -76,11 +76,36 @@
 
         $(document).on('click', '.edit_btn', function() {
             var role_id = $(this).val(); // Get the ID from the button value
-            // Redirect to the edit page for the specific role ID
-            window.location.href = `/role-and-permission-edit/${role_id}`;
-
-
+            
+            // Make AJAX request to check permissions first
+            $.ajax({
+                url: `/get-role-permissions/${role_id}`,
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 403 && response.show_toastr) {
+                        // Show toastr error instead of JSON response
+                        toastr.error(response.message, 'Permission Denied');
+                        document.getElementsByClassName('errorSound')[0].play();
+                    } else if (response.status === 200) {
+                        // Redirect to the edit page for the specific role ID
+                        window.location.href = `/role-and-permission-edit/${role_id}`;
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 403) {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.show_toastr) {
+                            toastr.error(response.message, 'Permission Denied');
+                            document.getElementsByClassName('errorSound')[0].play();
+                        }
+                    } else {
+                        toastr.error('An error occurred while checking permissions.', 'Error');
+                        document.getElementsByClassName('errorSound')[0].play();
+                    }
+                }
             });
+        });
 
 
         // Submit Add/Update Form
@@ -120,13 +145,36 @@
                     }
                     else if (response.status == 404) {
                         toastr.error(response.message, 'Error');
-                            document.getElementsByClassName('errorSound')[0].play(); //for sound
-
-                    } else {
+                        document.getElementsByClassName('errorSound')[0].play(); //for sound
+                    } 
+                    else if (response.status == 403) {
+                        // Handle permission errors with toastr
+                        if (response.show_toastr) {
+                            toastr.error(response.message, 'Permission Denied');
+                        } else {
+                            toastr.error(response.message, 'Access Denied');
+                        }
+                        document.getElementsByClassName('errorSound')[0].play(); //for sound
+                    } 
+                    else {
                         document.getElementsByClassName('successSound')[0].play(); //for sound
                         toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
                         window.location.href = '/group-role-and-permission-view';
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 403) {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.show_toastr) {
+                            toastr.error(response.message, 'Permission Denied');
+                        } else {
+                            toastr.error(response.message, 'Access Denied');
+                        }
+                        document.getElementsByClassName('errorSound')[0].play();
+                    } else {
+                        toastr.error('An error occurred. Please try again.', 'Error');
+                        document.getElementsByClassName('errorSound')[0].play();
                     }
                 }
             });

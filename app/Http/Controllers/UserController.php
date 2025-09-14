@@ -16,6 +16,7 @@ class UserController extends Controller
         $this->middleware('permission:create user', ['only' => ['store']]);
         $this->middleware('permission:edit user', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete user', ['only' => ['destroy']]);
+        $this->middleware('role.security', ['only' => ['edit', 'update', 'destroy']]);
     }
 
     public function user()
@@ -141,32 +142,53 @@ class UserController extends Controller
 
     public function edit(int $id)
     {
+        $currentUser = auth()->user();
         $user = User::with(['roles', 'locations'])->find($id);
 
-        if ($user) {
-            return response()->json([
-                'status' => 200,
-                'message' => [
-                    'id' => $user->id,
-                    'name_title' => $user->name_title,
-                    'full_name' => $user->full_name,
-                    'user_name' => $user->user_name,
-                    'email' => $user->email,
-                    'role' => $user->getRoleNames()->first(),
-                    'location_ids' => $user->locations->pluck('id')->toArray(),
-                    'locations' => $user->locations->pluck('name')->toArray(),
-                ]
-            ]);
-        } else {
+        if (!$user) {
             return response()->json([
                 'status' => 404,
                 'message' => "No Such User Found!"
             ]);
         }
+
+        $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        $targetUserIsMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        $targetUserIsSuperAdmin = $user->roles->where('key', 'super_admin')->count() > 0;
+
+        // Prevent non-Master Super Admin users from editing Master Super Admin users
+        if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to edit Master Super Admin users."
+            ], 403);
+        }
+
+        // Allow super admin and master admin to edit their own profile
+        // This will be handled in the update method for role restrictions
+        $isOwnProfile = $currentUser->id === $user->id;
+        
+        return response()->json([
+            'status' => 200,
+            'message' => [
+                'id' => $user->id,
+                'name_title' => $user->name_title,
+                'full_name' => $user->full_name,
+                'user_name' => $user->user_name,
+                'email' => $user->email,
+                'role' => $user->roles->first()?->name ?? 'No Role',
+                'location_ids' => $user->locations->pluck('id')->toArray(),
+                'locations' => $user->locations->pluck('name')->toArray(),
+                'is_own_profile' => $isOwnProfile,
+                'can_edit_role' => !$isOwnProfile || (!$currentUserIsMasterSuperAdmin && !$currentUserIsSuperAdmin)
+            ]
+        ]);
     }
 
     public function update(Request $request, int $id)
     {
+        $currentUser = auth()->user();
         $user = User::find($id);
 
         if (!$user) {
@@ -176,19 +198,66 @@ class UserController extends Controller
             ]);
         }
 
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'name_title' => 'required|string|max:10',
-                'full_name' => 'required|string',
-                'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id,
-                'email' => 'required|email|unique:users,email,' . $user->id,
-                'password' => 'nullable|string|min:5|confirmed',
-                'roles' => 'required|string|exists:roles,name',
-                'location_id' => 'required|array',
-                'location_id.*' => 'exists:locations,id',
-            ]
-        );
+        $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        $targetUserIsMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        $targetUserIsSuperAdmin = $user->roles->where('key', 'super_admin')->count() > 0;
+        $isOwnProfile = $currentUser->id === $user->id;
+
+        // Prevent non-Master Super Admin users from editing Master Super Admin users
+        if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to edit Master Super Admin users."
+            ], 403);
+        }
+
+        // Check if user is trying to change their own role
+        $currentRole = $user->roles->first()?->name;
+        $isChangingOwnRole = $isOwnProfile && $request->roles && $request->roles !== $currentRole;
+        
+        if ($isChangingOwnRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You cannot change your own role. Please contact another administrator to modify your role."
+            ], 403);
+        }
+
+        // Prevent changing Master Super Admin role to something else or assigning Master Super Admin role to others
+        if ($targetUserIsMasterSuperAdmin && $request->roles && $request->roles !== 'Master Super Admin' && !$isOwnProfile) {
+            return response()->json([
+                'status' => 403,
+                'message' => "Cannot change Master Super Admin role. This role is protected."
+            ], 403);
+        }
+
+        if (!$currentUserIsMasterSuperAdmin && $request->roles === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to assign Master Super Admin role."
+            ], 403);
+        }
+
+        // Set up validation rules
+        $validationRules = [
+            'name_title' => 'required|string|max:10',
+            'full_name' => 'required|string',
+            'user_name' => 'required|string|max:50|unique:users,user_name,' . $user->id,
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:5|confirmed',
+            'location_id' => 'required|array',
+            'location_id.*' => 'exists:locations,id',
+        ];
+
+        // Only require role validation if it's not the user's own profile
+        if (!$isOwnProfile) {
+            $validationRules['roles'] = 'required|string|exists:roles,name';
+        } else {
+            // For own profile, role is optional and will be ignored if provided
+            $validationRules['roles'] = 'nullable|string|exists:roles,name';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
 
         if ($validator->fails()) {
             return response()->json([
@@ -210,15 +279,20 @@ class UserController extends Controller
 
         $user->update($data);
 
-        if ($request->roles) {
+        // Only update role if it's not the user's own profile and role is provided
+        if (!$isOwnProfile && $request->roles) {
             $user->syncRoles([$request->roles]);
         }
 
         $user->locations()->sync($request->location_id);
 
+        $message = $isOwnProfile ? 
+            "Your profile has been updated successfully!" : 
+            "User Details Updated Successfully!";
+
         return response()->json([
             'status' => 200,
-            'message' => "User Details Updated Successfully!"
+            'message' => $message
         ]);
     }
 
@@ -242,10 +316,10 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Prevent deletion of Master Super Admin by non-Master Super Admin users
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
         $targetUserIsMasterSuperAdmin = $userToDelete->roles->where('name', 'Master Super Admin')->count() > 0;
         
+        // Prevent deletion of Master Super Admin by non-Master Super Admin users
         if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
             return response()->json([
                 'status' => 403,
@@ -265,6 +339,14 @@ class UserController extends Controller
                     'message' => "Cannot delete the last Master Super Admin user. This would make the system inaccessible."
                 ], 403);
             }
+        }
+
+        // Additional protection: Master Super Admin cannot delete other Master Super Admin accounts
+        if ($currentUserIsMasterSuperAdmin && $targetUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "Master Super Admin accounts cannot be deleted to maintain system security."
+            ], 403);
         }
 
         // Proceed with deletion

@@ -16,6 +16,7 @@ class RoleController extends Controller
         $this->middleware('permission:create role', ['only' => ['store']]);
         $this->middleware('permission:edit role', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role', ['only' => ['destroy']]);
+        $this->middleware('role.security', ['only' => ['edit', 'update', 'store', 'destroy']]);
     }
 
     public function role()
@@ -25,7 +26,16 @@ class RoleController extends Controller
 
     public function index()
     {
-        $roles = Role::select('id', 'name', 'key')->get(); // Include key
+        // Get roles that current user can see based on hierarchy
+        $user = auth()->user();
+        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        if ($isMasterSuperAdmin) {
+            $roles = Role::select('id', 'name', 'key')->get();
+        } else {
+            // Non-Master Super Admin users cannot see Master Super Admin role
+            $roles = Role::select('id', 'name', 'key')->where('name', '!=', 'Master Super Admin')->get();
+        }
 
         if ($roles->isNotEmpty()) {
             return response()->json([
@@ -102,7 +112,12 @@ class RoleController extends Controller
 
         return response()->json([
             'status' => 200,
-            'message' => 'Role created successfully!'
+            'message' => 'Role created successfully!',
+            'redirect_to_permissions' => true,
+            'role' => [
+                'id' => $role->id,
+                'name' => $role->name
+            ]
         ]);
     }
 
@@ -135,11 +150,33 @@ class RoleController extends Controller
      */
     public function edit($id)
     {
+        $currentUser = auth()->user();
         $role = Role::select('id', 'name', 'key')->find($id);
-        if ($role) {
-            return response()->json(['status' => 200, 'message' => $role]);
+        
+        if (!$role) {
+            return response()->json(['status' => 404, 'message' => 'Role not found.']);
         }
-        return response()->json(['status' => 404, 'message' => 'Role not found.']);
+
+        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Prevent non-Master Super Admin users from editing Master Super Admin role
+        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to edit Master Super Admin role.'
+            ], 403);
+        }
+
+        // Prevent users from editing their own role
+        $userHasThisRole = $currentUser->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You cannot edit your own role. This could lead to access issues.'
+            ], 403);
+        }
+
+        return response()->json(['status' => 200, 'message' => $role]);
     }
 
     /**
@@ -151,9 +188,46 @@ class RoleController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $currentUser = auth()->user();
         $role = Role::find($id);
+        
         if (!$role) {
             return response()->json(['status' => 404, 'message' => 'Role not found.']);
+        }
+
+        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Prevent non-Master Super Admin users from editing Master Super Admin role
+        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to edit Master Super Admin role.'
+            ], 403);
+        }
+
+        // Prevent users from editing their own role
+        $userHasThisRole = $currentUser->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You cannot edit your own role. This could lead to access issues.'
+            ], 403);
+        }
+
+        // Prevent changing Master Super Admin role
+        if ($role->name === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Master Super Admin role cannot be modified. This role is protected.'
+            ], 403);
+        }
+
+        // Prevent creating another Master Super Admin role
+        if ($request->name === 'Master Super Admin' && $role->name !== 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Cannot create additional Master Super Admin roles.'
+            ], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -194,22 +268,30 @@ class RoleController extends Controller
             ]);
         }
 
-        // Prevent deletion of Master Super Admin role by non-Master Super Admin users
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        
-        if ($roleToDelete->name === 'Master Super Admin' && !$currentUserIsMasterSuperAdmin) {
+
+        // Prevent deletion of Master Super Admin role by anyone, including Master Super Admin
+        if ($roleToDelete->name === 'Master Super Admin') {
             return response()->json([
                 'status' => 403,
-                'message' => "You do not have permission to delete the Master Super Admin role."
+                'message' => "Master Super Admin role cannot be deleted. This role is essential for system operation and security."
             ], 403);
         }
 
-        // Prevent deletion of critical system roles
-        $criticalRoles = ['Master Super Admin', 'Super Admin'];
+        // Prevent deletion of other critical system roles
+        $criticalRoles = ['Super Admin'];
         if (in_array($roleToDelete->name, $criticalRoles)) {
             return response()->json([
                 'status' => 403,
                 'message' => "Cannot delete critical system role '{$roleToDelete->name}'. This role is essential for system operation."
+            ], 403);
+        }
+
+        // Prevent non-Master Super Admin users from deleting any roles that they shouldn't manage
+        if (!$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to delete roles. Only Master Super Admin can delete roles."
             ], 403);
         }
 

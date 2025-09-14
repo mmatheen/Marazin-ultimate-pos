@@ -16,6 +16,7 @@ class RoleAndPermissionController extends Controller
         $this->middleware('permission:create role-permission', ['only' => ['store']]);
         $this->middleware('permission:edit role-permission', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete role-permission', ['only' => ['destroy']]);
+        $this->middleware('role.security', ['only' => ['edit', 'update', 'store', 'destroy']]);
     }
 
     public function groupRoleAndPermissionView()
@@ -137,6 +138,15 @@ class RoleAndPermissionController extends Controller
             ], 403);
         }
 
+        // Prevent users from editing their own role
+        $userHasThisRole = $currentUser->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You cannot edit your own role. This could lead to access issues.'
+            ], 403);
+        }
+
         // Get selected permissions
         $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
         
@@ -196,6 +206,13 @@ class RoleAndPermissionController extends Controller
         $role = Role::with('permissions')->find($role_id);
 
         if (!$role) {
+            // For AJAX requests, return JSON response
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Role not found!'
+                ], 404);
+            }
             return response()->json([
                 'status' => 404,
                 'message' => 'Role not found!'
@@ -206,6 +223,41 @@ class RoleAndPermissionController extends Controller
         
         // Check if user is Master Super Admin
         $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Prevent non-Master Super Admin users from editing Master Super Admin role
+        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+            // For AJAX requests, return JSON response for toastr
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Access denied! You do not have permission to edit Master Super Admin role.',
+                    'show_toastr' => true
+                ], 403);
+            }
+            return response()->json([
+                'status' => 403,
+                'message' => 'Access denied! You do not have permission to edit Master Super Admin role.',
+                'show_toastr' => true
+            ], 403);
+        }
+
+        // Prevent users from editing their own role
+        $userHasThisRole = $user->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            // For AJAX requests, return JSON response for toastr
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'Permission denied! You cannot edit your own role. This could lead to access issues.',
+                    'show_toastr' => true
+                ], 403);
+            }
+            return response()->json([
+                'status' => 403,
+                'message' => 'Permission denied! You cannot edit your own role. This could lead to access issues.',
+                'show_toastr' => true
+            ], 403);
+        }
         
         // Filter permissions based on user role and their actual permissions
         if ($isMasterSuperAdmin) {
@@ -238,7 +290,6 @@ class RoleAndPermissionController extends Controller
 
     public function update(Request $request, $role_id)
     {
-
         // Validate the request
         $validator = Validator::make($request->all(), [
             'permission_id' => 'required|array',
@@ -265,9 +316,55 @@ class RoleAndPermissionController extends Controller
             ], 404);
         }
 
-        // Get selected permissions
-        $permissions = Permission::whereIn('id', $request->permission_id)->pluck('name')->toArray();
+        $currentUser = auth()->user();
+        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Prevent non-Master Super Admin users from editing Master Super Admin role
+        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have permission to modify Master Super Admin role.'
+            ], 403);
+        }
 
+        // Prevent users from editing their own role
+        $userHasThisRole = $currentUser->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You cannot edit your own role. This could lead to access issues.'
+            ], 403);
+        }
+
+        // Get selected permissions
+        $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
+        
+        // For non-Master Super Admin users, validate they can only assign permissions they have
+        if (!$isMasterSuperAdmin) {
+            // Get all permissions the current user has (direct + via roles)
+            $userDirectPermissions = $currentUser->permissions;
+            $userRolePermissions = collect();
+            
+            foreach ($currentUser->roles as $userRole) {
+                $userRolePermissions = $userRolePermissions->merge($userRole->permissions);
+            }
+            
+            $allUserPermissions = $userDirectPermissions->merge($userRolePermissions)->unique('id');
+            $userPermissionIds = $allUserPermissions->pluck('id')->toArray();
+            
+            $invalidPermissions = $selectedPermissions->filter(function($permission) use ($userPermissionIds) {
+                return !in_array($permission->id, $userPermissionIds);
+            });
+
+            if ($invalidPermissions->count() > 0) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => 'You can only assign permissions that you have yourself. Invalid permissions: ' . $invalidPermissions->pluck('name')->join(', ')
+                ], 403);
+            }
+        }
+
+        $permissions = $selectedPermissions->pluck('name')->toArray();
 
         // Sync the permissions with the role
         $role->syncPermissions($permissions);
@@ -292,22 +389,30 @@ class RoleAndPermissionController extends Controller
             ], 404);
         }
 
-        // Prevent deletion of Master Super Admin role by non-Master Super Admin users
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        
-        if ($roleToDelete->name === 'Master Super Admin' && !$currentUserIsMasterSuperAdmin) {
+
+        // Prevent deletion of Master Super Admin role by anyone, including Master Super Admin
+        if ($roleToDelete->name === 'Master Super Admin') {
             return response()->json([
                 'status' => 403,
-                'message' => "You do not have permission to delete the Master Super Admin role."
+                'message' => "Master Super Admin role cannot be deleted. This role is essential for system operation and security."
             ], 403);
         }
 
-        // Prevent deletion of critical system roles
-        $criticalRoles = ['Master Super Admin', 'Super Admin'];
+        // Prevent deletion of other critical system roles
+        $criticalRoles = ['Super Admin'];
         if (in_array($roleToDelete->name, $criticalRoles)) {
             return response()->json([
                 'status' => 403,
                 'message' => "Cannot delete critical system role '{$roleToDelete->name}'. This role is essential for system operation."
+            ], 403);
+        }
+
+        // Prevent non-Master Super Admin users from deleting any roles that they shouldn't manage
+        if (!$currentUserIsMasterSuperAdmin) {
+            return response()->json([
+                'status' => 403,
+                'message' => "You do not have permission to delete roles. Only Master Super Admin can delete roles."
             ], 403);
         }
 
@@ -341,6 +446,58 @@ class RoleAndPermissionController extends Controller
         return response()->json([
             'status' => 200,
             'message' => 'Role deleted successfully!'
+        ]);
+    }
+
+    /**
+     * Get permissions for a specific role (for auto-fetching in form)
+     */
+    public function getRolePermissions($role_id)
+    {
+        $role = Role::with('permissions')->find($role_id);
+
+        if (!$role) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Role not found!'
+            ], 404);
+        }
+
+        $user = auth()->user();
+        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Prevent non-Master Super Admin users from accessing Master Super Admin role
+        if (!$isMasterSuperAdmin && $role->name === 'Master Super Admin') {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Access denied! You do not have permission to view Master Super Admin role permissions.',
+                'show_toastr' => true
+            ], 403);
+        }
+
+        // Prevent users from viewing their own role permissions for editing
+        $userHasThisRole = $user->roles->where('id', $role->id)->count() > 0;
+        if ($userHasThisRole) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'Permission denied! You cannot modify your own role permissions.',
+                'show_toastr' => true
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => 200,
+            'role' => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'permissions' => $role->permissions->map(function($permission) {
+                    return [
+                        'id' => $permission->id,
+                        'name' => $permission->name,
+                        'group_name' => $permission->group_name ?? 'default'
+                    ];
+                })
+            ]
         ]);
     }
 }

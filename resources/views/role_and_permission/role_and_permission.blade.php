@@ -207,10 +207,11 @@
             $('#selectAllGlobal').on('change', function() {
                 // Toggle all checkboxes based on global checkbox
                 $('.form-check-input').not(this).prop('checked', this.checked);
+                $('.group-select-all').prop('checked', this.checked);
 
                 // Log all selected permissions globally
                 if (this.checked) {
-                    $('input[name="permission[]"]:checked').each(function() {
+                    $('input[name="permission_id[]"]:checked').each(function() {
                         console.log("Selected Permission (Global):", $(this).val());
                     });
                 } else {
@@ -233,6 +234,77 @@
                     });
                 } else {
                     console.log("Permissions deselected in Group " + groupId);
+                }
+                
+                // Update other group checkboxes in case this affects them
+                updateGroupCheckboxes();
+            });
+
+            // Handle individual permission checkbox changes to update group checkboxes
+            $(document).on('change', 'input[name="permission_id[]"]', function() {
+                updateGroupCheckboxes();
+            });
+
+            // Function to update group "Select All" checkboxes based on individual selections
+            function updateGroupCheckboxes() {
+                $('.group-select-all').each(function() {
+                    var groupId = $(this).val();
+                    var totalPermissions = $('input[data-group-id="' + groupId + '"]').length;
+                    var checkedPermissions = $('input[data-group-id="' + groupId + '"]:checked').length;
+                    
+                    // If all permissions in the group are checked, check the group checkbox
+                    $(this).prop('checked', totalPermissions === checkedPermissions && totalPermissions > 0);
+                });
+            }
+
+            // Auto-fetch permissions when role is selected
+            $('#select_role_id').on('change', function() {
+                var roleId = $(this).val();
+                
+                // Clear all previously selected permissions
+                $('input[name="permission_id[]"]').prop('checked', false);
+                $('.group-select-all').prop('checked', false); // Clear group checkboxes too
+                
+                if (roleId) {
+                    // Fetch existing permissions for the selected role
+                    $.ajax({
+                        url: `/get-role-permissions/${roleId}`,
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.status === 200) {
+                                // Auto-select existing permissions
+                                response.role.permissions.forEach(function(permission) {
+                                    $(`input[value="${permission.id}"]`).prop('checked', true);
+                                });
+                                
+                                // Update group checkboxes after permissions are loaded
+                                updateGroupCheckboxes();
+                                
+                                // Show info message
+                                toastr.info(`Loaded existing permissions for ${response.role.name}`, 'Role Permissions');
+                            } else if (response.status === 403 && response.show_toastr) {
+                                toastr.error(response.message, 'Permission Denied');
+                                document.getElementsByClassName('errorSound')[0].play();
+                                // Reset the dropdown
+                                $('#select_role_id').val('').trigger('change');
+                            }
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 403) {
+                                var errorResponse = JSON.parse(xhr.responseText);
+                                if (errorResponse.show_toastr) {
+                                    toastr.error(errorResponse.message, 'Permission Denied');
+                                    document.getElementsByClassName('errorSound')[0].play();
+                                    // Reset the dropdown
+                                    $('#select_role_id').val('').trigger('change');
+                                }
+                            } else {
+                                // For new roles or roles without permissions, just continue
+                                console.log('No existing permissions or role is new');
+                            }
+                        }
+                    });
                 }
             });
         });

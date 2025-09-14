@@ -199,6 +199,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/role-and-permission-store', [RoleAndPermissionController::class, 'store'])->name('role-and-permission-store');
         Route::post('/role-and-permission-update/{role_id}', [RoleAndPermissionController::class, 'update'])->name('group-and-permission-update');
         Route::get('/role-and-permission-all', [RoleAndPermissionController::class, 'groupRoleAndPermissionList'])->name('role-and-permission-all');
+        Route::get('/get-role-permissions/{role_id}', [RoleAndPermissionController::class, 'getRolePermissions'])->name('get-role-permissions');
         Route::delete('/role-and-permission-delete/{role_id}', [RoleAndPermissionController::class, 'destroy']);
 
         // -------------------- SalesCommissionAgentsController Routes --------------------
