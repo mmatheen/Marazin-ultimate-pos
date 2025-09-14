@@ -123,7 +123,7 @@
             @if ($location && $location->logo_image)
                 <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo" class="logo" width="50px" height="50px" />
             @else
-                <img src="{{ asset('assets/img/prany-stores.png') }}" alt="Default Logo" class="logo default-logo" width="50px" height="50px" />
+                <div style="font-size: 20px; font-weight: bold;">{{ $location->name ?? 'LOCATION NAME' }}</div>
             @endif
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
