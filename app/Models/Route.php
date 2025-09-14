@@ -32,10 +32,6 @@ class Route extends Model
     {
         return $this->hasMany(RouteCity::class);
     }
-    public function vehicles()
-    {
-        return $this->belongsToMany(Vehicle::class, 'vehicle_route', 'route_id', 'vehicle_id');
-    }
 
     public function scopeActive($query)
     {

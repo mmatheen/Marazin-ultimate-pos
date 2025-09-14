@@ -431,7 +431,7 @@
                         <div class="gap-4 d-flex justify-content-center">
                             <div>
 
-                                @can('Add & Edit Opening Stock product')
+                                @can('manage opening stock')
                                     <button type="submit" class="btn btn-outline-primary" id="openingStockAndProduct">Save &
                                         Add Opening Stock</button>
                                 @endcan

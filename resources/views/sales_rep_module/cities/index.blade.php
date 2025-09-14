@@ -281,8 +281,10 @@
 
                         $('#city_id').val(data.id);
                         $('#city_name').val(data.name);
-                        $('#district').val(data.district || '');
                         $('#province').val(data.province || '');
+                        
+                        // Populate districts first, then set the selected district
+                        populateDistricts(data.province || '', data.district || '');
 
                         $('#modalTitle').text('Edit City');
                         $('#saveBtn').text('Update');

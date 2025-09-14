@@ -113,11 +113,9 @@ class RouteController extends Controller
         try {
             $route = Route::with([
                 'cities:id,name,district,province',
-                'salesReps:id,user_id,route_id,status,assigned_date',
+                'salesReps:id,user_id,sub_location_id,route_id,status,assigned_date',
                 'salesReps.user:id,user_name,email',
-                'salesReps.vehicleLocation:id,vehicle_id,location_id',
-                'salesReps.vehicleLocation.vehicle:id,vehicle_number',
-                'salesReps.vehicleLocation.location:id,name'
+                'salesReps.subLocation:id,name,vehicle_number,vehicle_type'
             ])->find($id);
 
             if (!$route) {
@@ -139,8 +137,9 @@ class RouteController extends Controller
                         'id' => $salesRep->id,
                         'user_id' => $salesRep->user_id,
                         'user' => $salesRep->user,
-                        'vehicle' => $salesRep->vehicleLocation->vehicle ?? null,
-                        'location' => $salesRep->vehicleLocation->location ?? null,
+                        'vehicle_number' => $salesRep->subLocation->vehicle_number ?? null,
+                        'vehicle_type' => $salesRep->subLocation->vehicle_type ?? null,
+                        'location' => $salesRep->subLocation->name ?? null,
                         'assigned_date' => $salesRep->assigned_date,
                         'status' => $salesRep->status,
                     ];

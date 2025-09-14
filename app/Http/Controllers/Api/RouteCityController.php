@@ -12,47 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class RouteCityController extends Controller
 {
-    /**
-     * List all route-city assignments.
-     */
-    // public function index()
-    // {
-    //     try {
-    //         $routeCities = RouteCity::with(['route:id,name', 'city:id,name,district,province'])
-    //             ->get()
-    //             ->map(function ($routeCity) {
-    //                 return [
-    //                     'id' => $routeCity->id,
-    //                     'route_id' => $routeCity->route_id,
-    //                     'city_id' => $routeCity->city_id,
-    //                     'route_name' => $routeCity->route->name ?? 'Unknown Route',
-    //                     'city_name' => $routeCity->city->name ?? 'Unknown City',
-    //                     'district' => $routeCity->city->district ?? 'N/A',
-    //                     'province' => $routeCity->city->province ?? 'N/A',
-    //                     'created_at' => $routeCity->created_at,
-    //                     'updated_at' => $routeCity->updated_at,
-    //                 ];
-    //             });
-
-    //         return response()->json([
-    //             'status' => true,
-    //             'message' => 'Route-city assignments retrieved successfully.',
-    //             'data' => $routeCities,
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => false,
-    //             'message' => 'Failed to retrieve data.',
-    //             'error' => $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-    /**
-     * List all routes with their assigned cities (grouped).
-     */
-    /**
-     * List all routes with their assigned cities (grouped).
-     */
+   
     public function index()
     {
         try {
