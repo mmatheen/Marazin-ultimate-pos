@@ -150,17 +150,16 @@ class RoleAndPermissionController extends Controller
         // Get selected permissions
         $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
         
-        // For non-Master Super Admin users, validate they can only assign permissions they have
-        $currentUser = auth()->user();
-        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        // For non-Master Super Admin and non-Super Admin users, validate they can only assign permissions they have
+        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
         
-        if (!$isMasterSuperAdmin) {
+        if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             // Get all permissions the current user has (direct + via roles)
             $userDirectPermissions = $currentUser->permissions;
             $userRolePermissions = collect();
             
-            foreach ($currentUser->roles as $role) {
-                $userRolePermissions = $userRolePermissions->merge($role->permissions);
+            foreach ($currentUser->roles as $userRole) {
+                $userRolePermissions = $userRolePermissions->merge($userRole->permissions);
             }
             
             $allUserPermissions = $userDirectPermissions->merge($userRolePermissions)->unique('id');
@@ -183,20 +182,34 @@ class RoleAndPermissionController extends Controller
         // Get the current permissions of the role
         $currentPermissions = $role->permissions->pluck('name')->toArray();
 
-        // If the role already has all the permissions, do nothing
-        if (empty(array_diff($permissions, $currentPermissions))) {
+        // Check if user is authorized to assign permissions (Master Super Admin or Super Admin)
+        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        
+        // Both Master Super Admin and Super Admin can update role permissions
+        if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             return response()->json([
-                'status' => 404,
-                'message' => 'This role already has the selected permissions.'
-            ]);
+                'status' => 403,
+                'message' => 'You do not have permission to assign permissions to roles. Only Super Admin or Master Super Admin can assign permissions.'
+            ], 403);
         }
 
-        // Assign permissions to role using Spatie
+        // Always sync permissions - this handles adding, removing, or keeping the same permissions
         $role->syncPermissions($permissions);
+
+        // Check what actually changed to provide appropriate message
+        $newPermissions = $role->fresh()->permissions->pluck('name')->toArray();
+        $addedPermissions = array_diff($newPermissions, $currentPermissions);
+        $removedPermissions = array_diff($currentPermissions, $newPermissions);
+
+        if (empty($addedPermissions) && empty($removedPermissions)) {
+            $message = "Permissions verified and confirmed for the selected role.";
+        } else {
+            $message = "Permissions updated successfully for the selected role!";
+        }
 
         return response()->json([
             'status' => 200,
-            'message' => "Permissions assigned successfully to the selected role!"
+            'message' => $message
         ]);
     }
 
@@ -339,8 +352,10 @@ class RoleAndPermissionController extends Controller
         // Get selected permissions
         $selectedPermissions = Permission::whereIn('id', $request->permission_id)->get();
         
-        // For non-Master Super Admin users, validate they can only assign permissions they have
-        if (!$isMasterSuperAdmin) {
+        // For non-Master Super Admin and non-Super Admin users, validate they can only assign permissions they have
+        $isSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        
+        if (!$isMasterSuperAdmin && !$isSuperAdmin) {
             // Get all permissions the current user has (direct + via roles)
             $userDirectPermissions = $currentUser->permissions;
             $userRolePermissions = collect();
@@ -390,6 +405,7 @@ class RoleAndPermissionController extends Controller
         }
 
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
 
         // Prevent deletion of Master Super Admin role by anyone, including Master Super Admin
         if ($roleToDelete->name === 'Master Super Admin') {
@@ -408,11 +424,11 @@ class RoleAndPermissionController extends Controller
             ], 403);
         }
 
-        // Prevent non-Master Super Admin users from deleting any roles that they shouldn't manage
-        if (!$currentUserIsMasterSuperAdmin) {
+        // Allow both Master Super Admin and Super Admin to delete roles (with restrictions)
+        if (!$currentUserIsMasterSuperAdmin && !$currentUserIsSuperAdmin) {
             return response()->json([
                 'status' => 403,
-                'message' => "You do not have permission to delete roles. Only Master Super Admin can delete roles."
+                'message' => "You do not have permission to delete roles. Only Super Admin or Master Super Admin can delete roles."
             ], 403);
         }
 

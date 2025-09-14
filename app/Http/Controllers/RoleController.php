@@ -269,6 +269,7 @@ class RoleController extends Controller
         }
 
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
 
         // Prevent deletion of Master Super Admin role by anyone, including Master Super Admin
         if ($roleToDelete->name === 'Master Super Admin') {
@@ -287,11 +288,11 @@ class RoleController extends Controller
             ], 403);
         }
 
-        // Prevent non-Master Super Admin users from deleting any roles that they shouldn't manage
-        if (!$currentUserIsMasterSuperAdmin) {
+        // Allow both Master Super Admin and Super Admin to delete roles (with restrictions)
+        if (!$currentUserIsMasterSuperAdmin && !$currentUserIsSuperAdmin) {
             return response()->json([
                 'status' => 403,
-                'message' => "You do not have permission to delete roles. Only Master Super Admin can delete roles."
+                'message' => "You do not have permission to delete roles. Only Super Admin or Master Super Admin can delete roles."
             ], 403);
         }
 
