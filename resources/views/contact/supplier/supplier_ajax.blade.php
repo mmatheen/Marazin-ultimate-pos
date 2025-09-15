@@ -133,6 +133,7 @@
                         $('#edit_last_name').val(response.message.last_name);
                         $('#edit_mobile_no').val(response.message.mobile_no);
                         $('#edit_email').val(response.message.email);
+                        $('#edit_address').val(response.message.address);
                         $('#edit_opening_balance').val(response.message.opening_balance);
                         $('#addAndEditSupplierModal').modal('show');
                     }

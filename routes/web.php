@@ -475,7 +475,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         //Grouped Routes for SalesRep, Vehicle, and Route
         Route::group(['prefix' => 'sales-rep'], function () {
             //vehicle location
-            Route::get('/vehicle-locations', [VehicleLocationController::class, 'create'])->name('vehicle-locations.create');
             //sales reps
             Route::get('/sales-reps', [SalesRepController::class, 'create'])->name('sales-reps.create');
             //routes
@@ -489,13 +488,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             Route::get('/targets', [SalesRepTargetController::class, 'create'])->name('targets.create');
 
             //sales rep targets
-
-            // Route::middleware(['auth', 'verified'])->group(function () {
-            Route::get('/vehicle-tracking', [VehicleTrackingController::class, 'index'])->name('vehicle-tracking.index');
-            Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
-            Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
-            Route::get('/vehicle/my-live', [VehicleTrackingController::class, 'getMyLiveVehicle']);
-            // });
 
             // -------------------- Sales Rep CRUD Routes --------------------
             Route::get('/sales-reps/index', [SalesRepController::class, 'index'])->name('sales-reps.index');
@@ -513,12 +505,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
             Route::get('/my-assignments', [SalesRepController::class, 'getMyAssignments'])->name('sales-rep.my-assignments');
 
         });
-
-        if (app()->isLocal()) {
-            Route::prefix('sales-rep')->middleware(['auth', 'verified'])->group(function () {
-                Route::post('/test/move-vehicle', [VehicleTrackingController::class, 'simulateMovement']);
-            });
-        }
     });
 });
 

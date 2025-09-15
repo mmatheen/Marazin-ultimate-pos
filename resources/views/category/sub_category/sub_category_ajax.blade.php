@@ -79,25 +79,32 @@
                     var table = $('#SubCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter + '</td>');
-                        row.append('<td>' + item.main_category.mainCategoryName + '</td>');
-                        row.append('<td>' + item.subCategoryname + '</td>');
-                        row.append('<td>' + item.subCategoryCode + '</td>');
-                        row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' +
-                            '@can("edit sub-category")<button type="button" value="' +
-                            item.id +
-                            '" class="sub_category_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete sub-category")<button type="button" value="' +
-                            item.id +
-                            '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
-                            '</td>');
+                    
+                    // Check if response.message is an array before using forEach
+                    if (Array.isArray(response.message)) {
+                        response.message.forEach(function(item) {
+                            let row = $('<tr>');
+                            row.append('<td>' + counter + '</td>');
+                            row.append('<td>' + item.main_category.mainCategoryName + '</td>');
+                            row.append('<td>' + item.subCategoryname + '</td>');
+                            row.append('<td>' + item.subCategoryCode + '</td>');
+                            row.append('<td>' + item.description + '</td>');
+                            row.append('<td>' +
+                                '@can("edit sub-category")<button type="button" value="' +
+                                item.id +
+                                '" class="sub_category_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                                '@can("delete sub-category")<button type="button" value="' +
+                                item.id +
+                                '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
+                                '</td>');
 
-                        table.row.add(row).draw(false);
-                        counter++;
-                    });
+                            table.row.add(row).draw(false);
+                            counter++;
+                        });
+                    } else if (typeof response.message === 'string') {
+                        // Handle case where response.message is a string like "No Records Found!"
+                        console.log('No subcategories found: ', response.message);
+                    }
                 },
             });
         }
@@ -255,11 +262,18 @@
                 success: function(response) {
                     let dropdown = $('#edit_sub_category_id');
                     dropdown.empty().append('<option value="">Select Sub Category</option>');
-                    $.each(response.message, function(index, item) {
-                        dropdown.append(
-                            `<option value="${item.id}">${item.subCategoryname}</option>`
-                        );
-                    });
+                    
+                    // Check if response.message is an array before using $.each
+                    if (Array.isArray(response.message)) {
+                        $.each(response.message, function(index, item) {
+                            dropdown.append(
+                                `<option value="${item.id}">${item.subCategoryname}</option>`
+                            );
+                        });
+                    } else if (typeof response.message === 'string') {
+                        // Handle case where response.message is a string like "No Records Found!"
+                        console.log('No subcategories found: ', response.message);
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error("Error fetching dropdown data:", error);

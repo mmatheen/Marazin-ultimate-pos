@@ -8,7 +8,8 @@
                     <div class="page-sub-header">
                         <h3 class="page-title">Supplier</h3>
                         <ul class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="students.html">Suppliers</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url('/') }}">Home</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('supplier') }}">Suppliers</a></li>
                             <li class="breadcrumb-item active">List Suppliers</li>
                         </ul>
                     </div>

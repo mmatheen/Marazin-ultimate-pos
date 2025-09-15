@@ -380,7 +380,6 @@ Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
 
 
 // Sales rep and vehicle routes
-Route::apiResource('vehicle-locations', VehicleLocationController::class);
 Route::apiResource('sales-reps', SalesRepController::class);
 Route::apiResource('routes', RouteController::class);
 Route::apiResource('cities', CityController::class);

@@ -187,7 +187,7 @@
         // Function to Populate the Dropdown and Select the Newly Added Category
         function populateItemMainCategoryDropdown(selectedId = null) {
             $.ajax({
-                url: 'main-category-get-all',
+                url: '/main-category-get-all',
                 type: 'GET',
                 success: function(response) {
                     if (response.status === 200) {

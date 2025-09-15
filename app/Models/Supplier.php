@@ -26,12 +26,25 @@ class Supplier extends Model
     }
 
     /**
+     * Calculate current balance for the supplier.
+     */
+    public function getCurrentBalanceAttribute()
+    {
+        $openingBalance = $this->opening_balance ?? 0;
+        $totalPurchases = $this->purchases()->sum('final_total') ?? 0;
+        $totalPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount') ?? 0;
+        $totalReturns = $this->purchaseReturns()->sum('return_total') ?? 0;
+        
+        return $openingBalance + $totalPurchases - $totalPayments - $totalReturns;
+    }
+
+    /**
      * Calculate total due for the supplier.
      */
     public function getTotalDue()
     {
-        $totalPurchases = Purchase::where('supplier_id', $this->id)->sum('final_total');
-        $totalPayments = Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
+        $totalPurchases = \App\Models\Purchase::where('supplier_id', $this->id)->sum('final_total');
+        $totalPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
         return $totalPurchases - $totalPayments;
     }
 
@@ -40,28 +53,32 @@ class Supplier extends Model
      */
     public function getTotalPaid()
     {
-        return Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
+        return \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount');
     }
 
     public function purchases()
     {
-        return $this->hasMany(Purchase::class);
+        return $this->hasMany(\App\Models\Purchase::class);
     }
 
     public function purchaseReturns()
     {
-        return $this->hasMany(PurchaseReturn::class);
+        return $this->hasMany(\App\Models\PurchaseReturn::class);
     }
 
     // Total Purchase Due for the supplier
     public function getTotalPurchaseDueAttribute()
     {
-        return $this->purchases()->sum('total_due');
+        $totalPurchases = $this->purchases()->sum('final_total') ?? 0;
+        $totalPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase')->sum('amount') ?? 0;
+        return $totalPurchases - $totalPayments;
     }
 
     // Total Return Due for the supplier
     public function getTotalReturnDueAttribute()
     {
-        return $this->purchaseReturns()->sum('total_due');
+        $totalReturns = $this->purchaseReturns()->sum('return_total') ?? 0;
+        $totalReturnPayments = \App\Models\Payment::where('supplier_id', $this->id)->where('payment_type', 'purchase_return')->sum('amount') ?? 0;
+        return $totalReturns - $totalReturnPayments;
     }
 }

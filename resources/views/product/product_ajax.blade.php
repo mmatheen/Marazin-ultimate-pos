@@ -418,21 +418,27 @@
         function fetchCategoriesAndBrands(callback) {
             let loaded = 0;
             fetchData('/main-category-get-all', function(response) {
-                (response.message || []).forEach(c => {
-                    categoryMap[c.id] = c.mainCategoryName;
-                });
+                if (Array.isArray(response.message)) {
+                    response.message.forEach(c => {
+                        categoryMap[c.id] = c.mainCategoryName;
+                    });
+                }
                 if (++loaded === 3) callback();
             });
             fetchData('/brand-get-all', function(response) {
-                (response.message || []).forEach(b => {
-                    brandMap[b.id] = b.name;
-                });
+                if (Array.isArray(response.message)) {
+                    response.message.forEach(b => {
+                        brandMap[b.id] = b.name;
+                    });
+                }
                 if (++loaded === 3) callback();
             });
             fetchData('/location-get-all', function(response) {
-                (response.message || []).forEach(l => {
-                    locationMap[l.id] = l.name;
-                });
+                if (Array.isArray(response.message)) {
+                    response.message.forEach(l => {
+                        locationMap[l.id] = l.name;
+                    });
+                }
                 if (++loaded === 3) callback();
             });
         }
@@ -1051,23 +1057,31 @@
                 '<option selected disabled>Sub Category</option>');
 
             $.ajax({
-                url: 'sub_category-details-get-by-main-category-id/' + main_category_id,
+                url: '/sub_category-details-get-by-main-category-id/' + main_category_id,
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
                     if (response.status == 200) {
-                        response.message.forEach(function(subCategory) {
-                            $('#edit_sub_category_id').append(
-                                `<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`
-                            );
-                        });
+                        // Check if response.message is an array before using forEach
+                        if (Array.isArray(response.message)) {
+                            response.message.forEach(function(subCategory) {
+                                $('#edit_sub_category_id').append(
+                                    `<option value="${subCategory.id}">${subCategory.subCategoryname}</option>`
+                                );
+                            });
+                        } else if (typeof response.message === 'string') {
+                            // Handle case where response.message is a string like "No Records Found!"
+                            console.log('No subcategories found: ', response.message);
+                            $('#edit_sub_category_id').append('<option value="">No subcategories available</option>');
+                        }
                     } else {
                         console.log('Error: ', response.message);
                     }
                 },
                 error: function(xhr, status, error) {
                     console.log('AJAX Error: ', error);
-
+                    // Handle 404 or other errors gracefully
+                    $('#edit_sub_category_id').append('<option value="">Error loading subcategories</option>');
                 }
             });
         });
