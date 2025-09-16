@@ -513,9 +513,9 @@ class SaleController extends Controller
                             'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
                             'reference_no' => $referenceNo,
                             'transaction_type' => 'payments',
-                            'debit' => $paymentAmount,
-                            'credit' => 0,
-                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
+                            'debit' => 0,
+                            'credit' => $paymentAmount,
+                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'credit'),
                             'contact_type' => 'customer',
                             'user_id' => $sale->customer_id,
                         ]);
@@ -591,9 +591,9 @@ class SaleController extends Controller
                                     'transaction_date' => $payment->payment_date,
                                     'reference_no' => $referenceNo,
                                     'transaction_type' => 'payments',
-                                    'debit' => $payment->amount,
-                                    'credit' => 0,
-                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                    'debit' => 0,
+                                    'credit' => $payment->amount,
+                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'credit'),
                                     'contact_type' => 'customer',
                                     'user_id' => $request->customer_id,
                                     'notes' => 'Cheque payment - Status: ' . ($paymentData['cheque_status'] ?? 'pending')
@@ -604,9 +604,9 @@ class SaleController extends Controller
                                     'transaction_date' => $payment->payment_date,
                                     'reference_no' => $referenceNo,
                                     'transaction_type' => 'payments',
-                                    'debit' => $payment->amount,
-                                    'credit' => 0,
-                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
+                                    'debit' => 0,
+                                    'credit' => $payment->amount,
+                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'credit'),
                                     'contact_type' => 'customer',
                                     'user_id' => $request->customer_id,
                                 ]);
@@ -627,9 +627,21 @@ class SaleController extends Controller
                         // Update sale totals
                         $sale->update([
                             'total_paid' => $totalPaid,
-                            'total_due' => max(0, $sale->final_total - $totalPaid),
-                            'payment_status' => $totalPaid >= $sale->final_total ? 'paid' : ($totalPaid > 0 ? 'partial' : 'due')
+                            // total_due is auto-calculated by the database
                         ]);
+                        
+                        // Refresh to get updated generated total_due column
+                        $sale->refresh();
+                        
+                        // Set payment status based on database calculated total_due
+                        if ($sale->total_due <= 0) {
+                            $sale->payment_status = 'Paid';
+                        } elseif ($sale->total_paid > 0) {
+                            $sale->payment_status = 'Partial';
+                        } else {
+                            $sale->payment_status = 'Due';
+                        }
+                        $sale->save();
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
                     }
@@ -640,7 +652,7 @@ class SaleController extends Controller
 
                     $sale->update([
                         'total_paid' => $totalPaid,
-                        'total_due' => max(0, $sale->final_total - $totalPaid),
+                        // Removed total_due - it's auto-calculated by the database
                         'amount_given' => $amountGiven,
                         'balance_amount' => max(0, $amountGiven - $sale->final_total),
                     ]);
@@ -693,17 +705,17 @@ class SaleController extends Controller
                     Ledger::where('reference_no', $referenceNo)
                         ->where('transaction_type', 'sale')
                         ->update([
-                            'credit' => $finalTotal,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
+                            'debit' => $finalTotal,
+                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'debit')
                         ]);
                 } else {
                     Ledger::create([
                         'transaction_date' => $request->sales_date,
                         'reference_no' => $referenceNo,
                         'transaction_type' => 'sale',
-                        'debit' => 0,
-                        'credit' => $finalTotal,
-                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
+                        'debit' => $finalTotal,
+                        'credit' => 0,
+                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'debit'),
                         'contact_type' => 'customer',
                         'user_id' => $request->customer_id,
                     ]);
@@ -802,8 +814,8 @@ class SaleController extends Controller
         $previousBalance = $lastLedger ? $lastLedger->balance : 0;
 
         $newBalance = $type === 'debit'
-            ? $previousBalance - $amount
-            : $previousBalance + $amount;
+            ? $previousBalance + $amount  // Debit increases customer debt
+            : $previousBalance - $amount; // Credit decreases customer debt
 
         // Sync to customer current balance
         $customer = Customer::find($customerId);
@@ -822,11 +834,15 @@ class SaleController extends Controller
             ->sum('amount');
 
         $sale->total_paid = $totalPaid;
-        $sale->total_due = max($sale->final_total - $totalPaid, 0);
+        $sale->save();
+        
+        // Refresh to get updated generated total_due column
+        $sale->refresh();
 
+        // Set payment status based on database calculated total_due
         if ($sale->total_due <= 0) {
             $sale->payment_status = 'Paid';
-        } elseif ($totalPaid > 0) {
+        } elseif ($sale->total_paid > 0) {
             $sale->payment_status = 'Partial';
         } else {
             $sale->payment_status = 'Due';

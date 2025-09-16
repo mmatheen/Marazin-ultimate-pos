@@ -10,6 +10,7 @@ use App\Models\PurchaseReturn;
 use App\Models\PurchaseProduct;
 use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
+use App\Services\SupplierLedgerService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -17,8 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseReturnController extends Controller
 {
-    function __construct()
+    protected $ledgerService;
+
+    function __construct(SupplierLedgerService $ledgerService)
     {
+        $this->ledgerService = $ledgerService;
         $this->middleware('permission:view purchase-return', ['only' => ['purchaseReturn', 'index', 'show']]);
         $this->middleware('permission:create purchase-return', ['only' => ['addPurchaseReturn', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase-return', ['only' => ['edit', 'update', 'storeOrUpdate']]);
@@ -76,6 +80,7 @@ class PurchaseReturnController extends Controller
             DB::transaction(function () use ($request, $purchaseReturnId) {
                 $attachDocument = $this->handleAttachedDocument($request);
                 $referenceNo = $purchaseReturnId ? PurchaseReturn::find($purchaseReturnId)->reference_no : $this->generateReferenceNo();
+                $isUpdate = !is_null($purchaseReturnId);
 
                 $totalReturnAmount = collect($request->products)->sum(fn($product) => $product['subtotal']);
 
@@ -90,13 +95,16 @@ class PurchaseReturnController extends Controller
                         'attach_document' => $attachDocument,
                         'return_total' => $totalReturnAmount,
                         'total_paid' => 0,
-                        'total_due' => $totalReturnAmount,
+                        // Removed total_due - it's auto-calculated by the database
                         'payment_status' => 'Due',
                     ]
                 );
 
                 // If updating, reverse stock adjustments for existing products
-                if ($purchaseReturnId) {
+                if ($isUpdate) {
+                    // Remove old ledger entries first
+                    $this->ledgerService->deleteLedgerEntries($purchaseReturn->reference_no, $purchaseReturn->supplier_id);
+                    
                     $existingProducts = $purchaseReturn->purchaseReturnProducts;
                     foreach ($existingProducts as $existingProduct) {
                         $quantity = $existingProduct->quantity;
@@ -124,17 +132,12 @@ class PurchaseReturnController extends Controller
                     $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
                 }
 
-                // Insert ledger entry for the purchase return
-                Ledger::create([
-                    'transaction_date' => $request->return_date,
-                    'reference_no' => $referenceNo,
-                    'transaction_type' => 'purchase_return',
-                    'debit' => 0,
-                    'credit' => $totalReturnAmount,
-                    'balance' => $this->calculateNewBalance($request->supplier_id, $totalReturnAmount, 'credit'),
-                    'contact_type' => 'supplier',
-                    'user_id' => $request->supplier_id,
-                ]);
+                // Record purchase return in ledger with correct timestamp
+                $transactionDate = Carbon::parse($request->return_date);
+                $this->ledgerService->recordPurchaseReturn($purchaseReturn, $transactionDate);
+
+                // Recalculate supplier balance
+                $this->ledgerService->recalculateSupplierBalance($request->supplier_id);
             });
 
             $message = $purchaseReturnId ? 'Purchase return updated successfully!' : 'Purchase return recorded successfully!';
@@ -142,14 +145,6 @@ class PurchaseReturnController extends Controller
         } catch (\Exception $e) {
             return response()->json(['status' => 400, 'message' => $e->getMessage()]);
         }
-    }
-
-    private function calculateNewBalance($userId, $amount, $type)
-    {
-        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'supplier')->orderBy('transaction_date', 'desc')->first();
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
-
-        return $type === 'debit' ? $previousBalance + $amount : $previousBalance - $amount;
     }
 
     private function restoreStock($productId, $locationId, $quantity, $batchId = null)

@@ -119,7 +119,7 @@ class Customer extends Model
 
         $totalPayments = $this->payments()->sum('amount');
 
-        $totalReturns = $this->salesReturns()->sum('total_due');
+        $totalReturns = $this->salesReturns()->sum('return_total');
 
         $due = $this->opening_balance + $totalSales - $totalPayments - $totalReturns;
 
@@ -139,18 +139,27 @@ public function recalculateCurrentBalance()
     if ($this->id == 1) {
         $this->current_balance = 0;
     } else {
-        $totalSales = $this->sales()
-            ->whereIn('status', ['final', 'suspend'])
-            ->sum('final_total');
-
-        $totalPayments = $this->payments()->sum('amount');
-
-        $totalReturns = $this->salesReturns()->sum('total_due');
-
-        $this->current_balance = max(0, $this->opening_balance + $totalSales - $totalPayments - $totalReturns);
+        // Calculate balance from ledger entries for accuracy
+        $this->current_balance = $this->calculateBalanceFromLedger();
     }
     $this->saveQuietly();
 }
+
+    /**
+     * Calculate current balance directly from ledger entries
+     */
+    public function calculateBalanceFromLedger()
+    {
+        if ($this->id == 1) return 0;
+
+        $ledgerBalance = Ledger::where('user_id', $this->id)
+            ->where('contact_type', 'customer')
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('balance');
+
+        return $ledgerBalance ?? $this->opening_balance ?? 0;
+    }
 
     /**
      * Check if customer has a city assigned

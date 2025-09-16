@@ -99,7 +99,7 @@
                                                 </h6>
                                                 <div class="row">
                                                     <div class="col-md-6">
-                                                        <small class="text-muted">Available Advance: <strong class="text-primary">₹<span id="advanceAmount">0.00</span></strong></small><br>
+                                                        <small class="text-muted">Available Advance: <strong class="text-primary">Rs. <span id="advanceAmount">0.00</span></strong></small><br>
                                                         <small id="advanceStatusText" class="text-info">Ready to apply</small>
                                                     </div>
                                                     <div class="col-md-6">
@@ -195,7 +195,7 @@
                                 <p class="text-muted">Apply supplier's advance amount to reduce outstanding purchase bills.</p>
                                 <div class="form-group">
                                     <label>Available Advance Amount:</label>
-                                    <h4 class="text-primary">₹<span id="modalAdvanceAmount">0.00</span></h4>
+                                    <h4 class="text-primary">Rs. <span id="modalAdvanceAmount">0.00</span></h4>
                                 </div>
                                 <button type="button" id="modalApplyAdvanceBtn" class="btn btn-primary btn-block">
                                     <i class="fa fa-magic"></i> Apply to Outstanding Bills

@@ -7,6 +7,7 @@ use App\Models\Supplier;
 use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\ImeiNumber;
+use App\Services\SupplierLedgerService;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Models\Payment;
@@ -15,11 +16,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class PurchaseController extends Controller
 {
-    function __construct()
+    protected $ledgerService;
+
+    function __construct(SupplierLedgerService $ledgerService)
     {
+        $this->ledgerService = $ledgerService;
         $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show']]);
         $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
@@ -81,7 +86,20 @@ class PurchaseController extends Controller
             'products.*.batch_no' => 'nullable|string|max:255',
             'products.*.expiry_date' => 'nullable|date',
             'products.*.imei_numbers' => 'nullable|json', // Add IMEI validation
-            'paid_amount' => 'nullable|numeric|min:0',
+            'paid_amount' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($value !== null && $value > 0) {
+                        $finalTotal = $request->input('final_total', 0);
+                        // Only warn if payment is more than 200% of total (very unusual)
+                        if ($value > ($finalTotal * 2)) { 
+                            $fail("Payment amount ({$value}) is significantly higher than the purchase total ({$finalTotal}). If this is intentional (e.g., advance payment), please verify the amount is correct.");
+                        }
+                    }
+                }
+            ],
             'payment_method' => 'nullable|string',
             'payment_account' => 'nullable|string',
             'payment_note' => 'nullable|string',
@@ -94,6 +112,12 @@ class PurchaseController extends Controller
 
         DB::transaction(function () use ($request, $purchaseId) {
             $attachedDocument = $this->handleAttachedDocument($request);
+            $isUpdate = !is_null($purchaseId);
+            $oldPurchase = null;
+
+            if ($isUpdate) {
+                $oldPurchase = Purchase::find($purchaseId);
+            }
 
             $purchase = Purchase::updateOrCreate(
                 ['id' => $purchaseId],
@@ -117,47 +141,32 @@ class PurchaseController extends Controller
             // Process products
             $this->processProducts($request, $purchase);
 
-            // Clean up existing ledger entries if this is an update
-            if ($purchaseId) {
-                Ledger::where('reference_no', $purchase->reference_no)
-                    ->where('contact_type', 'supplier')
-                    ->delete();
+            // Handle ledger entries properly
+            if ($isUpdate) {
+                // For updates, remove old ledger entries first
+                $this->ledgerService->deleteLedgerEntries($purchase->reference_no, $purchase->supplier_id);
             }
 
-            // Insert ledger entry for the purchase
-            Ledger::create([
-                'transaction_date' => $request->purchase_date,
-                'reference_no' => $purchase->reference_no,
-                'transaction_type' => 'purchase',
-                'debit' => $request->final_total,
-                'credit' => 0,
-                'balance' => $this->calculateNewBalance($request->supplier_id, $request->final_total, 0),
-                'contact_type' => 'supplier',
-                'user_id' => $request->supplier_id,
-            ]);
+            // Record purchase in ledger with correct timestamp
+            $transactionDate = Carbon::parse($request->purchase_date);
+            $this->ledgerService->recordPurchase($purchase, $transactionDate);
 
             // Handle payment if paid_amount is provided
             if ($request->paid_amount > 0) {
                 $this->handlePayment($request, $purchase);
             }
 
-            // Update supplier's balance
-            $this->updateSupplierBalance($purchase->supplier_id);
+            // Recalculate supplier balance
+            $this->ledgerService->recalculateSupplierBalance($purchase->supplier_id);
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
     }
 
-    private function calculateNewBalance($userId, $debitAmount, $creditAmount)
+    // Helper method to update supplier's current balance
+    private function updateSupplierBalance($supplierId)
     {
-        $lastLedger = Ledger::where('user_id', $userId)
-            ->where('contact_type', 'supplier')
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
-        return $previousBalance + $debitAmount - $creditAmount;
+        $this->ledgerService->recalculateSupplierBalance($supplierId);
     }
 
     private function processProducts($request, $purchase)
@@ -351,14 +360,23 @@ class PurchaseController extends Controller
     private function handlePayment($request, $purchase)
     {
         // Calculate the total due and total paid for the purchase
-        $totalPaid = Payment::where('reference_id', $purchase->id)->sum('amount');
+        $totalPaid = Payment::where('reference_id', $purchase->id)
+            ->where('payment_type', 'purchase')
+            ->sum('amount');
         $totalDue = $purchase->final_total - $totalPaid;
 
-        // If the paid amount exceeds total due, adjust it
-        $paidAmount = min($request->paid_amount, $totalDue);
+        // Validate payment amount
+        if ($request->paid_amount <= 0) {
+            throw new Exception('Payment amount must be greater than zero.');
+        }
+
+        // Handle overpayment scenario
+        $paidAmount = $this->validatePaymentAmount($request->paid_amount, $totalDue, $purchase);
+
+        $paymentDate = $request->paid_date ? Carbon::parse($request->paid_date) : now();
 
         $payment = Payment::create([
-            'payment_date' => $request->paid_date ? \Carbon\Carbon::parse($request->paid_date) : now(),
+            'payment_date' => $paymentDate,
             'amount' => $paidAmount,
             'payment_method' => $request->payment_method,
             'reference_no' => $purchase->reference_no,
@@ -378,23 +396,56 @@ class PurchaseController extends Controller
             'cheque_given_by' => $request->cheque_given_by,
         ]);
 
-        // Create ledger entry for the payment
-        Ledger::create([
-            'transaction_date' => $payment->payment_date,
-            'reference_no' => $purchase->reference_no,
-            'transaction_type' => 'payments',
-            'debit' => 0,
-            'credit' => $paidAmount,
-            'balance' => $this->calculateNewBalance($purchase->supplier_id, 0, $paidAmount),
-            'contact_type' => 'supplier',
-            'user_id' => $purchase->supplier_id,
-        ]);
+        // Record payment in ledger using the service
+        $this->ledgerService->recordPurchasePayment($payment, $purchase);
 
-        // Update purchase payment status based on total due
-        $newTotalPaid = $totalPaid + $paidAmount;
-        if ($purchase->final_total - $newTotalPaid <= 0) {
+        // Update the total_paid field and recalculate payment status
+        $purchase->updateTotalDue();
+        
+        // Refresh the purchase to get updated total_paid
+        $purchase->refresh();
+        
+        // Update payment status based on the updated total_paid
+        $this->updatePurchasePaymentStatus($purchase);
+    }
+
+    /**
+     * Validate payment amount and handle overpayment scenarios
+     */
+    private function validatePaymentAmount($requestedAmount, $totalDue, $purchase)
+    {
+        // Configuration option - you can change this behavior
+        $allowOverpayment = true; // Set to false to restrict overpayments
+        
+        if ($requestedAmount > $totalDue) {
+            if ($allowOverpayment) {
+                // Log a warning about overpayment but allow the transaction
+                Log::warning("Overpayment detected for purchase {$purchase->reference_no}. Total due: {$totalDue}, Payment amount: {$requestedAmount}");
+                return $requestedAmount; // Allow full amount
+            } else {
+                // Restrict to total due amount
+                Log::info("Payment amount restricted to total due for purchase {$purchase->reference_no}. Requested: {$requestedAmount}, Limited to: {$totalDue}");
+                return $totalDue;
+            }
+        }
+        
+        return $requestedAmount;
+    }
+
+    /**
+     * Update purchase payment status based on total paid
+     */
+    private function updatePurchasePaymentStatus($purchase)
+    {
+        $totalPaid = $purchase->total_paid;
+        $finalTotal = $purchase->final_total;
+        
+        // Use small tolerance for floating point comparison
+        $tolerance = 0.01;
+        
+        if (($finalTotal - $totalPaid) <= $tolerance) {
             $purchase->payment_status = 'Paid';
-        } elseif ($newTotalPaid > 0) {
+        } elseif ($totalPaid > $tolerance) {
             $purchase->payment_status = 'Partial';
         } else {
             $purchase->payment_status = 'Due';
@@ -403,17 +454,58 @@ class PurchaseController extends Controller
         $purchase->save();
     }
 
-    private function updateSupplierBalance($supplierId)
+    /**
+     * Recalculate total_paid for a specific purchase
+     * Useful for fixing any inconsistencies
+     */
+    public function recalculatePurchaseTotal($purchaseId)
     {
-        $supplier = Supplier::find($supplierId);
+        try {
+            $purchase = Purchase::find($purchaseId);
+            if (!$purchase) {
+                return response()->json(['status' => 404, 'message' => 'Purchase not found.']);
+            }
 
-        $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
-        $totalPayments = Payment::where('supplier_id', $supplierId)->where('payment_type', 'purchase')->sum('amount');
+            $purchase->updateTotalDue();
+            $this->updatePurchasePaymentStatus($purchase);
 
-        $supplier->current_balance = $supplier->opening_balance + $totalPurchases - $totalPayments;
-        $supplier->save();
+            return response()->json([
+                'status' => 200, 
+                'message' => 'Purchase totals recalculated successfully.',
+                'total_paid' => $purchase->total_paid,
+                'payment_status' => $purchase->payment_status
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error recalculating purchase total: ' . $e->getMessage());
+            return response()->json(['status' => 500, 'message' => 'Error recalculating purchase total.']);
+        }
     }
 
+    /**
+     * Recalculate total_paid for all purchases
+     * Use this to fix any existing data inconsistencies
+     */
+    public function recalculateAllPurchaseTotals()
+    {
+        try {
+            $purchases = Purchase::all();
+            $updated = 0;
+
+            foreach ($purchases as $purchase) {
+                $purchase->updateTotalDue();
+                $this->updatePurchasePaymentStatus($purchase);
+                $updated++;
+            }
+
+            return response()->json([
+                'status' => 200, 
+                'message' => "Successfully recalculated totals for {$updated} purchases."
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error recalculating all purchase totals: ' . $e->getMessage());
+            return response()->json(['status' => 500, 'message' => 'Error recalculating purchase totals.']);
+        }
+    }
 
     public function getAllPurchase()
     {

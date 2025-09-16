@@ -18,6 +18,7 @@ use App\Http\Controllers\{
     LocationController,
     PurchaseController,
     SupplierController,
+    SupplierLedgerController,
     WarrantyController,
     VariationController,
     DashboardController,
@@ -253,6 +254,17 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
         Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
 
+        // -------------------- SupplierLedgerController Routes --------------------
+        Route::get('/supplier-ledger', [SupplierLedgerController::class, 'index'])->name('supplier.ledger');
+        Route::get('/supplier-ledger/{supplierId}', [SupplierLedgerController::class, 'getSupplierLedger']);
+        Route::get('/supplier-summary/{supplierId}', [SupplierLedgerController::class, 'getSupplierSummary']);
+        Route::get('/suppliers-with-balances', [SupplierLedgerController::class, 'getAllSuppliersWithBalances']);
+        Route::post('/supplier-recalculate-balance/{supplierId}', [SupplierLedgerController::class, 'recalculateBalance']);
+        Route::get('/supplier-validate-ledger/{supplierId}', [SupplierLedgerController::class, 'validateLedger']);
+        Route::get('/supplier-ledger-statement/{supplierId}', [SupplierLedgerController::class, 'getLedgerStatement']);
+        Route::get('/validate-all-ledgers', [SupplierLedgerController::class, 'validateAllLedgers']);
+        Route::post('/recalculate-all-balances', [SupplierLedgerController::class, 'recalculateAllBalances']);
+
         // -------------------- CustomerController Routes --------------------
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
         Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);
@@ -285,6 +297,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/get-all-purchases-product/{id}', [PurchaseController::class, 'getAllPurchasesProduct']);
         Route::get('purchase/edit/{id}', [PurchaseController::class, 'editPurchase']);
         Route::get('/purchase-products-by-supplier/{supplierId}', [PurchaseController::class, 'getPurchaseProductsBySupplier']);
+        // Routes for fixing payment calculation issues
+        Route::post('/purchases/recalculate-total/{id}', [PurchaseController::class, 'recalculatePurchaseTotal']);
+        Route::post('/purchases/recalculate-all-totals', [PurchaseController::class, 'recalculateAllPurchaseTotals']);
 
         // -------------------- PurchaseReturnController Routes --------------------
         Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');

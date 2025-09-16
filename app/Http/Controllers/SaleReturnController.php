@@ -7,6 +7,7 @@ use App\Models\SalesReturnProduct;
 use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\Sale;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -118,7 +119,7 @@ class SaleReturnController extends Controller
                     'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
                     'return_total' => $request->return_total,
                     'total_paid' => 0, // Ensure total_paid is set to 0
-                    'total_due' => $request->return_total, // Ensure total_due is set correctly
+                    'total_due' => $request->return_total, // Calculate total_due since total_paid is 0
                     'notes' => $request->notes,
                     'is_defective' => $request->is_defective,
                     'stock_type' => $stockType,
@@ -144,9 +145,9 @@ class SaleReturnController extends Controller
                 'transaction_date' => $request->return_date,
                 'reference_no' => $salesReturn->reference_no,
                 'transaction_type' => $transactionType,
-                'debit' => $request->return_total,
-                'credit' => 0,
-                'balance' => $this->calculateNewBalance($request->customer_id, $request->return_total, 'debit'),
+                'debit' => 0,
+                'credit' => $request->return_total,
+                'balance' => $this->calculateNewBalance($request->customer_id, $request->return_total, 'credit'),
                 'contact_type' => 'customer',
                 'user_id' => $request->customer_id,
             ]);
@@ -155,12 +156,27 @@ class SaleReturnController extends Controller
         return response()->json(['status' => 200, 'message' => 'Sales return recorded successfully!']);
     }
 
-    private function calculateNewBalance($userId, $amount, $type)
+    private function calculateNewBalance($customerId, $amount, $type)
     {
-        $lastLedger = Ledger::where('user_id', $userId)->where('contact_type', 'customer')->orderBy('transaction_date', 'desc')->first();
+        $lastLedger = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->orderBy('transaction_date', 'desc')
+            ->first();
+
         $previousBalance = $lastLedger ? $lastLedger->balance : 0;
 
-        return $type === 'debit' ? $previousBalance - $amount : $previousBalance + $amount;
+        $newBalance = $type === 'debit'
+            ? $previousBalance + $amount  // Debit increases customer debt
+            : $previousBalance - $amount; // Credit decreases customer debt
+
+        // Sync to customer current balance
+        $customer = Customer::find($customerId);
+        if ($customer) {
+            $customer->current_balance = $newBalance;
+            $customer->saveQuietly();
+        }
+
+        return $newBalance;
     }
     /**
      * Get all sale returns.

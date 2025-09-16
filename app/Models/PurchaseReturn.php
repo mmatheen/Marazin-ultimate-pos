@@ -17,9 +17,27 @@ class PurchaseReturn extends Model
         'attach_document',
         'return_total',
         'total_paid',
-        'total_due',
         'payment_status'
     ];
+
+    // Explicitly guard the total_due column to prevent mass assignment
+    protected $guarded = ['total_due'];
+
+    /**
+     * Boot method to automatically calculate total_due
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        
+        static::creating(function ($model) {
+            $model->total_due = $model->return_total - $model->total_paid;
+        });
+        
+        static::updating(function ($model) {
+            $model->total_due = $model->return_total - $model->total_paid;
+        });
+    }
 
     public function products()
     {

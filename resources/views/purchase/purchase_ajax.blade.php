@@ -982,8 +982,21 @@
         function handleAjaxSuccess(response) {
             if (response.status === 400) {
                 document.getElementsByClassName('errorSound')[0].play();
+                
+                // Display validation errors in form fields
                 $.each(response.errors, function(key, err_value) {
                     $('#' + key + '_error').html(err_value);
+                });
+                
+                // Also show toastr notifications for validation errors
+                $.each(response.errors, function(key, err_value) {
+                    if (Array.isArray(err_value)) {
+                        // If err_value is an array, join the messages
+                        toastr.error(err_value.join(', '), 'Validation Error');
+                    } else {
+                        // If it's a string, show it directly
+                        toastr.error(err_value, 'Validation Error');
+                    }
                 });
             } else {
                 document.getElementsByClassName('successSound')[0].play();
@@ -1001,12 +1014,33 @@
 
         function handleAjaxError(action) {
             return function(xhr, status, error) {
-                const errorMessage =
-                    `Something went wrong while ${action}. Status: ${xhr.status} - ${xhr.statusText} Response: ${xhr.responseText}`;
-                // toastr.error(errorMessage, 'Error');
-                console.error('Error:', errorMessage, 'Response:', xhr.responseText);
-                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' :
-                    'Save Purchase');
+                // Handle validation errors returned as JSON
+                if (xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    document.getElementsByClassName('errorSound')[0].play();
+                    
+                    // Display validation errors in toastr
+                    $.each(xhr.responseJSON.errors, function(key, err_value) {
+                        if (Array.isArray(err_value)) {
+                            toastr.error(err_value.join(', '), 'Validation Error');
+                        } else {
+                            toastr.error(err_value, 'Validation Error');
+                        }
+                    });
+                    
+                    // Also display in form fields if elements exist
+                    $.each(xhr.responseJSON.errors, function(key, err_value) {
+                        $('#' + key + '_error').html(err_value);
+                    });
+                } else {
+                    // Handle other types of errors
+                    const errorMessage = xhr.responseJSON && xhr.responseJSON.message 
+                        ? xhr.responseJSON.message 
+                        : `Something went wrong while ${action}. Please try again.`;
+                    toastr.error(errorMessage, 'Error');
+                    console.error('Error:', `Status: ${xhr.status} - ${xhr.statusText}`, 'Response:', xhr.responseText);
+                }
+                
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
             };
         }
 

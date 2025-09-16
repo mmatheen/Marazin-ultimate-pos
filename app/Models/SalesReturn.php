@@ -86,6 +86,7 @@ class SalesReturn extends Model
             $model->invoice_number = self::generateInvoiceNumber();
         });
 
+        // Calculate total_due manually since it's not a generated column
         static::saving(function ($model) {
             $model->total_paid = $model->payments()->sum('amount');
             $model->total_due = $model->return_total - $model->total_paid;

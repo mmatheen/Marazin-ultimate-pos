@@ -11,6 +11,8 @@ use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use App\Models\Location;
+use App\Services\SupplierLedgerService;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -18,8 +20,13 @@ use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
-    function __construct()
+    protected $ledgerService;
+    protected $paymentService;
+
+    function __construct(SupplierLedgerService $ledgerService, PaymentService $paymentService)
     {
+        $this->ledgerService = $ledgerService;
+        $this->paymentService = $paymentService;
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
         $this->middleware('permission:create payment', ['only' => ['store', 'addSaleBulkPayments', 'addPurchaseBulkPayments']]);
         $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
@@ -489,7 +496,7 @@ class PaymentController extends Controller
         // Get purchase returns data
         $returnsQuery = PurchaseReturn::where('supplier_id', $supplierId)
             ->whereBetween('return_date', [$startDate, $endDate])
-            ->with(['purchase', 'location', 'user']);
+            ->with(['location', 'supplier']);
 
         if ($locationId) {
             $returnsQuery->where('location_id', $locationId);
@@ -883,11 +890,25 @@ class PaymentController extends Controller
             $this->updateSaleTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
         } else if ($payment->payment_type === 'purchase' && $payment->supplier_id) {
-            $this->createLedgerEntryForPayment($payment, 'supplier');
-            $this->updatePurchaseTable($payment->reference_id);
-            $this->updateSupplierBalance($payment->supplier_id);
+            // Use the new payment service for purchase payments
+            $purchase = Purchase::find($payment->reference_id);
+            if ($purchase) {
+                $this->ledgerService->recordPurchasePayment($payment, $purchase);
+                $this->updatePurchaseTable($payment->reference_id);
+            }
+        } else if ($payment->payment_type === 'purchase_return' && $payment->supplier_id) {
+            // Handle purchase return payments using the new service
+            $purchaseReturn = PurchaseReturn::find($payment->reference_id);
+            if ($purchaseReturn) {
+                $this->ledgerService->recordPurchaseReturnPayment($payment, $purchaseReturn);
+                $this->updatePurchaseReturnTable($payment->reference_id);
+            }
+        } else if (in_array($payment->payment_type, ['sale_return_with_bill', 'sale_return_without_bill']) && $payment->customer_id) {
+            // Handle sale return payments
+            $this->createLedgerEntryForPayment($payment, 'customer');
+            $this->updateSaleReturnTable($payment->reference_id);
+            $this->updateCustomerBalance($payment->customer_id);
         }
-        // Add handling for returns if needed in the future
     }
 
     private function createLedgerEntryForPayment(Payment $payment, $contactType = 'customer')
@@ -929,16 +950,17 @@ class PaymentController extends Controller
                 ->where('payment_type', 'sale')
                 ->sum('amount');
             
-            // Only update total_paid and payment_status
-            // total_due is a generated column that calculates automatically
+            // Update total_paid first
             $sale->total_paid = $totalPaid;
+            $sale->save();
+            
+            // Refresh the model to get the updated generated total_due column
+            $sale->refresh();
 
-            // Calculate payment status based on the generated total_due
-            $totalDue = $sale->final_total - $totalPaid;
-
-            if ($totalDue <= 0) {
+            // Calculate payment status based on the database generated total_due
+            if ($sale->total_due <= 0) {
                 $sale->payment_status = 'Paid';
-            } elseif ($totalPaid > 0) {
+            } elseif ($sale->total_paid > 0) {
                 $sale->payment_status = 'Partial';
             } else {
                 $sale->payment_status = 'Due';
@@ -953,7 +975,15 @@ class PaymentController extends Controller
         if ($customer) {
             $totalSales = Sale::where('customer_id', $customerId)->sum('final_total');
             $totalSalesReturn = SalesReturn::where('customer_id', $customerId)->sum('return_total');
-            $totalPayments = Payment::where('customer_id', $customerId)->where('payment_type', 'sale')->sum('amount');
+            
+            // Include both sale payments and sale return payments
+            $totalSalePayments = Payment::where('customer_id', $customerId)->where('payment_type', 'sale')->sum('amount');
+            $totalSaleReturnPayments = Payment::where('customer_id', $customerId)
+                ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
+                ->sum('amount');
+            
+            $totalPayments = $totalSalePayments + $totalSaleReturnPayments;
+            
             $customer->current_balance = ($customer->opening_balance + $totalSales) - ($totalPayments + $totalSalesReturn);
             $customer->save();
         }
@@ -996,6 +1026,7 @@ class PaymentController extends Controller
         return match ($paymentType) {
             'sale' => ['customer', 'reference.location'],
             'purchase' => ['supplier', 'reference.location'],
+            'purchase_return' => ['supplier', 'reference.location'],
             default => ['customer', 'supplier'],
         };
     }
@@ -1005,8 +1036,12 @@ class PaymentController extends Controller
         DB::transaction(function () use ($payment) {
             $payment->delete();
 
-            if ($payment->payment_type === 'purchase' || $payment->payment_type === 'purchase_return') {
+            if ($payment->payment_type === 'purchase') {
                 $this->updateSupplierBalance($payment->supplier_id);
+                $this->updatePurchaseTable($payment->reference_id);
+            } elseif ($payment->payment_type === 'purchase_return') {
+                $this->updateSupplierBalance($payment->supplier_id);
+                $this->updatePurchaseReturnTable($payment->reference_id);
             } else {
                 $this->updateCustomerBalance($payment->customer_id);
                 $this->updateSaleTable($payment->reference_id);
@@ -1199,22 +1234,79 @@ class PaymentController extends Controller
                 ->where('payment_type', 'purchase')
                 ->sum('amount');
             
-            // Only update total_paid and payment_status
-            // total_due is a generated column that calculates automatically
+            // Update total_paid first
             $purchase->total_paid = $totalPaid;
-
-            // Calculate payment status based on the generated total_due
-            $totalDue = $purchase->final_total - $totalPaid;
+            $purchase->save();
             
-            if ($totalDue <= 0) {
+            // Refresh the model to get the updated generated total_due column
+            $purchase->refresh();
+
+            // Calculate payment status based on the database generated total_due
+            if ($purchase->total_due <= 0) {
                 $purchase->payment_status = 'Paid';
-            } elseif ($totalPaid > 0) {
+            } elseif ($purchase->total_paid > 0) {
                 $purchase->payment_status = 'Partial';
             } else {
                 $purchase->payment_status = 'Due';
             }
             
             $purchase->save();
+        }
+    }
+
+    private function updatePurchaseReturnTable($purchaseReturnId)
+    {
+        $purchaseReturn = PurchaseReturn::find($purchaseReturnId);
+        if ($purchaseReturn) {
+            $totalPaid = Payment::where('reference_id', $purchaseReturn->id)
+                ->where('payment_type', 'purchase_return')
+                ->sum('amount');
+            
+            // Update total_paid first
+            $purchaseReturn->total_paid = $totalPaid;
+            $purchaseReturn->save();
+            
+            // Refresh the model to get the updated generated total_due column
+            $purchaseReturn->refresh();
+
+            // Calculate payment status based on the database generated total_due
+            if ($purchaseReturn->total_due <= 0) {
+                $purchaseReturn->payment_status = 'Paid';
+            } elseif ($purchaseReturn->total_paid > 0) {
+                $purchaseReturn->payment_status = 'Partial';
+            } else {
+                $purchaseReturn->payment_status = 'Due';
+            }
+            
+            $purchaseReturn->save();
+        }
+    }
+
+    private function updateSaleReturnTable($salesReturnId)
+    {
+        $salesReturn = SalesReturn::find($salesReturnId);
+        if ($salesReturn) {
+            $totalPaid = Payment::where('reference_id', $salesReturn->id)
+                ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
+                ->sum('amount');
+            
+            // Update total_paid first
+            $salesReturn->total_paid = $totalPaid;
+            $salesReturn->save();
+            
+            // Refresh the model to get the updated generated total_due column
+            $salesReturn->refresh();
+
+            // Calculate payment status based on the database generated total_due
+            if ($salesReturn->total_due <= 0) {
+                $salesReturn->payment_status = 'Paid';
+            } elseif ($salesReturn->total_paid > 0) {
+                $salesReturn->payment_status = 'Partial';
+            } else {
+                $salesReturn->payment_status = 'Due';
+            }
+            
+            $salesReturn->save();
         }
     }
 
