@@ -37,7 +37,8 @@ npm run build
 # Run new migrations only (preserves data)
 php artisan migrate
 
-# Update permissions with fixed seeder
+# Update permissions with fixed seeder (MySQL-compatible)
+# The seeder now handles MySQL constraints properly
 php artisan db:seed --class=RolesAndPermissionsSeeder
 
 # Clear caches
@@ -46,6 +47,10 @@ php artisan route:cache
 php artisan view:cache
 php artisan optimize
 ```
+
+## MySQL Production Note
+The seeder has been updated to handle MySQL's subquery limitations. 
+It now uses a two-step process instead of complex UPDATE queries with subqueries.
 
 ## Step 4: Verify Deployment
 

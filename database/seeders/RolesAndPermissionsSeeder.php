@@ -875,35 +875,59 @@ class RolesAndPermissionsSeeder extends Seeder
                     ->where('guard_name', 'web')
                     ->value('id');
 
-                // Move all role assignments from old to new
-                DB::table('role_has_permissions')
+                // MySQL-safe approach: Get IDs first, then update
+                // Get role assignments that need to be moved
+                $roleAssignments = DB::table('role_has_permissions')
                     ->where('permission_id', $oldPermissionId)
-                    ->whereNotExists(function ($query) use ($newPermissionId) {
-                        $query->select('*')
-                            ->from('role_has_permissions as rhp2')
-                            ->where('rhp2.permission_id', $newPermissionId)
-                            ->whereRaw('rhp2.role_id = role_has_permissions.role_id');
-                    })
-                    ->update(['permission_id' => $newPermissionId]);
+                    ->select('role_id')
+                    ->get();
 
-                // Remove any remaining assignments
+                foreach ($roleAssignments as $assignment) {
+                    // Check if this role already has the new permission
+                    $exists = DB::table('role_has_permissions')
+                        ->where('role_id', $assignment->role_id)
+                        ->where('permission_id', $newPermissionId)
+                        ->exists();
+
+                    if (!$exists) {
+                        // Insert new assignment
+                        DB::table('role_has_permissions')->insert([
+                            'role_id' => $assignment->role_id,
+                            'permission_id' => $newPermissionId
+                        ]);
+                    }
+                }
+
+                // Remove old role assignments
                 DB::table('role_has_permissions')
                     ->where('permission_id', $oldPermissionId)
                     ->delete();
 
-                // Move all model assignments from old to new  
-                DB::table('model_has_permissions')
+                // Get model assignments that need to be moved
+                $modelAssignments = DB::table('model_has_permissions')
                     ->where('permission_id', $oldPermissionId)
-                    ->whereNotExists(function ($query) use ($newPermissionId) {
-                        $query->select('*')
-                            ->from('model_has_permissions as mhp2')
-                            ->where('mhp2.permission_id', $newPermissionId)
-                            ->whereRaw('mhp2.model_type = model_has_permissions.model_type')
-                            ->whereRaw('mhp2.model_id = model_has_permissions.model_id');
-                    })
-                    ->update(['permission_id' => $newPermissionId]);
+                    ->select('model_type', 'model_id')
+                    ->get();
 
-                // Remove any remaining assignments
+                foreach ($modelAssignments as $assignment) {
+                    // Check if this model already has the new permission
+                    $exists = DB::table('model_has_permissions')
+                        ->where('model_type', $assignment->model_type)
+                        ->where('model_id', $assignment->model_id)
+                        ->where('permission_id', $newPermissionId)
+                        ->exists();
+
+                    if (!$exists) {
+                        // Insert new assignment
+                        DB::table('model_has_permissions')->insert([
+                            'permission_id' => $newPermissionId,
+                            'model_type' => $assignment->model_type,
+                            'model_id' => $assignment->model_id
+                        ]);
+                    }
+                }
+
+                // Remove old model assignments
                 DB::table('model_has_permissions')
                     ->where('permission_id', $oldPermissionId)
                     ->delete();
