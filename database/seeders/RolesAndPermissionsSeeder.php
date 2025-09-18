@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -13,8 +14,17 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->command->info('Starting Roles and Permissions Seeder...');
+
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Disable foreign key checks temporarily
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        // Clean existing data first
+        $this->command->info('Cleaning up existing permissions and roles...');
+        $this->cleanupExistingData();
 
         // Define Permissions with Groups - Complete System Permissions
         $permissions = [
@@ -383,14 +393,28 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         // Insert or update permissions first
+        $this->command->info('Syncing permissions...');
+
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $permission) {
-                Permission::updateOrCreate(
-                    ['name' => $permission, 'guard_name' => 'web'],
-                    ['group_name' => $group]
-                );
+                try {
+                    Permission::updateOrCreate(
+                        ['name' => $permission, 'guard_name' => 'web'],
+                        ['group_name' => $group]
+                    );
+                } catch (\Exception $e) {
+                    $this->command->warn("Permission already exists or error: {$permission}");
+                    continue;
+                }
             }
         }
+
+        // Clean up old permissions that might have incorrect group names
+        $this->command->info('Cleaning up old permission group names...');
+        $this->cleanupOldPermissions();
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
 
 
@@ -401,12 +425,12 @@ class RolesAndPermissionsSeeder extends Seeder
         $roles = [
             // MASTER SUPER ADMIN - Has ALL permissions and cannot be restricted
             'Master Super Admin' => Permission::all()->pluck('name')->toArray(),
-            
+
             // REGULAR SUPER ADMIN - Can be customized per shop/location (excludes master admin permissions)
-            'Super Admin' => array_filter(Permission::all()->pluck('name')->toArray(), function($permission) {
+            'Super Admin' => array_filter(Permission::all()->pluck('name')->toArray(), function ($permission) {
                 $masterAdminPermissions = [
                     'access master admin panel',
-                    'manage all locations', 
+                    'manage all locations',
                     'create super admin',
                     'edit super admin',
                     'delete super admin',
@@ -423,140 +447,271 @@ class RolesAndPermissionsSeeder extends Seeder
                 ];
                 return !in_array($permission, $masterAdminPermissions);
             }),
-            
+
             'Admin' => [
                 // User Management
-                'create user', 'edit user', 'view user', 'delete user',
-                'create role', 'edit role', 'view role', 'delete role',
-                'create role-permission', 'edit role-permission', 'view role-permission', 'delete role-permission',
-                
+                'create user',
+                'edit user',
+                'view user',
+                'delete user',
+                'create role',
+                'edit role',
+                'view role',
+                'delete role',
+                'create role-permission',
+                'edit role-permission',
+                'view role-permission',
+                'delete role-permission',
+
                 // Product Management
-                'create product', 'edit product', 'view product', 'delete product', 'import product', 'export product',
-                'create unit', 'edit unit', 'view unit', 'delete unit',
-                'create brand', 'edit brand', 'view brand', 'delete brand',
-                'create main-category', 'edit main-category', 'view main-category', 'delete main-category',
-                'create sub-category', 'edit sub-category', 'view sub-category', 'delete sub-category',
-                'create warranty', 'edit warranty', 'view warranty', 'delete warranty',
-                
+                'create product',
+                'edit product',
+                'view product',
+                'delete product',
+                'import product',
+                'export product',
+                'create unit',
+                'edit unit',
+                'view unit',
+                'delete unit',
+                'create brand',
+                'edit brand',
+                'view brand',
+                'delete brand',
+                'create main-category',
+                'edit main-category',
+                'view main-category',
+                'delete main-category',
+                'create sub-category',
+                'edit sub-category',
+                'view sub-category',
+                'delete sub-category',
+                'create warranty',
+                'edit warranty',
+                'view warranty',
+                'delete warranty',
+
                 // Contact Management
-                'create customer', 'edit customer', 'view customer', 'delete customer',
-                'create supplier', 'edit supplier', 'view supplier', 'delete supplier',
-                'create customer-group', 'edit customer-group', 'view customer-group', 'delete customer-group',
-                
+                'create customer',
+                'edit customer',
+                'view customer',
+                'delete customer',
+                'create supplier',
+                'edit supplier',
+                'view supplier',
+                'delete supplier',
+                'create customer-group',
+                'edit customer-group',
+                'view customer-group',
+                'delete customer-group',
+
                 // Sales & Purchase
-                'view all sales', 'create sale', 'edit sale', 'view sale details', 'access pos',
-                'view purchase', 'create purchase', 'edit purchase',
-                
+                'view all sales',
+                'create sale',
+                'edit sale',
+                'view sale details',
+                'access pos',
+                'view purchase',
+                'create purchase',
+                'edit purchase',
+
                 // Location & Settings
-                'create location', 'edit location', 'view location', 'delete location',
-                'view settings', 'edit business-settings',
-                
+                'create location',
+                'edit location',
+                'view location',
+                'delete location',
+                'view settings',
+                'edit business-settings',
+
                 // Reports
-                'view daily-report', 'view sales-report', 'view purchase-report', 'view dashboard'
+                'view daily-report',
+                'view sales-report',
+                'view purchase-report',
+                'view dashboard'
             ],
-            
+
             'Manager' => [
                 // View permissions for most modules
-                'view user', 'view role', 'view product', 'view customer', 'view supplier',
-                'view all sales', 'view purchase', 'view sale-return', 'view purchase-return',
-                'view stock-transfer', 'view stock-adjustment', 'view inventory',
-                
+                'view user',
+                'view role',
+                'view product',
+                'view customer',
+                'view supplier',
+                'view all sales',
+                'view purchase',
+                'view sale-return',
+                'view purchase-return',
+                'view stock-transfer',
+                'view stock-adjustment',
+                'view inventory',
+
                 // Limited create/edit permissions
-                'create sale', 'edit sale', 'access pos',
-                'create customer', 'edit customer',
-                'create purchase', 'edit purchase',
-                
+                'create sale',
+                'edit sale',
+                'access pos',
+                'create customer',
+                'edit customer',
+                'create purchase',
+                'edit purchase',
+
                 // Reports access
-                'view daily-report', 'view sales-report', 'view purchase-report', 
-                'view stock-report', 'view dashboard',
-                
+                'view daily-report',
+                'view sales-report',
+                'view purchase-report',
+                'view stock-report',
+                'view dashboard',
+
                 // POS permissions
-                'access pos', 'cash payment', 'card payment', 'credit sale',
-                'create job-ticket', 'create quotation', 'save draft'
+                'access pos',
+                'cash payment',
+                'card payment',
+                'credit sale',
+                'create job-ticket',
+                'create quotation',
+                'save draft'
             ],
-            
+
             'Cashier' => [
                 // POS focused permissions
-                'access pos', 'create sale', 'view own sales',
-                'create sale-return', 'view sale-return',
-                'view product', 'view customer', 'create customer',
-                
+                'access pos',
+                'create sale',
+                'view own sales',
+                'create sale-return',
+                'view sale-return',
+                'view product',
+                'view customer',
+                'create customer',
+
                 // Payment methods
-                'cash payment', 'card payment', 'cheque payment', 'credit sale',
+                'cash payment',
+                'card payment',
+                'cheque payment',
+                'credit sale',
                 'multiple payment methods',
-                
+
                 // POS features
-                'create job-ticket', 'create quotation', 'save draft', 'suspend sale',
+                'create job-ticket',
+                'create quotation',
+                'save draft',
+                'suspend sale',
                 'discount application',
-                
+
                 // Limited inventory
-                'view inventory', 'view stock levels',
-                
+                'view inventory',
+                'view stock levels',
+
                 // Profile
-                'view own-profile', 'edit own-profile', 'change own-password'
+                'view own-profile',
+                'edit own-profile',
+                'change own-password'
             ],
-            
+
             'Sales Rep' => [
                 // Customer focused
-                'view customer', 'create customer', 'edit customer',
+                'view customer',
+                'create customer',
+                'edit customer',
                 'view assigned routes',
-                
+
                 // Sales
-                'view own sales', 'create sale', 'access pos',
-                'cash payment', 'card payment', 'credit sale',
-                
+                'view own sales',
+                'create sale',
+                'access pos',
+                'cash payment',
+                'card payment',
+                'credit sale',
+
                 // Products
-                'view product', 'view product details',
-                
+                'view product',
+                'view product details',
+
                 // Limited POS
-                'access pos', 'save draft', 'suspend sale',
-                
+                'access pos',
+                'save draft',
+                'suspend sale',
+
                 // Profile
-                'view own-profile', 'edit own-profile', 'change own-password'
+                'view own-profile',
+                'edit own-profile',
+                'change own-password'
             ],
-            
+
             'Inventory Manager' => [
                 // Product management
-                'view product', 'create product', 'edit product',
-                'manage opening stock', 'import product', 'export product',
-                
+                'view product',
+                'create product',
+                'edit product',
+                'manage opening stock',
+                'import product',
+                'export product',
+
                 // Stock management
-                'view stock-transfer', 'create stock-transfer', 'edit stock-transfer',
-                'view stock-adjustment', 'create stock-adjustment', 'edit stock-adjustment',
-                'view inventory', 'adjust inventory', 'view stock levels', 'batch management',
-                
+                'view stock-transfer',
+                'create stock-transfer',
+                'edit stock-transfer',
+                'view stock-adjustment',
+                'create stock-adjustment',
+                'edit stock-adjustment',
+                'view inventory',
+                'adjust inventory',
+                'view stock levels',
+                'batch management',
+
                 // Purchase related
-                'view purchase', 'create purchase', 'edit purchase',
-                'view purchase-return', 'create purchase-return',
-                
+                'view purchase',
+                'create purchase',
+                'edit purchase',
+                'view purchase-return',
+                'create purchase-return',
+
                 // Suppliers
-                'view supplier', 'create supplier', 'edit supplier',
-                
+                'view supplier',
+                'create supplier',
+                'edit supplier',
+
                 // Reports
-                'view stock-report', 'view purchase-report', 'view dashboard'
+                'view stock-report',
+                'view purchase-report',
+                'view dashboard'
             ],
-            
+
             'Accountant' => [
                 // Financial permissions
-                'view payments', 'create payment', 'edit payment',
-                'bulk sale payment', 'bulk purchase payment',
-                
+                'view payments',
+                'create payment',
+                'edit payment',
+                'bulk sale payment',
+                'bulk purchase payment',
+
                 // Expenses
-                'view parent-expense', 'create parent-expense', 'edit parent-expense',
-                'view child-expense', 'create child-expense', 'edit child-expense',
-                
+                'view parent-expense',
+                'create parent-expense',
+                'edit parent-expense',
+                'view child-expense',
+                'create child-expense',
+                'edit child-expense',
+
                 // Sales & Purchase (view only)
-                'view all sales', 'view purchase', 'view sale-return', 'view purchase-return',
-                
+                'view all sales',
+                'view purchase',
+                'view sale-return',
+                'view purchase-return',
+
                 // Reports
-                'view daily-report', 'view sales-report', 'view purchase-report',
-                'view profit-loss-report', 'view payment-report', 'export reports',
-                
+                'view daily-report',
+                'view sales-report',
+                'view purchase-report',
+                'view profit-loss-report',
+                'view payment-report',
+                'export reports',
+
                 // Customers & Suppliers (limited)
-                'view customer', 'view supplier',
-                
+                'view customer',
+                'view supplier',
+
                 // Dashboard
-                'view dashboard', 'view financial-overview'
+                'view dashboard',
+                'view financial-overview'
             ]
         ];
 
@@ -565,17 +720,17 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach ($roles as $roleName => $rolePermissions) {
             // Generate role key from name
             $roleKey = strtolower(str_replace(' ', '_', $roleName));
-            
+
             $role = Role::firstOrCreate(
                 ['name' => $roleName, 'guard_name' => 'web'],
                 ['key' => $roleKey]
             );
-            
+
             // Update key if it doesn't exist
             if (!$role->key) {
                 $role->update(['key' => $roleKey]);
             }
-            
+
             // Set special flags for Master Super Admin
             if ($roleName === 'Master Super Admin') {
                 $role->update([
@@ -585,7 +740,7 @@ class RolesAndPermissionsSeeder extends Seeder
                     'bypass_location_scope' => true
                 ]);
             }
-            
+
             // Set flags for regular Super Admin (can be restricted per location)
             if ($roleName === 'Super Admin') {
                 $role->update([
@@ -595,8 +750,250 @@ class RolesAndPermissionsSeeder extends Seeder
                     'bypass_location_scope' => false // Can be changed per shop
                 ]);
             }
-            
+
             $role->syncPermissions($rolePermissions);
+        }
+
+        $this->command->info('Roles and Permissions Seeder completed successfully!');
+    }
+
+    /**
+     * Clean up existing permissions and roles data
+     */
+    private function cleanupExistingData()
+    {
+        // Remove duplicate permissions based on name and guard_name
+        $duplicatePermissions = DB::table('permissions')
+            ->select('name', 'guard_name', DB::raw('COUNT(*) as count'))
+            ->groupBy('name', 'guard_name')
+            ->having('count', '>', 1)
+            ->get();
+
+        foreach ($duplicatePermissions as $duplicate) {
+            // Keep the first one, delete the rest
+            $permissionsToDelete = DB::table('permissions')
+                ->where('name', $duplicate->name)
+                ->where('guard_name', $duplicate->guard_name)
+                ->orderBy('id')
+                ->skip(1)
+                ->pluck('id');
+
+            if ($permissionsToDelete->count() > 0) {
+                // Remove from role_has_permissions first
+                DB::table('role_has_permissions')
+                    ->whereIn('permission_id', $permissionsToDelete)
+                    ->delete();
+
+                // Remove from model_has_permissions
+                DB::table('model_has_permissions')
+                    ->whereIn('permission_id', $permissionsToDelete)
+                    ->delete();
+
+                // Now delete the permissions
+                DB::table('permissions')
+                    ->whereIn('id', $permissionsToDelete)
+                    ->delete();
+
+                $this->command->warn("Removed duplicate permissions for: {$duplicate->name}");
+            }
+        }
+
+        // Clean up old permission group names
+        $this->cleanupOldPermissions();
+    }
+
+    /**
+     * Clean up old permissions with incorrect group names
+     */
+    private function cleanupOldPermissions()
+    {
+        $oldGroupMappings = [
+            '1. user management' => '1. user-management',
+            '2. role management' => '2. role-management',
+            '3. role & permission-management' => '3. role-permission-management',
+            '12. sub-catagory-management' => '12. sub-category-management',
+            '18. product-purchase-management' => '18. purchase-management',
+            '19. product-purchase-return-management' => '19. purchase-return-management',
+            '22. stock-adjustment-management' => '24. stock-adjustment-management',
+            '23. stock-adjustment-management' => '24. stock-adjustment-management',
+            '27. pos-button-management' => '17. pos-management',
+            '26. product-discount-management' => '28. discount-management'
+        ];
+
+        foreach ($oldGroupMappings as $oldGroup => $newGroup) {
+            $updated = DB::table('permissions')
+                ->where('group_name', $oldGroup)
+                ->update(['group_name' => $newGroup]);
+
+            if ($updated > 0) {
+                $this->command->info("Updated {$updated} permissions from '{$oldGroup}' to '{$newGroup}'");
+            }
+        }
+
+        // Fix specific permission name inconsistencies
+        $permissionMappings = [
+            'edit sub-catagory' => 'edit sub-category',
+            'view sub-catagory' => 'view sub-category',
+            'delete sub-catagory' => 'delete sub-category',
+            'Add & Edit Opening Stock product' => 'manage opening stock',
+            'product Full History' => 'view product history',
+            'show one product details' => 'view product details',
+            'all sale' => 'view all sales',
+            'own sale' => 'view own sales',
+            'pos page' => 'access pos',
+            'view return-sale' => 'view sale-return',
+            'add return-sale' => 'create sale-return',
+            'add stock-transfer' => 'create stock-transfer',
+            'add stock-adjustment' => 'create stock-adjustment',
+            'add purchase' => 'create purchase',
+            'add purchase-return' => 'create purchase-return',
+            'view import-product' => 'import product',
+            'create import-product' => 'import product'
+        ];
+
+        foreach ($permissionMappings as $oldName => $newName) {
+            // Check if the new name already exists
+            $newExists = DB::table('permissions')
+                ->where('name', $newName)
+                ->where('guard_name', 'web')
+                ->exists();
+
+            $oldExists = DB::table('permissions')
+                ->where('name', $oldName)
+                ->where('guard_name', 'web')
+                ->exists();
+
+            if ($oldExists && $newExists) {
+                // Both exist, we need to merge them
+                $oldPermissionId = DB::table('permissions')
+                    ->where('name', $oldName)
+                    ->where('guard_name', 'web')
+                    ->value('id');
+
+                $newPermissionId = DB::table('permissions')
+                    ->where('name', $newName)
+                    ->where('guard_name', 'web')
+                    ->value('id');
+
+                // Move all role assignments from old to new
+                DB::table('role_has_permissions')
+                    ->where('permission_id', $oldPermissionId)
+                    ->whereNotExists(function ($query) use ($newPermissionId) {
+                        $query->select('*')
+                            ->from('role_has_permissions as rhp2')
+                            ->where('rhp2.permission_id', $newPermissionId)
+                            ->whereRaw('rhp2.role_id = role_has_permissions.role_id');
+                    })
+                    ->update(['permission_id' => $newPermissionId]);
+
+                // Remove any remaining assignments
+                DB::table('role_has_permissions')
+                    ->where('permission_id', $oldPermissionId)
+                    ->delete();
+
+                // Move all model assignments from old to new  
+                DB::table('model_has_permissions')
+                    ->where('permission_id', $oldPermissionId)
+                    ->whereNotExists(function ($query) use ($newPermissionId) {
+                        $query->select('*')
+                            ->from('model_has_permissions as mhp2')
+                            ->where('mhp2.permission_id', $newPermissionId)
+                            ->whereRaw('mhp2.model_type = model_has_permissions.model_type')
+                            ->whereRaw('mhp2.model_id = model_has_permissions.model_id');
+                    })
+                    ->update(['permission_id' => $newPermissionId]);
+
+                // Remove any remaining assignments
+                DB::table('model_has_permissions')
+                    ->where('permission_id', $oldPermissionId)
+                    ->delete();
+
+                // Delete the old permission
+                DB::table('permissions')->where('id', $oldPermissionId)->delete();
+
+                $this->command->info("Merged permission '{$oldName}' into '{$newName}'");
+            } elseif ($oldExists && !$newExists) {
+                // Only old exists, safe to rename
+                DB::table('permissions')
+                    ->where('name', $oldName)
+                    ->where('guard_name', 'web')
+                    ->update(['name' => $newName]);
+
+                $this->command->info("Renamed permission from '{$oldName}' to '{$newName}'");
+            }
+        }
+
+        // Handle specific duplicates that need to be merged
+        $duplicatesToMerge = [
+            'add product' => 'create product',
+            'add sale' => 'create sale'
+        ];
+
+        foreach ($duplicatesToMerge as $oldName => $newName) {
+            $this->mergePermissions($oldName, $newName);
+        }
+    }
+
+    /**
+     * Merge two permissions - move all assignments from old to new and delete old
+     */
+    private function mergePermissions($oldName, $newName)
+    {
+        $oldPermission = DB::table('permissions')
+            ->where('name', $oldName)
+            ->where('guard_name', 'web')
+            ->first();
+
+        $newPermission = DB::table('permissions')
+            ->where('name', $newName)
+            ->where('guard_name', 'web')
+            ->first();
+
+        if ($oldPermission && $newPermission) {
+            // Move role assignments that don't already exist
+            DB::table('role_has_permissions')
+                ->where('permission_id', $oldPermission->id)
+                ->whereNotExists(function ($query) use ($newPermission) {
+                    $query->select('*')
+                        ->from('role_has_permissions as rhp2')
+                        ->where('rhp2.permission_id', $newPermission->id)
+                        ->whereRaw('rhp2.role_id = role_has_permissions.role_id');
+                })
+                ->update(['permission_id' => $newPermission->id]);
+
+            // Remove remaining old assignments
+            DB::table('role_has_permissions')
+                ->where('permission_id', $oldPermission->id)
+                ->delete();
+
+            // Move model assignments that don't already exist
+            DB::table('model_has_permissions')
+                ->where('permission_id', $oldPermission->id)
+                ->whereNotExists(function ($query) use ($newPermission) {
+                    $query->select('*')
+                        ->from('model_has_permissions as mhp2')
+                        ->where('mhp2.permission_id', $newPermission->id)
+                        ->whereRaw('mhp2.model_type = model_has_permissions.model_type')
+                        ->whereRaw('mhp2.model_id = model_has_permissions.model_id');
+                })
+                ->update(['permission_id' => $newPermission->id]);
+
+            // Remove remaining old assignments
+            DB::table('model_has_permissions')
+                ->where('permission_id', $oldPermission->id)
+                ->delete();
+
+            // Delete the old permission
+            DB::table('permissions')->where('id', $oldPermission->id)->delete();
+
+            $this->command->info("Merged permission '{$oldName}' into '{$newName}'");
+        } elseif ($oldPermission && !$newPermission) {
+            // Just rename if new doesn't exist
+            DB::table('permissions')
+                ->where('id', $oldPermission->id)
+                ->update(['name' => $newName]);
+
+            $this->command->info("Renamed permission from '{$oldName}' to '{$newName}'");
         }
     }
 }
