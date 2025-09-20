@@ -1,3 +1,4 @@
+
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
@@ -20,6 +21,9 @@
                 required: true,
                 number: true,
             },
+            customer_type: {
+                required: true,
+            },
         };
         
         var validationMessages = {
@@ -32,6 +36,9 @@
             credit_limit: {
                 required: "Credit Limit is required",
                 number: "Credit Limit must be a number",
+            },
+            customer_type: {
+                required: "Customer Type is required",
             },
         };
         
@@ -92,6 +99,9 @@
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
+            
+            // Set default customer type to retailer
+            $('#edit_customer_type').val('retailer').trigger('change');
             
             // Show helpful message for non-sales rep users
             if (!isSalesRep) {
@@ -264,12 +274,7 @@
                 processData: false,
                 dataType: 'json',
                 success: function(response) {
-                    if (response.status == 400) {
-                        $.each(response.errors, function(key, err_value) {
-                            $('#' + key + '_error').html(err_value);
-                        });
-
-                    } else {
+                    if (response.status == 200) {
                         $('#addAndEditCustomerModal').modal('hide');
                         // Clear validation error messages
                         showFetchData();
@@ -282,6 +287,92 @@
                         };
                         toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
+                    } else if (response.status == 400) {
+                        // Handle validation errors that come through success callback
+                        if (response.errors) {
+                            // Display field-specific validation errors
+                            $.each(response.errors, function(key, err_value) {
+                                $('#' + key + '_error').html(Array.isArray(err_value) ? err_value[0] : err_value);
+                            });
+                            
+                            // Show simple error toastr for validation errors
+                            toastr.options = {
+                                "closeButton": true,
+                                "positionClass": "toast-top-right"
+                            };
+                            
+                            // Show specific error message for mobile number duplicates
+                            if (response.errors.mobile_no) {
+                                toastr.error('Mobile number already exists!', 'Error');
+                            } else if (response.errors.email) {
+                                toastr.error('Email already exists!', 'Error');
+                            } else {
+                                toastr.error('Please fix the errors and try again.', 'Error');
+                            }
+                        } else if (response.message) {
+                            // Show generic error message
+                            toastr.options = {
+                                "closeButton": true,
+                                "positionClass": "toast-top-right"
+                            };
+                            toastr.error('Customer already exists!', 'Error');
+                        }
+                    } else {
+                        // Handle any other status codes with clean message
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
+                        toastr.error('Unable to create customer. Please try again.', 'Error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error response:', xhr.status, xhr.responseJSON);
+                    if (xhr.status === 400) {
+                        // Handle validation errors
+                        var response = xhr.responseJSON;
+                        if (response && response.errors) {
+                            // Display field-specific validation errors
+                            $.each(response.errors, function(key, err_value) {
+                                $('#' + key + '_error').html(Array.isArray(err_value) ? err_value[0] : err_value);
+                            });
+                            
+                            // Show clean error toastr for validation errors
+                            toastr.options = {
+                                "closeButton": true,
+                                "positionClass": "toast-top-right"
+                            };
+                            
+                            // Show specific error message for different validation errors
+                            if (response.errors.mobile_no) {
+                                toastr.error('Mobile number already exists!', 'Error');
+                            } else if (response.errors.email) {
+                                toastr.error('Email already exists!', 'Error');
+                            } else {
+                                toastr.error('Please fix the errors and try again.', 'Error');
+                            }
+                        } else if (response && response.message) {
+                            // Show simple generic error message
+                            toastr.options = {
+                                "closeButton": true,
+                                "positionClass": "toast-top-right"
+                            };
+                            toastr.error('Customer already exists!', 'Error');
+                        }
+                    } else if (xhr.status === 500) {
+                        // Handle server errors with clean message
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
+                        toastr.error('Unable to create customer due to a server error. Please try again later.', 'Server Error');
+                    } else {
+                        // Handle other errors with simple message
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
+                        toastr.error('Unable to create customer. Please try again.', 'Error');
                     }
                 }
             });

@@ -12,10 +12,10 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Add Product</h3>
+                            <h3 class="page-title">{{ isset($product) ? 'Edit Product' : 'Add Product' }}</h3>
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">Add Product</li>
+                                <li class="breadcrumb-item active">{{ isset($product) ? 'Edit Product' : 'Add Product' }}</li>
                             </ul>
                         </div>
                     </div>
@@ -128,7 +128,7 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Sub Category <span class="login-danger">*</span></label>
+                            
                                                         <div class="input-group">
                                                             <select class="form-control form-select selectBox"
                                                                 id="edit_sub_category_id" name="sub_category_id">

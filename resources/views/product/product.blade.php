@@ -142,6 +142,7 @@
                                                         {{-- <th>Product Type</th> --}}
                                                         <th>Category</th>
                                                         <th>Brand</th>
+                                                        <th>Status</th>
                                                         <th>Imei or Serial</th>
                                                     </tr>
                                                 </thead>

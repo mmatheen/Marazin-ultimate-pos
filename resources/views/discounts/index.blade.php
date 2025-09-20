@@ -89,10 +89,12 @@
                             <div class="form-group">
                                 <label>Name *</label>
                                 <input type="text" class="form-control" name="name" required>
+                                <div class="invalid-feedback" id="name-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Description</label>
                                 <textarea class="form-control" name="description" rows="2"></textarea>
+                                <div class="invalid-feedback" id="description-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Type *</label>
@@ -100,20 +102,24 @@
                                     <option value="fixed">Fixed Amount</option>
                                     <option value="percentage">Percentage</option>
                                 </select>
+                                <div class="invalid-feedback" id="type-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Amount *</label>
                                 <input type="number" step="0.01" class="form-control" name="amount" required>
+                                <div class="invalid-feedback" id="amount-error"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Start Date *</label>
                                 <input type="date" class="form-control" name="start_date" required>
+                                <div class="invalid-feedback" id="start_date-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>End Date (Optional)</label>
                                 <input type="date" class="form-control" name="end_date">
+                                <div class="invalid-feedback" id="end_date-error"></div>
                             </div>
                             <div class="form-group">
                                 <div class="form-check">
@@ -128,6 +134,7 @@
                                         <option value="{{ $product->id }}">{{ $product->product_name }} ({{ $product->sku }})</option>
                                     @endforeach
                                 </select>
+                                <div class="invalid-feedback" id="product_ids-error"></div>
                             </div>
                         </div>
                     </div>
@@ -142,51 +149,55 @@
 </div>
 
         <!-- Apply Discount Modal -->
-        <div class="modal fade" id="applyDiscountModal" tabindex="-1" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
+        <div class="modal fade" id="applyDiscountModal" tabindex="-1" role="dialog" aria-labelledby="applyDiscountModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="applyDiscountModalLabel">Apply Discount to Selected Products</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
                     </div>
                     <div class="modal-body">
                         <form id="discountForm">
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="discountName" class="form-label">Discount Name</label>
                                 <input type="text" class="form-control" id="discountName" required>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="discountDescription" class="form-label">Description</label>
                                 <textarea class="form-control" id="discountDescription" rows="3"></textarea>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="discountType" class="form-label">Discount Type</label>
-                                <select class="form-select" id="discountType" required>
+                                <select class="form-control" id="discountType" required>
                                     <option value="">Select Type</option>
                                     <option value="fixed">Fixed Amount</option>
                                     <option value="percentage">Percentage</option>
                                 </select>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="discountAmount" class="form-label">Amount</label>
                                 <input type="number" class="form-control" id="discountAmount" step="0.01" required>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="startDate" class="form-label">Start Date</label>
                                 <input type="datetime-local" class="form-control" id="startDate" required>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="endDate" class="form-label">End Date (Optional)</label>
                                 <input type="datetime-local" class="form-control" id="endDate">
                             </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="isActive">
-                                <label class="form-check-label" for="isActive">Active</label>
+                            <div class="form-group">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="isActive">
+                                    <label class="form-check-label" for="isActive">Active</label>
+                                </div>
                             </div>
                         </form>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         <button type="button" class="btn btn-primary" id="saveDiscountButton">Save Discount</button>
                     </div>
                 </div>
@@ -213,10 +224,12 @@
                             <div class="form-group">
                                 <label>Name *</label>
                                 <input type="text" class="form-control" name="name" id="edit_name" required>
+                                <div class="invalid-feedback" id="edit_name-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Description</label>
                                 <textarea class="form-control" name="description" id="edit_description" rows="2"></textarea>
+                                <div class="invalid-feedback" id="edit_description-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Type *</label>
@@ -224,20 +237,24 @@
                                     <option value="fixed">Fixed Amount</option>
                                     <option value="percentage">Percentage</option>
                                 </select>
+                                <div class="invalid-feedback" id="edit_type-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>Amount *</label>
                                 <input type="number" step="0.01" class="form-control" name="amount" id="edit_amount" required>
+                                <div class="invalid-feedback" id="edit_amount-error"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Start Date *</label>
                                 <input type="date" class="form-control" name="start_date" id="edit_start_date" required>
+                                <div class="invalid-feedback" id="edit_start_date-error"></div>
                             </div>
                             <div class="form-group">
                                 <label>End Date (Optional)</label>
                                 <input type="date" class="form-control" name="end_date" id="edit_end_date">
+                                <div class="invalid-feedback" id="edit_end_date-error"></div>
                             </div>
                             <div class="form-group">
                                 <div class="form-check">
@@ -252,6 +269,7 @@
                                         <option value="{{ $product->id }}">{{ $product->product_name }} ({{ $product->sku }})</option>
                                     @endforeach
                                 </select>
+                                <div class="invalid-feedback" id="edit_product_ids-error"></div>
                             </div>
                         </div>
                     </div>
@@ -302,6 +320,28 @@ $(document).ready(function() {
 
     const today = new Date().toISOString().split('T')[0];
     $('#filter_from').val(today);
+
+    // Function to clear validation errors
+    function clearValidationErrors(formId) {
+        $(formId + ' .form-control').removeClass('is-invalid');
+        $(formId + ' .invalid-feedback').text('').hide();
+    }
+
+    // Function to display validation errors
+    function displayValidationErrors(errors, formId) {
+        clearValidationErrors(formId);
+        $.each(errors, function(field, messages) {
+            var fieldElement = $(formId + ' [name="' + field + '"]');
+            var errorElement = $(formId + ' #' + (formId === '#editDiscountForm' ? 'edit_' : '') + field.replace('.', '_') + '-error');
+            
+            if (fieldElement.length) {
+                fieldElement.addClass('is-invalid');
+            }
+            if (errorElement.length) {
+                errorElement.text(messages[0]).show();
+            }
+        });
+    }
 
     const table = $('#discounts-table').DataTable({
         ajax: {
@@ -392,6 +432,7 @@ $(document).ready(function() {
     $('[data-target="#createDiscountModal"]').click(function() {
         $('#createDiscountForm')[0].reset();
         $('.select2').val(null).trigger('change');
+        clearValidationErrors('#createDiscountForm');
         // Set today's date as default for start date
         $('#createDiscountForm input[name="start_date"]').val(today);
         $('#createDiscountModal').modal('show');
@@ -400,6 +441,7 @@ $(document).ready(function() {
     // Create Discount - Submit Form
     $('#createDiscountForm').submit(function(e) {
         e.preventDefault();
+        clearValidationErrors('#createDiscountForm');
 
         // Get selected product IDs
         var productIds = $('#createDiscountForm select[name="product_ids[]"]').val();
@@ -426,9 +468,10 @@ $(document).ready(function() {
             error: function(xhr) {
                 if (xhr.status === 422) {
                     var errors = xhr.responseJSON.errors;
-                    $.each(errors, function(key, value) {
-                        toastr.error(value[0]);
-                    });
+                    displayValidationErrors(errors, '#createDiscountForm');
+                    // Also show toastr for first error
+                    var firstError = Object.values(errors)[0][0];
+                    toastr.error(firstError);
                 } else {
                     toastr.error('An error occurred while creating the discount');
                 }
@@ -450,6 +493,9 @@ $(document).ready(function() {
             $('#edit_end_date').val(data.end_date ? data.end_date.split('T')[0] : '');
             $('#edit_is_active').prop('checked', data.is_active);
 
+            // Clear any existing validation errors
+            clearValidationErrors('#editDiscountForm');
+
             // Initialize Select2 for edit modal
             $('.select2-edit').select2({
                 placeholder: "Select products",
@@ -467,6 +513,7 @@ $(document).ready(function() {
     // Update Discount
     $('#editDiscountForm').submit(function(e) {
         e.preventDefault();
+        clearValidationErrors('#editDiscountForm');
         var discountId = $('#edit_discount_id').val();
 
         $.ajax({
@@ -481,9 +528,10 @@ $(document).ready(function() {
             error: function(xhr) {
                 if (xhr.status === 422) {
                     var errors = xhr.responseJSON.errors;
-                    $.each(errors, function(key, value) {
-                        toastr.error(value[0]);
-                    });
+                    displayValidationErrors(errors, '#editDiscountForm');
+                    // Also show toastr for first error
+                    var firstError = Object.values(errors)[0][0];
+                    toastr.error(firstError);
                 } else {
                     toastr.error('An error occurred while updating the discount');
                 }
@@ -559,6 +607,60 @@ $(document).ready(function() {
         }).fail(function() {
             toastr.error('Error updating discount status');
         });
+    });
+
+    // Clear validation errors when modals are shown
+    $('#createDiscountModal').on('show.bs.modal', function() {
+        clearValidationErrors('#createDiscountForm');
+    });
+
+    $('#editDiscountModal').on('show.bs.modal', function() {
+        clearValidationErrors('#editDiscountForm');
+    });
+
+    // Clear validation errors when modals are hidden
+    $('#createDiscountModal').on('hidden.bs.modal', function() {
+        clearValidationErrors('#createDiscountForm');
+        $('#createDiscountForm')[0].reset();
+        $('.select2').val(null).trigger('change');
+    });
+
+    $('#editDiscountModal').on('hidden.bs.modal', function() {
+        clearValidationErrors('#editDiscountForm');
+        $('#editDiscountForm')[0].reset();
+        $('.select2-edit').val(null).trigger('change');
+    });
+
+    // Additional event handlers for close buttons (backup)
+    $(document).on('click', '[data-dismiss="modal"], [data-bs-dismiss="modal"]', function(e) {
+        e.preventDefault();
+        var modal = $(this).closest('.modal');
+        console.log('Close button clicked for modal:', modal.attr('id'));
+        
+        // Try multiple ways to close the modal
+        modal.modal('hide');
+        
+        // Backup method - manually remove modal classes and backdrop
+        setTimeout(function() {
+            if (modal.hasClass('show')) {
+                modal.removeClass('show');
+                modal.css('display', 'none');
+                $('body').removeClass('modal-open');
+                $('.modal-backdrop').remove();
+            }
+        }, 100);
+    });
+
+    // Test Bootstrap functionality
+    console.log('Bootstrap version:', typeof $.fn.modal !== 'undefined' ? 'Available' : 'Not Available');
+    console.log('jQuery version:', $.fn.jquery);
+    
+    // Test modal opening (support both Bootstrap 4 and 5)
+    $(document).on('click', '[data-toggle="modal"], [data-bs-toggle="modal"]', function(e) {
+        e.preventDefault();
+        var targetModal = $(this).attr('data-target') || $(this).attr('data-bs-target');
+        console.log('Opening modal:', targetModal);
+        $(targetModal).modal('show');
     });
 });
     </script>

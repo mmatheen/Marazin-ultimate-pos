@@ -237,6 +237,7 @@ Route::get('/customer-get-by-id/{id}', [CustomerController::class, 'show']);
 Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
 
 Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+Route::post('/toggle-product-status/{id}', [ProductController::class, 'toggleStatus']);
 // Product Details & Stock
 Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
 Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);

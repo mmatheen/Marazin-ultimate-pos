@@ -386,7 +386,7 @@ class ProductController extends Controller
 
     public function showOpeningStock($productId)
     {
-        $product = Product::with('locations')->findOrFail($productId);
+        $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
         $locations = $product->locations;
 
         $openingStock = [
@@ -412,7 +412,7 @@ class ProductController extends Controller
 
     public function editOpeningStock($productId)
     {
-        $product = Product::with('locations')->findOrFail($productId);
+        $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
         $locations = $product->locations;
 
         $batches = Batch::where('product_id', $productId)
@@ -429,17 +429,25 @@ class ProductController extends Controller
             ->orderBy('id')
             ->pluck('imei_number', 'id');
 
+        // Determine if decimals are allowed for this product
+        $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
         $openingStock = [
             'product_id' => $product->id,
-            'batches' => $batches->flatMap(function ($batch) {
-                return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
+            'batches' => $batches->flatMap(function ($batch) use ($allowDecimal) {
+                return $batch->locationBatches->map(function ($locationBatch) use ($batch, $allowDecimal) {
                     $location = Location::find($locationBatch->location_id);
+                    
+                    // Format quantity based on unit's allow_decimal property
+                    $formattedQuantity = $allowDecimal 
+                        ? number_format((float)$locationBatch->qty, 2, '.', '')
+                        : (int)$locationBatch->qty;
+                    
                     return [
                         'batch_id' => $locationBatch->batch_id,
                         'location_id' => $locationBatch->location_id,
                         'location_name' => $location->name,
-                        'quantity' => $locationBatch->qty,
+                        'quantity' => $formattedQuantity,
                         'batch_no' => $batch->batch_no,
                         'expiry_date' => $batch->expiry_date,
                         'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
@@ -472,6 +480,13 @@ class ProductController extends Controller
         $filteredLocations = array_filter($request->locations, function ($location) {
             return !empty($location['qty']);
         });
+
+        // Clean up empty expiry dates to null
+        foreach ($filteredLocations as &$location) {
+            if (isset($location['expiry_date']) && ($location['expiry_date'] === '' || $location['expiry_date'] === 'null')) {
+                $location['expiry_date'] = null;
+            }
+        }
 
         $validator = Validator::make(['locations' => $filteredLocations], [
             'locations' => 'required|array',
@@ -826,7 +841,8 @@ class ProductController extends Controller
                 'retail_price',
                 'whole_sale_price',
                 'special_price',
-                'max_retail_price'
+                'max_retail_price',
+                'is_active'
             ])
                 ->with([
                     'locations:id,name',
@@ -855,7 +871,11 @@ class ProductController extends Controller
                         $query->select(['id', 'batch_id', 'location_id', 'qty'])
                             ->with('location:id,name');
                     }
-                ]);
+                ])
+                // Only filter by is_active for POS (when show_all parameter is not set)
+                ->when(!$request->has('show_all'), function ($query) {
+                    return $query->where('is_active', true);
+                });
 
             // Apply DataTable global search
             if (!empty($search)) {
@@ -1020,6 +1040,7 @@ class ProductController extends Controller
                         'whole_sale_price' => $product->whole_sale_price,
                         'special_price' => $product->special_price,
                         'max_retail_price' => $product->max_retail_price,
+                        'is_active' => $product->is_active,
                     ],
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
@@ -1128,7 +1149,9 @@ class ProductController extends Controller
                 $q->select(['id', 'batch_id', 'location_id', 'qty'])
                     ->with('location:id,name');
             }
-        ]);
+        ])
+        // Only show active products in POS/autocomplete
+        ->where('is_active', true);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -1665,6 +1688,41 @@ class ProductController extends Controller
                 'status' => 'error',
                 'message' => 'Failed to apply discount: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Toggle product active/inactive status
+     */
+    public function toggleStatus(int $id)
+    {
+        try {
+            $product = Product::find($id);
+
+            if (!$product) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "Product not found!"
+                ]);
+            }
+
+            // Toggle the is_active status
+            $product->is_active = !$product->is_active;
+            $product->save();
+
+            $statusText = $product->is_active ? 'activated' : 'deactivated';
+
+            return response()->json([
+                'status' => 200,
+                'message' => "Product has been {$statusText} successfully!",
+                'is_active' => $product->is_active
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update product status: ' . $e->getMessage()
+            ]);
         }
     }
 }

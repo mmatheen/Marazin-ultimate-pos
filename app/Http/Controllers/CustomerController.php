@@ -118,26 +118,125 @@ class CustomerController extends Controller
     }
 
 
-    public function store(Request $request)
+    // public function store(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'prefix' => 'nullable|string|max:10',
+    //         'first_name' => 'required|string|max:255',
+    //         'last_name' => 'nullable|string|max:255',
+    //         'mobile_no' => 'required|numeric|digits_between:10,15|unique:customers,mobile_no',
+    //         'email' => 'nullable|email|max:255|unique:customers,email',
+    //         'address' => 'nullable|string|max:500',
+    //         'opening_balance' => 'nullable|numeric',
+    //         'credit_limit' => 'nullable|numeric|min:0',
+    //         'city_id' => 'nullable|integer|exists:cities,id',
+    //         'customer_type' => 'nullable|in:wholesaler,retailer',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'status' => 400,
+    //             'errors' => $validator->messages()
+    //         ]);
+    //     }
+
+    //     try {
+    //         DB::beginTransaction();
+
+    //         $customerData = $request->only([
+    //             'prefix',
+    //             'first_name',
+    //             'last_name',
+    //             'mobile_no',
+    //             'email',
+    //             'address',
+    //             'opening_balance',
+    //             'credit_limit',
+    //             'city_id',
+    //             'customer_type',
+    //         ]);
+
+    //         // Auto-calculate credit limit if not provided but city is selected
+    //         if (!$request->has('credit_limit') || $request->credit_limit === null) {
+    //             if ($request->city_id) {
+    //                 $customerData['credit_limit'] = Customer::calculateCreditLimitForCity($request->city_id);
+    //             }
+    //         }
+
+    //         $customer = Customer::create($customerData);
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'status' => 200,
+    //             'message' => "New Customer Created Successfully!",
+    //             'calculated_credit_limit' => $customerData['credit_limit'] ?? 0
+    //         ]);
+    //     } catch (\Illuminate\Database\QueryException $e) {
+    //         DB::rollBack();
+            
+    //         // Handle specific database constraint violations
+    //         if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
+    //             $errorMessage = $e->getMessage();
+                
+    //             if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+    //                 return response()->json([
+    //                     'status' => 400,
+    //                     'errors' => [
+    //                         'mobile_no' => ['This mobile number is already registered with another customer.']
+    //                     ]
+    //                 ]);
+    //             }
+                
+    //             if (strpos($errorMessage, 'customers_email_unique') !== false) {
+    //                 return response()->json([
+    //                     'status' => 400,
+    //                     'errors' => [
+    //                         'email' => ['This email address is already registered with another customer.']
+    //                     ]
+    //                 ]);
+    //             }
+                
+    //             return response()->json([
+    //                 'status' => 400,
+    //                 'message' => 'A customer with these details already exists.'
+    //             ]);
+    //         }
+            
+    //         Log::error('Customer creation error: ' . $e->getMessage());
+    //         return response()->json([
+    //             'status' => 500,
+    //             'message' => "Error creating customer. Please try again."
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         Log::error('Customer creation error: ' . $e->getMessage());
+    //         return response()->json([
+    //             'status' => 500,
+    //             'message' => "Error creating customer: " . $e->getMessage()
+    //         ]);
+    //     }
+    // }
+     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'nullable|email|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15|unique:customers,mobile_no',
+            'email' => 'nullable|email|max:255|unique:customers,email',
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
             'city_id' => 'nullable|integer|exists:cities,id',
-            'customer_type' => 'nullable|in:wholesaler,retailer',
+            'customer_type' => 'required|in:wholesaler,retailer',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'status' => 400,
                 'errors' => $validator->messages()
-            ]);
+            ], 400);
         }
 
         try {
@@ -172,12 +271,63 @@ class CustomerController extends Controller
                 'message' => "New Customer Created Successfully!",
                 'calculated_credit_limit' => $customerData['credit_limit'] ?? 0
             ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            
+            // Handle specific database constraint violations
+            if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
+                $errorMessage = $e->getMessage();
+                
+                if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'mobile_no' => ['This mobile number is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                if (strpos($errorMessage, 'customers_email_unique') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'email' => ['This email address is already registered with another customer.']
+                        ]
+                    ], 400);
+                }
+                
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'A customer with these details already exists.'
+                ], 400);
+            }
+            
+            // Handle null constraint violations
+            if ($e->errorInfo[1] == 1048) { // Cannot be null error code
+                $errorMessage = $e->getMessage();
+                
+                if (strpos($errorMessage, 'customer_type') !== false) {
+                    return response()->json([
+                        'status' => 400,
+                        'errors' => [
+                            'customer_type' => ['Customer type is required and must be either wholesaler or retailer.']
+                        ]
+                    ], 400);
+                }
+            }
+            
+            Log::error('Customer creation error: ' . $e->getMessage());
+            return response()->json([
+                'status' => 400,
+                'message' => "Error creating customer. Please check your input and try again."
+            ], 400);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Customer creation error: ' . $e->getMessage());
             return response()->json([
                 'status' => 500,
                 'message' => "Error creating customer: " . $e->getMessage()
-            ]);
+            ], 500);
         }
     }
 
@@ -199,8 +349,8 @@ class CustomerController extends Controller
             'prefix' => 'nullable|string|max:10',
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'mobile_no' => 'required|numeric|digits_between:10,15',
-            'email' => 'nullable|email|max:255',
+            'mobile_no' => 'required|numeric|digits_between:10,15|unique:customers,mobile_no,' . $id,
+            'email' => 'nullable|email|max:255|unique:customers,email,' . $id,
             'address' => 'nullable|string|max:500',
             'opening_balance' => 'nullable|numeric',
             'credit_limit' => 'nullable|numeric|min:0',
@@ -252,8 +402,45 @@ class CustomerController extends Controller
                     'message' => "Customer Details Updated Successfully!",
                     'calculated_credit_limit' => $customerData['credit_limit'] ?? $customer->credit_limit
                 ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                DB::rollBack();
+                
+                // Handle specific database constraint violations
+                if ($e->errorInfo[1] == 1062) { // Duplicate entry error code
+                    $errorMessage = $e->getMessage();
+                    
+                    if (strpos($errorMessage, 'customers_mobile_no_unique') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'mobile_no' => ['This mobile number is already registered with another customer.']
+                            ]
+                        ]);
+                    }
+                    
+                    if (strpos($errorMessage, 'customers_email_unique') !== false) {
+                        return response()->json([
+                            'status' => 400,
+                            'errors' => [
+                                'email' => ['This email address is already registered with another customer.']
+                            ]
+                        ]);
+                    }
+                    
+                    return response()->json([
+                        'status' => 400,
+                        'message' => 'A customer with these details already exists.'
+                    ]);
+                }
+                
+                Log::error('Customer update error: ' . $e->getMessage());
+                return response()->json([
+                    'status' => 500,
+                    'message' => "Error updating customer. Please try again."
+                ]);
             } catch (\Exception $e) {
                 DB::rollBack();
+                Log::error('Customer update error: ' . $e->getMessage());
                 return response()->json([
                     'status' => 500,
                     'message' => "Error updating customer: " . $e->getMessage()

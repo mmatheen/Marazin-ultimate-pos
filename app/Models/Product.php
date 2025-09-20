@@ -29,6 +29,7 @@ class Product extends Model
         'special_price',
         'original_price',
         'max_retail_price',
+        'is_active',
     ];
 
     public function locations()

@@ -22,6 +22,7 @@ use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
 use App\Models\Discount;
@@ -39,6 +40,22 @@ class ProductController extends Controller
         $this->middleware('permission:import product', ['only' => ['importProduct', 'downloadProductImportTemplate']]);
         $this->middleware('permission:export product', ['only' => ['exportProduct']]);
         $this->middleware('permission:duplicate product', ['only' => ['duplicateProduct']]);
+    }
+
+    /**
+     * Get cached dropdown data for performance optimization
+     */
+    private function getCachedDropdownData()
+    {
+        return Cache::remember('product_dropdown_data', 300, function () { // Cache for 5 minutes
+            return [
+                'mainCategories' => MainCategory::select('id', 'mainCategoryName')->get(),
+                'subCategories' => SubCategory::select('id', 'subCategoryname', 'main_category_id')->get(),
+                'brands' => Brand::select('id', 'name')->get(),
+                'units' => Unit::select('id', 'name', 'allow_decimal')->get(),
+                'locations' => Location::select('id', 'name')->get(),
+            ];
+        });
     }
 
     public function product()
@@ -152,22 +169,28 @@ class ProductController extends Controller
  
     public function initialProductDetails()
     {
-        $mainCategories = MainCategory::all();
-        $subCategories = SubCategory::with('mainCategory')->get();
-        $brands = Brand::all();
-        $units = Unit::all();
-        $locations = Location::all();
+        // Use cached dropdown data for better performance
+        $dropdownData = $this->getCachedDropdownData();
+        
+        // Get subcategories with main category relationship for the frontend
+        $subCategories = Cache::remember('product_subcategories_with_main', 300, function () {
+            return SubCategory::with(['mainCategory:id,mainCategoryName'])
+                ->select('id', 'subCategoryname', 'main_category_id')
+                ->get();
+        });
 
         // Check if all collections have records
-        if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
+        if ($dropdownData['mainCategories']->count() > 0 || $subCategories->count() > 0 || 
+            $dropdownData['brands']->count() > 0 || $dropdownData['units']->count() > 0 || 
+            $dropdownData['locations']->count() > 0) {
             return response()->json([
                 'status' => 200,
                 'message' => [
-                    'brands' => $brands,
+                    'brands' => $dropdownData['brands'],
                     'subCategories' => $subCategories,
-                    'mainCategories' => $mainCategories,
-                    'units' => $units,
-                    'locations' => $locations,
+                    'mainCategories' => $dropdownData['mainCategories'],
+                    'units' => $dropdownData['units'],
+                    'locations' => $dropdownData['locations'],
                 ]
             ]);
         } else {
@@ -270,22 +293,34 @@ class ProductController extends Controller
 
     public function editProduct($id)
     {
-        // Fetch the product and related data
-        $product = Product::with(['locations', 'mainCategory', 'brand', 'unit'])->find($id);
+        // Fetch the product with only necessary relationships
+        $product = Product::with(['locations:id,name', 'mainCategory:id,mainCategoryName', 'brand:id,name', 'unit:id,name'])
+            ->select('id', 'product_name', 'sku', 'description', 'pax', 'original_price', 'retail_price', 
+                    'whole_sale_price', 'special_price', 'max_retail_price', 'alert_quantity', 'product_type', 
+                    'is_imei_or_serial_no', 'is_for_selling', 'product_image', 'main_category_id', 
+                    'sub_category_id', 'brand_id', 'unit_id')
+            ->find($id);
 
         // Check if the product exists
         if (!$product) {
-            return response()->json([
-                'status' => 404,
-                'message' => 'Product not found'
-            ], 404);
+            if (request()->ajax() || request()->is('api/*')) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Product not found'
+                ], 404);
+            }
+            abort(404, 'Product not found');
         }
 
-        $mainCategories = MainCategory::all();
-        $subCategories = SubCategory::all();
-        $brands = Brand::all();
-        $units = Unit::all();
-        $locations = Location::all();
+        // Get cached dropdown data for better performance
+        $dropdownData = $this->getCachedDropdownData();
+        
+        // Extract data from cache
+        $mainCategories = $dropdownData['mainCategories'];
+        $subCategories = $dropdownData['subCategories'];
+        $brands = $dropdownData['brands'];
+        $units = $dropdownData['units'];
+        $locations = $dropdownData['locations'];
 
         // Check if the request is AJAX
         if (request()->ajax() || request()->is('api/*')) {
@@ -396,7 +431,7 @@ class ProductController extends Controller
 
     public function showOpeningStock($productId)
     {
-        $product = Product::with('locations')->findOrFail($productId);
+        $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
         $locations = $product->locations;
 
         $openingStock = [
@@ -422,7 +457,7 @@ class ProductController extends Controller
 
     public function editOpeningStock($productId)
     {
-        $product = Product::with('locations')->findOrFail($productId);
+        $product = Product::with(['locations', 'unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
         $locations = $product->locations;
 
         $batches = Batch::where('product_id', $productId)
@@ -439,17 +474,25 @@ class ProductController extends Controller
             ->orderBy('id')
             ->pluck('imei_number', 'id');
 
+        // Determine if decimals are allowed for this product
+        $allowDecimal = $product->unit && $product->unit->allow_decimal;
 
         $openingStock = [
             'product_id' => $product->id,
-            'batches' => $batches->flatMap(function ($batch) {
-                return $batch->locationBatches->map(function ($locationBatch) use ($batch) {
+            'batches' => $batches->flatMap(function ($batch) use ($allowDecimal) {
+                return $batch->locationBatches->map(function ($locationBatch) use ($batch, $allowDecimal) {
                     $location = Location::find($locationBatch->location_id);
+                    
+                    // Format quantity based on unit's allow_decimal property
+                    $formattedQuantity = $allowDecimal 
+                        ? number_format((float)$locationBatch->qty, 2, '.', '')
+                        : (int)$locationBatch->qty;
+                    
                     return [
                         'batch_id' => $locationBatch->batch_id,
                         'location_id' => $locationBatch->location_id,
                         'location_name' => $location->name,
-                        'quantity' => $locationBatch->qty,
+                        'quantity' => $formattedQuantity,
                         'batch_no' => $batch->batch_no,
                         'expiry_date' => $batch->expiry_date,
                         'stock_histories' => $locationBatch->stockHistories->map(function ($stockHistory) {
@@ -482,6 +525,13 @@ class ProductController extends Controller
         $filteredLocations = array_filter($request->locations, function ($location) {
             return !empty($location['qty']);
         });
+
+        // Clean up empty expiry dates to null
+        foreach ($filteredLocations as &$location) {
+            if (isset($location['expiry_date']) && ($location['expiry_date'] === '' || $location['expiry_date'] === 'null')) {
+                $location['expiry_date'] = null;
+            }
+        }
 
         $validator = Validator::make(['locations' => $filteredLocations], [
             'locations' => 'required|array',
@@ -835,7 +885,8 @@ class ProductController extends Controller
                 'retail_price',
                 'whole_sale_price',
                 'special_price',
-                'max_retail_price'
+                'max_retail_price',
+                'is_active'
             ])
                 ->with([
                     'locations:id,name',
@@ -861,7 +912,11 @@ class ProductController extends Controller
                         $query->select(['id', 'batch_id', 'location_id', 'qty'])
                             ->with('location:id,name');
                     }
-                ]);
+                ])
+                // Only filter by is_active for POS (when show_all parameter is not set)
+                ->when(!$request->has('show_all'), function ($query) {
+                    return $query->where('is_active', true);
+                });
 
             // Apply DataTable global search
             if (!empty($search)) {
@@ -1003,6 +1058,7 @@ class ProductController extends Controller
                         'whole_sale_price' => $product->whole_sale_price,
                         'special_price' => $product->special_price,
                         'max_retail_price' => $product->max_retail_price,
+                        'is_active' => $product->is_active,
                     ],
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
@@ -1106,7 +1162,7 @@ class ProductController extends Controller
                 $q->select(['id', 'batch_id', 'location_id', 'qty'])
                     ->with('location:id,name');
             }
-        ]);
+        ])->where('is_active', true); // Only show active products for POS
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -1384,6 +1440,38 @@ class ProductController extends Controller
     public function importProduct()
     {
         return view('product.import_product');
+    }
+
+    public function toggleStatus(int $id)
+    {
+        try {
+            $product = Product::find($id);
+
+            if (!$product) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "Product not found!"
+                ]);
+            }
+
+            // Toggle the is_active status
+            $product->is_active = !$product->is_active;
+            $product->save();
+
+            $statusText = $product->is_active ? 'activated' : 'deactivated';
+
+            return response()->json([
+                'status' => 200,
+                'message' => "Product has been {$statusText} successfully!",
+                'is_active' => $product->is_active
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update product status: ' . $e->getMessage()
+            ]);
+        }
     }
 
 

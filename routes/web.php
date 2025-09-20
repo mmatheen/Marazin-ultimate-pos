@@ -146,7 +146,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/list-product', [ProductController::class, 'product'])->name('list-product');
         Route::get('/add-product', [ProductController::class, 'addProduct'])->name('add-product');
         Route::get('/edit-product/{id}', [ProductController::class, 'EditProduct'])->name('edit-product');
-        Route::delete('/delete-product/{id}', [ProductController::class, 'destroy']);
+        Route::post('/toggle-product-status/{id}', [ProductController::class, 'toggleStatus']);
         // Product Details & Stock
         Route::get('/initial-product-details', [ProductController::class, 'initialProductDetails'])->name('product-details');
         Route::get('/product-get-details/{id}', [ProductController::class, 'getProductDetails']);
