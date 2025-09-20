@@ -353,7 +353,55 @@ class SaleController extends Controller
             }
         }
 
+        // Validate walk-in customer credit sales restriction
+        $totalAmountGiven = $request->amount_given ?? 0;
+        $finalTotal = $request->total_amount ?? 0;
+        if ($request->customer_id == 1 && $totalAmountGiven < $finalTotal) {
+            return response()->json([
+                'status' => 400,
+                'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
+                'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
+            ]);
+        }
+
         try {
+            // Pre-validation: Check credit limit BEFORE starting transaction
+            $customer = Customer::findOrFail($request->customer_id);
+            $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
+            $discount = $request->discount_amount ?? 0;
+            $finalTotal = $request->discount_type === 'percentage'
+                ? $subtotal - ($subtotal * $discount / 100)
+                : $subtotal - $discount;
+
+            // Check credit limit for non-walk-in customers
+            if ($customer->id != 1 && $customer->credit_limit > 0) {
+                $actualPaymentAmount = 0;
+                if (!empty($request->payments)) {
+                    $actualPaymentAmount = array_sum(array_column($request->payments, 'amount'));
+                } else {
+                    $actualPaymentAmount = $request->amount_given ?? 0;
+                    if ($actualPaymentAmount >= $finalTotal) {
+                        $actualPaymentAmount = $finalTotal;
+                    }
+                }
+
+                $netSaleAmountDue = max(0, $finalTotal - $actualPaymentAmount);
+                $projectedNewBalance = $customer->current_balance + $netSaleAmountDue;
+
+                if ($projectedNewBalance > $customer->credit_limit) {
+                    $availableCredit = max(0, $customer->credit_limit - $customer->current_balance);
+                    return response()->json([
+                        'status' => 400,
+                        'message' => "Credit limit exceeded for {$customer->full_name}.\n" .
+                                   "Current balance: Rs. " . number_format($customer->current_balance, 2) . "\n" .
+                                   "Credit limit: Rs. " . number_format($customer->credit_limit, 2) . "\n" .
+                                   "Available credit: Rs. " . number_format($availableCredit, 2) . "\n" .
+                                   "Sale amount due: Rs. " . number_format($netSaleAmountDue, 2),
+                        'errors' => ['credit_limit' => ['Credit limit would be exceeded by this sale.']]
+                    ]);
+                }
+            }
+
             $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
@@ -434,28 +482,49 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit check
+                // Credit limit check - MUST happen before sale creation
                 $customer = Customer::findOrFail($request->customer_id);
 
-                // Calculate payments amount sent in request
-                $paymentAmount = 0;
-                if (!empty($request->payments)) {
-                    $paymentAmount = array_sum(array_column($request->payments, 'amount'));
-                } elseif ($newStatus === 'jobticket' && $advanceAmount > 0) {
-                    $paymentAmount = $advanceAmount;
-                } else {
-                    $paymentAmount = 0;
+                // Skip credit limit check for Walk-in customers
+                if ($customer->id != 1 && $customer->credit_limit > 0) {
+                    // Calculate actual payment amount that will be made
+                    $actualPaymentAmount = 0;
+                    
+                    if (!empty($request->payments)) {
+                        $actualPaymentAmount = array_sum(array_column($request->payments, 'amount'));
+                    } elseif ($newStatus === 'jobticket' && $advanceAmount > 0) {
+                        $actualPaymentAmount = min($advanceAmount, $finalTotal);
+                    } else {
+                        // For cash sales without payment array, assume full payment
+                        $actualPaymentAmount = $request->amount_given ?? 0;
+                        // If amount_given is equal to or greater than final_total, it's fully paid
+                        if ($actualPaymentAmount >= $finalTotal) {
+                            $actualPaymentAmount = $finalTotal;
+                        }
+                    }
+
+                    // Calculate the amount that will be added to customer's due balance
+                    $netSaleAmountDue = max(0, $finalTotal - $actualPaymentAmount);
+                    
+                    // Get customer's current balance (existing debt)
+                    $currentBalance = $customer->current_balance;
+                    
+                    // Calculate new total balance after this sale
+                    $projectedNewBalance = $currentBalance + $netSaleAmountDue;
+                    
+                    // Check if the projected balance exceeds credit limit
+                    if ($projectedNewBalance > $customer->credit_limit) {
+                        $availableCredit = max(0, $customer->credit_limit - $currentBalance);
+                        throw new \Exception(
+                            "Credit limit exceeded for {$customer->full_name}.\n" .
+                            "Current balance: Rs. " . number_format($currentBalance, 2) . "\n" .
+                            "Credit limit: Rs. " . number_format($customer->credit_limit, 2) . "\n" .
+                            "Available credit: Rs. " . number_format($availableCredit, 2) . "\n" .
+                            "Sale amount due: Rs. " . number_format($netSaleAmountDue, 2) . "\n" .
+                            "This sale would exceed credit limit by Rs. " . number_format($projectedNewBalance - $customer->credit_limit, 2)
+                        );
+                    }
                 }
-
-                $netSaleAmount = $finalTotal - $paymentAmount;
-                $currentBalance = $customer->current_balance;
-
-                $newBalance = $currentBalance + $netSaleAmount;
-
-                if ($customer->id != 1 && $customer->credit_limit > 0 && $newBalance > $customer->credit_limit) {
-                    throw new \Exception("Credit limit exceeded for {$customer->full_name}. Current balance: {$currentBalance}, Sale amount due after payment: {$netSaleAmount}, Credit limit: {$customer->credit_limit}");
-                }
-
 
                 // ----- Save Sale -----
                 $sale->fill([
@@ -849,12 +918,6 @@ class SaleController extends Controller
         }
 
         $sale->save();
-
-        // Credit limit alert
-        $customer = $sale->customer;
-        if ($customer && $customer->current_balance > $customer->credit_limit) {
-            Log::warning("Customer {$customer->id} exceeded credit limit.");
-        }
     }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
