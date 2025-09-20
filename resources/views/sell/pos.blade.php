@@ -1247,6 +1247,10 @@
                                         </button>
                                     </div>
                                     <p id="total-due-amount" class="text-danger mt-1">Total due amount: Rs. 0.00</p>
+                                    <div id="credit-limit-amount" class="mt-1" style="display: none;">
+                                        <small class="text-info">Credit limit: Rs. 0.00</small><br>
+                                        <small class="text-success">Available credit: Rs. 0.00</small>
+                                    </div>
                                 </div>
                                 <div class="col-md-7">
                                     <input type="text" class="form-control" id="productSearchInput"

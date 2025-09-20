@@ -27,6 +27,47 @@
                         25% { transform: translateX(-5px); }
                         75% { transform: translateX(5px); }
                     }
+                    .document-upload {
+                        background-color: #f8f9fa;
+                        transition: all 0.3s ease;
+                    }
+                    .document-upload:hover {
+                        background-color: #e9ecef;
+                    }
+                    .preview-container {
+                        background-color: #fff;
+                        min-height: 200px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    #purchase-selectedImage {
+                        max-width: 100%;
+                        max-height: 200px;
+                        object-fit: contain;
+                        border-radius: 5px;
+                    }
+                    #purchase-pdfViewer {
+                        border: 1px solid #dee2e6;
+                        border-radius: 5px;
+                        background: #f8f9fa;
+                        min-height: 200px;
+                        width: 100%;
+                    }
+                    #purchase-pdfViewer[src=""] {
+                        display: none !important;
+                    }
+                    .upload {
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    }
+                    .upload:hover {
+                        background-color: #0056b3;
+                        color: white;
+                    }
+                    .hide-input {
+                        display: none;
+                    }
                 `)
                 .appendTo("head");
         }
@@ -595,8 +636,9 @@
         }
 
         const pathSegments = window.location.pathname.split('/');
-        const purchaseId = pathSegments[pathSegments.length - 1] === 'add-purchase' ? null : pathSegments[
-            pathSegments.length - 1];
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        // Only set purchaseId if we're on an edit page and the last segment is a number
+        const purchaseId = (lastSegment !== 'add-purchase' && lastSegment !== 'list-purchase' && !isNaN(lastSegment)) ? lastSegment : null;
 
         if (purchaseId) {
             fetchPurchaseData(purchaseId);
@@ -1064,23 +1106,146 @@
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
+                
+                // File size validation (5MB)
+                const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+                if (file.size > maxSize) {
+                    toastr.error('File size exceeds 5MB limit. Please choose a smaller file.', 'File Too Large');
+                    $(this).val(''); // Clear the file input
+                    return;
+                }
+                
+                // File type validation
+                const allowedTypes = [
+                    'application/pdf',
+                    'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+                    'text/csv', 'application/csv',
+                    'application/zip', 'application/x-zip-compressed',
+                    'application/msword', 
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ];
+                
+                const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'zip', 'doc', 'docx'];
+                const fileName = file.name.toLowerCase();
+                const fileExtension = fileName.split('.').pop();
+                
+                if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
+                    toastr.error('Invalid file type. Please upload PDF, images, CSV, ZIP, or DOC files only.', 'Invalid File Type');
+                    $(this).val(''); // Clear the file input
+                    clearFileUpload();
+                    return;
+                }
 
                 if (file.type === "application/pdf") {
                     reader.onload = function(e) {
-                        $("#pdfViewer").attr("src", e.target.result);
-                        $("#pdfViewer").show();
+                        // Create a blob URL for the PDF
+                        const blob = new Blob([e.target.result], { type: 'application/pdf' });
+                        const blobUrl = URL.createObjectURL(blob);
+                        
+                        // Try to load PDF in iframe
+                        const iframe = $("#purchase-pdfViewer");
+                        iframe.attr("src", blobUrl);
+                        iframe.show();
                         $("#purchase-selectedImage").hide();
+                        
+                        // Add fallback link in case iframe doesn't work
+                        iframe.after(`
+                            <div id="pdf-fallback" class="text-center mt-2" style="display: none;">
+                                <p class="text-muted mb-2">PDF preview not supported in your browser</p>
+                                <a href="${blobUrl}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-external-link-alt"></i> Open PDF in New Tab
+                                </a>
+                            </div>
+                        `);
+                        
+                        // Check if iframe loaded successfully after a short delay
+                        setTimeout(function() {
+                            const iframeDoc = iframe[0].contentDocument || iframe[0].contentWindow.document;
+                            if (!iframeDoc || iframeDoc.body.children.length === 0) {
+                                // Iframe didn't load, show fallback
+                                iframe.hide();
+                                $("#pdf-fallback").show();
+                            } else {
+                                $("#pdf-fallback").hide();
+                            }
+                        }, 1500);
+                        
+                        // Update the help text to show PDF is loaded
+                        $(".preview-container .text-muted").html('<i class="fas fa-file-pdf text-danger"></i> PDF file loaded successfully');
+                        
+                        toastr.success('PDF file uploaded successfully!', 'File Uploaded');
                     };
+                    reader.readAsArrayBuffer(file);
                 } else if (file.type.startsWith("image/")) {
                     reader.onload = function(e) {
                         $("#purchase-selectedImage").attr("src", e.target.result);
                         $("#purchase-selectedImage").show();
-                        $("#pdfViewer").hide();
+                        $("#purchase-pdfViewer").hide();
+                        $("#pdf-fallback").remove(); // Remove any PDF fallback
+                        
+                        // Reset help text
+                        $(".preview-container .text-muted").html('<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
+                        
+                        toastr.success('Image file uploaded successfully!', 'File Uploaded');
                     };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Handle other supported file types (CSV, ZIP, DOC, etc.)
+                    $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
+                    $("#purchase-selectedImage").show();
+                    $("#purchase-pdfViewer").hide();
+                    $("#pdf-fallback").remove(); // Remove any PDF fallback
+                    
+                    // Update help text to show file type
+                    const fileType = file.name.split('.').pop().toUpperCase();
+                    $(".preview-container .text-muted").html(`<i class="fas fa-file text-primary"></i> ${fileType} file uploaded (Preview not available)`);
+                    
+                    toastr.success('File uploaded successfully. Preview not available for this file type.', 'File Uploaded');
+                    // Don't call readAsDataURL for non-preview files
+                    return;
                 }
 
-                reader.readAsDataURL(file);
+                reader.onerror = function() {
+                    toastr.error('Error reading file. Please try again.', 'File Read Error');
+                    $(input).val(''); // Clear the file input
+                    clearFileUpload();
+                };
+
+                // Only call readAsDataURL if not already called above
+                if (file.type !== "application/pdf" && file.type.startsWith("image/")) {
+                    // Already called above
+                }
+            } else {
+                // No file selected or file input cleared
+                $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
+                $("#purchase-selectedImage").show();
+                $("#purchase-pdfViewer").hide();
             }
+        });
+
+        // Function to clear file upload and reset preview
+        function clearFileUpload() {
+            // Clean up any blob URLs to prevent memory leaks
+            const pdfViewer = document.getElementById('purchase-pdfViewer');
+            if (pdfViewer && pdfViewer.src && pdfViewer.src.startsWith('blob:')) {
+                URL.revokeObjectURL(pdfViewer.src);
+            }
+            
+            $('#purchase_attach_document').val('');
+            $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
+            $("#purchase-selectedImage").show();
+            $("#purchase-pdfViewer").hide();
+            $("#purchase-pdfViewer").attr("src", "");
+            $("#pdf-fallback").remove(); // Remove PDF fallback if exists
+            
+            // Reset help text
+            $(".preview-container .text-muted").html('<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
+        }
+
+        // Add clear button functionality (if needed)
+        $(document).on('click', '.clear-file-upload', function() {
+            clearFileUpload();
+            toastr.info('File upload cleared.', 'Cleared');
         });
 
         // Event listener for dynamic table changes
@@ -1118,44 +1283,61 @@
             return totalPurchase - openingBalance;
         }
 
-        function viewPurchase(purchaseId) {
+        // Move viewPurchase function to global scope
+        window.viewPurchase = function(purchaseId) {
+            console.log('Attempting to view purchase with ID:', purchaseId);
             $.ajax({
                 url: '/get-all-purchases-product/' + purchaseId,
                 type: 'GET',
                 dataType: 'json',
+                beforeSend: function() {
+                    console.log('Sending request to:', '/get-all-purchases-product/' + purchaseId);
+                },
                 success: function(response) {
+                    console.log('Success response:', response);
+                    if (!response.purchase) {
+                        alert('Purchase data not found.');
+                        return;
+                    }
+                    
                     var purchase = response.purchase;
                     $('#modalTitle').text('Purchase Details - ' + purchase.reference_no);
-                    $('#supplierDetails').text(purchase.supplier.first_name + ' ' + purchase
-                        .supplier.last_name);
-                    $('#locationDetails').text(purchase.location.name);
-                    $('#purchaseDetails').text('Date: ' + purchase.purchase_date + ', Status: ' +
-                        purchase.purchasing_status);
+                    $('#supplierDetails').text((purchase.supplier ? purchase.supplier.first_name + ' ' + purchase.supplier.last_name : 'Unknown Supplier'));
+                    $('#locationDetails').text((purchase.location ? purchase.location.name : 'Unknown Location'));
+                    $('#purchaseDetails').text('Date: ' + purchase.purchase_date + ', Status: ' + purchase.purchasing_status);
 
                     var productsTable = $('#productsTable tbody');
                     productsTable.empty();
+                    if (purchase.purchase_products && purchase.purchase_products.length > 0) {
                     purchase.purchase_products.forEach(function(product, index) {
                         let row = $('<tr>');
                         row.append('<td>' + (index + 1) + '</td>');
-                        row.append('<td>' + product.product.product_name + '</td>');
-                        row.append('<td>' + product.product.sku + '</td>');
+                        row.append('<td>' + (product.product ? product.product.product_name : 'Unknown Product') + '</td>');
+                        row.append('<td>' + (product.product ? product.product.sku : 'N/A') + '</td>');
                         row.append('<td>' + product.quantity + '</td>');
-                        row.append('<td>' + product.price + '</td>');
+                        row.append('<td>' + product.unit_cost + '</td>');
                         row.append('<td>' + product.total + '</td>');
                         productsTable.append(row);
                     });
+                    } else {
+                        productsTable.append('<tr><td colspan="6" class="text-center">No products found</td></tr>');
+                    }
 
                     var paymentInfoTable = $('#paymentInfoTable tbody');
                     paymentInfoTable.empty();
-                    purchase.payments.forEach(function(payment) {
-                        let row = $('<tr>');
-                        row.append('<td>' + payment.payment_date + '</td>');
-                        row.append('<td>' + payment.id + '</td>');
-                        row.append('<td>' + payment.amount + '</td>');
-                        row.append('<td>' + payment.payment_method + '</td>');
-                        row.append('<td>' + payment.notes + '</td>');
-                        paymentInfoTable.append(row);
-                    });
+                    if (purchase.payments && purchase.payments.length > 0) {
+                        purchase.payments.forEach(function(payment) {
+                            let row = $('<tr>');
+                            row.append('<td>' + (payment.payment_date || 'N/A') + '</td>');
+                            row.append('<td>' + (payment.id || 'N/A') + '</td>');
+                            row.append('<td>' + (payment.amount || '0.00') + '</td>');
+                            row.append('<td>' + (payment.payment_method || 'N/A') + '</td>');
+                            row.append('<td>' + (payment.notes || 'No notes') + '</td>');
+                            paymentInfoTable.append(row);
+                        });
+                    } else {
+                        paymentInfoTable.append('<tr><td colspan="5" class="text-center">No payments found</td></tr>');
+                    }
 
                     var amountDetailsTable = $('#amountDetailsTable tbody');
                     amountDetailsTable.empty();
@@ -1170,8 +1352,34 @@
                         '</td></tr>');
 
                     $('#viewPurchaseProductModal').modal('show');
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error fetching purchase details:");
+                    console.error("Status:", status);
+                    console.error("Error:", error);
+                    console.error("Response Text:", xhr.responseText);
+                    console.error("Status Code:", xhr.status);
+                    
+                    let errorMessage = 'Unknown error occurred';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        try {
+                            const responseObj = JSON.parse(xhr.responseText);
+                            errorMessage = responseObj.message || responseObj.error || errorMessage;
+                        } catch (e) {
+                            errorMessage = xhr.responseText;
+                        }
+                    }
+                    
+                    alert('Error loading purchase details: ' + errorMessage);
                 }
             });
+        };
+
+        // Also create a legacy function name for compatibility
+        function viewPurchase(purchaseId) {
+            window.viewPurchase(purchaseId);
         }
 
 
@@ -1207,21 +1415,16 @@
                                     '<a class="dropdown-item" href="#" onclick="viewPurchase(' +
                                     item.id +
                                     ')"><i class="fas fa-eye"></i>&nbsp;&nbsp;View</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-print"></i>&nbsp;&nbsp;Print</a>' +
                                     '<a class="dropdown-item" href="/purchase/edit/' +
                                     item.id +
                                     '"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Edit</a>' +
                                     '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-trash"></i>&nbsp;&nbsp;Delete</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-barcode"></i>&nbsp;Labels</a>' +
                                     '<a class="dropdown-item" href="#" onclick="openPaymentModal(event, ' +
                                     item.id +
                                     ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;Add payments</a>' +
                                     '<a class="dropdown-item" href="#" onclick="openViewPaymentModal(event, ' +
                                     item.id +
                                     ')"><i class="fas fa-money-bill-alt"></i>&nbsp;&nbsp;View payments</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-undo-alt"></i>&nbsp;&nbsp;Purchase Return</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="far fa-edit me-2"></i>&nbsp;&nbsp;Update Status</a>' +
-                                    '<a class="dropdown-item" href="edit-invoice.html"><i class="fas fa-envelope"></i>&nbsp;&nbsp;Item Received Notification</a>' +
                                     '</div></td>'
                                 );
                                 row.append('<td>' + item.purchase_date + '</td>');

@@ -103,19 +103,45 @@
         // Supplier change handler
         $('#supplier-id').change(function() {
             const supplierId = $(this).val();
-            if (supplierId) {
-                fetchPurchaseProductsBySupplier(supplierId);
+            const locationId = $('#location-id').val();
+            if (supplierId && locationId) {
+                fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId);
                 $('#productSearchInput').prop('disabled', false);
             } else {
                 $('#productSearchInput').prop('disabled', true);
+                clearProductTable();
             }
         });
 
-        // Fetch purchase products based on supplier ID
-        function fetchPurchaseProductsBySupplier(supplierId) {
+        // Location change handler
+        $('#location-id').change(function() {
+            const locationId = $(this).val();
+            const supplierId = $('#supplier-id').val();
+            if (supplierId && locationId) {
+                fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId);
+                $('#productSearchInput').prop('disabled', false);
+            } else {
+                $('#productSearchInput').prop('disabled', true);
+                clearProductTable();
+            }
+        });
+
+        // Clear product table when no supplier/location selected
+        function clearProductTable() {
+            if ($.fn.DataTable.isDataTable('#purchase_return')) {
+                $('#purchase_return').DataTable().clear().draw();
+            }
+            updateFooter();
+        }
+
+        // Fetch purchase products based on supplier ID and location ID
+        function fetchPurchaseProductsBySupplierAndLocation(supplierId, locationId) {
             $.ajax({
                 url: `/purchase-products-by-supplier/${supplierId}`,
                 type: 'GET',
+                data: {
+                    location_id: locationId
+                },
                 dataType: 'json',
                 success: function(response) {
                     if (response && response.products) {
@@ -132,13 +158,13 @@
                         }));
                         initAutocomplete(allProducts);
                     } else {
-                        alert('Error: No purchases found for this supplier.');
+                        toastr.error('No purchases found for this supplier at the selected location.', 'Error');
                     }
                 },
                 error: function(xhr) {
-                    const message = xhr.status === 404 ? 'No purchases found for this supplier.' :
+                    const message = xhr.status === 404 ? 'No purchases found for this supplier at the selected location.' :
                         'An error occurred while fetching purchase products.';
-                    alert(message);
+                      toastr.error(message);
                 }
             });
         }
@@ -257,10 +283,8 @@
                 updateFooter();
             } else {
                 const firstPurchase = product.purchases[0];
-                const initialQuantity = allowDecimal ?
-                    parseFloat(firstPurchase.quantity) :
-                    parseInt(firstPurchase.quantity);
-                const subtotal = firstPurchase.price * initialQuantity;
+                const initialQuantity = ""; // Start with empty quantity - user must specify return amount
+                const subtotal = 0; // Start with 0 since no quantity specified
                 const batchOptions = product.purchases.map(purchase => `
                 <option value="${purchase.batch.id}" data-unit-cost="${purchase.price}" data-max-qty="${purchase.batch.qty}">
                     ${purchase.batch.batch_no} - Qty: ${purchase.batch.qty} - Unit Price: ${purchase.price} - Exp: ${purchase.batch.expiry_date || '-'}
@@ -273,13 +297,14 @@
                     <td><select class="form-control batch-select">${batchOptions}</select></td>
                     <td>
                         <input type="number" class="form-control purchase-quantity"
-                        value="${allowDecimal ? initialQuantity.toFixed(2) : initialQuantity}"
+                        value=""
+                        placeholder="Enter return quantity"
                         min="0.01"
                         ${allowDecimal ? 'step="0.01"' : 'step="1"'}
-                        max="${firstPurchase.batch.qty}">
+                        max="${firstPurchase.quantity}">
                     </td>
                     <td class="unit-price amount">${firstPurchase.price || '0'}</td>
-                    <td class="sub-total amount">${subtotal.toFixed(2)}</td>
+                    <td class="sub-total amount">0.00</td>
                     <td><button class="btn btn-danger btn-sm delete-product"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `;
@@ -290,11 +315,30 @@
                 $newRow.find('.purchase-quantity').on('input', function() {
                     if (!allowDecimal) {
                         let val = parseInt($(this).val());
-                        if (isNaN(val)) val = 1;
+                        if (isNaN(val)) val = 0;
                         $(this).val(val);
                     }
                     updateRow($newRow);
                     updateFooter();
+                }).on('focus', function() {
+                    // Select all text when focused for easy editing
+                    $(this).select();
+                }).on('keydown', function(e) {
+                    // Allow backspace, delete, tab, escape, enter
+                    if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+                        // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                        (e.keyCode === 67 && e.ctrlKey === true) ||
+                        (e.keyCode === 86 && e.ctrlKey === true) ||
+                        (e.keyCode === 88 && e.ctrlKey === true)) {
+                        return;
+                    }
+                    // Ensure that it is a number and stop the keypress
+                    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && 
+                        (e.keyCode < 96 || e.keyCode > 105) && 
+                        e.keyCode !== 190 && e.keyCode !== 110) {
+                        e.preventDefault();
+                    }
                 });
                 $newRow.find('.batch-select').on('change', function() {
                     const selectedOption = $(this).find('option:selected');
@@ -346,6 +390,7 @@
                 netTotalAmount += subtotal;
             });
             $('#total-items').text(totalItems.toFixed(2));
+            // Format currency properly
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
         }
 

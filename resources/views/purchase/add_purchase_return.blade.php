@@ -143,7 +143,7 @@
                             <hr>
                             <div class="table-footer">
                                 <p>Total Items: <span id="total-items">.00</span></p>
-                                <p>Net Total Amount: $<span id="net-total-amount">0.00</span></p>
+                                <p>Net Total Amount: Rs. <span id="net-total-amount">0.00</span></p>
                             </div>
                             <hr>
                         </div>

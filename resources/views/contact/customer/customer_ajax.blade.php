@@ -455,6 +455,7 @@
                         option.attr('data-customer-type', customer.customer_type || 'retailer'); // Include customer type data attribute
                     }
                     option.data('due', customer.current_due || 0); // Default due to 0
+                    option.data('credit_limit', customer.credit_limit || 0); // Add credit limit data
                     customerSelect.append(option);
                 });
 
@@ -463,6 +464,7 @@
                 if (walkingCustomer) {
                     customerSelect.val(walkingCustomer.id);
                     updateDueAmount(walkingCustomer.current_due || 0);
+                    updateCreditLimit(walkingCustomer.credit_limit || 0, walkingCustomer.current_due || 0, true); // true for isWalkIn
                 }
                 } else {
                 console.error('Failed to fetch customer data:', data ? data.message : 'No data received');
@@ -481,10 +483,46 @@
             $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
         }
 
+        function updateCreditLimit(creditLimit, dueAmount = 0, isWalkIn = false) {
+            const creditLimitElement = $('#credit-limit-amount');
+            
+            if (isWalkIn) {
+                // Hide credit limit for walk-in customers
+                creditLimitElement.hide();
+            } else {
+                // Show credit limit for other customers
+                creditLimit = isNaN(creditLimit) ? 0 : parseFloat(creditLimit);
+                dueAmount = isNaN(dueAmount) ? 0 : parseFloat(dueAmount);
+                
+                const remainingCredit = Math.max(creditLimit - dueAmount, 0);
+                const isOverLimit = dueAmount > creditLimit;
+                
+                let creditHtml = `<small class="text-info">Credit limit: Rs. ${creditLimit.toFixed(2)}</small><br>`;
+                
+                if (isOverLimit) {
+                    const overAmount = dueAmount - creditLimit;
+                    creditHtml += `<small class="text-danger">⚠️ Over limit by: Rs. ${overAmount.toFixed(2)}</small>`;
+                } else {
+                    creditHtml += `<small class="text-success">✓ Available credit: Rs. ${remainingCredit.toFixed(2)}</small>`;
+                }
+                
+                creditLimitElement.html(creditHtml);
+                creditLimitElement.show();
+            }
+        }
+
         $('#customer-id').on('change', function() {
             const selectedOption = $(this).find('option:selected');
-            const dueAmount = selectedOption.data('due');
+            const dueAmount = selectedOption.data('due') || 0;
+            const creditLimit = selectedOption.data('credit_limit') || 0;
+            const customerText = selectedOption.text().toLowerCase();
+            const customerId = selectedOption.val();
+            
+            // Check if it's walk-in customer (ID = 1 or text contains 'walk-in')
+            const isWalkIn = customerId === '1' || customerText.includes('walk-in');
+            
             updateDueAmount(dueAmount);
+            updateCreditLimit(creditLimit, dueAmount, isWalkIn);
         });
 
 

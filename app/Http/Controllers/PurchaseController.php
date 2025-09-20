@@ -551,15 +551,23 @@ class PurchaseController extends Controller
         return response()->json($purchase);
     }
 
-    public function getPurchaseProductsBySupplier($supplierId)
+    public function getPurchaseProductsBySupplier($supplierId, Request $request)
     {
         try {
-            $purchases = Purchase::with(['purchaseProducts.product.unit', 'purchaseProducts.batch'])
-                ->where('supplier_id', $supplierId)
-                ->get();
+            $locationId = $request->get('location_id');
+            
+            $query = Purchase::with(['purchaseProducts.product.unit', 'purchaseProducts.batch'])
+                ->where('supplier_id', $supplierId);
+            
+            // Filter by location if provided
+            if ($locationId) {
+                $query->where('location_id', $locationId);
+            }
+            
+            $purchases = $query->get();
 
             if ($purchases->isEmpty()) {
-                return response()->json(['message' => 'No purchases found for this supplier.'], 404);
+                return response()->json(['message' => 'No purchases found for this supplier and location.'], 404);
             }
 
             $products = [];
@@ -567,6 +575,16 @@ class PurchaseController extends Controller
             foreach ($purchases as $purchase) {
                 foreach ($purchase->purchaseProducts as $purchaseProduct) {
                     $productId = $purchaseProduct->product_id;
+                    
+                    // Get current stock from LocationBatch for the specific location
+                    $currentStock = 0;
+                    if ($purchaseProduct->batch_id) {
+                        $locationBatch = \App\Models\LocationBatch::where('batch_id', $purchaseProduct->batch_id)
+                            ->where('location_id', $purchase->location_id)
+                            ->first();
+                        $currentStock = $locationBatch ? $locationBatch->qty : 0;
+                    }
+
                     if (!isset($products[$productId])) {
                         $products[$productId] = [
                             'product' => $purchaseProduct->product,
@@ -574,23 +592,33 @@ class PurchaseController extends Controller
                             'purchases' => []
                         ];
                     }
-                    $products[$productId]['purchases'][] = [
-                        'purchase_id' => $purchase->id,
-                        'batch_id' => $purchaseProduct->batch_id,
-                        'quantity' => $purchaseProduct->quantity,
-                        'unit_cost' => $purchaseProduct->unit_cost,
-                        'wholesale_price' => $purchaseProduct->wholesale_price,
-                        'special_price' => $purchaseProduct->special_price,
-                        'retail_price' => $purchaseProduct->retail_price,
-                        'max_retail_price' => $purchaseProduct->max_retail_price,
-                        'total' => $purchaseProduct->total,
-                        'batch' => $purchaseProduct->batch,
-                    ];
+                    
+                    // Only include products that have current stock > 0
+                    if ($currentStock > 0) {
+                        $products[$productId]['purchases'][] = [
+                            'purchase_id' => $purchase->id,
+                            'batch_id' => $purchaseProduct->batch_id,
+                            'quantity' => $currentStock, // Use current stock instead of purchased quantity
+                            'unit_cost' => $purchaseProduct->unit_cost,
+                            'wholesale_price' => $purchaseProduct->wholesale_price,
+                            'special_price' => $purchaseProduct->special_price,
+                            'retail_price' => $purchaseProduct->retail_price,
+                            'max_retail_price' => $purchaseProduct->max_retail_price,
+                            'total' => $purchaseProduct->total,
+                            'batch' => $purchaseProduct->batch,
+                        ];
+                    }
                 }
             }
 
-            return response()->json(['products' => array_values($products)], 200);
+            // Filter out products with no available stock
+            $filteredProducts = array_filter($products, function($product) {
+                return !empty($product['purchases']);
+            });
+
+            return response()->json(['products' => array_values($filteredProducts)], 200);
         } catch (\Exception $e) {
+            Log::error('Error in getPurchaseProductsBySupplier: ' . $e->getMessage());
             return response()->json(['message' => 'An error occurred while fetching purchase products.'], 500);
         }
     }

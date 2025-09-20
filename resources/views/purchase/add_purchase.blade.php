@@ -372,12 +372,15 @@
                                         <div class="document-upload p-3 border rounded">
                                             <label class="mb-2">Attach document</label>
                                             <div class="invoices-upload-btn mb-2">
-                                                <input type="file" accept=".pdf,image/*" name="attached_document"
+                                                <input type="file" accept=".pdf,.csv,.zip,.doc,.docx,.jpeg,.jpg,.png,.gif" name="attached_document"
                                                     id="purchase_attach_document" class="hide-input show-file">
                                                 <label for="purchase_attach_document"
-                                                    class="upload btn btn-outline-secondary">
+                                                    class="upload btn btn-outline-secondary me-2">
                                                     <i class="far fa-folder-open"></i> Browse..
                                                 </label>
+                                                <button type="button" class="btn btn-outline-danger btn-sm clear-file-upload">
+                                                    <i class="fas fa-times"></i> Clear
+                                                </button>
                                             </div>
                                             <small class="text-muted d-block">
                                                 Max File size: 5MB<br>
@@ -387,11 +390,21 @@
                                     </div>
                                     <div class="col-lg-6 col-md-12">
                                         <div class="preview-container p-3 border rounded">
-                                            <img id="purchase-selectedImage"
-                                                src="/assets/images/No Product Image Available.png" alt="Selected Image"
-                                                class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
-                                            <iframe id="purchase-pdfViewer" width="100%" height="200px"
-                                                style="display: none;"></iframe>
+                                            <div class="text-center">
+                                                <img id="purchase-selectedImage"
+                                                    src="/assets/images/No Product Image Available.png" alt="Selected Image"
+                                                    class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
+                                                <iframe id="purchase-pdfViewer" 
+                                                    width="100%" 
+                                                    height="250px"
+                                                    style="display: none; border: 1px solid #dee2e6; border-radius: 5px;"
+                                                    frameborder="0">
+                                                </iframe>
+                                                <small class="text-muted d-block mt-2">
+                                                    <i class="fas fa-info-circle"></i> 
+                                                    Upload a file to see preview (Images & PDFs supported)
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

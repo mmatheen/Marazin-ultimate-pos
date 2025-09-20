@@ -703,7 +703,10 @@
             customerSelect.empty();
             
             // Add Walk-In Customer (always available)
-            customerSelect.append('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
+            const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
+            walkInOption.data('due', 0);
+            walkInOption.data('credit_limit', 0);
+            customerSelect.append(walkInOption);
             
             // Separate customers with and without cities for better organization
             const customersWithCity = customers.filter(c => c.city_name && c.city_name !== 'No City');
@@ -716,7 +719,10 @@
                 const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
                 const cityInfo = ` [${customer.city_name}]`;
                 const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
-                customerSelect.append(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                option.data('due', customer.current_balance || 0);
+                option.data('credit_limit', customer.credit_limit || 0);
+                customerSelect.append(option);
             });
             
             // Add separator if there are customers without cities
@@ -731,11 +737,19 @@
                 const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
                 const cityInfo = ' [No City]';
                 const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
-                customerSelect.append(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                option.data('due', customer.current_balance || 0);
+                option.data('credit_limit', customer.credit_limit || 0);
+                customerSelect.append(option);
             });
             
-            // Refresh Select2
+            // Refresh Select2 and trigger change event to update due/credit display
             customerSelect.trigger('change');
+            
+            // Auto-select Walk-in customer and update displays
+            setTimeout(() => {
+                customerSelect.val('1').trigger('change');
+            }, 100);
             
             // Show info message with breakdown
             if (typeof toastr !== 'undefined') {
@@ -757,6 +771,11 @@
                 const customerSelect = $('#customer-id');
                 customerSelect.html(window.originalCustomerOptions);
                 customerSelect.trigger('change');
+                
+                // Auto-select Walk-in customer and update displays
+                setTimeout(() => {
+                    customerSelect.val('1').trigger('change');
+                }, 100);
             }
         }
 
