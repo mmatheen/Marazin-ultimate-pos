@@ -428,6 +428,49 @@ $(document).ready(function() {
         table.ajax.reload();
     });
 
+    // Export functionality
+    $('.export-btn').click(function(e) {
+        e.preventDefault();
+        var exportType = $(this).data('type');
+        var button = $(this);
+        
+        // Disable button during export
+        button.addClass('disabled').append(' <i class="fas fa-spinner fa-spin"></i>');
+        
+        // Get current filter values
+        var filters = {
+            from: $('#filter_from').val() || '',
+            to: $('#filter_to').val() || '',
+            status: $('#filter_status').val() || '',
+            type: exportType
+        };
+
+        // Show loading message
+        toastr.info('Preparing ' + exportType.toUpperCase() + ' export...', 'Please wait');
+        
+        // Build URL with filters
+        var baseUrl = "{{ route('discounts.export') }}";
+        var params = [];
+        $.each(filters, function(key, value) {
+            if (value) {
+                params.push(key + '=' + encodeURIComponent(value));
+            }
+        });
+        var url = baseUrl + (params.length ? '?' + params.join('&') : '');
+        
+        // Use location.href for direct download (cleanest method)
+        window.location.href = url;
+        
+        // Clear loading message and show success after short delay
+        setTimeout(function() {
+            toastr.clear();
+            toastr.success('Export completed successfully!');
+            
+            // Re-enable button
+            button.removeClass('disabled').find('.fa-spinner').remove();
+        }, 1000);
+    });
+
     // Create Discount - Show Modal
     $('[data-target="#createDiscountModal"]').click(function() {
         $('#createDiscountForm')[0].reset();
@@ -576,22 +619,40 @@ $(document).ready(function() {
     $('#discounts-table').on('click', '.delete-discount', function() {
         var discountId = $(this).data('id');
 
-        if (confirm('Are you sure you want to delete this discount?')) {
-            $.ajax({
-                url: "{{ route('discounts.index') }}/" + discountId,
-                type: 'DELETE',
-                data: {
-                    _token: "{{ csrf_token() }}"
-                },
-                success: function(response) {
-                    table.ajax.reload();
-                    toastr.success(response.message || 'Discount deleted successfully');
-                },
-                error: function(xhr) {
-                    toastr.error('Error deleting discount');
-                }
-            });
-        }
+        swal({
+            title: "Are you sure?",
+            text: "You want to delete this discount? This action cannot be undone!",
+            type: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#DD6B55",
+            confirmButtonText: "Yes, delete it!",
+            cancelButtonText: "No, cancel!",
+            closeOnConfirm: false,
+            closeOnCancel: false
+        },
+        function(isConfirm) {
+            if (isConfirm) {
+                $.ajax({
+                    url: "{{ route('discounts.index') }}/" + discountId,
+                    type: 'DELETE',
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        swal("Deleted!", response.message || "Discount has been deleted successfully.", "success");
+                        table.ajax.reload();
+                        // Removed redundant toastr message since SweetAlert already shows success
+                    },
+                    error: function(xhr) {
+                        swal("Error!", "There was an error deleting the discount. Please try again.", "error");
+                        // Keep toastr for errors as additional feedback
+                        toastr.error('Error deleting discount');
+                    }
+                });
+            } else {
+                swal("Cancelled", "The discount is safe :)", "error");
+            }
+        });
     });
 
     // Toggle Status

@@ -9,6 +9,7 @@ use Yajra\DataTables\Facades\DataTables;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\DiscountsExport;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class DiscountController extends Controller
 {
@@ -139,10 +140,22 @@ class DiscountController extends Controller
 
     public function export(Request $request)
     {
-        $type = $request->get('type', 'xlsx');
-        $from = $request->get('from');
-        $to = $request->get('to');
+        try {
+            $type = $request->get('type', 'xlsx');
+            $from = $request->get('from');
+            $to = $request->get('to');
+            $status = $request->get('status');
 
-        // return Excel::download(new DiscountsExport($from, $to), 'discounts.'.$type);
+            $export = new DiscountsExport($from, $to, $status);
+            $filename = 'discounts_' . date('Y-m-d') . '.' . $type;
+            
+            // Direct download without additional headers that might cause notifications
+            return Excel::download($export, $filename);
+            
+        } catch (\Exception $e) {
+            Log::error('Export failed', ['error' => $e->getMessage()]);
+            // Return a simple error page instead of JSON to avoid notifications
+            return response()->view('errors.export-error', ['message' => 'Export failed: ' . $e->getMessage()], 500);
+        }
     }
 }

@@ -128,7 +128,7 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                            
+                                                        <label>Sub Category <span class="login-danger"></span></label>
                                                         <div class="input-group">
                                                             <select class="form-control form-select selectBox"
                                                                 id="edit_sub_category_id" name="sub_category_id">

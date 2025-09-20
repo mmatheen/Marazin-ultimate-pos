@@ -24,7 +24,7 @@
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <div class="form-group local-forms">
-                                    <label>Short name<span class="login-danger">*</span></label>
+                                    <label>Short name<span class="login-danger"></span></label>
                                     <input id="edit_short_name" name="short_name" class="form-control" type="text" placeholder="Short name">
                                     <span class="text-danger" id="short_name_error"></span>
                                 </div>

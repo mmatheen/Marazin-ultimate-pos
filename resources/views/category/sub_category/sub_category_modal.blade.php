@@ -48,7 +48,7 @@
                     <div class="col-md-12">
                         <div class="mb-3">
                             <div class="form-group local-forms">
-                                <label>category code<span class="login-danger">*</span></label>
+                                <label>category code<span class="login-danger"></span></label>
                                 <input id="edit_subCategoryCode" name="subCategoryCode" class="form-control" type="text" placeholder="category code">
                                 <span class="text-danger" id="subCategoryCode_error"></span>
                             </div>
@@ -57,7 +57,7 @@
                     <div class="col-md-12">
                         <div class="mb-3">
                             <div class="form-group local-forms">
-                                <label>description<span class="login-danger">*</span></label>
+                                <label>description<span class="login-danger"></span></label>
                                 <textarea id="edit_description" name="description" class="form-control" type="text" placeholder="description"></textarea>
                                 <span class="text-danger" id="description_error"></span>
                             </div>
