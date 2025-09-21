@@ -1,381 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Rep Assignment - Dynamic</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <style>
-        .assignment-row {
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            padding: 15px;
-            background-color: #f8f9fa;
-        }
-        .user-info-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .select2-container {
-            width: 100% !important;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unified Ledger</title>
+<style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+    th { background-color: #f2f2f2; text-align: center; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    td.debit { color: red; }
+    td.credit { color: green; }
+    td.text-left { text-align: left; }
+</style>
 </head>
 <body>
-    <div class="container mt-4">
-        <div class="row justify-content-center">
-            <div class="col-md-10">
-                <div class="card shadow">
-                    <div class="card-header bg-primary text-white">
-                        <h4 class="mb-0">
-                            <i class="fas fa-user-tie me-2"></i>
-                            Sales Representative Assignment
-                        </h4>
-                    </div>
-                    <div class="card-body">
-                        <!-- User Selection Row -->
-                        <div class="row mb-4">
-                            <div class="col-md-12">
-                                <label for="userId" class="form-label fw-bold">
-                                    <i class="fas fa-user me-2"></i>Select User
-                                </label>
-                                <select class="form-select form-select-lg" id="userId" name="user_id" required>
-                                    <option value="">Choose a user...</option>
-                                    <option value="1" data-name="John Doe" data-email="john@example.com" data-phone="+1234567890">John Doe</option>
-                                    <option value="2" data-name="Jane Smith" data-email="jane@example.com" data-phone="+1234567891">Jane Smith</option>
-                                    <option value="3" data-name="Mike Johnson" data-email="mike@example.com" data-phone="+1234567892">Mike Johnson</option>
-                                    <option value="4" data-name="Sarah Wilson" data-email="sarah@example.com" data-phone="+1234567893">Sarah Wilson</option>
-                                </select>
-                            </div>
-                        </div>
 
-                        <!-- Selected User Info Container -->
-                        <div id="userInfoContainer" class="user-info-container" style="display: none;">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <h5 class="mb-1">
-                                        <i class="fas fa-user-circle me-2"></i>
-                                        <span id="selectedUserName">User Name</span>
-                                    </h5>
-                                    <p class="mb-1">
-                                        <i class="fas fa-envelope me-2"></i>
-                                        <span id="selectedUserEmail">email@example.com</span>
-                                    </p>
-                                    <p class="mb-0">
-                                        <i class="fas fa-phone me-2"></i>
-                                        <span id="selectedUserPhone">+1234567890</span>
-                                    </p>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <div class="badge bg-light text-dark fs-6">
-                                        <i class="fas fa-calendar me-1"></i>
-                                        <span id="currentDateTime">2025-08-28 12:57:26</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<h2>Unified Ledger</h2>
 
-                        <!-- Assignment Rows Container -->
-                        <div id="assignmentsContainer" style="display: none;">
-                            <h5 class="mb-3">
-                                <i class="fas fa-tasks me-2"></i>
-                                Assignments for Selected User
-                            </h5>
-                            <div id="assignmentRows">
-                                <!-- Dynamic rows will be added here -->
-                            </div>
-                        </div>
+<label for="contactFilter">Filter by Contact:</label>
+<select id="contactFilter">
+    <option value="all">All</option>
+    <option value="Customer A">Customer A</option>
+    <option value="Customer B">Customer B</option>
+    <option value="Supplier X">Supplier X</option>
+    <option value="Supplier Y">Supplier Y</option>
+    <option value="Supplier Z">Supplier Z</option>
+</select>
 
-                        <!-- Submit Button -->
-                        <div class="row mt-4" id="submitSection" style="display: none;">
-                            <div class="col-12">
-                                <div class="d-flex justify-content-between">
-                                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                                        <i class="fas fa-refresh me-2"></i>Reset Form
-                                    </button>
-                                    <button type="button" class="btn btn-success btn-lg" onclick="submitAssignments()">
-                                        <i class="fas fa-save me-2"></i>Save All Assignments
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<table id="dataTable">
+    <thead>
+        <tr>
+            <th>Date & Time</th>
+            <th>Ref No</th>
+            <th>Type</th>
+            <th>Debit (−)</th>
+            <th>Credit (+)</th>
+            <th>Running Balance</th>
+            <th>Contact</th>
+            <th>Notes</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Customer A -->
+        <tr data-contact="Customer A">
+            <td class="text-left">2025-09-21 09:00</td>
+            <td class="text-left">CUSTA-OPEN</td>
+            <td class="text-left">Opening Balance</td>
+            <td class="debit">5,000.00</td>
+            <td></td>
+            <td>5,000.00</td>
+            <td class="text-left">Customer A</td>
+            <td class="text-left">Customer owes opening balance</td>
+        </tr>
+        <tr data-contact="Customer A">
+            <td class="text-left">2025-09-21 10:00</td>
+            <td class="text-left">CUSTA-SALE1</td>
+            <td class="text-left">Sale</td>
+            <td class="debit">9,000.00</td>
+            <td></td>
+            <td>14,000.00</td>
+            <td class="text-left">Customer A</td>
+            <td class="text-left">Sale invoice #CUSTA-SALE1</td>
+        </tr>
+        <tr data-contact="Customer A">
+            <td class="text-left">2025-09-21 11:00</td>
+            <td class="text-left">CUSTA-PAY1</td>
+            <td class="text-left">Sale Payment</td>
+            <td></td>
+            <td class="credit">3,000.00</td>
+            <td>11,000.00</td>
+            <td class="text-left">Customer A</td>
+            <td class="text-left">Payment received</td>
+        </tr>
+        <tr data-contact="Customer A">
+            <td class="text-left">2025-09-21 12:00</td>
+            <td class="text-left">CUSTA-RET1</td>
+            <td class="text-left">Return Payment</td>
+            <td class="debit">4,200.00</td>
+            <td></td>
+            <td>15,200.00</td>
+            <td class="text-left">Customer A</td>
+            <td class="text-left">Paid back to customer for return</td>
+        </tr>
 
-    <!-- Assignment Row Template -->
-    <template id="assignmentRowTemplate">
-        <div class="assignment-row" data-row-id="">
-            <div class="row">
-                <div class="col-md-3">
-                    <label class="form-label">
-                        <i class="fas fa-map-marker-alt me-2"></i>Sub Location
-                    </label>
-                    <select class="form-select sub-location-select" name="sub_location_id[]" required>
-                        <option value="">Choose location...</option>
-                        <option value="1">Downtown Branch</option>
-                        <option value="2">North District</option>
-                        <option value="3">South District</option>
-                        <option value="4">East District</option>
-                        <option value="5">West District</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">
-                        <i class="fas fa-route me-2"></i>Routes (Multiple)
-                    </label>
-                    <select class="form-select routes-select" name="route_ids[]" multiple="multiple" required>
-                        <option value="">Select routes...</option>
-                        <!-- Routes will be loaded dynamically -->
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-shopping-cart me-2"></i>Can Sell
-                    </label>
-                    <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" name="can_sell[]" checked>
-                        <label class="form-check-label">Yes</label>
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-calendar-alt me-2"></i>Assign Date
-                    </label>
-                    <input type="datetime-local" class="form-control" name="assigned_date[]" 
-                           value="2025-08-28T12:57" required>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">
-                        <i class="fas fa-calendar-times me-2"></i>End Date
-                    </label>
-                    <input type="datetime-local" class="form-control" name="end_date[]">
-                </div>
-            </div>
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="d-flex justify-content-between">
-                        <button type="button" class="btn btn-success btn-sm add-row-btn">
-                            <i class="fas fa-plus me-2"></i>Add Row
-                        </button>
-                        <button type="button" class="btn btn-danger btn-sm remove-row-btn" style="display: none;">
-                            <i class="fas fa-trash me-2"></i>Remove Row
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
+        <!-- Customer B -->
+        <tr data-contact="Customer B">
+            <td class="text-left">2025-09-21 13:00</td>
+            <td class="text-left">CUSTB-OPEN</td>
+            <td class="text-left">Opening Balance</td>
+            <td class="debit">2,000.00</td>
+            <td></td>
+            <td>2,000.00</td>
+            <td class="text-left">Customer B</td>
+            <td class="text-left">Opening balance</td>
+        </tr>
+        <tr data-contact="Customer B">
+            <td class="text-left">2025-09-21 13:15</td>
+            <td class="text-left">CUSTB-SALE1</td>
+            <td class="text-left">Sale</td>
+            <td class="debit">5,000.00</td>
+            <td></td>
+            <td>7,000.00</td>
+            <td class="text-left">Customer B</td>
+            <td class="text-left">Sale invoice #CUSTB-SALE1</td>
+        </tr>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    
-    <script>
-        let rowCounter = 0;
+        <!-- Supplier X -->
+        <tr data-contact="Supplier X">
+            <td class="text-left">2025-09-21 09:15</td>
+            <td class="text-left">SUPX-OPEN</td>
+            <td class="text-left">Opening Balance</td>
+            <td></td>
+            <td class="credit">3,000.00</td>
+            <td>3,000.00</td>
+            <td class="text-left">Supplier X</td>
+            <td class="text-left">Opening balance supplier X</td>
+        </tr>
+        <tr data-contact="Supplier X">
+            <td class="text-left">2025-09-21 10:15</td>
+            <td class="text-left">SUPX-PUR1</td>
+            <td class="text-left">Purchase</td>
+            <td></td>
+            <td class="credit">8,000.00</td>
+            <td>11,000.00</td>
+            <td class="text-left">Supplier X</td>
+            <td class="text-left">Purchase invoice #SUPX-PUR1</td>
+        </tr>
+        <tr data-contact="Supplier X">
+            <td class="text-left">2025-09-21 11:15</td>
+            <td class="text-left">SUPX-PAY1</td>
+            <td class="debit">5,000.00</td>
+            <td></td>
+            <td>6,000.00</td>
+            <td class="text-left">Supplier X</td>
+            <td class="text-left">Payment to supplier</td>
+        </tr>
+        <tr data-contact="Supplier X">
+            <td class="text-left">2025-09-21 12:15</td>
+            <td class="text-left">SUPX-PR1</td>
+            <td class="debit">2,000.00</td>
+            <td></td>
+            <td>4,000.00</td>
+            <td class="text-left">Supplier X</td>
+            <td class="text-left">Returned goods to supplier</td>
+        </tr>
+        <tr data-contact="Supplier X">
+            <td class="text-left">2025-09-21 13:30</td>
+            <td class="text-left">SUPX-RP1</td>
+            <td></td>
+            <td class="credit">1,500.00</td>
+            <td>5,500.00</td>
+            <td class="text-left">Supplier X</td>
+            <td class="text-left">Refund from supplier</td>
+        </tr>
 
-        // Routes data for different locations
-        const routesData = {
-            '1': [
-                {id: 1, name: 'Route A - Commercial Downtown'},
-                {id: 2, name: 'Route B - Retail Downtown'},
-                {id: 3, name: 'Route C - Office Downtown'}
-            ],
-            '2': [
-                {id: 4, name: 'Route D - North Residential'},
-                {id: 5, name: 'Route E - North Commercial'},
-                {id: 6, name: 'Route F - North Mixed'}
-            ],
-            '3': [
-                {id: 7, name: 'Route G - South Industrial'},
-                {id: 8, name: 'Route H - South Retail'},
-                {id: 9, name: 'Route I - South Residential'}
-            ],
-            '4': [
-                {id: 10, name: 'Route J - East Commercial'},
-                {id: 11, name: 'Route K - East Mixed'},
-                {id: 12, name: 'Route L - East Suburban'}
-            ],
-            '5': [
-                {id: 13, name: 'Route M - West Industrial'},
-                {id: 14, name: 'Route N - West Commercial'},
-                {id: 15, name: 'Route O - West Residential'}
-            ]
-        };
+        <!-- Supplier Y -->
+        <tr data-contact="Supplier Y">
+            <td class="text-left">2025-09-21 14:00</td>
+            <td class="text-left">SUPY-OPEN</td>
+            <td class="text-left">Opening Balance</td>
+            <td></td>
+            <td class="credit">1,000.00</td>
+            <td>1,000.00</td>
+            <td class="text-left">Supplier Y</td>
+            <td class="text-left">Opening balance supplier Y</td>
+        </tr>
+        <tr data-contact="Supplier Y">
+            <td class="text-left">2025-09-21 14:15</td>
+            <td class="text-left">SUPY-PUR1</td>
+            <td class="text-left">Purchase</td>
+            <td></td>
+            <td class="credit">4,000.00</td>
+            <td>5,000.00</td>
+            <td class="text-left">Supplier Y</td>
+            <td class="text-left">Purchase invoice #SUPY-PUR1</td>
+        </tr>
+        <tr data-contact="Supplier Y">
+            <td class="text-left">2025-09-21 14:45</td>
+            <td class="text-left">SUPY-PAY1</td>
+            <td class="debit">2,000.00</td>
+            <td></td>
+            <td>3,000.00</td>
+            <td class="text-left">Supplier Y</td>
+            <td class="text-left">Payment to supplier</td>
+        </tr>
 
-        // User selection change
-        $('#userId').on('change', function() {
-            const selectedOption = $(this).find('option:selected');
-            const userId = selectedOption.val();
-            
-            if (userId) {
-                // Show user info
-                $('#selectedUserName').text(selectedOption.data('name'));
-                $('#selectedUserEmail').text(selectedOption.data('email'));
-                $('#selectedUserPhone').text(selectedOption.data('phone'));
-                $('#userInfoContainer').show();
-                $('#assignmentsContainer').show();
-                $('#submitSection').show();
-                
-                // Clear existing rows and add first row
-                $('#assignmentRows').empty();
-                addAssignmentRow();
-            } else {
-                $('#userInfoContainer').hide();
-                $('#assignmentsContainer').hide();
-                $('#submitSection').hide();
-                $('#assignmentRows').empty();
-            }
-        });
+        <!-- Supplier Z -->
+        <tr data-contact="Supplier Z">
+            <td class="text-left">2025-09-21 15:00</td>
+            <td class="text-left">SUPZ-OPEN</td>
+            <td class="text-left">Opening Balance</td>
+            <td></td>
+            <td class="credit">0.00</td>
+            <td>0.00</td>
+            <td class="text-left">Supplier Z</td>
+            <td class="text-left">Opening balance</td>
+        </tr>
+        <tr data-contact="Supplier Z">
+            <td class="text-left">2025-09-21 15:15</td>
+            <td class="text-left">SUPZ-PUR1</td>
+            <td class="text-left">Purchase</td>
+            <td></td>
+            <td class="credit">2,500.00</td>
+            <td>2,500.00</td>
+            <td class="text-left">Supplier Z</td>
+            <td class="text-left">Purchase invoice #SUPZ-PUR1</td>
+        </tr>
+    </tbody>
+</table>
 
-        // Add assignment row
-        function addAssignmentRow() {
-            rowCounter++;
-            const template = document.getElementById('assignmentRowTemplate');
-            const clone = template.content.cloneNode(true);
-            
-            // Set unique row ID
-            const rowDiv = clone.querySelector('.assignment-row');
-            rowDiv.setAttribute('data-row-id', rowCounter);
-            
-            // Add to container
-            document.getElementById('assignmentRows').appendChild(clone);
-            
-            // Initialize Select2 for routes
-            $(`[data-row-id="${rowCounter}"] .routes-select`).select2({
-                placeholder: "Select multiple routes...",
-                allowClear: true
-            });
-            
-            // Update remove button visibility
-            updateRemoveButtons();
-            
-            // Add event listeners for this row
-            bindRowEvents(rowCounter);
+<script>
+document.getElementById('contactFilter').addEventListener('change', function() {
+    var selected = this.value;
+    var rows = document.querySelectorAll('#dataTable tbody tr');
+    rows.forEach(function(row) {
+        if (selected === 'all' || row.getAttribute('data-contact') === selected) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
         }
+    });
+});
+</script>
 
-        // Bind events for a specific row
-        function bindRowEvents(rowId) {
-            const rowSelector = `[data-row-id="${rowId}"]`;
-            
-            // Add row button
-            $(rowSelector + ' .add-row-btn').on('click', function() {
-                addAssignmentRow();
-            });
-            
-            // Remove row button
-            $(rowSelector + ' .remove-row-btn').on('click', function() {
-                $(rowSelector).remove();
-                updateRemoveButtons();
-            });
-            
-            // Sub location change
-            $(rowSelector + ' .sub-location-select').on('change', function() {
-                const locationId = $(this).val();
-                const routesSelect = $(rowSelector + ' .routes-select');
-                
-                // Clear current routes
-                routesSelect.empty().trigger('change');
-                
-                if (locationId && routesData[locationId]) {
-                    // Add new routes
-                    routesData[locationId].forEach(route => {
-                        const option = new Option(route.name, route.id, false, false);
-                        routesSelect.append(option);
-                    });
-                    routesSelect.trigger('change');
-                }
-            });
-        }
-
-        // Update remove button visibility
-        function updateRemoveButtons() {
-            const rows = $('.assignment-row');
-            rows.each(function(index) {
-                const removeBtn = $(this).find('.remove-row-btn');
-                if (rows.length > 1) {
-                    removeBtn.show();
-                } else {
-                    removeBtn.hide();
-                }
-            });
-        }
-
-        // Reset form
-        function resetForm() {
-            $('#userId').val('').trigger('change');
-            $('#userInfoContainer').hide();
-            $('#assignmentsContainer').hide();
-            $('#submitSection').hide();
-            $('#assignmentRows').empty();
-            rowCounter = 0;
-        }
-
-        // Submit assignments
-        function submitAssignments() {
-            const userId = $('#userId').val();
-            if (!userId) {
-                alert('Please select a user first');
-                return;
-            }
-
-            const assignments = [];
-            $('.assignment-row').each(function() {
-                const row = $(this);
-                const subLocationId = row.find('.sub-location-select').val();
-                const routeIds = row.find('.routes-select').val();
-                const canSell = row.find('input[name="can_sell[]"]').is(':checked');
-                const assignedDate = row.find('input[name="assigned_date[]"]').val();
-                const endDate = row.find('input[name="end_date[]"]').val();
-
-                if (subLocationId && routeIds && routeIds.length > 0) {
-                    assignments.push({
-                        user_id: userId,
-                        sub_location_id: subLocationId,
-                        route_ids: routeIds,
-                        can_sell: canSell,
-                        assigned_date: assignedDate,
-                        end_date: endDate || null,
-                        status: 'active'
-                    });
-                }
-            });
-
-            if (assignments.length === 0) {
-                alert('Please fill in at least one complete assignment');
-                return;
-            }
-
-            // Here you would send to your Laravel backend
-            console.log('Assignments to save:', assignments);
-            
-            // Simulate success
-            alert(`Successfully created ${assignments.length} assignment(s) for the selected user!`);
-            
-            // Optionally reset form
-            // resetForm();
-        }
-
-        // Update current date time every minute
-        function updateDateTime() {
-            const now = new Date();
-            const formatted = now.toISOString().slice(0, 19).replace('T', ' ');
-            $('#currentDateTime').text(formatted);
-        }
-
-        // Initialize
-        $(document).ready(function() {
-            updateDateTime();
-            setInterval(updateDateTime, 60000); // Update every minute
-        });
-    </script>
 </body>
 </html>

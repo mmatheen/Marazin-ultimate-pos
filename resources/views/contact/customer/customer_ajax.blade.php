@@ -480,34 +480,37 @@
         function updateDueAmount(dueAmount) {
             // Ensure dueAmount is a valid number before calling toFixed
             dueAmount = isNaN(dueAmount) ? 0 : dueAmount;
-            $('#total-due-amount').text(`Total due amount: Rs. ${dueAmount.toFixed(2)}`);
+            $('#total-due-amount').text(`Rs. ${dueAmount.toFixed(2)}`);
         }
 
         function updateCreditLimit(creditLimit, dueAmount = 0, isWalkIn = false) {
+            const creditInfoContainer = $('.customer-credit-info');
             const creditLimitElement = $('#credit-limit-amount');
+            const availableCreditElement = $('#available-credit-amount');
             
             if (isWalkIn) {
-                // Hide credit limit for walk-in customers
-                creditLimitElement.hide();
+                // Hide entire credit info section for walk-in customers
+                creditInfoContainer.hide();
             } else {
-                // Show credit limit for other customers
+                // Show credit info section for other customers
                 creditLimit = isNaN(creditLimit) ? 0 : parseFloat(creditLimit);
                 dueAmount = isNaN(dueAmount) ? 0 : parseFloat(dueAmount);
                 
                 const remainingCredit = Math.max(creditLimit - dueAmount, 0);
                 const isOverLimit = dueAmount > creditLimit;
                 
-                let creditHtml = `<small class="text-info">Credit limit: Rs. ${creditLimit.toFixed(2)}</small><br>`;
+                // Update credit limit display
+                creditLimitElement.text(`Rs. ${creditLimit.toFixed(2)}`);
                 
+                // Update available credit display with appropriate styling
                 if (isOverLimit) {
                     const overAmount = dueAmount - creditLimit;
-                    creditHtml += `<small class="text-danger">⚠️ Over limit by: Rs. ${overAmount.toFixed(2)}</small>`;
+                    availableCreditElement.html(`<span class="text-danger">⚠️ Over by Rs. ${overAmount.toFixed(2)}</span>`);
                 } else {
-                    creditHtml += `<small class="text-success">✓ Available credit: Rs. ${remainingCredit.toFixed(2)}</small>`;
+                    availableCreditElement.html(`<span class="text-success">✓ Rs. ${remainingCredit.toFixed(2)}</span>`);
                 }
                 
-                creditLimitElement.html(creditHtml);
-                creditLimitElement.show();
+                creditInfoContainer.show();
             }
         }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\LocationTrait;
+use App\Models\Ledger;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -56,6 +57,11 @@ class Customer extends Model
         static::saved(function ($customer) {
             if ($customer->id != 1) {
                 $customer->recalculateCurrentBalance();
+                
+                // Sync opening balance to ledger if it was changed OR if it's a new customer with opening balance
+                if ($customer->wasChanged('opening_balance') || ($customer->wasRecentlyCreated && $customer->opening_balance != 0)) {
+                    $customer->syncOpeningBalanceToLedger();
+                }
             } else {
                 $customer->current_balance = 0;
                 $customer->saveQuietly();
@@ -152,13 +158,14 @@ public function recalculateCurrentBalance()
     {
         if ($this->id == 1) return 0;
 
-        $ledgerBalance = Ledger::where('user_id', $this->id)
+        // Get the latest balance after proper calculation order
+        $latestEntry = Ledger::where('user_id', $this->id)
             ->where('contact_type', 'customer')
             ->orderBy('transaction_date', 'desc')
             ->orderBy('id', 'desc')
-            ->value('balance');
+            ->first();
 
-        return $ledgerBalance ?? $this->opening_balance ?? 0;
+        return $latestEntry ? $latestEntry->balance : ($this->opening_balance ?? 0);
     }
 
     /**
@@ -195,5 +202,50 @@ public function recalculateCurrentBalance()
 
         return \App\Models\SalesRep::whereHas('route.cities', fn($q) => $q->where('cities.id', $cityId))
             ->max('default_credit_limit') ?: 0;
+    }
+
+    /**
+     * Create or update opening balance entry in ledger table
+     */
+    public function syncOpeningBalanceToLedger()
+    {
+        // Check if opening balance entry already exists
+        $existingEntry = Ledger::where('user_id', $this->id)
+            ->where('contact_type', 'customer')
+            ->where('transaction_type', 'opening_balance')
+            ->first();
+
+        if ($this->opening_balance == 0) {
+            // If opening balance is 0, remove existing entry
+            if ($existingEntry) {
+                $existingEntry->delete();
+                // Recalculate balances for remaining entries
+                Ledger::calculateBalance($this->id, 'customer');
+            }
+            return;
+        }
+
+        $data = [
+            'user_id' => $this->id,
+            'contact_type' => 'customer',
+            'transaction_date' => $this->created_at ?: now(),
+            'reference_no' => 'OPENING-' . $this->id,
+            'transaction_type' => 'opening_balance',
+            'debit' => $this->opening_balance > 0 ? $this->opening_balance : 0,
+            'credit' => $this->opening_balance < 0 ? abs($this->opening_balance) : 0,
+            'balance' => $this->opening_balance,
+            'notes' => 'Opening Balance for Customer: ' . $this->first_name . ' ' . $this->last_name,
+        ];
+
+        if ($existingEntry) {
+            // Update existing entry
+            $existingEntry->update($data);
+        } else {
+            // Create new entry
+            Ledger::create($data);
+        }
+
+        // Recalculate balances for all entries
+        Ledger::calculateBalance($this->id, 'customer');
     }
 }

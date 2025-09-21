@@ -8,7 +8,7 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">All Sales</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href={{ route('list-sale') }}>Sell</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('list-sale') }}">Sell</a></li>
                                 <li class="breadcrumb-item active">All Sales</li>
                             </ul>
                         </div>
@@ -567,7 +567,7 @@
 
 
         <div class="modal fade" id="bulkPaymentModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="bulkPaymentModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="bulkPaymentModalLabel">Customer Bulk Payments</h5>
@@ -584,28 +584,70 @@
                                         </select>
                                     </div>
                                     <div class="row mt-3">
-                                        <div class="col-md-3">
-                                            <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                        <div class="col-md-2">
+                                            <div class="card bg-warning p-3 rounded text-center shadow-sm">
                                                 <strong>Opening Balance:</strong>
-                                                <span id="openingBalance" class="d-block mt-2">$0.00</span>
+                                                <span id="openingBalance" class="d-block mt-2">Rs. 0.00</span>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                        <div class="col-md-2">
+                                            <div class="card bg-info p-3 rounded text-center shadow-sm">
+                                                <strong>Sale Due:</strong>
+                                                <span id="saleDueBalance" class="d-block mt-2">Rs. 0.00</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="card bg-success p-3 rounded text-center shadow-sm">
                                                 <strong>Total Sales:</strong>
-                                                <span id="totalSalesAmount" class="d-block mt-2">$0.00</span>
+                                                <span id="totalSalesAmount" class="d-block mt-2">Rs. 0.00</span>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-light p-3 rounded text-center shadow-sm">
+                                        <div class="col-md-2">
+                                            <div class="card bg-secondary p-3 rounded text-center shadow-sm">
                                                 <strong>Total Paid:</strong>
-                                                <span id="totalPaidAmount" class="d-block mt-2">$0.00</span>
+                                                <span id="totalPaidAmount" class="d-block mt-2">Rs. 0.00</span>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
-                                            <div class="card bg-light p-3 rounded text-center shadow-sm">
-                                                <strong>Total Due:</strong>
-                                                <span id="totalDueAmount" class="d-block mt-2">$0.00</span>
+                                        <div class="col-md-2">
+                                            <div class="card bg-primary p-3 rounded text-center shadow-sm">
+                                                <strong>Sale Due Amount:</strong>
+                                                <span id="totalDueAmount" class="d-block mt-2">Rs. 0.00</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="card bg-danger p-3 rounded text-center shadow-sm">
+                                                <strong>Total Customer Due:</strong>
+                                                <span id="totalCustomerDue" class="d-block mt-2">Rs. 0.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Payment Type Selection -->
+                                    <div class="row mt-4">
+                                        <div class="col-md-12">
+                                            <div class="card p-3 border border-primary">
+                                                <h5 class="text-primary">Payment Options</h5>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
+                                                    <label class="form-check-label" for="payOpeningBalance">
+                                                        <strong>Pay Opening Balance Only</strong>
+                                                        <small class="d-block text-muted">Settle customer's opening balance (not related to any sale)</small>
+                                                    </label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="paymentType" id="paySaleDues" value="sale_dues" checked>
+                                                    <label class="form-check-label" for="paySaleDues">
+                                                        <strong>Pay Sale Dues</strong>
+                                                        <small class="d-block text-muted">Pay against specific sales invoices</small>
+                                                    </label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
+                                                    <label class="form-check-label" for="payBoth">
+                                                        <strong>Pay Both (Opening Balance + Sale Dues)</strong>
+                                                        <small class="d-block text-muted">First settle opening balance, then apply to sales</small>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -628,7 +670,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label for="paymentMethod" class="form-label">Payment Method</label>
-                                                <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields()">
+                                                <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields('bulkPaymentModal')">
                                                     <option value="cash" selected>Cash</option>
                                                     <option value="card">Credit Card</option>
                                                     <option value="cheque">Cheque</option>
@@ -639,63 +681,34 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label for="paidOn" class="form-label">Paid On</label>
-                                                <input class="form-control datetimepicker" type="text" name="payment_date" id="paidOn" placeholder="DD-MM-YYYY">
+                                                <input type="date" class="form-control" id="paidOn" name="paid_on">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label for="payAmount" class="form-label">Amount</label>
-                                                <input type="text" class="form-control" id="globalPaymentAmount" name="amount">
-                                                <div id="amountError" class="text-danger" style="display:none;"></div>
+                                                <label for="globalPaymentAmount" class="form-label">Amount</label>
+                                                <input type="number" class="form-control" id="globalPaymentAmount" name="global_payment_amount" min="0" step="0.01" placeholder="0.00">
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Conditional Payment Fields -->
-                                    <div id="creditCardFields" class="row mb-3 d-none">
-                                        <div class="col-md-4">
+                                    <!-- Payment Method Specific Fields -->
+                                    <div class="row mb-3" id="cardFields" style="display: none;">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="cardNumber" class="form-label">Card Number</label>
                                                 <input type="text" class="form-control" id="cardNumber" name="card_number">
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="cardHolderName" class="form-label">Card Holder Name</label>
                                                 <input type="text" class="form-control" id="cardHolderName" name="card_holder_name">
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="cardType" class="form-label">Card Type</label>
-                                                <select class="form-select" id="cardType" name="card_type">
-                                                    <option value="visa">Visa</option>
-                                                    <option value="mastercard">MasterCard</option>
-                                                    <option value="amex">American Express</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="expiryMonth" class="form-label">Expiry Month</label>
-                                                <input type="text" class="form-control" id="expiryMonth" name="card_expiry_month">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="expiryYear" class="form-label">Expiry Year</label>
-                                                <input type="text" class="form-control" id="expiryYear" name="card_expiry_year">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="securityCode" class="form-label">Security Code</label>
-                                                <input type="text" class="form-control" id="securityCode" name="card_security_code">
-                                            </div>
-                                        </div>
                                     </div>
 
-                                    <div id="chequeFields" class="row mb-3 d-none">
+                                    <div class="row mb-3" id="chequeFields" style="display: none;">
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="chequeNumber" class="form-label">Cheque Number</label>
@@ -704,31 +717,13 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="bankBranch" class="form-label">Bank Branch</label>
-                                                <input type="text" class="form-control" id="bankBranch" name="cheque_bank_branch">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="cheque_received_date" class="form-label">Check Received Date</label>
-                                                <input type="text" class="form-control datetimepicker" id="cheque_received_date" name="cheque_received_date">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="cheque_valid_date" class="form-label">Cheque Valid Date</label>
-                                                <input type="text" class="form-control datetimepicker" id="cheque_valid_date" name="cheque_valid_date">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label for="cheque_given_by" class="form-label">Check Given by</label>
-                                                <input type="text" class="form-control" id="cheque_given_by" name="cheque_given_by">
+                                                <label for="chequeBankBranch" class="form-label">Bank Branch</label>
+                                                <input type="text" class="form-control" id="chequeBankBranch" name="cheque_bank_branch">
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div id="bankTransferFields" class="row mb-3 d-none">
+                                    <div class="row mb-3" id="bankTransferFields" style="display: none;">
                                         <div class="col-md-12">
                                             <div class="mb-3">
                                                 <label for="bankAccountNumber" class="form-label">Bank Account Number</label>
@@ -751,97 +746,97 @@
         <script>
             // Define the openPaymentModal function
             function openPaymentModal(event, saleId) {
-        // Implement the logic to open the payment modal
-        $('#paymentModal').modal('show');
-        fetchSaleDetailsForPayment(saleId);
-    }
-
-
-    // Function to fetch sale details for payment modal
-    function fetchSaleDetailsForPayment(saleId) {
-        $.ajax({
-            url: '/sales_details/' + saleId,
-            type: 'GET',
-            success: function(response) {
-                if (response.salesDetails) {
-                    const saleDetails = response.salesDetails;
-                    const customer = saleDetails.customer;
-                    const location = saleDetails.location;
-
-                    // Populate payment modal fields
-                    $('#paymentModalLabel').text('Add Payment - Invoice No: ' + saleDetails.invoice_no);
-                    $('#paymentCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
-                    $('#paymentLocationDetails').text(location.name);
-                    $('#totalAmount').text(saleDetails.final_total);
-                    $('#totalPaidAmount').text(saleDetails.total_paid);
-
-                    $('#saleId').val(saleDetails.id);
-                    $('#payment_type').val('sale');
-                    $('#customer_id').val(customer.id);
-                    $('#reference_no').val(saleDetails.invoice_no);
-                    // Set default date to today
-                    $('#paidOn').val(new Date().toISOString().split('T')[0]);
-
-                    // Set the amount field to the total due amount
-                    $('#payAmount').val(saleDetails.total_due);
-
-                    // Ensure the Add Payment modal is brought to the front
-                    $('#viewPaymentModal').modal('hide');
-                    $('#paymentModal').modal('show');
-
-                    // Validate the amount input
-                    $('#payAmount').off('input').on('input', function() {
-                        let amount = parseFloat($(this).val());
-                        let totalDue = parseFloat(saleDetails.total_due);
-                        if (amount > totalDue) {
-                            $('#amountError').text('The given amount exceeds the total due amount.').show();
-                            $(this).val(totalDue);
-                        } else {
-                            $('#amountError').hide();
-                        }
-                    });
-
-                    $('#paymentModal').modal('show');
-                } else {
-                    console.error('Sales details data is not in the expected format.');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching sales details:', error);
+                // Implement the logic to open the payment modal
+                $('#paymentModal').modal('show');
+                fetchSaleDetailsForPayment(saleId);
             }
-        });
-    }
 
-    // Toggle payment fields based on selected payment method
-$('#bulkPaymentModal #paymentMethod').change(function() {
-    togglePaymentFields('bulkPaymentModal');
-});
+            // Function to fetch sale details for payment modal
+            function fetchSaleDetailsForPayment(saleId) {
+                $.ajax({
+                    url: '/sales_details/' + saleId,
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.salesDetails) {
+                            const saleDetails = response.salesDetails;
+                            const customer = saleDetails.customer;
+                            const location = saleDetails.location;
 
-// Toggle payment fields based on selected payment method for individual payments
-$('#paymentMethod').change(function() {
-    togglePaymentFields('paymentModal');
-});// Function to toggle payment fields based on payment method
-function togglePaymentFields(modalId) {
-    const paymentMethod = $(`#${modalId} #paymentMethod`).val();
-    if (paymentMethod === 'card') {
-        $(`#${modalId} #creditCardFields`).removeClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    } else if (paymentMethod === 'cheque') {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).removeClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    } else if (paymentMethod === 'bank_transfer') {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).removeClass('d-none');
-    } else {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    }
-}
+                            // Populate payment modal fields
+                            $('#paymentModalLabel').text('Add Payment - Invoice No: ' + saleDetails.invoice_no);
+                            $('#paymentCustomerDetail').text(customer.first_name + ' ' + customer.last_name);
+                            $('#paymentLocationDetails').text(location.name);
+                            $('#totalAmount').text(saleDetails.final_total);
+                            $('#totalPaidAmount').text(saleDetails.total_paid);
 
+                            $('#saleId').val(saleDetails.id);
+                            $('#payment_type').val('sale');
+                            $('#customer_id').val(customer.id);
+                            $('#reference_no').val(saleDetails.invoice_no);
+                            // Set default date to today
+                            $('#paidOn').val(new Date().toISOString().split('T')[0]);
+
+                            // Set the amount field to the total due amount
+                            $('#payAmount').val(saleDetails.total_due);
+
+                            // Ensure the Add Payment modal is brought to the front
+                            $('#viewPaymentModal').modal('hide');
+                            $('#paymentModal').modal('show');
+
+                            // Validate the amount input
+                            $('#payAmount').off('input').on('input', function() {
+                                let amount = parseFloat($(this).val());
+                                let totalDue = parseFloat(saleDetails.total_due);
+                                if (amount > totalDue) {
+                                    $('#amountError').text('The given amount exceeds the total due amount.').show();
+                                    $(this).val(totalDue);
+                                } else {
+                                    $('#amountError').hide();
+                                }
+                            });
+
+                            $('#paymentModal').modal('show');
+                        } else {
+                            console.error('Sales details data is not in the expected format.');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching sales details:', error);
+                    }
+                });
+            }
+
+            // Toggle payment fields based on selected payment method
+            $('#bulkPaymentModal #paymentMethod').change(function() {
+                togglePaymentFields('bulkPaymentModal');
+            });
+
+            // Toggle payment fields based on selected payment method for individual payments
+            $('#paymentMethod').change(function() {
+                togglePaymentFields('paymentModal');
+            });
+
+            // Function to toggle payment fields based on payment method
+            function togglePaymentFields(modalId) {
+                const paymentMethod = $(`#${modalId} #paymentMethod`).val();
+                if (paymentMethod === 'card') {
+                    $(`#${modalId} #creditCardFields`).removeClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                } else if (paymentMethod === 'cheque') {
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).removeClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                } else if (paymentMethod === 'bank_transfer') {
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).removeClass('d-none');
+                } else {
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                }
+            }
         </script>
 
 

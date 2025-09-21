@@ -57,6 +57,11 @@ class PaymentController extends Controller
         return view('contact.customer.customer_ledger', compact('customerId'));
     }
 
+    /**
+     * Get customer ledger data from the dedicated ledgers table
+     * This method properly uses the centralized ledger system instead of 
+     * manually combining data from sales, payments, and returns tables
+     */
     public function getCustomerLedger(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -78,169 +83,59 @@ class PaymentController extends Controller
         // Get customer details
         $customer = Customer::find($customerId);
 
-        // Get sales data with location filter
-        $salesQuery = Sale::withoutGlobalScopes()->where('customer_id', $customerId)
-            ->whereBetween('sales_date', [$startDate, $endDate])
-            ->with(['location', 'user', 'payments']);
-
-        if ($locationId) {
-            $salesQuery->where('location_id', $locationId);
-        }
-
-        $sales = $salesQuery->get();
-
-        // Get payments data
-        $paymentsQuery = Payment::where('customer_id', $customerId)
-            ->whereBetween('payment_date', [$startDate, $endDate]);
-
-        if ($locationId) {
-            $paymentsQuery->where(function($query) use ($locationId) {
-                $query->whereHas('sale', function($subQuery) use ($locationId) {
-                    $subQuery->withoutGlobalScopes()->where('location_id', $locationId);
-                })->orWhere(function($subQuery) use ($locationId) {
-                    // For payments without sales, include them
-                    $subQuery->whereNull('reference_id');
-                });
-            });
-        }
-
-        $payments = $paymentsQuery->with(['sale'])->get();
-
-        // Get sale returns data
-        $returnsQuery = SalesReturn::where('customer_id', $customerId)
-            ->whereBetween('return_date', [$startDate, $endDate])
-            ->with(['sale', 'location', 'user']);
-
-        if ($locationId) {
-            $returnsQuery->where('location_id', $locationId);
-        }
-
-        $returns = $returnsQuery->get();
-
-        // Combine all transactions and sort by date
-        $transactions = collect();
-
-        // Add sales
-        foreach ($sales as $sale) {
-            $transactions->push([
-                'date' => $sale->sales_date,
-                'reference_no' => $sale->invoice_no,
-                'type' => 'Sale',
-                'location' => $sale->location ? $sale->location->name : 'N/A',
-                'payment_status' => $sale->payment_status,
-                'debit' => $sale->final_total,
-                'credit' => 0,
-                'payment_method' => 'N/A',
-                'others' => $sale->discount_amount > 0 ? "Discount: {$sale->discount_amount}" : '',
-                'created_at' => $sale->created_at,
-                'sale_id' => $sale->id,
-                'transaction_type' => 'sale'
-            ]);
-        }
-
-        // Add payments
-        foreach ($payments as $payment) {
-            $location = 'N/A';
-            if ($payment->sale && $payment->sale->location) {
-                $location = $payment->sale->location->name;
-            }
-
-            $transactions->push([
-                'date' => $payment->payment_date,
-                'reference_no' => $payment->reference_no,
-                'type' => 'Payment',
-                'location' => $location,
-                'payment_status' => 'Paid',
-                'debit' => 0,
-                'credit' => $payment->amount,
-                'payment_method' => $payment->payment_method,
-                'others' => $payment->notes ?: '',
-                'created_at' => $payment->created_at,
-                'payment_id' => $payment->id,
-                'sale_id' => $payment->reference_id,
-                'transaction_type' => 'payment'
-            ]);
-        }
-
-        // Add returns
-        foreach ($returns as $return) {
-            $transactions->push([
-                'date' => $return->return_date,
-                'reference_no' => $return->invoice_number,
-                'type' => 'Return',
-                'location' => $return->location ? $return->location->name : 'N/A',
-                'payment_status' => $return->payment_status,
-                'debit' => 0,
-                'credit' => $return->return_total,
-                'payment_method' => 'N/A',
-                'others' => '',
-                'created_at' => $return->created_at,
-                'return_id' => $return->id,
-                'transaction_type' => 'return'
-            ]);
-        }
-
-        // Sort transactions by date
-        $transactions = $transactions->sortBy('date')->values();
-
-        // Calculate running balance with advance payment logic
-        $runningBalance = $customer->opening_balance;
-        $advanceBalance = 0; // Track advance (negative balance)
-        
-        $transactionsWithBalance = $transactions->map(function ($transaction) use (&$runningBalance, &$advanceBalance) {
-            // Calculate new balance
-            $runningBalance += $transaction['debit'] - $transaction['credit'];
-            
-            // Store the actual running balance
-            $transaction['running_balance'] = $runningBalance;
-            
-            // Determine if customer has advance (negative balance indicates customer has credit)
-            if ($runningBalance < 0) {
-                $transaction['advance_amount'] = abs($runningBalance);
-                $transaction['due_amount'] = 0;
-            } else {
-                $transaction['advance_amount'] = 0;
-                $transaction['due_amount'] = $runningBalance;
-            }
-            
-            return $transaction;
-        });
-
-        // Calculate totals
-        $totalInvoices = $sales->sum('final_total');
-        $totalPaid = $payments->sum('amount');
-        $totalReturns = $returns->sum('return_total');
-        
-        // Calculate actual current balance
-        $actualCurrentBalance = $customer->opening_balance + $totalInvoices - $totalPaid - $totalReturns;
-        
-        // Get current outstanding sales (all unpaid sales, not limited to date range)
-        $outstandingSales = Sale::withoutGlobalScopes()
-            ->where('customer_id', $customerId)
-            ->where('total_due', '>', 0)
+        // Get ledger transactions for the customer within the date range
+        $ledgerTransactions = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->byDateRange($startDate, $endDate)
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
-        $totalOutstandingDue = $outstandingSales->sum('total_due');
+        // Transform ledger data for frontend display
+        $transactions = $ledgerTransactions->map(function ($ledger) {
+            return [
+                'date' => $ledger->transaction_date->format('Y-m-d'),
+                'reference_no' => $ledger->reference_no,
+                'type' => $this->formatTransactionType($ledger->transaction_type),
+                'location' => 'N/A', // Location info not stored in ledger table
+                'payment_status' => $ledger->debit > 0 ? 'Due' : 'Paid',
+                'debit' => $ledger->debit,
+                'credit' => $ledger->credit,
+                'payment_method' => 'N/A', // Can be extended if needed
+                'others' => $ledger->notes ?: '',
+                'created_at' => $ledger->created_at,
+                'transaction_type' => $ledger->transaction_type,
+                'running_balance' => $ledger->balance
+            ];
+        });
+
+        // Calculate totals from ledger transactions
+        $totalDebits = $ledgerTransactions->sum('debit');
+        $totalCredits = $ledgerTransactions->sum('credit');
         
-        // Manual advance calculation - only show what's available for manual application
-        // Don't auto-calculate - let user decide when to apply
-        $manualAdvanceAvailable = 0;
-        if ($customer->opening_balance < 0) {
-            $manualAdvanceAvailable += abs($customer->opening_balance); // Opening advance
-        }
-        if ($totalReturns > 0) {
-            $manualAdvanceAvailable += $totalReturns; // Return amounts can be used as advance
-        }
-        // Check for overpayments
-        $overpayment = max(0, $totalPaid - ($totalInvoices - $totalReturns));
-        if ($overpayment > 0) {
-            $manualAdvanceAvailable += $overpayment;
-        }
+        // Get current balance from ledger (most recent entry)
+        $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
         
-        // Calculate effective due (what would be due if advance was applied)
-        $effectiveDue = max(0, $totalOutstandingDue - $manualAdvanceAvailable);
+        // Get opening balance (balance before start date)
+        $openingBalanceLedger = Ledger::where('user_id', $customerId)
+            ->where('contact_type', 'customer')
+            ->where('transaction_date', '<', $startDate)
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+            
+        $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
+
+        // Calculate outstanding dues from ledger balance (most accurate)
+        // The current balance from ledger already accounts for all transactions including:
+        // - Opening balance, sales, payments, opening balance payments, etc.
+        $totalOutstandingDue = max(0, $currentBalance); // Only positive balances are due
         
-        // Don't auto-apply advance - just calculate what's available for manual application
+        // Calculate advance amount (negative balance means customer has credit)
+        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+        
+        // Effective due is the same as outstanding due since ledger balance is accurate
+        $effectiveDue = $totalOutstandingDue;
 
         return response()->json([
             'status' => 200,
@@ -251,29 +146,46 @@ class PaymentController extends Controller
                 'email' => $customer->email,
                 'address' => $customer->address,
                 'opening_balance' => $customer->opening_balance,
-                'current_balance' => $actualCurrentBalance,
+                'current_balance' => $currentBalance,
             ],
-            'transactions' => $transactionsWithBalance,
+            'transactions' => $transactions,
             'summary' => [
-                'total_invoices' => $totalInvoices,
-                'total_paid' => $totalPaid,
-                'total_returns' => $totalReturns,
-                'balance_due' => max(0, $actualCurrentBalance),
-                'advance_amount' => $manualAdvanceAvailable,
+                'total_invoices' => $totalDebits, // Total debits from ledger
+                'total_paid' => $totalCredits, // Total credits from ledger
+                'total_returns' => 0, // Can be calculated separately if needed
+                'balance_due' => max(0, $currentBalance),
+                'advance_amount' => $advanceAmount,
                 'effective_due' => $effectiveDue,
                 'outstanding_due' => $totalOutstandingDue,
-                'opening_balance' => $customer->opening_balance,
+                'opening_balance' => $openingBalance,
             ],
             'period' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
             ],
             'advance_application' => [
-                'available_advance' => $manualAdvanceAvailable,
-                'applied_to_outstanding' => 0, // Not auto-applied anymore
-                'remaining_advance' => $manualAdvanceAvailable,
+                'available_advance' => $advanceAmount,
+                'applied_to_outstanding' => 0,
+                'remaining_advance' => $advanceAmount,
             ]
         ]);
+    }
+
+    /**
+     * Format transaction type for display
+     */
+    private function formatTransactionType($type)
+    {
+        return match($type) {
+            'sale' => 'Sale',
+            'payment' => 'Payment',
+            'payments' => 'Payment',
+            'return' => 'Return',
+            'opening_balance' => 'Opening Balance',
+            'opening_balance_payment' => 'Opening Balance Payment',
+            'adjustment' => 'Adjustment',
+            default => ucfirst($type)
+        };
     }
 
     /**
@@ -1063,17 +975,33 @@ class PaymentController extends Controller
         $data = $request->validate($this->getBulkPaymentValidationRules($request));
 
         $entity = $this->validateEntity($data['entity_type'], $data['entity_id']);
-        $totalDueAmount = $this->calculateTotalDueAmount($data['entity_type'], $entity->id, $entity->opening_balance);
+        $paymentType = $data['payment_type'] ?? 'both';
+        
+        // Calculate the appropriate maximum amount based on payment type
+        $maxAmount = $this->calculateMaxPaymentAmount($data['entity_type'], $entity->id, $entity->opening_balance, $paymentType);
 
-        if ($data['global_amount'] > $totalDueAmount) {
+        if ($data['global_amount'] > $maxAmount) {
             return response()->json(['error' => 'Global amount exceeds total due amount'], 400);
         }
 
         DB::transaction(function () use ($entity, $data, $request) {
+            $paymentType = $data['payment_type'] ?? 'both';
+            $paymentMethod = $data['payment_method'] ?? 'cash';
             $remainingAmount = $data['global_amount'] ?? 0;
-            $this->reduceEntityOpeningBalance($entity, $remainingAmount);
-            $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
-            $this->handleIndividualPayments($entity, $data, $request);
+
+            if ($paymentType === 'opening_balance') {
+                // Only settle opening balance
+                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod);
+            } elseif ($paymentType === 'sale_dues') {
+                // Only pay against sales/purchases
+                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
+                $this->handleIndividualPayments($entity, $data, $request);
+            } else {
+                // Both - opening balance first, then sales
+                $this->reduceEntityOpeningBalance($entity, $remainingAmount, $paymentMethod);
+                $this->applyGlobalAmountToReferences($entity, $remainingAmount, $data, $request);
+                $this->handleIndividualPayments($entity, $data, $request);
+            }
         });
 
         return response()->json(['message' => 'Payments submitted successfully.']);
@@ -1086,6 +1014,7 @@ class PaymentController extends Controller
             'entity_id' => 'required',
             'payment_method' => 'required|string',
             'payment_date' => 'nullable|date',
+            'payment_type' => 'nullable|in:opening_balance,sale_dues,both',
             'global_amount' => 'nullable|numeric',
             'payments' => 'nullable|array',
             'payments.*.reference_id' => [
@@ -1122,18 +1051,97 @@ class PaymentController extends Controller
         return $openingBalance + $totalDueFromReferences;
     }
 
-    private function reduceEntityOpeningBalance($entity, &$remainingAmount)
+    private function calculateMaxPaymentAmount($entityType, $entityId, $openingBalance, $paymentType)
     {
-        if ($entity->opening_balance > 0) {
-            if ($remainingAmount >= $entity->opening_balance) {
-                $remainingAmount -= $entity->opening_balance;
-                $entity->opening_balance = 0;
-            } else {
-                $entity->opening_balance -= $remainingAmount;
-                $remainingAmount = 0;
-            }
+        $totalDueFromReferences = match ($entityType) {
+            'supplier' => Purchase::where('supplier_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
+            'customer' => Sale::where('customer_id', $entityId)->where('total_due', '>', 0)->sum('total_due'),
+            default => 0,
+        };
+
+        return match ($paymentType) {
+            'opening_balance' => max(0, $openingBalance), // Only opening balance
+            'sale_dues' => $totalDueFromReferences, // Only sale/purchase dues
+            'both' => max(0, $openingBalance) + $totalDueFromReferences, // Both combined
+            default => max(0, $openingBalance) + $totalDueFromReferences, // Default to both
+        };
+    }
+
+    private function reduceEntityOpeningBalance($entity, &$remainingAmount, $paymentMethod = 'cash')
+    {
+        if ($entity->opening_balance > 0 && $remainingAmount > 0) {
+            $openingBalancePayment = min($remainingAmount, $entity->opening_balance);
+            
+            // Create opening balance settlement payment
+            $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod);
+            
+            // Update opening balance
+            $entity->opening_balance -= $openingBalancePayment;
             $entity->save();
+            
+            // Reduce remaining amount
+            $remainingAmount -= $openingBalancePayment;
         }
+    }
+
+    /**
+     * Create payment record for opening balance settlement
+     */
+    private function createOpeningBalancePayment($entity, $amount, $paymentMethod = 'cash')
+    {
+        $entityType = $entity instanceof Customer ? 'customer' : 'supplier';
+        $referenceNo = 'OB-PAYMENT-' . $entity->id . '-' . time();
+
+        $paymentData = [
+            'payment_date' => Carbon::today()->format('Y-m-d'),
+            'amount' => $amount,
+            'payment_method' => $paymentMethod,
+            'payment_type' => 'opening_balance',
+            'reference_id' => null, // No specific sale/purchase reference
+            'reference_no' => $referenceNo,
+            'notes' => 'Opening Balance Settlement for ' . ($entity->first_name ?? $entity->business_name) . ' ' . ($entity->last_name ?? ''),
+        ];
+
+        if ($entityType === 'customer') {
+            $paymentData['customer_id'] = $entity->id;
+        } else {
+            $paymentData['supplier_id'] = $entity->id;
+        }
+
+        $payment = Payment::create($paymentData);
+
+        // Create ledger entry for opening balance settlement
+        $this->createOpeningBalanceLedgerEntry($payment, $entityType, $entity->id);
+
+        // Update entity balance
+        if ($entityType === 'customer') {
+            $this->updateCustomerBalance($entity->id);
+        } else {
+            $this->updateSupplierBalance($entity->id);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * Create ledger entry specifically for opening balance payment
+     */
+    private function createOpeningBalanceLedgerEntry($payment, $entityType, $entityId)
+    {
+        Ledger::create([
+            'user_id' => $entityId,
+            'contact_type' => $entityType,
+            'transaction_date' => $payment->payment_date,
+            'reference_no' => $payment->reference_no,
+            'transaction_type' => 'opening_balance_payment',
+            'debit' => 0,
+            'credit' => $payment->amount,
+            'balance' => 0, // Will be calculated by calculateBalance method
+            'notes' => $payment->notes,
+        ]);
+
+        // Recalculate balances for this customer/supplier
+        Ledger::calculateBalance($entityId, $entityType);
     }
 
     private function applyGlobalAmountToReferences($entity, &$remainingAmount, $data, $request)

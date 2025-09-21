@@ -285,6 +285,7 @@ $(document).ready(function() {
                 </div>
                 <div class="col-6">
                     <h6 class="text-white mb-1">Outstanding Due</h6>
+                    <h6 class="text-white small">(Inc. Opening Balance)</h6>
                     <h4 class="text-white text-warning">Rs. ${formatCurrency(summary.outstanding_due)}</h4>
                 </div>
             </div>
@@ -300,6 +301,19 @@ $(document).ready(function() {
                     </h4>
                 </div>
             </div>
+            ${summary.opening_balance !== 0 ? `
+            <div class="row text-center mt-2">
+                <div class="col-12">
+                    <div class="alert ${summary.opening_balance > 0 ? 'alert-warning' : 'alert-info'} alert-sm p-2 mb-0">
+                        <small class="text-dark">
+                            <i class="fa fa-info-circle"></i>
+                            Opening Balance: Rs. ${formatCurrency(summary.opening_balance)} 
+                            ${summary.opening_balance > 0 ? '(Customer owes)' : '(Customer credit)'}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
             ${summary.advance_amount > 0 ? `
             <div class="row text-center mt-2">
                 <div class="col-12">
@@ -307,7 +321,7 @@ $(document).ready(function() {
                         <small class="text-dark">
                             <i class="fa fa-info-circle"></i>
                             Advance Rs. ${formatCurrency(Math.min(summary.advance_amount, summary.outstanding_due))} 
-                            auto-applied to outstanding bills
+                            available for application
                         </small>
                     </div>
                 </div>

@@ -95,8 +95,18 @@ class Ledger extends Model
     public static function calculateBalance($user_id, $contact_type)
     {
         // Get all ledgers for the given user and contact type, ordered by transaction date
+        // Use CASE to prioritize opening_balance entries first, then order by date and id
         $ledgers = self::where('user_id', $user_id)
                         ->where('contact_type', $contact_type)
+                        ->orderByRaw("
+                            CASE 
+                                WHEN transaction_type = 'opening_balance' THEN 1
+                                WHEN transaction_type = 'sale' THEN 2
+                                WHEN transaction_type = 'opening_balance_payment' THEN 3
+                                WHEN transaction_type = 'payments' THEN 4
+                                ELSE 5
+                            END
+                        ")
                         ->orderBy('transaction_date', 'asc')
                         ->orderBy('id', 'asc')
                         ->get();
@@ -104,8 +114,18 @@ class Ledger extends Model
         $previous_balance = 0;
 
         foreach ($ledgers as $ledger) {
-            // Calculate the cumulative balance (for suppliers: debit increases balance, credit decreases it)
-            $balance = $previous_balance + $ledger->debit - $ledger->credit;
+            // Calculate the cumulative balance 
+            // For customers: debit (sales/opening balance) increases what customer owes us
+            //               credit (payments) decreases what customer owes us
+            // For suppliers: debit (payments) decreases what we owe them  
+            //               credit (purchases/opening balance) increases what we owe them
+            if ($contact_type === 'customer') {
+                // Customer balance: positive = customer owes us, negative = we owe customer (advance)
+                $balance = $previous_balance + $ledger->debit - $ledger->credit;
+            } else {
+                // Supplier balance: positive = we owe supplier, negative = supplier owes us (advance)
+                $balance = $previous_balance + $ledger->credit - $ledger->debit;
+            }
 
             // Update the balance in the ledger record
             $ledger->balance = $balance;

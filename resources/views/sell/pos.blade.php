@@ -1010,6 +1010,66 @@
                 /* Height of .bottom-fixed + some margin */
             }
         }
+
+        /* Customer Credit Information Styling */
+        .customer-credit-info {
+            margin-top: 8px;
+        }
+
+        .customer-credit-info .border {
+            border-color: #e0e6ed !important;
+            background-color: #f8f9fa;
+        }
+
+        .customer-credit-info .col-4 {
+            transition: background-color 0.2s ease;
+        }
+
+        .customer-credit-info .col-4:hover {
+            background-color: #e9ecef;
+        }
+
+        .customer-credit-info small {
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .customer-credit-info .fw-bold {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Responsive adjustments for mobile */
+        @media (max-width: 768px) {
+            .customer-credit-info .p-2 {
+                padding: 8px !important;
+            }
+            
+            .customer-credit-info small {
+                font-size: 10px;
+            }
+            
+            .customer-credit-info .fw-bold {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .customer-credit-info .row {
+                flex-direction: column;
+            }
+            
+            .customer-credit-info .col-4 {
+                border-right: none !important;
+                border-bottom: 1px solid #e0e6ed;
+            }
+            
+            .customer-credit-info .col-4:last-child {
+                border-bottom: none;
+            }
+        }
     </style>
 </head>
 
@@ -1246,10 +1306,34 @@
                                             <i class="fas fa-plus-circle"></i>
                                         </button>
                                     </div>
-                                    <p id="total-due-amount" class="text-danger mt-1">Total due amount: Rs. 0.00</p>
-                                    <div id="credit-limit-amount" class="mt-1" style="display: none;">
-                                        <small class="text-info">Credit limit: Rs. 0.00</small><br>
-                                        <small class="text-success">Available credit: Rs. 0.00</small>
+                                    <!-- Customer Credit Information Row -->
+                                    <div class="customer-credit-info mt-2" style="display: none;">
+                                        <div class="row g-0 border rounded">
+                                            <div class="col-4 border-end">
+                                                <div class="p-2 text-center">
+                                                    <small class="text-muted d-block">Total due amount</small>
+                                                    <span id="total-due-amount" class="fw-bold text-danger">
+                                                        Rs. 5000.00
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="col-4 border-end">
+                                                <div class="p-2 text-center">
+                                                    <small class="text-muted d-block">Credit limit</small>
+                                                    <span id="credit-limit-amount" class="fw-bold text-info">
+                                                        Rs. 15000.00
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="p-2 text-center">
+                                                    <small class="text-muted d-block">Available credit</small>
+                                                    <span id="available-credit-amount" class="fw-bold text-success">
+                                                        ✓ Rs. 10000.00
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-7">

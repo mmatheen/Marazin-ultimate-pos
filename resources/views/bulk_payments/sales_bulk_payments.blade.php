@@ -30,28 +30,70 @@
                     </select>
                 </div>
                 <div class="row mt-3">
-                    <div class="col-md-3">
-                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                    <div class="col-md-2">
+                        <div class="card bg-warning p-3 rounded text-center shadow-sm">
                             <strong>Opening Balance:</strong>
-                            <span id="openingBalance" class="d-block mt-2">$0.00</span>
+                            <span id="openingBalance" class="d-block mt-2">Rs. 0.00</span>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                    <div class="col-md-2">
+                        <div class="card bg-info p-3 rounded text-center shadow-sm">
+                            <strong>Sale Due:</strong>
+                            <span id="saleDueBalance" class="d-block mt-2">Rs. 0.00</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-success p-3 rounded text-center shadow-sm">
                             <strong>Total Sales:</strong>
-                            <span id="totalSalesAmount" class="d-block mt-2">$0.00</span>
+                            <span id="totalSalesAmount" class="d-block mt-2">Rs. 0.00</span>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light p-3 rounded text-center shadow-sm">
+                    <div class="col-md-2">
+                        <div class="card bg-secondary p-3 rounded text-center shadow-sm">
                             <strong>Total Paid:</strong>
-                            <span id="totalPaidAmount" class="d-block mt-2">$0.00</span>
+                            <span id="totalPaidAmount" class="d-block mt-2">Rs. 0.00</span>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card bg-light p-3 rounded text-center shadow-sm">
-                            <strong>Total Due:</strong>
-                            <span id="totalDueAmount" class="d-block mt-2">$0.00</span>
+                    <div class="col-md-2">
+                        <div class="card bg-primary p-3 rounded text-center shadow-sm">
+                            <strong>Sale Due Amount:</strong>
+                            <span id="totalDueAmount" class="d-block mt-2">Rs. 0.00</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card bg-danger p-3 rounded text-center shadow-sm">
+                            <strong>Total Customer Due:</strong>
+                            <span id="totalCustomerDue" class="d-block mt-2">Rs. 0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Type Selection -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card p-3 border border-primary">
+                            <h5 class="text-primary">Payment Options</h5>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="paymentType" id="payOpeningBalance" value="opening_balance">
+                                <label class="form-check-label" for="payOpeningBalance">
+                                    <strong>Pay Opening Balance Only</strong>
+                                    <small class="d-block text-muted">Settle customer's opening balance (not related to any sale)</small>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="paymentType" id="paySaleDues" value="sale_dues" checked>
+                                <label class="form-check-label" for="paySaleDues">
+                                    <strong>Pay Sale Dues</strong>
+                                    <small class="d-block text-muted">Pay against specific sales invoices</small>
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="paymentType" id="payBoth" value="both">
+                                <label class="form-check-label" for="payBoth">
+                                    <strong>Pay Both (Opening Balance + Sale Dues)</strong>
+                                    <small class="d-block text-muted">First settle opening balance, then apply to sales</small>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>

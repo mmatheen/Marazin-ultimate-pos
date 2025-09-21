@@ -4033,10 +4033,34 @@
                                 };
                             };
 
+                            // Store current customer before reset
+                            const currentCustomerId = $('#customer-id').val();
+                            
                             // Reset the form and refresh products
                             resetForm();
                             fetchPaginatedProducts(true);
                             fetchSalesData();
+                            
+                            // Refresh customer data to update due amounts after successful sale
+                            // Only for final sales that affect customer balances (not drafts, quotations, suspensions)
+                            if (saleData && saleData.status === 'final' && 
+                                typeof window.customerFunctions !== 'undefined' && 
+                                typeof window.customerFunctions.fetchCustomerData === 'function') {
+                                
+                                window.customerFunctions.fetchCustomerData().then(function() {
+                                    console.log('Customer data refreshed after successful sale');
+                                    
+                                    // Optionally restore the same customer (if it was not Walk-in) to see updated due amounts
+                                    if (currentCustomerId && currentCustomerId !== '1') {
+                                        setTimeout(function() {
+                                            $('#customer-id').val(currentCustomerId);
+                                            $('#customer-id').trigger('change');
+                                        }, 100); // Small delay to ensure dropdown is populated
+                                    }
+                                }).catch(function(error) {
+                                    console.error('Failed to refresh customer data:', error);
+                                });
+                            }
 
                             if (onComplete) onComplete();
 
