@@ -974,35 +974,53 @@ class RolesAndPermissionsSeeder extends Seeder
             ->first();
 
         if ($oldPermission && $newPermission) {
-            // Move role assignments that don't already exist
-            DB::table('role_has_permissions')
-                ->where('permission_id', $oldPermission->id)
+            // Get role assignments that need to be moved (don't already exist with new permission)
+            $roleAssignmentsToMove = DB::table('role_has_permissions as rhp1')
+                ->where('rhp1.permission_id', $oldPermission->id)
                 ->whereNotExists(function ($query) use ($newPermission) {
                     $query->select('*')
                         ->from('role_has_permissions as rhp2')
                         ->where('rhp2.permission_id', $newPermission->id)
-                        ->whereRaw('rhp2.role_id = role_has_permissions.role_id');
+                        ->whereRaw('rhp2.role_id = rhp1.role_id');
                 })
-                ->update(['permission_id' => $newPermission->id]);
+                ->pluck('role_id');
 
-            // Remove remaining old assignments
+            // Update role assignments
+            foreach ($roleAssignmentsToMove as $roleId) {
+                DB::table('role_has_permissions')
+                    ->where('permission_id', $oldPermission->id)
+                    ->where('role_id', $roleId)
+                    ->update(['permission_id' => $newPermission->id]);
+            }
+
+            // Remove remaining old role assignments
             DB::table('role_has_permissions')
                 ->where('permission_id', $oldPermission->id)
                 ->delete();
 
-            // Move model assignments that don't already exist
-            DB::table('model_has_permissions')
-                ->where('permission_id', $oldPermission->id)
+            // Get model assignments that need to be moved (don't already exist with new permission)
+            $modelAssignmentsToMove = DB::table('model_has_permissions as mhp1')
+                ->where('mhp1.permission_id', $oldPermission->id)
                 ->whereNotExists(function ($query) use ($newPermission) {
                     $query->select('*')
                         ->from('model_has_permissions as mhp2')
                         ->where('mhp2.permission_id', $newPermission->id)
-                        ->whereRaw('mhp2.model_type = model_has_permissions.model_type')
-                        ->whereRaw('mhp2.model_id = model_has_permissions.model_id');
+                        ->whereRaw('mhp2.model_type = mhp1.model_type')
+                        ->whereRaw('mhp2.model_id = mhp1.model_id');
                 })
-                ->update(['permission_id' => $newPermission->id]);
+                ->select(['model_type', 'model_id'])
+                ->get();
 
-            // Remove remaining old assignments
+            // Update model assignments
+            foreach ($modelAssignmentsToMove as $assignment) {
+                DB::table('model_has_permissions')
+                    ->where('permission_id', $oldPermission->id)
+                    ->where('model_type', $assignment->model_type)
+                    ->where('model_id', $assignment->model_id)
+                    ->update(['permission_id' => $newPermission->id]);
+            }
+
+            // Remove remaining old model assignments
             DB::table('model_has_permissions')
                 ->where('permission_id', $oldPermission->id)
                 ->delete();
