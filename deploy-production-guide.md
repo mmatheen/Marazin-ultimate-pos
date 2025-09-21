@@ -49,7 +49,8 @@ php artisan optimize
 ```
 
 ## MySQL Production Note
-The seeder has been updated to handle MySQL's subquery limitations. 
+
+The seeder has been updated to handle MySQL's subquery limitations.
 It now uses a two-step process instead of complex UPDATE queries with subqueries.
 
 ## Step 4: Verify Deployment

@@ -120,6 +120,11 @@ class LocationController extends Controller
      */
     public function store(Request $request)
     {
+        // Auto-generate location_id if not provided
+        if (!$request->location_id) {
+            $request->merge(['location_id' => $this->generateLocationId()]);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => [
                 'required',
@@ -197,12 +202,6 @@ class LocationController extends Controller
             'logo_image.max' => 'The logo must not be greater than 2MB.',
         ]);
 
-        // Auto-generate location_id if not provided
-        $location_id = $request->location_id;
-        if (!$location_id) {
-            $location_id = $this->generateLocationId();
-        }
-
         if ($validator->fails()) {
             return response()->json([
                 'status' => false,
@@ -215,7 +214,7 @@ class LocationController extends Controller
         $logoImagePath = null;
         if ($request->hasFile('logo_image')) {
             $file = $request->file('logo_image');
-            $filename = time() . '_' . $location_id . '.' . $file->getClientOriginalExtension();
+            $filename = time() . '_' . $request->location_id . '.' . $file->getClientOriginalExtension();
             $file->move(public_path('storage/location_logos'), $filename);
             $logoImagePath = 'storage/location_logos/' . $filename;
         }
@@ -223,7 +222,7 @@ class LocationController extends Controller
         try {
             $locationData = [
                 'name' => $request->name,
-                'location_id' => $location_id,
+                'location_id' => $request->location_id,
                 'parent_id' => $request->parent_id,
                 'address' => $request->address,
                 'province' => $request->province,
@@ -317,6 +316,11 @@ class LocationController extends Controller
                 ], 404);
             }
 
+            // Auto-generate location_id if not provided
+            if (!$request->location_id) {
+                $request->merge(['location_id' => $this->generateLocationId()]);
+            }
+
             $validator = Validator::make($request->all(), [
                 'name' => [
                     'required',
@@ -347,7 +351,7 @@ class LocationController extends Controller
                     }
                 ],
                 'location_id' => [
-                    'required',
+                    'nullable',
                     'string',
                     'regex:/^LOC\d{4}$/',
                     'unique:locations,location_id,' . $id,
