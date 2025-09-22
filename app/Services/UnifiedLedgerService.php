@@ -35,14 +35,17 @@ class UnifiedLedgerService
      */
     public function recordSale($sale)
     {
+        // Generate a proper reference number for the sale
+        $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
+        
         return Ledger::createEntry([
             'user_id' => $sale->customer_id,
             'contact_type' => 'customer',
             'transaction_date' => $sale->sales_date,
-            'reference_no' => $sale->invoice_no,
+            'reference_no' => $referenceNo,
             'transaction_type' => 'sale',
             'amount' => $sale->final_total,
-            'notes' => "Sale invoice #{$sale->invoice_no}"
+            'notes' => "Sale invoice #{$referenceNo}"
         ]);
     }
 
@@ -51,14 +54,17 @@ class UnifiedLedgerService
      */
     public function recordPurchase($purchase)
     {
+        // Generate a proper reference number for the purchase
+        $referenceNo = $purchase->reference_no ?: 'PUR-' . $purchase->id;
+        
         return Ledger::createEntry([
             'user_id' => $purchase->supplier_id,
             'contact_type' => 'supplier',
             'transaction_date' => $purchase->purchase_date,
-            'reference_no' => $purchase->reference_no,
+            'reference_no' => $referenceNo,
             'transaction_type' => 'purchase',
             'amount' => $purchase->final_total,
-            'notes' => "Purchase invoice #{$purchase->reference_no}"
+            'notes' => "Purchase invoice #{$referenceNo}"
         ]);
     }
 
@@ -74,7 +80,7 @@ class UnifiedLedgerService
             'contact_type' => 'customer',
             'transaction_date' => $payment->payment_date,
             'reference_no' => $referenceNo,
-            'transaction_type' => 'sale_payment',
+            'transaction_type' => 'payments',
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Payment for sale #{$referenceNo}"
         ]);
@@ -92,7 +98,7 @@ class UnifiedLedgerService
             'contact_type' => 'supplier',
             'transaction_date' => $payment->payment_date,
             'reference_no' => $referenceNo,
-            'transaction_type' => 'purchase_payment',
+            'transaction_type' => 'payments',
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Payment for purchase #{$referenceNo}"
         ]);
@@ -103,14 +109,20 @@ class UnifiedLedgerService
      */
     public function recordSaleReturn($saleReturn)
     {
+        // Generate a proper reference number for the sale return
+        $referenceNo = $saleReturn->invoice_number ?: 'SR-' . $saleReturn->id;
+        
+        // Determine transaction type based on whether it's linked to a sale
+        $transactionType = $saleReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+        
         return Ledger::createEntry([
             'user_id' => $saleReturn->customer_id,
             'contact_type' => 'customer',
             'transaction_date' => $saleReturn->return_date,
-            'reference_no' => $saleReturn->return_no,
-            'transaction_type' => 'sale_return',
+            'reference_no' => $referenceNo,
+            'transaction_type' => $transactionType,
             'amount' => $saleReturn->return_total,
-            'notes' => "Sale return #{$saleReturn->return_no}"
+            'notes' => "Sale return #{$referenceNo}"
         ]);
     }
 
@@ -119,14 +131,17 @@ class UnifiedLedgerService
      */
     public function recordPurchaseReturn($purchaseReturn)
     {
+        // Generate a proper reference number for the purchase return
+        $referenceNo = $purchaseReturn->reference_no ?: 'PR-' . $purchaseReturn->id;
+        
         return Ledger::createEntry([
             'user_id' => $purchaseReturn->supplier_id,
             'contact_type' => 'supplier',
             'transaction_date' => $purchaseReturn->return_date,
-            'reference_no' => $purchaseReturn->return_no,
+            'reference_no' => $referenceNo,
             'transaction_type' => 'purchase_return',
             'amount' => $purchaseReturn->return_total,
-            'notes' => "Purchase return #{$purchaseReturn->return_no}"
+            'notes' => "Purchase return #{$referenceNo}"
         ]);
     }
 
@@ -140,9 +155,9 @@ class UnifiedLedgerService
             'contact_type' => $contactType,
             'transaction_date' => $payment->payment_date,
             'reference_no' => $payment->reference_no,
-            'transaction_type' => 'return_payment',
+            'transaction_type' => 'payments',
             'amount' => $payment->amount,
-            'notes' => $payment->notes ?: "Return payment"
+            'notes' => 'Return payment - ' . ($payment->notes ?: "Payment for returned items")
         ]);
     }
 
@@ -156,9 +171,35 @@ class UnifiedLedgerService
             'contact_type' => $contactType,
             'transaction_date' => $payment->payment_date,
             'reference_no' => $payment->reference_no,
-            'transaction_type' => 'opening_balance_payment',
+            'transaction_type' => 'payments',
             'amount' => $payment->amount,
             'notes' => $payment->notes ?: "Opening balance payment"
+        ]);
+    }
+
+    /**
+     * Record opening balance adjustment (when customer/supplier opening balance is updated)
+     */
+    public function recordOpeningBalanceAdjustment($contactId, $contactType, $oldAmount, $newAmount, $notes = '')
+    {
+        $adjustmentAmount = $newAmount - $oldAmount;
+        
+        // Only create ledger entry if there's an actual change
+        if ($adjustmentAmount == 0) {
+            return null;
+        }
+        
+        $adjustmentType = $adjustmentAmount > 0 ? 'increase' : 'decrease';
+        $referenceNo = 'OB-ADJ-' . strtoupper($contactType) . '-' . $contactId . '-' . time();
+        
+        return Ledger::createEntry([
+            'user_id' => $contactId,
+            'contact_type' => $contactType,
+            'transaction_date' => Carbon::now(),
+            'reference_no' => $referenceNo,
+            'transaction_type' => 'opening_balance',
+            'amount' => $adjustmentAmount, // Pass the actual adjustment amount (can be negative)
+            'notes' => $notes ?: "Opening balance adjustment ({$adjustmentType}): {$oldAmount} -> {$newAmount}"
         ]);
     }
 

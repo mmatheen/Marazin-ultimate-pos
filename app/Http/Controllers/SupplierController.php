@@ -5,13 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Supplier;
 use App\Models\Ledger;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
-    function __construct()
+    protected $unifiedLedgerService;
+
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view supplier', ['only' => ['index', 'show','Supplier']]);
         $this->middleware('permission:create supplier', ['only' => ['store']]);
         $this->middleware('permission:edit supplier', ['only' => ['edit', 'update']]);
@@ -179,33 +184,48 @@ class SupplierController extends Controller
                 'errors' => $validator->messages()
             ]);
         } else {
-            $supplier->update([
-                'prefix' => $request->prefix,
-                'first_name' => $request->first_name ?? '',
-                'last_name' => $request->last_name ?? '',
-                'mobile_no' => $request->mobile_no ?? '',
-                'email' => $request->email ?? null,
-                'address' => $request->address ?? '',
-                'opening_balance' => $request->opening_balance ?? 0,
-                'current_balance' => $request->opening_balance ?? 0,
-            ]);
+            try {
+                DB::beginTransaction();
 
-            // Insert ledger entry for updated opening balance
-            Ledger::create([
-                'transaction_date' => now(),
-                'reference_no' => 'OB-' . $supplier->id,
-                'transaction_type' => 'opening_balance',
-                'debit' => $request->opening_balance ?? 0,
-                'credit' => 0,
-                'balance' => $request->opening_balance ?? 0,
-                'contact_type' => 'supplier',
-                'user_id' => $supplier->id,
-            ]);
+                // Store old opening balance for ledger adjustment
+                $oldOpeningBalance = $supplier->opening_balance;
+                $newOpeningBalance = $request->input('opening_balance', $oldOpeningBalance);
 
-            return response()->json([
-                'status' => 200,
-                'message' => "Old Supplier Details Updated Successfully!"
-            ]);
+                $supplier->update([
+                    'prefix' => $request->prefix,
+                    'first_name' => $request->first_name ?? '',
+                    'last_name' => $request->last_name ?? '',
+                    'mobile_no' => $request->mobile_no ?? '',
+                    'email' => $request->email ?? null,
+                    'address' => $request->address ?? '',
+                    'opening_balance' => $newOpeningBalance,
+                    'current_balance' => $newOpeningBalance,
+                ]);
+
+                // Handle opening balance adjustment in ledger
+                if ($oldOpeningBalance != $newOpeningBalance) {
+                    $this->unifiedLedgerService->recordOpeningBalanceAdjustment(
+                        $supplier->id,
+                        'supplier',
+                        $oldOpeningBalance,
+                        $newOpeningBalance,
+                        'Opening balance updated via supplier profile'
+                    );
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'status' => 200,
+                    'message' => "Supplier Details Updated Successfully!"
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => 500,
+                    'message' => "Error updating supplier: " . $e->getMessage()
+                ]);
+            }
         }
     }
 

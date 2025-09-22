@@ -14,6 +14,7 @@ use App\Models\SalesReturn;
 use App\Models\StockHistory;
 use App\Models\SaleImei;
 use App\Models\ImeiNumber;
+use App\Services\UnifiedLedgerService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -28,8 +29,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class SaleController extends Controller
 {
-    function __construct()
+    protected $unifiedLedgerService;
+
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show']]);
         $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
         $this->middleware('permission:access pos', ['only' => ['pos']]);
@@ -568,7 +572,7 @@ class SaleController extends Controller
                     ]);
                     if ($advanceAmount > 0) {
                         $paymentAmount = min($advanceAmount, $finalTotal);
-                        Payment::create([
+                        $payment = Payment::create([
                             'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
                             'amount' => $paymentAmount,
                             'payment_method' => 'cash',
@@ -578,16 +582,9 @@ class SaleController extends Controller
                             'reference_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                         ]);
-                        Ledger::create([
-                            'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
-                            'reference_no' => $referenceNo,
-                            'transaction_type' => 'payments',
-                            'debit' => 0,
-                            'credit' => $paymentAmount,
-                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'credit'),
-                            'contact_type' => 'customer',
-                            'user_id' => $sale->customer_id,
-                        ]);
+                        
+                        // Use unified ledger service for payment
+                        $this->unifiedLedgerService->recordSalePayment($payment, $sale);
                     }
                 }
 
@@ -653,33 +650,8 @@ class SaleController extends Controller
                                 $payment->createReminders();
                             }
 
-                            // Create ledger entry - different handling for cheques vs other payments
-                            if ($paymentData['payment_method'] === 'cheque') {
-                                // For cheques: Always create ledger entry but note the status
-                                Ledger::create([
-                                    'transaction_date' => $payment->payment_date,
-                                    'reference_no' => $referenceNo,
-                                    'transaction_type' => 'payments',
-                                    'debit' => 0,
-                                    'credit' => $payment->amount,
-                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'credit'),
-                                    'contact_type' => 'customer',
-                                    'user_id' => $request->customer_id,
-                                    'notes' => 'Cheque payment - Status: ' . ($paymentData['cheque_status'] ?? 'pending')
-                                ]);
-                            } else {
-                                // For non-cheque payments: Standard ledger entry
-                                Ledger::create([
-                                    'transaction_date' => $payment->payment_date,
-                                    'reference_no' => $referenceNo,
-                                    'transaction_type' => 'payments',
-                                    'debit' => 0,
-                                    'credit' => $payment->amount,
-                                    'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'credit'),
-                                    'contact_type' => 'customer',
-                                    'user_id' => $request->customer_id,
-                                ]);
-                            }
+                            // Use unified ledger service for payment recording
+                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
                         }
 
                         // Calculate total paid for sale completion (include all payments except bounced)
@@ -771,24 +743,14 @@ class SaleController extends Controller
 
                 // ----- Ledger -----
                 if ($isUpdate) {
+                    // For updates, delete old sale ledger entry and create new one
                     Ledger::where('reference_no', $referenceNo)
                         ->where('transaction_type', 'sale')
-                        ->update([
-                            'debit' => $finalTotal,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'debit')
-                        ]);
-                } else {
-                    Ledger::create([
-                        'transaction_date' => $request->sales_date,
-                        'reference_no' => $referenceNo,
-                        'transaction_type' => 'sale',
-                        'debit' => $finalTotal,
-                        'credit' => 0,
-                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'debit'),
-                        'contact_type' => 'customer',
-                        'user_id' => $request->customer_id,
-                    ]);
+                        ->delete();
                 }
+                
+                // Use unified ledger service to record the sale
+                $this->unifiedLedgerService->recordSale($sale);
 
                 $this->updatePaymentStatus($sale);
                 return $sale;

@@ -153,7 +153,7 @@ class PaymentController extends Controller
             
             // Create a payment record for the advance application
             $payment = Payment::create([
-                'payment_date' => now()->format('Y-m-d'),
+                'payment_date' => now()->format('Y-m-d H:i:s'),
                 'amount' => $appliedAmount,
                 'payment_method' => 'advance_adjustment',
                 'payment_type' => 'sale',
@@ -652,7 +652,7 @@ class PaymentController extends Controller
             
             // Create payment record
             $payment = Payment::create([
-                'payment_date' => now()->format('Y-m-d'),
+                'payment_date' => now()->format('Y-m-d H:i:s'),
                 'amount' => $appliedAmount,
                 'payment_method' => 'advance_adjustment',
                 'payment_type' => 'purchase',
@@ -715,8 +715,16 @@ class PaymentController extends Controller
 
     private function preparePaymentData(Request $request)
     {
+        // If only date is provided, use current time. If datetime is provided, use as-is.
+        $paymentDate = $request->payment_date;
+        if (strlen($paymentDate) <= 10) { // Only date provided (Y-m-d format)
+            $paymentDate = Carbon::parse($paymentDate)->setTimeFromTimeString(Carbon::now()->format('H:i:s'));
+        } else {
+            $paymentDate = Carbon::parse($paymentDate);
+        }
+        
         return [
-            'payment_date' => Carbon::parse($request->payment_date)->format('Y-m-d'),
+            'payment_date' => $paymentDate->format('Y-m-d H:i:s'),
             'amount' => $request->amount,
             'payment_method' => $request->payment_method,
             'reference_no' => $request->reference_no,
@@ -1002,9 +1010,9 @@ class PaymentController extends Controller
             // Create opening balance settlement payment
             $this->createOpeningBalancePayment($entity, $openingBalancePayment, $paymentMethod);
             
-            // Update opening balance
-            $entity->opening_balance -= $openingBalancePayment;
-            $entity->save();
+            // DO NOT update opening balance - it should remain historical
+            // The opening balance is historical data and should never change
+            // Payment entries will handle the balance reduction
             
             // Reduce remaining amount
             $remainingAmount -= $openingBalancePayment;
@@ -1020,7 +1028,7 @@ class PaymentController extends Controller
         $referenceNo = 'OB-PAYMENT-' . $entity->id . '-' . time();
 
         $paymentData = [
-            'payment_date' => Carbon::today()->format('Y-m-d'),
+            'payment_date' => Carbon::now()->format('Y-m-d H:i:s'),
             'amount' => $amount,
             'payment_method' => $paymentMethod,
             'payment_type' => 'opening_balance',
@@ -1096,7 +1104,7 @@ class PaymentController extends Controller
     private function createBulkPayment($reference, $amount, $paymentMethod, $entityType, $entityId, $notes, $request)
     {
         $paymentData = [
-            'payment_date' => Carbon::today()->format('Y-m-d'),
+            'payment_date' => Carbon::now()->format('Y-m-d H:i:s'),
             'amount' => $amount,
             'payment_method' => $paymentMethod,
             'payment_type' => $entityType === 'supplier' ? 'purchase' : 'sale',

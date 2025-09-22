@@ -6,8 +6,10 @@ use App\Models\SalesReturn;
 use App\Models\SalesReturnProduct;
 use App\Models\Batch;
 use App\Models\Ledger;
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\Customer;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,8 +20,11 @@ use Carbon\Carbon;
 
 class SaleReturnController extends Controller
 {
-    function __construct()
+    protected $unifiedLedgerService;
+
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view sale-return', ['only' => ['listSaleReturn', 'index', 'show']]);
         $this->middleware('permission:create sale-return', ['only' => ['addSaleReturn', 'store']]);
         $this->middleware('permission:edit sale-return', ['only' => ['edit', 'update']]);
@@ -78,6 +83,17 @@ class SaleReturnController extends Controller
             'products.*.price_type' => 'required|string',
             'products.*.discount' => 'nullable|numeric',
             'products.*.tax' => 'nullable|numeric',
+            // Payment validation rules
+            'payments' => 'nullable|array',
+            'payments.*.payment_date' => 'required_with:payments|date',
+            'payments.*.amount' => 'required_with:payments|numeric|min:0.01',
+            'payments.*.payment_method' => 'required_with:payments|in:cash,card,cheque,bank_transfer,online',
+            'payments.*.notes' => 'nullable|string',
+            'payments.*.card_number' => 'required_if:payments.*.payment_method,card|nullable|string',
+            'payments.*.card_holder_name' => 'required_if:payments.*.payment_method,card|nullable|string',
+            'payments.*.cheque_number' => 'required_if:payments.*.payment_method,cheque|nullable|string',
+            'payments.*.cheque_bank_branch' => 'required_if:payments.*.payment_method,cheque|nullable|string',
+            'payments.*.cheque_valid_date' => 'required_if:payments.*.payment_method,cheque|nullable|date',
         ]);
 
         if ($validator->fails()) {
@@ -140,44 +156,84 @@ class SaleReturnController extends Controller
             // Update total due
             $salesReturn->updateTotalDue();
 
-            // Insert ledger entry for the sales return
-            Ledger::create([
-                'transaction_date' => $request->return_date,
-                'reference_no' => $salesReturn->reference_no,
-                'transaction_type' => $transactionType,
-                'debit' => 0,
-                'credit' => $request->return_total,
-                'balance' => $this->calculateNewBalance($request->customer_id, $request->return_total, 'credit'),
-                'contact_type' => 'customer',
-                'user_id' => $request->customer_id,
-            ]);
+            // Use unified ledger service to record the sale return
+            $this->unifiedLedgerService->recordSaleReturn($salesReturn);
+
+            // Process payments if provided
+            if ($request->has('payments') && is_array($request->payments)) {
+                // Generate reference number for payments
+                $referenceNo = 'SRT-' . $salesReturn->id . '-' . time();
+
+                // Delete existing payments if updating
+                if ($id) {
+                    Payment::where('reference_id', $salesReturn->id)
+                        ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
+                        ->delete();
+                }
+
+                // Determine payment type based on whether it's with bill or without bill
+                $paymentType = $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+
+                foreach ($request->payments as $paymentData) {
+                    // Prepare payment data with enhanced cheque handling
+                    $paymentCreateData = [
+                        'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                        'amount' => $paymentData['amount'],
+                        'payment_method' => $paymentData['payment_method'],
+                        'reference_no' => $referenceNo,
+                        'notes' => $paymentData['notes'] ?? '',
+                        'payment_type' => $paymentType,
+                        'reference_id' => $salesReturn->id,
+                        'customer_id' => $salesReturn->customer_id,
+                    ];
+
+                    // Add payment method specific fields
+                    if ($paymentData['payment_method'] === 'card') {
+                        $paymentCreateData = array_merge($paymentCreateData, [
+                            'card_number' => $paymentData['card_number'] ?? null,
+                            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                            'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                            'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                            'card_security_code' => $paymentData['card_security_code'] ?? null,
+                        ]);
+                    } elseif ($paymentData['payment_method'] === 'cheque') {
+                        $paymentCreateData = array_merge($paymentCreateData, [
+                            'cheque_number' => $paymentData['cheque_number'] ?? null,
+                            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ? 
+                                Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? 
+                                Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                            // Enhanced cheque fields
+                            'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
+                            'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
+                        ]);
+                    } else {
+                        // For cash, bank_transfer, etc.
+                        $paymentCreateData['payment_status'] = 'completed';
+                    }
+
+                    $payment = Payment::create($paymentCreateData);
+
+                    // Create cheque reminders if it's a cheque payment
+                    if ($paymentData['payment_method'] === 'cheque' && isset($paymentData['cheque_valid_date'])) {
+                        $payment->createReminders();
+                    }
+
+                    // Use unified ledger service for return payment recording
+                    $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
+                }
+
+                // Update total paid and total due for the sale return
+                $salesReturn->updateTotalDue();
+            }
         });
 
         return response()->json(['status' => 200, 'message' => 'Sales return recorded successfully!']);
     }
 
-    private function calculateNewBalance($customerId, $amount, $type)
-    {
-        $lastLedger = Ledger::where('user_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->orderBy('transaction_date', 'desc')
-            ->first();
 
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
-
-        $newBalance = $type === 'debit'
-            ? $previousBalance + $amount  // Debit increases customer debt
-            : $previousBalance - $amount; // Credit decreases customer debt
-
-        // Sync to customer current balance
-        $customer = Customer::find($customerId);
-        if ($customer) {
-            $customer->current_balance = $newBalance;
-            $customer->saveQuietly();
-        }
-
-        return $newBalance;
-    }
     /**
      * Get all sale returns.
      */

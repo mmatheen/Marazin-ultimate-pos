@@ -10,15 +10,18 @@ use App\Models\City;
 use App\Models\CustomerGroup;
 use App\Models\SalesRep;
 use App\Models\User;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
 {
+    protected $unifiedLedgerService;
 
-    function __construct()
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
+        $this->unifiedLedgerService = $unifiedLedgerService;
         // $this->middleware('permission:view customer', ['only' => ['index', 'show', 'Customer']]);
         $this->middleware('permission:create customer', ['only' => ['store']]);
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
@@ -323,6 +326,10 @@ class CustomerController extends Controller
             try {
                 DB::beginTransaction();
 
+                // Store old opening balance for ledger adjustment
+                $oldOpeningBalance = $customer->opening_balance;
+                $newOpeningBalance = $request->input('opening_balance', $oldOpeningBalance);
+
                 $customerData = $request->only([
                     'prefix',
                     'first_name',
@@ -347,6 +354,17 @@ class CustomerController extends Controller
                 }
 
                 $customer->update($customerData);
+
+                // Handle opening balance adjustment in ledger
+                if ($oldOpeningBalance != $newOpeningBalance) {
+                    $this->unifiedLedgerService->recordOpeningBalanceAdjustment(
+                        $customer->id,
+                        'customer',
+                        $oldOpeningBalance,
+                        $newOpeningBalance,
+                        'Opening balance updated via API'
+                    );
+                }
 
                 DB::commit();
 

@@ -94,46 +94,31 @@ class Ledger extends Model
     // Calculate balance cumulatively for each transaction using unified ledger logic
     public static function calculateBalance($user_id, $contact_type)
     {
-        // Get all ledgers for the given user and contact type, ordered by transaction date
-        // Use CASE to prioritize opening_balance entries first, then order by date and id
+        // Get all ledgers for the given user and contact type, ordered by transaction date and creation time
+        // Opening balance should be first, then chronological order by actual date/time
         $ledgers = self::where('user_id', $user_id)
                         ->where('contact_type', $contact_type)
                         ->orderByRaw("
                             CASE 
                                 WHEN transaction_type = 'opening_balance' THEN 1
-                                WHEN transaction_type = 'sale' THEN 2
-                                WHEN transaction_type = 'purchase' THEN 2
-                                WHEN transaction_type = 'opening_balance_payment' THEN 3
-                                WHEN transaction_type = 'payments' THEN 4
-                                WHEN transaction_type = 'sale_payment' THEN 4
-                                WHEN transaction_type = 'purchase_payment' THEN 4
-                                WHEN transaction_type = 'sale_return' THEN 5
-                                WHEN transaction_type = 'purchase_return' THEN 5
-                                WHEN transaction_type = 'return_payment' THEN 6
-                                ELSE 7
+                                ELSE 2
                             END
                         ")
                         ->orderBy('transaction_date', 'asc')
+                        ->orderBy('created_at', 'asc')
                         ->orderBy('id', 'asc')
                         ->get();
 
-        $previous_balance = 0;
+        $running_balance = 0;
 
         foreach ($ledgers as $ledger) {
-            // Unified ledger logic: debit/credit calculation
-            // For both customers and suppliers: running_balance = previous_balance + debit - credit
+            // Unified ledger logic: running_balance = previous_balance + debit - credit
             // The transaction type determines what goes to debit vs credit based on business logic
-            $balance = $previous_balance + $ledger->debit - $ledger->credit;
-
-            // Update the balance in the ledger record
-            $ledger->balance = $balance;
-            $ledger->save();
-
-            // Set the previous balance for the next iteration
-            $previous_balance = $balance;
+            $running_balance = $running_balance + $ledger->debit - $ledger->credit;
         }
 
-        return $previous_balance;
+        // Return the final calculated balance without updating any records
+        return $running_balance;
     }
 
     /**
@@ -219,12 +204,23 @@ class Ledger extends Model
 
             case 'sale_payment':
             case 'payments':
-                // Customer payment reduces what they owe us (credit)
-                if ($data['contact_type'] === 'customer') {
-                    $credit = $data['amount'];
+                // Check if this is a return payment based on notes
+                if (isset($data['notes']) && strpos(strtolower($data['notes']), 'return') !== false) {
+                    // Return payment: when we pay customer for returns, it's a debit (money flowing out to customer)
+                    if ($data['contact_type'] === 'customer') {
+                        $debit = $data['amount'];
+                    } else {
+                        // Return payment from supplier (money coming in from supplier) is credit
+                        $credit = $data['amount'];
+                    }
                 } else {
-                    // Supplier payment reduces what we owe them (debit)
-                    $debit = $data['amount'];
+                    // Regular payment: customer paying us reduces what they owe (credit)
+                    // Supplier payment: we pay supplier, reduces what we owe them (debit)
+                    if ($data['contact_type'] === 'customer') {
+                        $credit = $data['amount'];
+                    } else {
+                        $debit = $data['amount'];
+                    }
                 }
                 break;
 
@@ -234,6 +230,8 @@ class Ledger extends Model
                 break;
 
             case 'sale_return':
+            case 'sale_return_with_bill':
+            case 'sale_return_without_bill':
                 // Sale return reduces what customer owes us (credit)
                 $credit = $data['amount'];
                 break;
@@ -244,12 +242,13 @@ class Ledger extends Model
                 break;
 
             case 'return_payment':
-                // Return payment to customer increases what we owe them (debit)
+                // Return payment to customer reduces what they owe us (credit)
+                // Return payment from supplier reduces what we owe them (debit)
                 if ($data['contact_type'] === 'customer') {
-                    $debit = $data['amount'];
-                } else {
-                    // Return payment from supplier increases what they owe us (credit)
                     $credit = $data['amount'];
+                } else {
+                    // Return payment from supplier reduces what we owe them (debit)
+                    $debit = $data['amount'];
                 }
                 break;
 
@@ -266,7 +265,17 @@ class Ledger extends Model
                 throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
         }
 
-        // Create the ledger entry
+        // Get the previous balance from the most recent entry
+        $previousBalance = self::where('user_id', $data['user_id'])
+            ->where('contact_type', $data['contact_type'])
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('balance') ?? 0;
+
+        // Calculate the new balance for this entry only
+        $newBalance = $previousBalance + $debit - $credit;
+
+        // Create the ledger entry with the calculated balance
         $ledger = self::create([
             'user_id' => $data['user_id'],
             'contact_type' => $data['contact_type'],
@@ -275,12 +284,9 @@ class Ledger extends Model
             'transaction_type' => $data['transaction_type'],
             'debit' => $debit,
             'credit' => $credit,
-            'balance' => 0, // Will be calculated by calculateBalance
+            'balance' => $newBalance, // Calculated balance for this entry only
             'notes' => $data['notes'] ?? ''
         ]);
-
-        // Recalculate balances for this user
-        self::calculateBalance($data['user_id'], $data['contact_type']);
 
         return $ledger;
     }
