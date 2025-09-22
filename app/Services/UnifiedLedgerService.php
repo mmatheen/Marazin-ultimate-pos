@@ -414,4 +414,162 @@ class UnifiedLedgerService
         // This method can be used to migrate existing sales, purchases, payments etc. to the unified ledger
         // Implementation would depend on your specific migration needs
     }
+
+    /**
+     * Update sale transaction - properly handles ledger cleanup and recreation
+     */
+    public function updateSale($sale, $oldReferenceNo = null)
+    {
+        // Clean up old ledger entries for this sale
+        $referenceNo = $oldReferenceNo ?: ($sale->invoice_no ?: 'INV-' . $sale->id);
+        
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'sale')
+            ->where('user_id', $sale->customer_id)
+            ->delete();
+            
+        // Also clean up any associated payment entries for this sale
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'payment')
+            ->where('user_id', $sale->customer_id)
+            ->delete();
+            
+        // Record the updated sale
+        return $this->recordSale($sale);
+    }
+
+    /**
+     * Update purchase transaction - properly handles ledger cleanup and recreation
+     */
+    public function updatePurchase($purchase, $oldReferenceNo = null)
+    {
+        // Clean up old ledger entries for this purchase
+        $referenceNo = $oldReferenceNo ?: ('PUR-' . $purchase->id);
+        
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'purchase')
+            ->where('user_id', $purchase->supplier_id)
+            ->delete();
+            
+        // Also clean up any associated payment entries for this purchase
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'payment')
+            ->where('user_id', $purchase->supplier_id)
+            ->delete();
+            
+        // Record the updated purchase
+        return $this->recordPurchase($purchase);
+    }
+
+    /**
+     * Update payment - properly handles ledger cleanup and recreation
+     */
+    public function updatePayment($payment, $oldPayment = null)
+    {
+        // If we have old payment data, clean it up first
+        if ($oldPayment) {
+            $oldReferenceNo = $oldPayment->reference_no ?: 'PAY-' . $oldPayment->id;
+            Ledger::where('reference_no', $oldReferenceNo)
+                ->where('transaction_type', 'payment')
+                ->where('user_id', $oldPayment->customer_id ?: $oldPayment->supplier_id)
+                ->delete();
+        }
+        
+        // Determine contact type and record appropriate payment
+        if ($payment->customer_id) {
+            return $this->recordSalePayment($payment);
+        } elseif ($payment->supplier_id) {
+            return $this->recordPurchasePayment($payment);
+        }
+        
+        throw new \Exception('Payment must have either customer_id or supplier_id');
+    }
+
+    /**
+     * Update sale return - properly handles ledger cleanup and recreation
+     */
+    public function updateSaleReturn($saleReturn, $oldReferenceNo = null)
+    {
+        // Clean up old ledger entries for this return
+        $referenceNo = $oldReferenceNo ?: ('SR-' . $saleReturn->id);
+        
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'sale_return')
+            ->where('user_id', $saleReturn->customer_id)
+            ->delete();
+            
+        // Record the updated return
+        return $this->recordSaleReturn($saleReturn);
+    }
+
+    /**
+     * Update purchase return - properly handles ledger cleanup and recreation
+     */
+    public function updatePurchaseReturn($purchaseReturn, $oldReferenceNo = null)
+    {
+        // Clean up old ledger entries for this return
+        $referenceNo = $oldReferenceNo ?: ('PR-' . $purchaseReturn->id);
+        
+        Ledger::where('reference_no', $referenceNo)
+            ->where('transaction_type', 'purchase_return')
+            ->where('user_id', $purchaseReturn->supplier_id)
+            ->delete();
+            
+        // Record the updated return
+        return $this->recordPurchaseReturn($purchaseReturn);
+    }
+
+    /**
+     * Delete transaction ledger entries - for when transactions are completely removed
+     */
+    public function deleteSaleLedger($sale)
+    {
+        $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
+        
+        return Ledger::where('reference_no', $referenceNo)
+            ->where('user_id', $sale->customer_id)
+            ->whereIn('transaction_type', ['sale', 'payment'])
+            ->delete();
+    }
+
+    /**
+     * Delete purchase ledger entries - for when transactions are completely removed
+     */
+    public function deletePurchaseLedger($purchase)
+    {
+        $referenceNo = 'PUR-' . $purchase->id;
+        
+        return Ledger::where('reference_no', $referenceNo)
+            ->where('user_id', $purchase->supplier_id)
+            ->whereIn('transaction_type', ['purchase', 'payment'])
+            ->delete();
+    }
+
+    /**
+     * Delete payment ledger entries - for when payments are removed
+     */
+    public function deletePaymentLedger($payment)
+    {
+        $referenceNo = $payment->reference_no ?: 'PAY-' . $payment->id;
+        $userId = $payment->customer_id ?: $payment->supplier_id;
+        
+        return Ledger::where('reference_no', $referenceNo)
+            ->where('user_id', $userId)
+            ->where('transaction_type', 'payment')
+            ->delete();
+    }
+
+    /**
+     * Delete return ledger entries - for when returns are removed
+     */
+    public function deleteReturnLedger($return, $type = 'sale_return')
+    {
+        $referenceNo = $type === 'sale_return' ? 'SR-' . $return->id : 'PR-' . $return->id;
+        $userId = $type === 'sale_return' ? $return->customer_id : $return->supplier_id;
+        
+        return Ledger::where('reference_no', $referenceNo)
+            ->where('user_id', $userId)
+            ->where('transaction_type', $type)
+            ->delete();
+    }
 }

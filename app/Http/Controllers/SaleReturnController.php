@@ -156,8 +156,14 @@ class SaleReturnController extends Controller
             // Update total due
             $salesReturn->updateTotalDue();
 
-            // Use unified ledger service to record the sale return
-            $this->unifiedLedgerService->recordSaleReturn($salesReturn);
+            // Use unified ledger service to record or update the sale return
+            if ($id) {
+                // For updates, use updateSaleReturn method
+                $this->unifiedLedgerService->updateSaleReturn($salesReturn);
+            } else {
+                // For new returns, use recordSaleReturn method
+                $this->unifiedLedgerService->recordSaleReturn($salesReturn);
+            }
 
             // Process payments if provided
             if ($request->has('payments') && is_array($request->payments)) {

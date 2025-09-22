@@ -598,9 +598,7 @@ class SaleController extends Controller
 
                         if ($isUpdate) {
                             Payment::where('reference_id', $sale->id)->delete();
-                            Ledger::where('reference_no', $referenceNo)
-                                ->where('transaction_type', 'payments')
-                                ->delete();
+                            // Note: Ledger entries will be managed by UnifiedLedgerService
                         }
 
                         foreach ($request->payments as $paymentData) {
@@ -743,14 +741,12 @@ class SaleController extends Controller
 
                 // ----- Ledger -----
                 if ($isUpdate) {
-                    // For updates, delete old sale ledger entry and create new one
-                    Ledger::where('reference_no', $referenceNo)
-                        ->where('transaction_type', 'sale')
-                        ->delete();
+                    // For updates, use updateSale method to handle proper cleanup and recreation
+                    $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                } else {
+                    // For new sales, use regular recordSale method
+                    $this->unifiedLedgerService->recordSale($sale);
                 }
-                
-                // Use unified ledger service to record the sale
-                $this->unifiedLedgerService->recordSale($sale);
 
                 $this->updatePaymentStatus($sale);
                 return $sale;
@@ -832,30 +828,6 @@ class SaleController extends Controller
             return response()->json(['message' => $e->getMessage()], 400);
             
         }
-    }
-
-
-    private function calculateNewBalance($customerId, $amount, $type)
-    {
-        $lastLedger = Ledger::where('user_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->orderBy('transaction_date', 'desc')
-            ->first();
-
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
-
-        $newBalance = $type === 'debit'
-            ? $previousBalance + $amount  // Debit increases customer debt
-            : $previousBalance - $amount; // Credit decreases customer debt
-
-        // Sync to customer current balance
-        $customer = Customer::find($customerId);
-        if ($customer) {
-            $customer->current_balance = $newBalance;
-            $customer->saveQuietly();
-        }
-
-        return $newBalance;
     }
 
     private function updatePaymentStatus($sale)

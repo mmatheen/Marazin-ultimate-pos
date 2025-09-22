@@ -94,8 +94,8 @@ class Ledger extends Model
     // Calculate balance cumulatively for each transaction using unified ledger logic
     public static function calculateBalance($user_id, $contact_type)
     {
-        // Get all ledgers for the given user and contact type, ordered by transaction date and creation time
-        // Opening balance should be first, then chronological order by actual date/time
+        // Get all ledgers for the given user and contact type, ordered by creation time in Asia/Colombo timezone
+        // Opening balance should be first, then chronological order by created_at timestamps in Colombo time
         $ledgers = self::where('user_id', $user_id)
                         ->where('contact_type', $contact_type)
                         ->orderByRaw("
@@ -104,8 +104,7 @@ class Ledger extends Model
                                 ELSE 2
                             END
                         ")
-                        ->orderBy('transaction_date', 'asc')
-                        ->orderBy('created_at', 'asc')
+                        ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') ASC")
                         ->orderBy('id', 'asc')
                         ->get();
 
@@ -128,7 +127,7 @@ class Ledger extends Model
     {
         $latestEntry = self::where('user_id', $user_id)
             ->where('contact_type', $contact_type)
-            ->orderBy('transaction_date', 'desc')
+            ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') DESC")
             ->orderBy('id', 'desc')
             ->first();
 
@@ -210,8 +209,8 @@ class Ledger extends Model
                     if ($data['contact_type'] === 'customer') {
                         $debit = $data['amount'];
                     } else {
-                        // Return payment from supplier (money coming in from supplier) is credit
-                        $credit = $data['amount'];
+                        // Return payment from supplier (money coming in from supplier) reduces what we owe them = DEBIT
+                        $debit = $data['amount'];
                     }
                 } else {
                     // Regular payment: customer paying us reduces what they owe (credit)
@@ -265,17 +264,7 @@ class Ledger extends Model
                 throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
         }
 
-        // Get the previous balance from the most recent entry
-        $previousBalance = self::where('user_id', $data['user_id'])
-            ->where('contact_type', $data['contact_type'])
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->value('balance') ?? 0;
-
-        // Calculate the new balance for this entry only
-        $newBalance = $previousBalance + $debit - $credit;
-
-        // Create the ledger entry with the calculated balance
+        // Create the ledger entry first without balance
         $ledger = self::create([
             'user_id' => $data['user_id'],
             'contact_type' => $data['contact_type'],
@@ -284,11 +273,47 @@ class Ledger extends Model
             'transaction_type' => $data['transaction_type'],
             'debit' => $debit,
             'credit' => $credit,
-            'balance' => $newBalance, // Calculated balance for this entry only
+            'balance' => 0, // Temporary, will be recalculated
             'notes' => $data['notes'] ?? ''
         ]);
 
+        // Now recalculate all balance fields for this user/contact_type to ensure chronological order
+        self::recalculateAllBalances($data['user_id'], $data['contact_type']);
+
+        // Refresh the ledger model to get the updated balance
+        $ledger->refresh();
+
         return $ledger;
+    }
+
+    /**
+     * Recalculate all balance fields for a specific user and contact type in chronological order
+     * This ensures that balance fields are always correct regardless of entry creation order
+     */
+    public static function recalculateAllBalances($user_id, $contact_type)
+    {
+        // Get all entries in chronological order based on created_at timestamps in Asia/Colombo timezone
+        $entries = self::where('user_id', $user_id)
+                      ->where('contact_type', $contact_type)
+                      ->orderByRaw("
+                          CASE 
+                              WHEN transaction_type = 'opening_balance' THEN 1
+                              ELSE 2
+                          END
+                      ")
+                      ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') ASC")
+                      ->orderBy('id', 'asc')
+                      ->get();
+
+        $running_balance = 0;
+
+        foreach ($entries as $entry) {
+            $running_balance = $running_balance + $entry->debit - $entry->credit;
+            
+            // Update only the balance field without changing created_at/updated_at
+            self::where('id', $entry->id)
+                ->update(['balance' => $running_balance]);
+        }
     }
 
     /**

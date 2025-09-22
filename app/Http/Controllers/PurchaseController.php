@@ -7,7 +7,7 @@ use App\Models\Supplier;
 use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\ImeiNumber;
-use App\Services\SupplierLedgerService;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Models\Payment;
@@ -20,11 +20,11 @@ use Carbon\Carbon;
 
 class PurchaseController extends Controller
 {
-    protected $ledgerService;
+    protected $unifiedLedgerService;
 
-    function __construct(SupplierLedgerService $ledgerService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
-        $this->ledgerService = $ledgerService;
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view purchase', ['only' => ['listPurchase', 'index', 'show']]);
         $this->middleware('permission:create purchase', ['only' => ['AddPurchase', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase', ['only' => ['editPurchase', 'update', 'storeOrUpdate']]);
@@ -142,22 +142,21 @@ class PurchaseController extends Controller
             $this->processProducts($request, $purchase);
 
             // Handle ledger entries properly
+            // Handle ledger recording/updating
             if ($isUpdate) {
-                // For updates, remove old ledger entries first
-                $this->ledgerService->deleteLedgerEntries($purchase->reference_no, $purchase->supplier_id);
+                // For updates, use updatePurchase method to handle cleanup and recreation
+                $this->unifiedLedgerService->updatePurchase($purchase);
+            } else {
+                // Record purchase in ledger for new purchases
+                $this->unifiedLedgerService->recordPurchase($purchase);
             }
-
-            // Record purchase in ledger with correct timestamp
-            $transactionDate = Carbon::parse($request->purchase_date);
-            $this->ledgerService->recordPurchase($purchase, $transactionDate);
 
             // Handle payment if paid_amount is provided
             if ($request->paid_amount > 0) {
                 $this->handlePayment($request, $purchase);
             }
 
-            // Recalculate supplier balance
-            $this->ledgerService->recalculateSupplierBalance($purchase->supplier_id);
+            // Note: UnifiedLedgerService automatically handles balance calculations
         });
 
         return response()->json(['status' => 200, 'message' => 'Purchase ' . ($purchaseId ? 'updated' : 'recorded') . ' successfully!']);
@@ -166,7 +165,8 @@ class PurchaseController extends Controller
     // Helper method to update supplier's current balance
     private function updateSupplierBalance($supplierId)
     {
-        $this->ledgerService->recalculateSupplierBalance($supplierId);
+        // Note: UnifiedLedgerService automatically handles balance calculations
+        // No manual recalculation needed
     }
 
     private function processProducts($request, $purchase)
@@ -396,8 +396,8 @@ class PurchaseController extends Controller
             'cheque_given_by' => $request->cheque_given_by,
         ]);
 
-        // Record payment in ledger using the service
-        $this->ledgerService->recordPurchasePayment($payment, $purchase);
+        // Record payment in ledger using the unified service
+        $this->unifiedLedgerService->recordPurchasePayment($payment, $purchase);
 
         // Update the total_paid field and recalculate payment status
         $purchase->updateTotalDue();

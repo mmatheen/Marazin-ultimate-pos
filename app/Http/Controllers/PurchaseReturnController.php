@@ -10,7 +10,7 @@ use App\Models\PurchaseReturn;
 use App\Models\PurchaseProduct;
 use App\Models\PurchaseReturnProduct;
 use App\Models\StockHistory;
-use App\Services\SupplierLedgerService;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -18,11 +18,11 @@ use Illuminate\Support\Facades\DB;
 
 class PurchaseReturnController extends Controller
 {
-    protected $ledgerService;
+    protected $unifiedLedgerService;
 
-    function __construct(SupplierLedgerService $ledgerService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
-        $this->ledgerService = $ledgerService;
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view purchase-return', ['only' => ['purchaseReturn', 'index', 'show']]);
         $this->middleware('permission:create purchase-return', ['only' => ['addPurchaseReturn', 'store', 'storeOrUpdate']]);
         $this->middleware('permission:edit purchase-return', ['only' => ['edit', 'update', 'storeOrUpdate']]);
@@ -102,8 +102,7 @@ class PurchaseReturnController extends Controller
 
                 // If updating, reverse stock adjustments for existing products
                 if ($isUpdate) {
-                    // Remove old ledger entries first
-                    $this->ledgerService->deleteLedgerEntries($purchaseReturn->reference_no, $purchaseReturn->supplier_id);
+                    // Note: UnifiedLedgerService will handle ledger cleanup automatically
                     
                     $existingProducts = $purchaseReturn->purchaseReturnProducts;
                     foreach ($existingProducts as $existingProduct) {
@@ -132,12 +131,14 @@ class PurchaseReturnController extends Controller
                     $this->processProductReturn($productData, $purchaseReturn->id, $request->location_id);
                 }
 
-                // Record purchase return in ledger with correct timestamp
-                $transactionDate = Carbon::parse($request->return_date);
-                $this->ledgerService->recordPurchaseReturn($purchaseReturn, $transactionDate);
+                // Record or update purchase return in ledger
+                if ($isUpdate) {
+                    $this->unifiedLedgerService->updatePurchaseReturn($purchaseReturn);
+                } else {
+                    $this->unifiedLedgerService->recordPurchaseReturn($purchaseReturn);
+                }
 
-                // Recalculate supplier balance
-                $this->ledgerService->recalculateSupplierBalance($request->supplier_id);
+                // Note: UnifiedLedgerService automatically handles balance calculations
             });
 
             $message = $purchaseReturnId ? 'Purchase return updated successfully!' : 'Purchase return recorded successfully!';

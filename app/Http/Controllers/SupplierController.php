@@ -92,17 +92,13 @@ class SupplierController extends Controller
             ]);
 
             // Insert ledger entry for opening balance
-            if ($supplier) {
-                Ledger::create([
-                    'transaction_date' => now(),
-                    'reference_no' => 'OB-' . $supplier->id,
-                    'transaction_type' => 'opening_balance',
-                    'debit' => $request->opening_balance ?? 0,
-                    'credit' => 0,
-                    'balance' => $request->opening_balance ?? 0,
-                    'contact_type' => 'supplier',
-                    'user_id' => $supplier->id,
-                ]);
+            if ($supplier && ($request->opening_balance ?? 0) != 0) {
+                $this->unifiedLedgerService->recordOpeningBalance(
+                    $supplier->id,
+                    'supplier',
+                    $request->opening_balance ?? 0,
+                    'Opening balance for supplier: ' . $supplier->first_name . ' ' . $supplier->last_name
+                );
 
                 return response()->json([
                     'status' => 200,

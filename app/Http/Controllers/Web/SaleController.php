@@ -24,12 +24,16 @@ use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use App\Models\JobTicket;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\UnifiedLedgerService;
 
 
 class SaleController extends Controller
 {
-    function __construct()
+    protected $unifiedLedgerService;
+
+    function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view sale', ['only' => ['listSale']]);
         $this->middleware('permission:add sale', ['only' => ['addSale']]);
         $this->middleware('permission:pos page', ['only' => ['pos']]);
@@ -497,7 +501,7 @@ class SaleController extends Controller
                     ]);
                     if ($advanceAmount > 0) {
                         $paymentAmount = min($advanceAmount, $finalTotal);
-                        Payment::create([
+                        $payment = Payment::create([
                             'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
                             'amount' => $paymentAmount,
                             'payment_method' => 'cash',
@@ -507,16 +511,9 @@ class SaleController extends Controller
                             'reference_id' => $sale->id,
                             'customer_id' => $sale->customer_id,
                         ]);
-                        Ledger::create([
-                            'transaction_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
-                            'reference_no' => $referenceNo,
-                            'transaction_type' => 'payments',
-                            'debit' => $paymentAmount,
-                            'credit' => 0,
-                            'balance' => $this->calculateNewBalance($sale->customer_id, $paymentAmount, 'debit'),
-                            'contact_type' => 'customer',
-                            'user_id' => $sale->customer_id,
-                        ]);
+                        
+                        // Record payment in unified ledger
+                        $this->unifiedLedgerService->recordSalePayment($payment);
                     }
                 }
 
@@ -557,16 +554,8 @@ class SaleController extends Controller
                                 'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
                             ]);
 
-                            Ledger::create([
-                                'transaction_date' => $payment->payment_date,
-                                'reference_no' => $referenceNo,
-                                'transaction_type' => 'payments',
-                                'debit' => $payment->amount,
-                                'credit' => 0,
-                                'balance' => $this->calculateNewBalance($request->customer_id, $payment->amount, 'debit'),
-                                'contact_type' => 'customer',
-                                'user_id' => $request->customer_id,
-                            ]);
+                            // Record payment in unified ledger
+                            $this->unifiedLedgerService->recordSalePayment($payment);
                         }
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
@@ -628,23 +617,11 @@ class SaleController extends Controller
 
                 // ----- Ledger -----
                 if ($isUpdate) {
-                    Ledger::where('reference_no', $referenceNo)
-                        ->where('transaction_type', 'sale')
-                        ->update([
-                            'credit' => $finalTotal,
-                            'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit')
-                        ]);
+                    // For updates, use updateSale method to handle proper cleanup and recreation
+                    $this->unifiedLedgerService->updateSale($sale);
                 } else {
-                    Ledger::create([
-                        'transaction_date' => $request->sales_date,
-                        'reference_no' => $referenceNo,
-                        'transaction_type' => 'sale',
-                        'debit' => 0,
-                        'credit' => $finalTotal,
-                        'balance' => $this->calculateNewBalance($request->customer_id, $finalTotal, 'credit'),
-                        'contact_type' => 'customer',
-                        'user_id' => $request->customer_id,
-                    ]);
+                    // Record sale in unified ledger for new sales
+                    $this->unifiedLedgerService->recordSale($sale);
                 }
 
                 $this->updatePaymentStatus($sale);
@@ -729,29 +706,6 @@ class SaleController extends Controller
         }
     }
 
-
-    private function calculateNewBalance($customerId, $amount, $type)
-    {
-        $lastLedger = Ledger::where('user_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->orderBy('transaction_date', 'desc')
-            ->first();
-
-        $previousBalance = $lastLedger ? $lastLedger->balance : 0;
-
-        $newBalance = $type === 'debit'
-            ? $previousBalance - $amount
-            : $previousBalance + $amount;
-
-        // Sync to customer current balance
-        $customer = Customer::find($customerId);
-        if ($customer) {
-            $customer->current_balance = $newBalance;
-            $customer->saveQuietly();
-        }
-
-        return $newBalance;
-    }
 
     private function updatePaymentStatus($sale)
     {
