@@ -91,7 +91,7 @@ class Ledger extends Model
         return number_format($this->balance, 2);
     }
 
-    // Calculate balance cumulatively for each transaction
+    // Calculate balance cumulatively for each transaction using unified ledger logic
     public static function calculateBalance($user_id, $contact_type)
     {
         // Get all ledgers for the given user and contact type, ordered by transaction date
@@ -102,9 +102,15 @@ class Ledger extends Model
                             CASE 
                                 WHEN transaction_type = 'opening_balance' THEN 1
                                 WHEN transaction_type = 'sale' THEN 2
+                                WHEN transaction_type = 'purchase' THEN 2
                                 WHEN transaction_type = 'opening_balance_payment' THEN 3
                                 WHEN transaction_type = 'payments' THEN 4
-                                ELSE 5
+                                WHEN transaction_type = 'sale_payment' THEN 4
+                                WHEN transaction_type = 'purchase_payment' THEN 4
+                                WHEN transaction_type = 'sale_return' THEN 5
+                                WHEN transaction_type = 'purchase_return' THEN 5
+                                WHEN transaction_type = 'return_payment' THEN 6
+                                ELSE 7
                             END
                         ")
                         ->orderBy('transaction_date', 'asc')
@@ -114,18 +120,10 @@ class Ledger extends Model
         $previous_balance = 0;
 
         foreach ($ledgers as $ledger) {
-            // Calculate the cumulative balance 
-            // For customers: debit (sales/opening balance) increases what customer owes us
-            //               credit (payments) decreases what customer owes us
-            // For suppliers: debit (payments) decreases what we owe them  
-            //               credit (purchases/opening balance) increases what we owe them
-            if ($contact_type === 'customer') {
-                // Customer balance: positive = customer owes us, negative = we owe customer (advance)
-                $balance = $previous_balance + $ledger->debit - $ledger->credit;
-            } else {
-                // Supplier balance: positive = we owe supplier, negative = supplier owes us (advance)
-                $balance = $previous_balance + $ledger->credit - $ledger->debit;
-            }
+            // Unified ledger logic: debit/credit calculation
+            // For both customers and suppliers: running_balance = previous_balance + debit - credit
+            // The transaction type determines what goes to debit vs credit based on business logic
+            $balance = $previous_balance + $ledger->debit - $ledger->credit;
 
             // Update the balance in the ledger record
             $ledger->balance = $balance;
@@ -171,5 +169,212 @@ class Ledger extends Model
         }
 
         return $query->get();
+    }
+
+    /**
+     * Create unified ledger entry with proper debit/credit logic
+     */
+    public static function createEntry($data)
+    {
+        // Validate required fields
+        $required = ['user_id', 'contact_type', 'transaction_date', 'reference_no', 'transaction_type', 'amount'];
+        foreach ($required as $field) {
+            if (!isset($data[$field])) {
+                throw new \Exception("Required field {$field} is missing");
+            }
+        }
+
+        $debit = 0;
+        $credit = 0;
+
+        // Unified debit/credit logic based on transaction type
+        switch ($data['transaction_type']) {
+            case 'opening_balance':
+                // Customer opening balance: if positive, customer owes us (debit)
+                // Supplier opening balance: if positive, we owe supplier (credit)
+                if ($data['contact_type'] === 'customer') {
+                    if ($data['amount'] > 0) {
+                        $debit = $data['amount'];
+                    } else {
+                        $credit = abs($data['amount']);
+                    }
+                } else {
+                    if ($data['amount'] > 0) {
+                        $credit = $data['amount'];
+                    } else {
+                        $debit = abs($data['amount']);
+                    }
+                }
+                break;
+
+            case 'sale':
+                // Sale increases what customer owes us (debit)
+                $debit = $data['amount'];
+                break;
+
+            case 'purchase':
+                // Purchase increases what we owe supplier (credit)
+                $credit = $data['amount'];
+                break;
+
+            case 'sale_payment':
+            case 'payments':
+                // Customer payment reduces what they owe us (credit)
+                if ($data['contact_type'] === 'customer') {
+                    $credit = $data['amount'];
+                } else {
+                    // Supplier payment reduces what we owe them (debit)
+                    $debit = $data['amount'];
+                }
+                break;
+
+            case 'purchase_payment':
+                // Purchase payment reduces what we owe supplier (debit)
+                $debit = $data['amount'];
+                break;
+
+            case 'sale_return':
+                // Sale return reduces what customer owes us (credit)
+                $credit = $data['amount'];
+                break;
+
+            case 'purchase_return':
+                // Purchase return reduces what we owe supplier (debit)
+                $debit = $data['amount'];
+                break;
+
+            case 'return_payment':
+                // Return payment to customer increases what we owe them (debit)
+                if ($data['contact_type'] === 'customer') {
+                    $debit = $data['amount'];
+                } else {
+                    // Return payment from supplier increases what they owe us (credit)
+                    $credit = $data['amount'];
+                }
+                break;
+
+            case 'opening_balance_payment':
+                // Opening balance payment
+                if ($data['contact_type'] === 'customer') {
+                    $credit = $data['amount'];
+                } else {
+                    $debit = $data['amount'];
+                }
+                break;
+
+            default:
+                throw new \Exception("Unknown transaction type: {$data['transaction_type']}");
+        }
+
+        // Create the ledger entry
+        $ledger = self::create([
+            'user_id' => $data['user_id'],
+            'contact_type' => $data['contact_type'],
+            'transaction_date' => $data['transaction_date'],
+            'reference_no' => $data['reference_no'],
+            'transaction_type' => $data['transaction_type'],
+            'debit' => $debit,
+            'credit' => $credit,
+            'balance' => 0, // Will be calculated by calculateBalance
+            'notes' => $data['notes'] ?? ''
+        ]);
+
+        // Recalculate balances for this user
+        self::calculateBalance($data['user_id'], $data['contact_type']);
+
+        return $ledger;
+    }
+
+    /**
+     * Get unified ledger view (customers and suppliers combined)
+     */
+    public static function getUnifiedLedger($fromDate = null, $toDate = null, $contactType = null)
+    {
+        $query = self::with(['customer', 'supplier'])
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc');
+
+        if ($fromDate) {
+            $query->where('transaction_date', '>=', Carbon::parse($fromDate));
+        }
+
+        if ($toDate) {
+            $query->where('transaction_date', '<=', Carbon::parse($toDate));
+        }
+
+        if ($contactType) {
+            $query->where('contact_type', $contactType);
+        }
+
+        return $query->get()->map(function ($ledger) {
+            $contact = $ledger->contact_type === 'customer' ? $ledger->customer : $ledger->supplier;
+            $contactName = $contact ? ($contact->first_name . ' ' . $contact->last_name) : 'Unknown';
+
+            return [
+                'id' => $ledger->id,
+                'transaction_date' => $ledger->transaction_date,
+                'reference_no' => $ledger->reference_no,
+                'transaction_type' => $ledger->transaction_type,
+                'debit' => $ledger->debit,
+                'credit' => $ledger->credit,
+                'balance' => $ledger->balance,
+                'contact_type' => $ledger->contact_type,
+                'contact_name' => $contactName,
+                'notes' => $ledger->notes,
+                'formatted_type' => self::formatTransactionType($ledger->transaction_type)
+            ];
+        });
+    }
+
+    /**
+     * Format transaction type for display
+     */
+    public static function formatTransactionType($type)
+    {
+        return match($type) {
+            'opening_balance' => 'Opening Balance',
+            'sale' => 'Sale',
+            'purchase' => 'Purchase',
+            'sale_payment' => 'Sale Payment',
+            'purchase_payment' => 'Purchase Payment',
+            'payments' => 'Payment',
+            'sale_return' => 'Sale Return',
+            'purchase_return' => 'Purchase Return',
+            'return_payment' => 'Return Payment',
+            'opening_balance_payment' => 'Opening Balance Payment',
+            default => ucfirst(str_replace('_', ' ', $type))
+        };
+    }
+
+    /**
+     * Get current outstanding balance for a contact
+     */
+    public static function getCurrentOutstanding($user_id, $contact_type)
+    {
+        $currentBalance = self::getLatestBalance($user_id, $contact_type);
+        
+        if ($contact_type === 'customer') {
+            // For customers: positive balance = they owe us
+            return max(0, $currentBalance);
+        } else {
+            // For suppliers: positive balance = we owe them
+            return max(0, $currentBalance);
+        }
+    }
+
+    /**
+     * Get advance balance for a contact
+     */
+    public static function getAdvanceBalance($user_id, $contact_type)
+    {
+        $currentBalance = self::getLatestBalance($user_id, $contact_type);
+        
+        if ($contact_type === 'customer') {
+            // For customers: negative balance = we owe them (advance)
+            return $currentBalance < 0 ? abs($currentBalance) : 0;
+        } else {
+            // For suppliers: negative balance = they owe us (advance)
+            return $currentBalance < 0 ? abs($currentBalance) : 0;
+        }
     }
 }

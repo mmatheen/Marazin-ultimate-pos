@@ -13,6 +13,7 @@ use App\Models\PurchaseReturn;
 use App\Models\Location;
 use App\Services\SupplierLedgerService;
 use App\Services\PaymentService;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -22,11 +23,13 @@ class PaymentController extends Controller
 {
     protected $ledgerService;
     protected $paymentService;
+    protected $unifiedLedgerService;
 
-    function __construct(SupplierLedgerService $ledgerService, PaymentService $paymentService)
+    function __construct(SupplierLedgerService $ledgerService, PaymentService $paymentService, UnifiedLedgerService $unifiedLedgerService)
     {
         $this->ledgerService = $ledgerService;
         $this->paymentService = $paymentService;
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
         $this->middleware('permission:create payment', ['only' => ['store', 'addSaleBulkPayments', 'addPurchaseBulkPayments']]);
         $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
@@ -58,9 +61,8 @@ class PaymentController extends Controller
     }
 
     /**
-     * Get customer ledger data from the dedicated ledgers table
-     * This method properly uses the centralized ledger system instead of 
-     * manually combining data from sales, payments, and returns tables
+     * Get customer ledger data using the unified ledger system
+     * This method uses the centralized ledger system with proper debit/credit logic
      */
     public function getCustomerLedger(Request $request)
     {
@@ -75,117 +77,37 @@ class PaymentController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        $customerId = $request->customer_id;
-        $locationId = $request->location_id;
-        $startDate = $request->start_date;
-        $endDate = $request->end_date;
+        try {
+            $ledgerData = $this->unifiedLedgerService->getCustomerLedger(
+                $request->customer_id,
+                $request->start_date,
+                $request->end_date,
+                $request->location_id
+            );
 
-        // Get customer details
-        $customer = Customer::find($customerId);
+            return response()->json([
+                'status' => 200,
+                'customer' => $ledgerData['customer'],
+                'transactions' => $ledgerData['transactions'],
+                'summary' => $ledgerData['summary'],
+                'period' => $ledgerData['period'],
+                'advance_application' => $ledgerData['advance_application']
+            ]);
 
-        // Get ledger transactions for the customer within the date range
-        $ledgerTransactions = Ledger::where('user_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->byDateRange($startDate, $endDate)
-            ->orderBy('transaction_date', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
-
-        // Transform ledger data for frontend display
-        $transactions = $ledgerTransactions->map(function ($ledger) {
-            return [
-                'date' => $ledger->transaction_date->format('Y-m-d'),
-                'reference_no' => $ledger->reference_no,
-                'type' => $this->formatTransactionType($ledger->transaction_type),
-                'location' => 'N/A', // Location info not stored in ledger table
-                'payment_status' => $ledger->debit > 0 ? 'Due' : 'Paid',
-                'debit' => $ledger->debit,
-                'credit' => $ledger->credit,
-                'payment_method' => 'N/A', // Can be extended if needed
-                'others' => $ledger->notes ?: '',
-                'created_at' => $ledger->created_at,
-                'transaction_type' => $ledger->transaction_type,
-                'running_balance' => $ledger->balance
-            ];
-        });
-
-        // Calculate totals from ledger transactions
-        $totalDebits = $ledgerTransactions->sum('debit');
-        $totalCredits = $ledgerTransactions->sum('credit');
-        
-        // Get current balance from ledger (most recent entry)
-        $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
-        
-        // Get opening balance (balance before start date)
-        $openingBalanceLedger = Ledger::where('user_id', $customerId)
-            ->where('contact_type', 'customer')
-            ->where('transaction_date', '<', $startDate)
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-            
-        $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
-
-        // Calculate outstanding dues from ledger balance (most accurate)
-        // The current balance from ledger already accounts for all transactions including:
-        // - Opening balance, sales, payments, opening balance payments, etc.
-        $totalOutstandingDue = max(0, $currentBalance); // Only positive balances are due
-        
-        // Calculate advance amount (negative balance means customer has credit)
-        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
-        
-        // Effective due is the same as outstanding due since ledger balance is accurate
-        $effectiveDue = $totalOutstandingDue;
-
-        return response()->json([
-            'status' => 200,
-            'customer' => [
-                'id' => $customer->id,
-                'name' => $customer->first_name . ' ' . $customer->last_name,
-                'mobile' => $customer->mobile_no,
-                'email' => $customer->email,
-                'address' => $customer->address,
-                'opening_balance' => $customer->opening_balance,
-                'current_balance' => $currentBalance,
-            ],
-            'transactions' => $transactions,
-            'summary' => [
-                'total_invoices' => $totalDebits, // Total debits from ledger
-                'total_paid' => $totalCredits, // Total credits from ledger
-                'total_returns' => 0, // Can be calculated separately if needed
-                'balance_due' => max(0, $currentBalance),
-                'advance_amount' => $advanceAmount,
-                'effective_due' => $effectiveDue,
-                'outstanding_due' => $totalOutstandingDue,
-                'opening_balance' => $openingBalance,
-            ],
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-            ],
-            'advance_application' => [
-                'available_advance' => $advanceAmount,
-                'applied_to_outstanding' => 0,
-                'remaining_advance' => $advanceAmount,
-            ]
-        ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to retrieve customer ledger: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /**
-     * Format transaction type for display
+     * Format transaction type for display (kept for backward compatibility)
      */
     private function formatTransactionType($type)
     {
-        return match($type) {
-            'sale' => 'Sale',
-            'payment' => 'Payment',
-            'payments' => 'Payment',
-            'return' => 'Return',
-            'opening_balance' => 'Opening Balance',
-            'opening_balance_payment' => 'Opening Balance Payment',
-            'adjustment' => 'Adjustment',
-            default => ucfirst($type)
-        };
+        return Ledger::formatTransactionType($type);
     }
 
     /**
@@ -346,6 +268,229 @@ class PaymentController extends Controller
         return $manualAdvanceAvailable;
     }
 
+    // ==================== UNIFIED LEDGER METHODS ====================
+
+    /**
+     * Get unified ledger view showing both customers and suppliers
+     */
+    public function getUnifiedLedger(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'contact_type' => 'nullable|in:customer,supplier',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $transactions = $this->unifiedLedgerService->getUnifiedLedgerView(
+                $request->start_date,
+                $request->end_date,
+                $request->contact_type
+            );
+
+            // Calculate running balance for the entire unified ledger
+            $runningBalance = 0;
+            $transactionsWithBalance = $transactions->map(function ($transaction) use (&$runningBalance) {
+                $runningBalance += $transaction['debit'] - $transaction['credit'];
+                $transaction['running_balance'] = $runningBalance;
+                return $transaction;
+            });
+
+            // Calculate summary totals
+            $totalDebits = $transactions->sum('debit');
+            $totalCredits = $transactions->sum('credit');
+            $netBalance = $totalDebits - $totalCredits;
+
+            // Separate customer and supplier balances
+            $customerTransactions = $transactions->where('contact_type', 'customer');
+            $supplierTransactions = $transactions->where('contact_type', 'supplier');
+
+            $customerDebits = $customerTransactions->sum('debit');
+            $customerCredits = $customerTransactions->sum('credit');
+            $supplierDebits = $supplierTransactions->sum('debit');
+            $supplierCredits = $supplierTransactions->sum('credit');
+
+            return response()->json([
+                'status' => 200,
+                'transactions' => $transactionsWithBalance,
+                'summary' => [
+                    'total_debits' => $totalDebits,
+                    'total_credits' => $totalCredits,
+                    'net_balance' => $netBalance,
+                    'customer_summary' => [
+                        'total_debits' => $customerDebits,
+                        'total_credits' => $customerCredits,
+                        'net_balance' => $customerDebits - $customerCredits,
+                    ],
+                    'supplier_summary' => [
+                        'total_debits' => $supplierDebits,
+                        'total_credits' => $supplierCredits,
+                        'net_balance' => $supplierCredits - $supplierDebits,
+                    ]
+                ],
+                'period' => [
+                    'start_date' => $request->start_date,
+                    'end_date' => $request->end_date,
+                    'contact_type' => $request->contact_type ?: 'all'
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to retrieve unified ledger: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Demo method to show unified ledger functionality with realistic scenario
+     */
+    public function demoUnifiedLedger()
+    {
+        try {
+            // Create sample scenario data (this would normally be done via seeder)
+            $this->createDemoScenario();
+            
+            // Get unified ledger for demo date range
+            $startDate = '2025-09-21';
+            $endDate = '2025-09-21';
+            
+            $transactions = $this->unifiedLedgerService->getUnifiedLedgerView($startDate, $endDate);
+            
+            // Calculate running balance for the entire unified ledger
+            $runningBalance = 0;
+            $transactionsWithBalance = $transactions->map(function ($transaction) use (&$runningBalance) {
+                $runningBalance += $transaction['debit'] - $transaction['credit'];
+                $transaction['running_balance'] = $runningBalance;
+                return $transaction;
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Unified Ledger Demo - Shows correct debit/credit logic and running balances',
+                'scenario_description' => [
+                    'Customer A: Opening balance 5000 (owes us), Sale 9000, Payment 3000',
+                    'Supplier X: Opening balance 3000 (we owe), Purchase 8000, Payment 5000',
+                    'All transactions follow unified debit/credit logic with running balances'
+                ],
+                'transactions' => $transactionsWithBalance,
+                'explanation' => [
+                    'debit_credit_logic' => 'Unified: running_balance = previous_balance + debit - credit',
+                    'customer_transactions' => 'Debit: Sales, Return payments to customer, Opening balance (if positive)',
+                    'customer_credits' => 'Credit: Payments received, Sale returns',
+                    'supplier_transactions' => 'Credit: Purchases, Opening balance (if positive)',
+                    'supplier_debits' => 'Debit: Payments made, Purchase returns, Return payments from supplier'
+                ],
+                'current_balances' => $this->getDemoBalances()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Demo failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Create demo scenario data if not exists
+     */
+    private function createDemoScenario()
+    {
+        // Check if demo data already exists
+        $existingCustomer = Customer::where('first_name', 'Demo Customer')->first();
+        if ($existingCustomer) {
+            return; // Demo data already exists
+        }
+
+        // Create minimal demo data for testing
+        $customerA = Customer::create([
+            'first_name' => 'Demo Customer',
+            'last_name' => 'A',
+            'mobile_no' => '1234567890',
+            'email' => 'customer.a@demo.com',
+            'opening_balance' => 5000,
+        ]);
+
+        $supplierX = Supplier::create([
+            'first_name' => 'Demo Supplier',
+            'last_name' => 'X',
+            'mobile_no' => '2234567890',
+            'email' => 'supplier.x@demo.com',
+            'opening_balance' => 3000,
+        ]);
+
+        // Record opening balances in ledger
+        $this->unifiedLedgerService->recordOpeningBalance($customerA->id, 'customer', 5000, 'Demo opening balance');
+        $this->unifiedLedgerService->recordOpeningBalance($supplierX->id, 'supplier', 3000, 'Demo opening balance');
+
+        // Create a few transactions
+        $sale = Sale::create([
+            'customer_id' => $customerA->id,
+            'invoice_no' => 'DEMO-SALE-001',
+            'sales_date' => '2025-09-21',
+            'final_total' => 9000,
+            'location_id' => 1,
+        ]);
+        
+        $this->unifiedLedgerService->recordSale($sale);
+
+        $purchase = Purchase::create([
+            'supplier_id' => $supplierX->id,
+            'reference_no' => 'DEMO-PUR-001',
+            'purchase_date' => '2025-09-21',
+            'final_total' => 8000,
+            'location_id' => 1,
+        ]);
+        
+        $this->unifiedLedgerService->recordPurchase($purchase);
+
+        // Add some payments
+        $payment1 = Payment::create([
+            'customer_id' => $customerA->id,
+            'reference_no' => 'DEMO-PAY-001',
+            'payment_date' => '2025-09-21',
+            'amount' => 3000,
+            'payment_method' => 'cash',
+            'payment_type' => 'sale',
+        ]);
+        
+        $this->unifiedLedgerService->recordSalePayment($payment1);
+
+        $payment2 = Payment::create([
+            'supplier_id' => $supplierX->id,
+            'reference_no' => 'DEMO-PAY-002',
+            'payment_date' => '2025-09-21',
+            'amount' => 5000,
+            'payment_method' => 'cash',
+            'payment_type' => 'purchase',
+        ]);
+        
+        $this->unifiedLedgerService->recordPurchasePayment($payment2);
+    }
+
+    private function getDemoBalances()
+    {
+        $balances = [];
+        
+        $customerA = Customer::where('first_name', 'Demo Customer')->where('last_name', 'A')->first();
+        if ($customerA) {
+            $balances['Customer A'] = Ledger::getLatestBalance($customerA->id, 'customer');
+        }
+        
+        $supplierX = Supplier::where('first_name', 'Demo Supplier')->where('last_name', 'X')->first();
+        if ($supplierX) {
+            $balances['Supplier X'] = Ledger::getLatestBalance($supplierX->id, 'supplier');
+        }
+        
+        return $balances;
+    }
+
     // ==================== SUPPLIER LEDGER METHODS ====================
 
     public function supplierLedger(Request $request)
@@ -367,216 +512,29 @@ class PaymentController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        $supplierId = $request->supplier_id;
-        $locationId = $request->location_id;
-        $startDate = $request->start_date;
-        $endDate = $request->end_date;
+        try {
+            $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
+                $request->supplier_id,
+                $request->start_date,
+                $request->end_date,
+                $request->location_id
+            );
 
-        // Get supplier details
-        $supplier = Supplier::find($supplierId);
+            return response()->json([
+                'status' => 200,
+                'supplier' => $ledgerData['supplier'],
+                'transactions' => $ledgerData['transactions'],
+                'summary' => $ledgerData['summary'],
+                'period' => $ledgerData['period'],
+                'advance_application' => $ledgerData['advance_application']
+            ]);
 
-        // Get purchases data with location filter
-        $purchasesQuery = Purchase::withoutGlobalScopes()->where('supplier_id', $supplierId)
-            ->whereBetween('purchase_date', [$startDate, $endDate])
-            ->with(['location', 'user', 'payments']);
-
-        if ($locationId) {
-            $purchasesQuery->where('location_id', $locationId);
-        }
-
-        $purchases = $purchasesQuery->get();
-
-        // Get payments data (payments TO supplier)
-        $paymentsQuery = Payment::where('supplier_id', $supplierId)
-            ->whereBetween('payment_date', [$startDate, $endDate]);
-
-        if ($locationId) {
-            $paymentsQuery->where(function($query) use ($locationId) {
-                $query->where('payment_type', 'purchase')
-                    ->whereIn('reference_id', function($subQuery) use ($locationId) {
-                        $subQuery->select('id')
-                            ->from('purchases')
-                            ->where('location_id', $locationId);
-                    })->orWhere(function($subQuery) {
-                        $subQuery->whereNull('reference_id');
-                    });
-            });
-        }
-
-        $payments = $paymentsQuery->get();
-
-        // Get purchase returns data
-        $returnsQuery = PurchaseReturn::where('supplier_id', $supplierId)
-            ->whereBetween('return_date', [$startDate, $endDate])
-            ->with(['location', 'supplier']);
-
-        if ($locationId) {
-            $returnsQuery->where('location_id', $locationId);
-        }
-
-        $returns = $returnsQuery->get();
-
-        // Combine all transactions and sort by date
-        $transactions = collect();
-
-        // Add purchases
-        foreach ($purchases as $purchase) {
-            $transactions->push([
-                'date' => $purchase->purchase_date,
-                'reference_no' => $purchase->reference_no,
-                'type' => 'Purchase',
-                'location' => $purchase->location ? $purchase->location->name : 'N/A',
-                'payment_status' => $purchase->payment_status,
-                'debit' => $purchase->final_total,
-                'credit' => 0,
-                'payment_method' => 'N/A',
-                'others' => $purchase->discount_amount > 0 ? "Discount: {$purchase->discount_amount}" : '',
-                'created_at' => $purchase->created_at,
-                'purchase_id' => $purchase->id,
-                'transaction_type' => 'purchase'
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to retrieve supplier ledger: ' . $e->getMessage()
             ]);
         }
-
-        // Add payments (credit - money paid TO supplier)
-        foreach ($payments as $payment) {
-            // Safely get location from purchase if relationship exists
-            $locationName = 'N/A';
-            if ($payment->reference_id && $payment->payment_type === 'purchase') {
-                $purchase = Purchase::withoutGlobalScopes()->find($payment->reference_id);
-                if ($purchase && $purchase->location) {
-                    $locationName = $purchase->location->name;
-                }
-            }
-
-            $transactions->push([
-                'date' => $payment->payment_date,
-                'reference_no' => $payment->reference_no,
-                'type' => 'Payment',
-                'location' => $locationName,
-                'payment_status' => 'Paid',
-                'debit' => 0,
-                'credit' => $payment->amount,
-                'payment_method' => $payment->payment_method,
-                'others' => $payment->notes,
-                'created_at' => $payment->created_at,
-                'payment_id' => $payment->id,
-                'purchase_id' => $payment->reference_id,
-                'transaction_type' => 'payment'
-            ]);
-        }
-
-        // Add purchase returns (credit - money back from supplier)
-        foreach ($returns as $return) {
-            $transactions->push([
-                'date' => $return->return_date,
-                'reference_no' => $return->return_no,
-                'type' => 'Return',
-                'location' => $return->location ? $return->location->name : 'N/A',
-                'payment_status' => 'Returned',
-                'debit' => 0,
-                'credit' => $return->return_total,
-                'payment_method' => 'Return',
-                'others' => $return->notes,
-                'created_at' => $return->created_at,
-                'return_id' => $return->id,
-                'transaction_type' => 'return'
-            ]);
-        }
-
-        // Sort transactions by date
-        $transactionsWithBalance = $transactions->sortBy('date')->values()->map(function ($transaction, $index) use ($supplier) {
-            // Calculate running balance (for suppliers: positive = we owe them, negative = they owe us/advance from them)
-            static $runningBalance = null;
-            if ($runningBalance === null) {
-                $runningBalance = $supplier->opening_balance;
-            }
-            
-            $runningBalance += $transaction['debit'] - $transaction['credit'];
-            $transaction['running_balance'] = $runningBalance;
-            
-            // For suppliers: positive balance = we owe them, negative = advance from supplier
-            if ($runningBalance > 0) {
-                $transaction['advance_amount'] = 0;
-                $transaction['due_amount'] = $runningBalance;
-            } else {
-                $transaction['advance_amount'] = abs($runningBalance); // Advance FROM supplier
-                $transaction['due_amount'] = 0;
-            }
-            
-            return $transaction;
-        });
-
-        // Calculate totals
-        $totalPurchases = $purchases->sum('final_total');
-        $totalPaid = $payments->sum('amount');
-        $totalReturns = $returns->sum('return_total');
-        
-        // Calculate actual current balance
-        $actualCurrentBalance = $supplier->opening_balance + $totalPurchases - $totalPaid - $totalReturns;
-        
-        // Get current outstanding purchases (all unpaid purchases)
-        $outstandingPurchases = Purchase::withoutGlobalScopes()
-            ->where('supplier_id', $supplierId)
-            ->where('total_due', '>', 0)
-            ->get();
-
-        $totalOutstandingDue = $outstandingPurchases->sum('total_due');
-        
-        // Manual advance calculation for suppliers (reverse logic)
-        // For suppliers: positive opening balance = we owe them, negative = they gave us advance
-        $manualAdvanceAvailable = 0;
-        
-        // Supplier advance (if they gave us money in advance - negative opening balance)
-        if ($supplier->opening_balance < 0) {
-            $manualAdvanceAvailable += abs($supplier->opening_balance);
-        }
-        
-        // Purchase returns can be used as advance
-        if ($totalReturns > 0) {
-            $manualAdvanceAvailable += $totalReturns;
-        }
-        
-        // Check for overpayments to supplier
-        $overpayment = max(0, $totalPaid - ($totalPurchases - $totalReturns));
-        if ($overpayment > 0) {
-            $manualAdvanceAvailable += $overpayment;
-        }
-        
-        // Calculate effective due (what would be due if advance was applied)
-        $effectiveDue = max(0, $totalOutstandingDue - $manualAdvanceAvailable);
-        
-        return response()->json([
-            'status' => 200,
-            'supplier' => [
-                'id' => $supplier->id,
-                'name' => $supplier->first_name . ' ' . $supplier->last_name,
-                'mobile' => $supplier->mobile_no,
-                'email' => $supplier->email,
-                'address' => $supplier->address,
-                'opening_balance' => $supplier->opening_balance,
-                'current_balance' => $actualCurrentBalance,
-            ],
-            'transactions' => $transactionsWithBalance,
-            'summary' => [
-                'total_purchases' => $totalPurchases,
-                'total_paid' => $totalPaid,
-                'total_returns' => $totalReturns,
-                'balance_due' => max(0, $actualCurrentBalance),
-                'advance_amount' => $manualAdvanceAvailable,
-                'effective_due' => $effectiveDue,
-                'outstanding_due' => $totalOutstandingDue,
-                'opening_balance' => $supplier->opening_balance,
-            ],
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-            ],
-            'advance_application' => [
-                'available_advance' => $manualAdvanceAvailable,
-                'applied_to_outstanding' => 0,
-                'remaining_advance' => $manualAdvanceAvailable,
-            ]
-        ]);
     }
 
     public function applySupplierAdvance(Request $request)
@@ -796,62 +754,31 @@ class PaymentController extends Controller
 
     private function processPayment(Payment $payment)
     {
-        // Create ledger entries and update related tables
+        // Use unified ledger service for all payment processing
         if ($payment->payment_type === 'sale' && $payment->customer_id) {
-            $this->createLedgerEntryForPayment($payment, 'customer');
+            $this->unifiedLedgerService->recordSalePayment($payment);
             $this->updateSaleTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
         } else if ($payment->payment_type === 'purchase' && $payment->supplier_id) {
-            // Use the new payment service for purchase payments
-            $purchase = Purchase::find($payment->reference_id);
-            if ($purchase) {
-                $this->ledgerService->recordPurchasePayment($payment, $purchase);
-                $this->updatePurchaseTable($payment->reference_id);
-            }
+            $this->unifiedLedgerService->recordPurchasePayment($payment);
+            $this->updatePurchaseTable($payment->reference_id);
         } else if ($payment->payment_type === 'purchase_return' && $payment->supplier_id) {
-            // Handle purchase return payments using the new service
-            $purchaseReturn = PurchaseReturn::find($payment->reference_id);
-            if ($purchaseReturn) {
-                $this->ledgerService->recordPurchaseReturnPayment($payment, $purchaseReturn);
-                $this->updatePurchaseReturnTable($payment->reference_id);
-            }
+            $this->unifiedLedgerService->recordReturnPayment($payment, 'supplier');
+            $this->updatePurchaseReturnTable($payment->reference_id);
         } else if (in_array($payment->payment_type, ['sale_return_with_bill', 'sale_return_without_bill']) && $payment->customer_id) {
-            // Handle sale return payments
-            $this->createLedgerEntryForPayment($payment, 'customer');
+            $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
             $this->updateSaleReturnTable($payment->reference_id);
             $this->updateCustomerBalance($payment->customer_id);
+        } else if ($payment->payment_type === 'opening_balance') {
+            $contactType = $payment->customer_id ? 'customer' : 'supplier';
+            $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $contactType);
+            
+            if ($payment->customer_id) {
+                $this->updateCustomerBalance($payment->customer_id);
+            } else {
+                $this->updateSupplierBalance($payment->supplier_id);
+            }
         }
-    }
-
-    private function createLedgerEntryForPayment(Payment $payment, $contactType = 'customer')
-    {
-        $userId = $contactType === 'supplier' ? $payment->supplier_id : $payment->customer_id;
-
-        $prevLedger = Ledger::where('user_id', $userId)
-            ->where('contact_type', $contactType)
-            ->orderBy('transaction_date', 'desc')
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $prevBalance = $prevLedger ? $prevLedger->balance : 0;
-
-        // Payment: debit = 0, credit = payment amount
-        // For suppliers: credit reduces what we owe them (reduces balance)
-        // For customers: credit reduces what they owe us (reduces balance)
-        $debit = 0;
-        $credit = $payment->amount;
-        $newBalance = $prevBalance + $debit - $credit;
-
-        Ledger::create([
-            'transaction_date' => $payment->payment_date,
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => 'payments',
-            'debit' => $debit,
-            'credit' => $credit,
-            'balance' => $newBalance,
-            'contact_type' => $contactType,
-            'user_id' => $userId,
-        ]);
     }
 
     private function updateSaleTable($saleId)
@@ -1085,7 +1012,7 @@ class PaymentController extends Controller
     }
 
     /**
-     * Create payment record for opening balance settlement
+     * Create payment record for opening balance settlement using unified ledger
      */
     private function createOpeningBalancePayment($entity, $amount, $paymentMethod = 'cash')
     {
@@ -1110,8 +1037,8 @@ class PaymentController extends Controller
 
         $payment = Payment::create($paymentData);
 
-        // Create ledger entry for opening balance settlement
-        $this->createOpeningBalanceLedgerEntry($payment, $entityType, $entity->id);
+        // Use unified ledger service for opening balance payment
+        $this->unifiedLedgerService->recordOpeningBalancePayment($payment, $entityType);
 
         // Update entity balance
         if ($entityType === 'customer') {
@@ -1121,27 +1048,6 @@ class PaymentController extends Controller
         }
 
         return $payment;
-    }
-
-    /**
-     * Create ledger entry specifically for opening balance payment
-     */
-    private function createOpeningBalanceLedgerEntry($payment, $entityType, $entityId)
-    {
-        Ledger::create([
-            'user_id' => $entityId,
-            'contact_type' => $entityType,
-            'transaction_date' => $payment->payment_date,
-            'reference_no' => $payment->reference_no,
-            'transaction_type' => 'opening_balance_payment',
-            'debit' => 0,
-            'credit' => $payment->amount,
-            'balance' => 0, // Will be calculated by calculateBalance method
-            'notes' => $payment->notes,
-        ]);
-
-        // Recalculate balances for this customer/supplier
-        Ledger::calculateBalance($entityId, $entityType);
     }
 
     private function applyGlobalAmountToReferences($entity, &$remainingAmount, $data, $request)
@@ -1222,13 +1128,13 @@ class PaymentController extends Controller
 
         $payment = Payment::create($paymentData);
 
-        // Only payment ledger entries!
-        $this->createLedgerEntryForPayment($payment, $entityType);
-
+        // Use unified ledger service for bulk payment ledger entries
         if ($entityType === 'customer') {
+            $this->unifiedLedgerService->recordSalePayment($payment);
             $this->updateSaleTable($reference->id);
             $this->updateCustomerBalance($entityId);
         } else {
+            $this->unifiedLedgerService->recordPurchasePayment($payment);
             $this->updatePurchaseTable($reference->id);
             $this->updateSupplierBalance($entityId);
         }
