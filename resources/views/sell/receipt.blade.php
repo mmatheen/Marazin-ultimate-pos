@@ -123,7 +123,7 @@
             @if ($location && $location->logo_image)
                 <img src="{{ asset($location->logo_image) }}" alt="{{ $location->name }} Logo" class="logo" width="50px" height="50px" />
             @else
-                <div style="font-size: 20px; font-weight: bold;">{{ $location->name ?? 'LOCATION NAME' }}</div>
+                <div style="font-size: 20px; font-weight: bold;">{{ $location->name ?? 'LOCATION NAME' }} <img src="{{ asset('img/shopping-cart-icon.png') }}" width="20px" height="20px" /> </div>
             @endif
             {{-- <div style="font-size: 28px; font-weight: bold;">PRANY</div>
             <div style="font-size: 16px; font-weight: bold;">STORES</div> --}}
