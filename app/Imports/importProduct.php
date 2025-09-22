@@ -149,7 +149,10 @@ class importProduct implements ToCollection, WithHeadingRow
             'special_price', 
             'max_retail_price', 
             'qty', 
-            'pax'
+            'pax',
+            'is_imei_or_serial_no',
+            'is_for_selling',
+            'product_type'
         ];
 
         foreach ($numericFields as $field) {
@@ -232,6 +235,10 @@ class importProduct implements ToCollection, WithHeadingRow
                 'qty' => 'nullable|numeric|min:0',
                 'batch_no' => 'nullable|string|max:255',
                 'expiry_date' => 'nullable|date_format:Y-m-d|after:today',
+                'is_imei_or_serial_no' => 'nullable|integer|in:0,1',
+                'is_for_selling' => 'nullable|integer|in:0,1',
+                'product_type' => 'nullable|integer',
+                'pax' => 'nullable|numeric|min:0',
             ], [
                 'sku.unique' => 'The SKU "' . ($rowArray['sku'] ?? 'N/A') . '" already exists. Please provide a unique SKU.',
                 'sku.regex' => 'The SKU must contain only letters, numbers, and hyphens.',
@@ -246,6 +253,12 @@ class importProduct implements ToCollection, WithHeadingRow
                 'whole_sale_price.numeric' => 'Wholesale price must be a valid number.',
                 'expiry_date.date_format' => 'Expiry date must be in Y-m-d format (YYYY-MM-DD).',
                 'expiry_date.after' => 'Expiry date must be in the future (after today: ' . date('Y-m-d') . ').',
+                'is_imei_or_serial_no.integer' => 'IMEI/Serial number field must be 0 or 1.',
+                'is_imei_or_serial_no.in' => 'IMEI/Serial number field must be 0 or 1.',
+                'is_for_selling.integer' => 'Is for selling field must be 0 or 1.',
+                'is_for_selling.in' => 'Is for selling field must be 0 or 1.',
+                'product_type.integer' => 'Product type must be a valid integer.',
+                'pax.numeric' => 'Pax must be a valid number.',
             ]);
 
             if ($validator->fails()) {
