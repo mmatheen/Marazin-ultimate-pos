@@ -248,6 +248,11 @@ class UnifiedLedgerService
         $totalDebits = $ledgerTransactions->sum('debit');
         $totalCredits = $ledgerTransactions->sum('credit');
         
+        // Calculate specific totals for account summary
+        $totalInvoices = $ledgerTransactions->whereIn('transaction_type', ['sale'])->sum('debit');
+        $totalPayments = $ledgerTransactions->whereIn('transaction_type', ['payments', 'sale_payment'])->sum('credit');
+        $totalReturns = $ledgerTransactions->whereIn('transaction_type', ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'])->sum('credit');
+        
         // Get current balance from ledger (most recent entry)
         $currentBalance = Ledger::getLatestBalance($customerId, 'customer');
         
@@ -261,9 +266,14 @@ class UnifiedLedgerService
             
         $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $customer->opening_balance;
 
-        // Calculate outstanding and advance amounts
-        $totalOutstandingDue = max(0, $currentBalance);
-        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+        // Calculate correct outstanding due for the period
+        // Outstanding Due = Opening Balance + Total Invoices - Total Payments - Total Returns
+        $calculatedOutstanding = $openingBalance + $totalInvoices - $totalPayments - $totalReturns;
+        $totalOutstandingDue = max(0, $calculatedOutstanding);
+        $advanceAmount = $calculatedOutstanding < 0 ? abs($calculatedOutstanding) : 0;
+        
+        // Effective due after deducting available advance
+        $effectiveDue = max(0, $calculatedOutstanding);
 
         return [
             'customer' => [
@@ -277,12 +287,12 @@ class UnifiedLedgerService
             ],
             'transactions' => $transactions,
             'summary' => [
-                'total_invoices' => $totalDebits,
-                'total_paid' => $totalCredits,
-                'total_returns' => $ledgerTransactions->where('transaction_type', 'sale_return')->sum('credit'),
+                'total_invoices' => $totalInvoices, // Only actual sales/invoices
+                'total_paid' => $totalPayments, // Only actual payments
+                'total_returns' => $totalReturns, // Only actual returns
                 'balance_due' => $totalOutstandingDue,
                 'advance_amount' => $advanceAmount,
-                'effective_due' => $totalOutstandingDue,
+                'effective_due' => $effectiveDue,
                 'outstanding_due' => $totalOutstandingDue,
                 'opening_balance' => $openingBalance,
             ],
@@ -343,6 +353,11 @@ class UnifiedLedgerService
         $totalDebits = $ledgerTransactions->sum('debit');
         $totalCredits = $ledgerTransactions->sum('credit');
         
+        // Calculate specific totals for account summary
+        $totalPurchases = $ledgerTransactions->whereIn('transaction_type', ['purchase'])->sum('credit');
+        $totalPayments = $ledgerTransactions->whereIn('transaction_type', ['payments', 'purchase_payment'])->sum('debit');
+        $totalReturns = $ledgerTransactions->whereIn('transaction_type', ['purchase_return'])->sum('debit');
+        
         // Get current balance from ledger (most recent entry)
         $currentBalance = Ledger::getLatestBalance($supplierId, 'supplier');
         
@@ -356,9 +371,14 @@ class UnifiedLedgerService
             
         $openingBalance = $openingBalanceLedger ? $openingBalanceLedger->balance : $supplier->opening_balance;
 
-        // Calculate outstanding and advance amounts
-        $totalOutstandingDue = max(0, $currentBalance);
-        $advanceAmount = $currentBalance < 0 ? abs($currentBalance) : 0;
+        // Calculate correct outstanding due for the period
+        // For suppliers: Outstanding Due = Opening Balance + Total Purchases - Total Payments - Total Returns
+        $calculatedOutstanding = $openingBalance + $totalPurchases - $totalPayments - $totalReturns;
+        $totalOutstandingDue = max(0, $calculatedOutstanding);
+        $advanceAmount = $calculatedOutstanding < 0 ? abs($calculatedOutstanding) : 0;
+        
+        // Effective due after deducting available advance
+        $effectiveDue = max(0, $calculatedOutstanding);
 
         return [
             'supplier' => [
@@ -372,12 +392,12 @@ class UnifiedLedgerService
             ],
             'transactions' => $transactions,
             'summary' => [
-                'total_purchases' => $totalCredits,
-                'total_paid' => $totalDebits,
-                'total_returns' => $ledgerTransactions->where('transaction_type', 'purchase_return')->sum('debit'),
+                'total_purchases' => $totalPurchases, // Only actual purchases
+                'total_paid' => $totalPayments, // Only actual payments
+                'total_returns' => $totalReturns, // Only actual returns
                 'balance_due' => $totalOutstandingDue,
                 'advance_amount' => $advanceAmount,
-                'effective_due' => $totalOutstandingDue,
+                'effective_due' => $effectiveDue,
                 'outstanding_due' => $totalOutstandingDue,
                 'opening_balance' => $openingBalance,
             ],
