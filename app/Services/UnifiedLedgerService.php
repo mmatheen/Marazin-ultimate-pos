@@ -11,6 +11,8 @@ use App\Models\Payment;
 use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class UnifiedLedgerService
 {
@@ -214,9 +216,16 @@ class UnifiedLedgerService
         }
 
         // Get ledger transactions for the customer within the date range
-        $ledgerTransactions = Ledger::where('user_id', $customerId)
+        $ledgerQuery = Ledger::where('user_id', $customerId)
             ->where('contact_type', 'customer')
-            ->byDateRange($startDate, $endDate)
+            ->byDateRange($startDate, $endDate);
+
+        // Apply location filtering if specified
+        if ($locationId) {
+            $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'customer');
+        }
+
+        $ledgerTransactions = $ledgerQuery
             ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
             ->orderBy('id', 'asc')
             ->get();
@@ -228,17 +237,21 @@ class UnifiedLedgerService
                 Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
             
+            // Get location information based on transaction type
+            $locationName = $this->getLocationForTransaction($ledger);
+            
             return [
                 'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
                 'type' => Ledger::formatTransactionType($ledger->transaction_type),
-                'location' => 'N/A', // Can be enhanced if location tracking is needed
+                'location' => $locationName,
                 'payment_status' => $this->getPaymentStatus($ledger),
                 'debit' => $ledger->debit,
                 'credit' => $ledger->credit,
                 'running_balance' => $ledger->balance,
-                'payment_method' => 'N/A', // Can be enhanced if needed
+                'payment_method' => $this->extractPaymentMethod($ledger), // Extract from notes
                 'notes' => $ledger->notes ?: '',
+                'others' => $ledger->notes ?: '', // Show ledger notes in others column
                 'created_at' => $ledger->created_at,
                 'transaction_type' => $ledger->transaction_type
             ];
@@ -319,9 +332,16 @@ class UnifiedLedgerService
         }
 
         // Get ledger transactions for the supplier within the date range
-        $ledgerTransactions = Ledger::where('user_id', $supplierId)
+        $ledgerQuery = Ledger::where('user_id', $supplierId)
             ->where('contact_type', 'supplier')
-            ->byDateRange($startDate, $endDate)
+            ->byDateRange($startDate, $endDate);
+
+        // Apply location filtering if specified
+        if ($locationId) {
+            $ledgerQuery = $this->applyLocationFilter($ledgerQuery, $locationId, 'supplier');
+        }
+
+        $ledgerTransactions = $ledgerQuery
             ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
             ->orderBy('id', 'asc')
             ->get();
@@ -333,17 +353,21 @@ class UnifiedLedgerService
                 Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
             
+            // Get location information based on transaction type
+            $locationName = $this->getLocationForTransaction($ledger);
+            
             return [
                 'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
                 'type' => Ledger::formatTransactionType($ledger->transaction_type),
-                'location' => 'N/A', // Can be enhanced if location tracking is needed
+                'location' => $locationName,
                 'payment_status' => $this->getPaymentStatus($ledger),
                 'debit' => $ledger->debit,
                 'credit' => $ledger->credit,
                 'running_balance' => $ledger->balance,
-                'payment_method' => 'N/A', // Can be enhanced if needed
+                'payment_method' => $this->extractPaymentMethod($ledger), // Extract from notes
                 'notes' => $ledger->notes ?: '',
+                'others' => $ledger->notes ?: '', // Show ledger notes in others column
                 'created_at' => $ledger->created_at,
                 'transaction_type' => $ledger->transaction_type
             ];
@@ -434,6 +458,185 @@ class UnifiedLedgerService
             'opening_balance' => 'Due',
             default => 'N/A'
         };
+    }
+
+    /**
+     * Extract payment method from ledger notes
+     */
+    private function extractPaymentMethod($ledger)
+    {
+        // For payment transactions, try to extract payment method from notes
+        if (in_array($ledger->transaction_type, ['payments', 'sale_payment', 'purchase_payment'])) {
+            $notes = strtolower($ledger->notes ?: '');
+            
+            if (stripos($notes, 'cash') !== false) {
+                return 'Cash';
+            } elseif (stripos($notes, 'card') !== false || stripos($notes, 'credit') !== false || stripos($notes, 'debit') !== false) {
+                return 'Card';
+            } elseif (stripos($notes, 'bank') !== false || stripos($notes, 'transfer') !== false || stripos($notes, 'neft') !== false || stripos($notes, 'rtgs') !== false) {
+                return 'Bank Transfer';
+            } elseif (stripos($notes, 'cheque') !== false || stripos($notes, 'check') !== false) {
+                return 'Cheque';
+            } elseif (stripos($notes, 'upi') !== false || stripos($notes, 'gpay') !== false || stripos($notes, 'paytm') !== false || stripos($notes, 'phonepe') !== false) {
+                return 'UPI';
+            } elseif ($ledger->notes) {
+                return 'Other';
+            }
+        }
+        
+        return 'N/A';
+    }
+
+    /**
+     * Get location information for a ledger transaction
+     */
+    private function getLocationForTransaction($ledger)
+    {
+        try {
+            // Extract invoice/reference numbers to find related records
+            $referenceNo = $ledger->reference_no;
+            
+            // For sale transactions, find the sale and get its location
+            if (in_array($ledger->transaction_type, ['sale', 'sale_payment'])) {
+                // Try to find sale by invoice number or reference
+                $sale = Sale::where('invoice_no', $referenceNo)
+                    ->orWhere('id', str_replace(['INV-', 'MLX'], '', $referenceNo))
+                    ->with('location')
+                    ->first();
+                
+                if ($sale && $sale->location) {
+                    return $sale->location->name;
+                }
+            }
+            
+            // For purchase transactions, find the purchase and get its location
+            if (in_array($ledger->transaction_type, ['purchase', 'purchase_payment'])) {
+                // Try to find purchase by reference number
+                $purchase = Purchase::where('reference_no', $referenceNo)
+                    ->orWhere('id', str_replace('PUR-', '', $referenceNo))
+                    ->with('location')
+                    ->first();
+                
+                if ($purchase && $purchase->location) {
+                    return $purchase->location->name;
+                }
+            }
+            
+            // For sale return transactions
+            if (in_array($ledger->transaction_type, ['sale_return', 'sale_return_with_bill', 'sale_return_without_bill'])) {
+                $saleReturn = SalesReturn::where('invoice_number', $referenceNo)
+                    ->orWhere('id', str_replace('SR-', '', $referenceNo))
+                    ->with(['sale.location'])
+                    ->first();
+                
+                if ($saleReturn && $saleReturn->sale && $saleReturn->sale->location) {
+                    return $saleReturn->sale->location->name;
+                }
+            }
+            
+            // For purchase return transactions
+            if (in_array($ledger->transaction_type, ['purchase_return'])) {
+                $purchaseReturn = PurchaseReturn::where('reference_no', $referenceNo)
+                    ->orWhere('id', str_replace('PR-', '', $referenceNo))
+                    ->with(['purchase.location'])
+                    ->first();
+                
+                if ($purchaseReturn && $purchaseReturn->purchase && $purchaseReturn->purchase->location) {
+                    return $purchaseReturn->purchase->location->name;
+                }
+            }
+            
+            // For payment transactions, try to find the related sale/purchase through payment table
+            if (in_array($ledger->transaction_type, ['payments'])) {
+                $payment = Payment::where('reference_no', $referenceNo)
+                    ->orWhere('id', str_replace('PAY-', '', $referenceNo))
+                    ->first();
+                
+                if ($payment) {
+                    // If it's a sale payment, get location from sale
+                    if ($payment->payment_type === 'sale' && $payment->reference_id) {
+                        $sale = Sale::where('id', $payment->reference_id)->with('location')->first();
+                        if ($sale && $sale->location) {
+                            return $sale->location->name;
+                        }
+                    }
+                    
+                    // If it's a purchase payment, get location from purchase
+                    if ($payment->payment_type === 'purchase' && $payment->reference_id) {
+                        $purchase = Purchase::where('id', $payment->reference_id)->with('location')->first();
+                        if ($purchase && $purchase->location) {
+                            return $purchase->location->name;
+                        }
+                    }
+                }
+            }
+            
+        } catch (\Exception $e) {
+            // Log error if needed, but don't break the flow
+            Log::warning("Error getting location for transaction {$ledger->id}: " . $e->getMessage());
+        }
+        
+        return 'N/A';
+    }
+
+    /**
+     * Apply location filter to ledger query by joining with related transaction tables
+     */
+    private function applyLocationFilter($ledgerQuery, $locationId, $contactType)
+    {
+        // Get reference numbers for transactions that belong to the specified location
+        $saleReferences = DB::table('sales')
+            ->where('location_id', $locationId)
+            ->pluck('invoice_no')
+            ->merge(DB::table('sales')->where('location_id', $locationId)->pluck('id')->map(function($id) {
+                return "INV-{$id}";
+            }))
+            ->merge(DB::table('sales')->where('location_id', $locationId)->pluck('id')->map(function($id) {
+                return "MLX{$id}";
+            }))
+            ->filter()
+            ->toArray();
+
+        $paymentReferences = DB::table('payments')
+            ->join('sales', 'sales.id', '=', 'payments.reference_id')
+            ->where('sales.location_id', $locationId)
+            ->where('payments.payment_type', 'sale')
+            ->pluck('payments.reference_no')
+            ->filter()
+            ->toArray();
+
+        $allReferences = array_merge($saleReferences, $paymentReferences);
+
+        if ($contactType === 'supplier') {
+            $purchaseReferences = DB::table('purchases')
+                ->where('location_id', $locationId)
+                ->pluck('reference_no')
+                ->merge(DB::table('purchases')->where('location_id', $locationId)->pluck('id')->map(function($id) {
+                    return "PUR-{$id}";
+                }))
+                ->filter()
+                ->toArray();
+
+            $purchasePaymentReferences = DB::table('payments')
+                ->join('purchases', 'purchases.id', '=', 'payments.reference_id')
+                ->where('purchases.location_id', $locationId)
+                ->where('payments.payment_type', 'purchase')
+                ->pluck('payments.reference_no')
+                ->filter()
+                ->toArray();
+
+            $allReferences = array_merge($allReferences, $purchaseReferences, $purchasePaymentReferences);
+        }
+
+        // Always include opening balance transactions
+        $ledgerQuery->where(function ($query) use ($allReferences) {
+            if (!empty($allReferences)) {
+                $query->whereIn('reference_no', $allReferences);
+            }
+            $query->orWhere('transaction_type', 'opening_balance');
+        });
+
+        return $ledgerQuery;
     }
 
     /**

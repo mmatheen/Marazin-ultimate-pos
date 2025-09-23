@@ -143,17 +143,29 @@ $(document).ready(function() {
             type: 'GET',
             dataType: 'json',
             success: function(response) {
+                console.log('Location API Response:', response); // Debug log
+                
                 const locationSelect = $('#location_id');
                 locationSelect.empty().append('<option value="">All Locations</option>');
                 
-                if (response.status === 200 && response.message && response.message.length > 0) {
-                    response.message.forEach(location => {
+                // Handle both response formats: status=true with data array OR status=200 with message array
+                const locations = response.data || response.message || [];
+                const isSuccess = response.status === true || response.status === 200;
+                
+                console.log('Locations found:', locations.length); // Debug log
+                
+                if (isSuccess && locations.length > 0) {
+                    locations.forEach(location => {
                         locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
+                        console.log('Added location:', location.name); // Debug log
                     });
+                } else {
+                    console.log('No locations found or API returned empty result');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Error loading locations:', error);
+                console.error('Response:', xhr.responseText); // Debug log
                 toastr.error('Failed to load locations');
             }
         });
