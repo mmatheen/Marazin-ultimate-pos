@@ -496,13 +496,51 @@ class UnifiedLedgerService
             // Extract invoice/reference numbers to find related records
             $referenceNo = $ledger->reference_no;
             
+            // For opening balance transactions, get customer/supplier's location_id
+            if ($ledger->transaction_type === 'opening_balance') {
+                if ($ledger->contact_type === 'customer') {
+                    $customer = Customer::find($ledger->user_id);
+                    if ($customer && $customer->location_id) {
+                        $location = \App\Models\Location::find($customer->location_id);
+                        if ($location) {
+                            return $location->name;
+                        }
+                    }
+                } elseif ($ledger->contact_type === 'supplier') {
+                    $supplier = Supplier::find($ledger->user_id);
+                    if ($supplier && $supplier->location_id) {
+                        $location = \App\Models\Location::find($supplier->location_id);
+                        if ($location) {
+                            return $location->name;
+                        }
+                    }
+                }
+                // If customer/supplier doesn't have location_id, use default location
+                $defaultLocation = \App\Models\Location::first();
+                if ($defaultLocation) {
+                    return $defaultLocation->name;
+                }
+            }
+            
             // For sale transactions, find the sale and get its location
             if (in_array($ledger->transaction_type, ['sale', 'sale_payment'])) {
-                // Try to find sale by invoice number or reference
-                $sale = Sale::where('invoice_no', $referenceNo)
-                    ->orWhere('id', str_replace(['INV-', 'MLX'], '', $referenceNo))
-                    ->with('location')
-                    ->first();
+                // Try multiple patterns to find the sale
+                $sale = null;
+                
+                // Pattern 1: Direct invoice_no match
+                $sale = Sale::where('invoice_no', $referenceNo)->with('location')->first();
+                
+                // Pattern 2: MLX prefix (MLX001, MLX002, etc.)
+                if (!$sale && strpos($referenceNo, 'MLX') === 0) {
+                    $saleId = str_replace('MLX', '', $referenceNo);
+                    $sale = Sale::where('id', $saleId)->with('location')->first();
+                }
+                
+                // Pattern 3: INV- prefix
+                if (!$sale && strpos($referenceNo, 'INV-') === 0) {
+                    $saleId = str_replace('INV-', '', $referenceNo);
+                    $sale = Sale::where('id', $saleId)->with('location')->first();
+                }
                 
                 if ($sale && $sale->location) {
                     return $sale->location->name;
@@ -511,11 +549,16 @@ class UnifiedLedgerService
             
             // For purchase transactions, find the purchase and get its location
             if (in_array($ledger->transaction_type, ['purchase', 'purchase_payment'])) {
-                // Try to find purchase by reference number
-                $purchase = Purchase::where('reference_no', $referenceNo)
-                    ->orWhere('id', str_replace('PUR-', '', $referenceNo))
-                    ->with('location')
-                    ->first();
+                $purchase = null;
+                
+                // Pattern 1: Direct reference_no match
+                $purchase = Purchase::where('reference_no', $referenceNo)->with('location')->first();
+                
+                // Pattern 2: PUR- prefix
+                if (!$purchase && strpos($referenceNo, 'PUR-') === 0) {
+                    $purchaseId = str_replace('PUR-', '', $referenceNo);
+                    $purchase = Purchase::where('id', $purchaseId)->with('location')->first();
+                }
                 
                 if ($purchase && $purchase->location) {
                     return $purchase->location->name;
@@ -576,6 +619,16 @@ class UnifiedLedgerService
             Log::warning("Error getting location for transaction {$ledger->id}: " . $e->getMessage());
         }
         
+        // If we still can't find location, try to get default location
+        try {
+            $defaultLocation = \App\Models\Location::first();
+            if ($defaultLocation) {
+                return $defaultLocation->name;
+            }
+        } catch (\Exception $e) {
+            Log::warning("Error getting default location: " . $e->getMessage());
+        }
+        
         return 'N/A';
     }
 
@@ -597,6 +650,7 @@ class UnifiedLedgerService
             ->filter()
             ->toArray();
 
+        // Get payment references for sales at this location
         $paymentReferences = DB::table('payments')
             ->join('sales', 'sales.id', '=', 'payments.reference_id')
             ->where('sales.location_id', $locationId)
@@ -605,7 +659,31 @@ class UnifiedLedgerService
             ->filter()
             ->toArray();
 
-        $allReferences = array_merge($saleReferences, $paymentReferences);
+        // Get sale return references for sales at this location
+        $saleReturnReferences = DB::table('sales_returns')
+            ->join('sales', 'sales.id', '=', 'sales_returns.sale_id')
+            ->where('sales.location_id', $locationId)
+            ->pluck('sales_returns.invoice_number')
+            ->merge(DB::table('sales_returns')
+                ->join('sales', 'sales.id', '=', 'sales_returns.sale_id')
+                ->where('sales.location_id', $locationId)
+                ->pluck('sales_returns.id')->map(function($id) {
+                    return "SR-{$id}";
+                }))
+            ->filter()
+            ->toArray();
+
+        // Get return payment references (for returned items at this location)
+        $returnPaymentReferences = DB::table('payments')
+            ->join('sales_returns', 'sales_returns.invoice_number', '=', 'payments.reference_no')
+            ->join('sales', 'sales.id', '=', 'sales_returns.sale_id')
+            ->where('sales.location_id', $locationId)
+            ->where('payments.payment_type', 'sale_return_with_bill')
+            ->pluck('payments.reference_no')
+            ->filter()
+            ->toArray();
+
+        $allReferences = array_merge($saleReferences, $paymentReferences, $saleReturnReferences, $returnPaymentReferences);
 
         if ($contactType === 'supplier') {
             $purchaseReferences = DB::table('purchases')
@@ -625,7 +703,20 @@ class UnifiedLedgerService
                 ->filter()
                 ->toArray();
 
-            $allReferences = array_merge($allReferences, $purchaseReferences, $purchasePaymentReferences);
+            $purchaseReturnReferences = DB::table('purchase_returns')
+                ->join('purchases', 'purchases.id', '=', 'purchase_returns.purchase_id')
+                ->where('purchases.location_id', $locationId)
+                ->pluck('purchase_returns.reference_no')
+                ->merge(DB::table('purchase_returns')
+                    ->join('purchases', 'purchases.id', '=', 'purchase_returns.purchase_id')
+                    ->where('purchases.location_id', $locationId)
+                    ->pluck('purchase_returns.id')->map(function($id) {
+                        return "PR-{$id}";
+                    }))
+                ->filter()
+                ->toArray();
+
+            $allReferences = array_merge($allReferences, $purchaseReferences, $purchasePaymentReferences, $purchaseReturnReferences);
         }
 
         // Always include opening balance transactions
