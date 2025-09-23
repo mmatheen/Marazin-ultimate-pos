@@ -123,7 +123,7 @@ class Customer extends Model
         // This ensures POS customer due matches the ledger due calculation
         $latestEntry = Ledger::where('user_id', $this->id)
             ->where('contact_type', 'customer')
-            ->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc')
             ->first();
 
@@ -159,10 +159,11 @@ public function recalculateCurrentBalance()
     {
         if ($this->id == 1) return 0;
 
-        // Get the latest balance after proper calculation order
+        // Get the latest balance using created_at for proper chronological order
+        // This ensures we get the most recently created ledger entry
         $latestEntry = Ledger::where('user_id', $this->id)
             ->where('contact_type', 'customer')
-            ->orderBy('transaction_date', 'desc')
+            ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc')
             ->first();
 

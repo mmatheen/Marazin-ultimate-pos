@@ -682,19 +682,9 @@ class PaymentController extends Controller
     {
         $customer = Customer::find($customerId);
         if ($customer) {
-            $totalSales = Sale::where('customer_id', $customerId)->sum('final_total');
-            $totalSalesReturn = SalesReturn::where('customer_id', $customerId)->sum('return_total');
-            
-            // Include both sale payments and sale return payments
-            $totalSalePayments = Payment::where('customer_id', $customerId)->where('payment_type', 'sale')->sum('amount');
-            $totalSaleReturnPayments = Payment::where('customer_id', $customerId)
-                ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
-                ->sum('amount');
-            
-            $totalPayments = $totalSalePayments + $totalSaleReturnPayments;
-            
-            $customer->current_balance = ($customer->opening_balance + $totalSales) - ($totalPayments + $totalSalesReturn);
-            $customer->save();
+            // Use the ledger system for consistent balance calculation
+            // This ensures current_balance field matches the ledger balance
+            $customer->recalculateCurrentBalance();
         }
     }
 

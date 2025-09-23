@@ -720,7 +720,7 @@
                 const cityInfo = ` [${customer.city_name}]`;
                 const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
                 const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
-                option.data('due', customer.current_balance || 0);
+                option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
@@ -738,7 +738,7 @@
                 const cityInfo = ' [No City]';
                 const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
                 const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
-                option.data('due', customer.current_balance || 0);
+                option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
