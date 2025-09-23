@@ -119,17 +119,18 @@ class Customer extends Model
     {
         if ($this->id == 1) return 0;
 
-        $totalSales = $this->sales()
-            ->whereIn('status', ['final', 'suspend'])
-            ->sum('final_total');
+        // Use the latest ledger balance for consistency with the ledger system
+        // This ensures POS customer due matches the ledger due calculation
+        $latestEntry = Ledger::where('user_id', $this->id)
+            ->where('contact_type', 'customer')
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
 
-        $totalPayments = $this->payments()->sum('amount');
-
-        $totalReturns = $this->salesReturns()->sum('return_total');
-
-        $due = $this->opening_balance + $totalSales - $totalPayments - $totalReturns;
-
-        return max(0, $due);
+        $currentBalance = $latestEntry ? $latestEntry->balance : ($this->opening_balance ?? 0);
+        
+        // Return only positive balances as "due" (customer owes money)
+        return max(0, $currentBalance);
     }
 
     public function getAvailableCreditAttribute()

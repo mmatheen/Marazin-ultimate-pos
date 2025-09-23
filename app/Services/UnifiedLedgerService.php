@@ -285,8 +285,9 @@ class UnifiedLedgerService
         $totalOutstandingDue = max(0, $calculatedOutstanding);
         $advanceAmount = $calculatedOutstanding < 0 ? abs($calculatedOutstanding) : 0;
         
-        // Effective due after deducting available advance
-        $effectiveDue = max(0, $calculatedOutstanding);
+        // Effective due should reflect the actual current balance, not period-based calculation
+        // Use the current balance from ledger which represents the true outstanding amount
+        $effectiveDue = max(0, $currentBalance);
 
         return [
             'customer' => [
@@ -401,8 +402,9 @@ class UnifiedLedgerService
         $totalOutstandingDue = max(0, $calculatedOutstanding);
         $advanceAmount = $calculatedOutstanding < 0 ? abs($calculatedOutstanding) : 0;
         
-        // Effective due after deducting available advance
-        $effectiveDue = max(0, $calculatedOutstanding);
+        // Effective due should reflect the actual current balance, not period-based calculation
+        // Use the current balance from ledger which represents the true outstanding amount
+        $effectiveDue = max(0, $currentBalance);
 
         return [
             'supplier' => [

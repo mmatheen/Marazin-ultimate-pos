@@ -401,7 +401,7 @@ $(document).ready(function() {
             processing: true,
             pageLength: 10,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            order: [[1, 'desc']], // Sort by date descending
+            ordering: false, // Disable all sorting arrows and functionality
             columnDefs: [
                 { 
                     targets: [0], // Serial number column
@@ -425,11 +425,12 @@ $(document).ready(function() {
                 },
                 { 
                     targets: [6, 7, 8], // Amount columns
-                    orderable: true,
+                    orderable: false, // Disable sorting for amount columns too
                     className: 'text-end'
                 },
                 { 
                     targets: [9, 10], // Payment method and others
+                    orderable: false,
                     className: 'text-center'
                 }
             ],
