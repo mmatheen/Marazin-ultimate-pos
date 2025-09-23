@@ -122,11 +122,10 @@
         }
     </style>
 
+    @stack('styles')
 </head>
 
 <body>
-
-    {{-- @stack('scripts') --}}
 
     {{-- For jQuery --}}
     <script src="{{ asset('assets/js/jquery-3.6.0.min.js') }}"></script>
@@ -364,7 +363,7 @@
         });
     </script>
 
-
+    @stack('scripts')
 </body>
 
 </html>

@@ -482,6 +482,14 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
+        
+        // Profit & Loss Reports
+        Route::get('/profit-loss-report', [ReportController::class, 'profitLossReport'])->name('profit-loss.report');
+        Route::post('/profit-loss-data', [ReportController::class, 'profitLossData'])->name('profit-loss.data');
+        Route::post('/profit-loss-export-pdf', [ReportController::class, 'profitLossExportPdf'])->name('profit-loss.export.pdf');
+        Route::post('/profit-loss-export-excel', [ReportController::class, 'profitLossExportExcel'])->name('profit-loss.export.excel');
+        Route::post('/profit-loss-export-csv', [ReportController::class, 'profitLossExportCsv'])->name('profit-loss.export.csv');
+        Route::match(['GET', 'POST'], '/profit-loss-product-details/{productId?}', [ReportController::class, 'profitLossProductDetails'])->name('profit-loss.product.details');
 
         // -------------------- Site Setting Routes --------------------
         Route::get('/site-settings', [SettingController::class, 'index'])->name('settings.index');
