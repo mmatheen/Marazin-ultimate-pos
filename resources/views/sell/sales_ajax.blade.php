@@ -191,15 +191,17 @@
                                 return;
                             }
                             
-                            // Calculate total due amount (opening balance + sale dues)
+                            // Calculate total due amount - use the model's current_due which includes proper calculations
                             var openingBalance = parseFloat(customer.opening_balance) || 0;
                             var saleDue = parseFloat(customer.total_sale_due) || 0;
-                            var totalDue = openingBalance + saleDue;
+                            var currentDue = parseFloat(customer.current_due) || 0; // Use the calculated current_due
                             
                             // Only show customers who have due amounts
-                            if (totalDue > 0) {
-                                var displayText = customer.first_name + ' ' + customer.last_name + 
-                                                ' (Due: Rs. ' + totalDue.toFixed(2) + ')';
+                            if (currentDue > 0) {
+                                // Handle null last name properly
+                                var lastName = customer.last_name ? customer.last_name : '';
+                                var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
+                                var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
                                 if (openingBalance > 0) {
                                     displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
                                 }
@@ -208,7 +210,7 @@
                                     '<option value="' + customer.id +
                                     '" data-opening-balance="' + openingBalance +
                                     '" data-sale-due="' + saleDue +
-                                    '" data-total-due="' + totalDue +
+                                    '" data-total-due="' + currentDue +
                                     '">' + displayText + '</option>'
                                 );
                             }
@@ -244,10 +246,10 @@
             saleDueAmount = parseFloat(selectedOption.data('sale-due')) || 0;
             totalDueAmount = parseFloat(selectedOption.data('total-due')) || 0;
 
-            // Display balance breakdown
-            $('#openingBalance').text(originalOpeningBalance.toFixed(2));
-            $('#saleDueBalance').text(saleDueAmount.toFixed(2));
-            $('#totalCustomerDue').text(totalDueAmount.toFixed(2));
+            // Display balance breakdown with proper currency formatting
+            $('#openingBalance').text('Rs. ' + originalOpeningBalance.toFixed(2));
+            $('#saleDueBalance').text('Rs. ' + saleDueAmount.toFixed(2));
+            $('#totalCustomerDue').text('Rs. ' + totalDueAmount.toFixed(2));
 
             // Load sales data and update UI based on payment type
             loadSalesData(customerId);

@@ -22,7 +22,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now(),
+            'transaction_date' => Carbon::now(), // Keep UTC time
             'reference_no' => 'OB-' . strtoupper($contactType) . '-' . $contactId,
             'transaction_type' => 'opening_balance',
             'amount' => $amount,
@@ -41,7 +41,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $sale->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $sale->sales_date,
+            'transaction_date' => $sale->sales_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => 'sale',
             'amount' => $sale->final_total,
@@ -60,7 +60,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $purchase->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $purchase->purchase_date,
+            'transaction_date' => $purchase->purchase_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => 'purchase',
             'amount' => $purchase->final_total,
@@ -78,7 +78,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $payment->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $payment->payment_date,
+            'transaction_date' => $payment->payment_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -96,7 +96,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $payment->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $payment->payment_date,
+            'transaction_date' => $payment->payment_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -118,7 +118,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $saleReturn->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $saleReturn->return_date,
+            'transaction_date' => $saleReturn->return_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => $transactionType,
             'amount' => $saleReturn->return_total,
@@ -137,7 +137,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $purchaseReturn->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $purchaseReturn->return_date,
+            'transaction_date' => $purchaseReturn->return_date, // Keep original date format
             'reference_no' => $referenceNo,
             'transaction_type' => 'purchase_return',
             'amount' => $purchaseReturn->return_total,
@@ -153,7 +153,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
-            'transaction_date' => $payment->payment_date,
+            'transaction_date' => $payment->payment_date, // Keep original date format
             'reference_no' => $payment->reference_no,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -169,7 +169,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
-            'transaction_date' => $payment->payment_date,
+            'transaction_date' => $payment->payment_date, // Keep original date format
             'reference_no' => $payment->reference_no,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -195,7 +195,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now(),
+            'transaction_date' => Carbon::now('Asia/Colombo'),
             'reference_no' => $referenceNo,
             'transaction_type' => 'opening_balance',
             'amount' => $adjustmentAmount, // Pass the actual adjustment amount (can be negative)
@@ -217,14 +217,19 @@ class UnifiedLedgerService
         $ledgerTransactions = Ledger::where('user_id', $customerId)
             ->where('contact_type', 'customer')
             ->byDateRange($startDate, $endDate)
-            ->orderBy('transaction_date', 'asc')
+            ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
             ->orderBy('id', 'asc')
             ->get();
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
+            // Convert UTC created_at to Asia/Colombo timezone for display
+            $displayDate = $ledger->created_at ? 
+                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
+                'N/A';
+            
             return [
-                'date' => $ledger->transaction_date->format('Y-m-d'),
+                'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
                 'type' => Ledger::formatTransactionType($ledger->transaction_type),
                 'location' => 'N/A', // Can be enhanced if location tracking is needed
@@ -307,14 +312,19 @@ class UnifiedLedgerService
         $ledgerTransactions = Ledger::where('user_id', $supplierId)
             ->where('contact_type', 'supplier')
             ->byDateRange($startDate, $endDate)
-            ->orderBy('transaction_date', 'asc')
+            ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
             ->orderBy('id', 'asc')
             ->get();
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
+            // Convert UTC created_at to Asia/Colombo timezone for display
+            $displayDate = $ledger->created_at ? 
+                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
+                'N/A';
+            
             return [
-                'date' => $ledger->transaction_date->format('Y-m-d'),
+                'date' => $displayDate,
                 'reference_no' => $ledger->reference_no,
                 'type' => Ledger::formatTransactionType($ledger->transaction_type),
                 'location' => 'N/A', // Can be enhanced if location tracking is needed

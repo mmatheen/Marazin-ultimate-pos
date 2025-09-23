@@ -363,7 +363,7 @@ $(document).ready(function() {
 
             tableData.push([
                 index + 1,
-                formatDate(transaction.date),
+                transaction.date, // Date is already formatted on the server side
                 transaction.reference_no,
                 `<span class="badge ${typeClass}">${transaction.type}</span>`,
                 transaction.location,
@@ -461,11 +461,32 @@ $(document).ready(function() {
     }
 
     function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB') + ' ' + date.toLocaleTimeString('en-GB', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
+        // This function is kept for any future use, but main ledger dates are formatted on server side
+        if (!dateString || dateString === 'N/A') return 'N/A';
+        
+        try {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+                return 'Invalid Date';
+            }
+            
+            // Format as DD/MM/YYYY HH:MM:SS
+            const options = {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Colombo'
+            };
+            
+            return new Intl.DateTimeFormat('en-GB', options).format(date);
+        } catch (error) {
+            console.error('Date formatting error:', error);
+            return dateString;
+        }
     }
 
     function formatCurrency(amount) {

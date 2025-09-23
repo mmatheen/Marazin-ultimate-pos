@@ -127,7 +127,7 @@ class Ledger extends Model
     {
         $latestEntry = self::where('user_id', $user_id)
             ->where('contact_type', $contact_type)
-            ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') DESC")
+            ->orderBy('created_at', 'desc') // Use created_at for latest entry
             ->orderBy('id', 'desc')
             ->first();
 
@@ -292,7 +292,7 @@ class Ledger extends Model
      */
     public static function recalculateAllBalances($user_id, $contact_type)
     {
-        // Get all entries in chronological order based on created_at timestamps in Asia/Colombo timezone
+        // Get all entries in chronological order based on created_at timestamps
         $entries = self::where('user_id', $user_id)
                       ->where('contact_type', $contact_type)
                       ->orderByRaw("
@@ -301,7 +301,7 @@ class Ledger extends Model
                               ELSE 2
                           END
                       ")
-                      ->orderByRaw("CONVERT_TZ(created_at, 'UTC', 'Asia/Colombo') ASC")
+                      ->orderBy('created_at', 'asc') // Use created_at without timezone conversion
                       ->orderBy('id', 'asc')
                       ->get();
 
