@@ -1183,6 +1183,11 @@
                         <!-- Action Buttons -->
                         <div class="col-md-6">
                             <div class="d-flex justify-content-end gap-3">
+
+                                {{-- //Home Pagee --}}
+                                 <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip"
+                                    title="Go home"><i class="fas fa-home"></i></button>
+
                                 <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip"
                                     title="Go Back"><i class="fas fa-backward"></i></button>
 
@@ -1283,7 +1288,7 @@
             </div>
         </div>
 
-        {{-- <script>
+        <script>
             // Handle back navigation properly for POS system
             function handleGoBack() {
                 // Check if there's browser history available and user came from within app
@@ -1298,7 +1303,7 @@
                 } else {
                     // Direct URL access or no history - use fallback navigation
                     @can('view sale')
-                        window.location.href = "{{ route('sale.index') }}";
+                        window.location.href = "{{ route('list-sale') }}";
                     @elsecan('view dashboard') 
                         window.location.href = "{{ route('dashboard') }}";
                     @else
@@ -1307,7 +1312,7 @@
                     @endcan
                 }
             }
-        </script> --}}
+        </script>
 
         <div class="row mt-2">
 
