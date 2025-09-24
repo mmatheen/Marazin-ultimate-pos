@@ -142,7 +142,11 @@
         function populateDropdown(selector, items, displayProperty) {
             const selectElement = $(selector).empty();
             items.forEach(item => {
-                selectElement.append(new Option(item[displayProperty], item.id));
+                const option = new Option(item[displayProperty], item.id);
+                if (item.selected) {
+                    option.selected = true;
+                }
+                selectElement.append(option);
             });
         }
 
@@ -152,6 +156,14 @@
             populateDropdown('#edit_brand_id', brands, 'name');
             populateDropdown('#edit_unit_id', units, 'name');
             populateDropdown('#edit_location_id', locations, 'name');
+            
+            // Auto-select location for Select2 if only one location is available
+            if (locations.length === 1 && locations[0].selected) {
+                setTimeout(function() {
+                    $('#edit_location_id').val([locations[0].id]).trigger('change');
+                    console.log('Auto-selected location:', locations[0].name);
+                }, 100);
+            }
             
             // Populate location filter dropdown
             populateDropdown('#locationFilter', locations, 'name');
@@ -168,9 +180,15 @@
                     subCategories = response.message.subCategories; // Store subcategories globally
                     const units = response.message.units;
                     const locations = response.message.locations;
+                    const autoSelectSingle = response.message.auto_select_single_location;
 
                     populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
                         callback);
+                    
+                    // Log auto-selection info
+                    if (autoSelectSingle && locations.length === 1) {
+                        console.log('Auto-selected single location:', locations[0].name);
+                    }
                 } else {
                     console.error('Failed to load initial product details. Status:', response.status);
                 }

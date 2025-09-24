@@ -133,29 +133,122 @@ class ProductController extends Controller
 
     public function initialProductDetails()
     {
-        $mainCategories = MainCategory::all();
-        $subCategories = SubCategory::with('mainCategory')->get();
-        $brands = Brand::all();
-        $units = Unit::all();
-        $locations = Location::all();
+        try {
+            $mainCategories = MainCategory::all();
+            $subCategories = SubCategory::with('mainCategory')->get();
+            $brands = Brand::all();
+            $units = Unit::all();
+            
+            // Use proper location filtering instead of Location::all()
+            $locations = $this->getUserAccessibleLocations(auth()->user());
+            
+            // Add selection flags for frontend
+            $locationsWithSelection = $locations->map(function($location) use ($locations) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'selected' => $locations->count() === 1 // Auto-select if only one location
+                ];
+            });
+            
+            Log::info('API initialProductDetails called', [
+                'user_id' => auth()->id(),
+                'locations_count' => $locations->count(),
+                'auto_select' => $locations->count() === 1
+            ]);
 
-        // Check if all collections have records
-        if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
-            return response()->json([
-                'status' => 200,
-                'message' => [
-                    'brands' => $brands,
-                    'subCategories' => $subCategories,
-                    'mainCategories' => $mainCategories,
-                    'units' => $units,
-                    'locations' => $locations,
-                ]
+            // Check if all collections have records
+            if ($mainCategories->count() > 0 || $subCategories->count() > 0 || $brands->count() > 0 || $units->count() > 0 || $locations->count() > 0) {
+                return response()->json([
+                    'status' => 200,
+                    'message' => [
+                        'brands' => $brands,
+                        'subCategories' => $subCategories,
+                        'mainCategories' => $mainCategories,
+                        'units' => $units,
+                        'locations' => $locationsWithSelection,
+                        'auto_select_single_location' => $locations->count() === 1,
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "No Records Found!"
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in API initialProductDetails: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error loading product details'
+            ]);
+        }
+    }
+    
+    /**
+     * Get locations accessible to the current user
+     */
+    private function getUserAccessibleLocations($user)
+    {
+        if (!$user) {
+            Log::warning('getUserAccessibleLocations called with null user (API)');
+            return collect([]); // Return empty collection if no user
+        }
+        
+        // Load user roles if not already loaded
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+        
+        // Check if user is Master Super Admin or has bypass permission
+        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') || 
+                              $user->roles->pluck('key')->contains('master_super_admin');
+        
+        $hasBypassPermission = false;
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                $hasBypassPermission = true;
+                break;
+            }
+        }
+        
+        if (!$hasBypassPermission) {
+            try {
+                $hasBypassPermission = $user->hasPermissionTo('override location scope');
+            } catch (\Exception $e) {
+                // Permission doesn't exist, continue without bypass
+                $hasBypassPermission = false;
+            }
+        }
+        
+        Log::info('API Location access check', [
+            'user_id' => $user->id,
+            'is_master_super_admin' => $isMasterSuperAdmin,
+            'has_bypass_permission' => $hasBypassPermission,
+            'user_roles' => $user->roles->pluck('name')->toArray()
+        ]);
+        
+        if ($isMasterSuperAdmin || $hasBypassPermission) {
+            // Master Super Admin or users with bypass permission see all locations
+            $locations = Location::select('id', 'name')->get();
+            Log::info('API User has admin/bypass access, returning all locations', ['count' => $locations->count()]);
+            return $locations;
         } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
+            // Regular users see only their assigned locations
+            $locations = Location::select('locations.id', 'locations.name')
+                ->join('location_user', 'locations.id', '=', 'location_user.location_id')
+                ->where('location_user.user_id', $user->id)
+                ->get();
+            Log::info('API Regular user, returning assigned locations', [
+                'user_id' => $user->id, 
+                'count' => $locations->count(),
+                'locations' => $locations->toArray()
             ]);
+            return $locations;
         }
     }
 

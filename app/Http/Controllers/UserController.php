@@ -99,7 +99,9 @@ class UserController extends Controller
         ]);
 
         $user->assignRole($request->roles);
-        $user->locations()->sync($request->location_id);
+        
+        // Validate and sync locations
+        $this->validateAndSyncUserLocations($user, $request->location_id ?? []);
 
         if ($user) {
             return response()->json([
@@ -284,7 +286,8 @@ class UserController extends Controller
             $user->syncRoles([$request->roles]);
         }
 
-        $user->locations()->sync($request->location_id);
+        // Validate and sync locations
+        $this->validateAndSyncUserLocations($user, $request->location_id ?? []);
 
         $message = $isOwnProfile ? 
             "Your profile has been updated successfully!" : 
@@ -358,5 +361,69 @@ class UserController extends Controller
             'status' => 200,
             'message' => "User Deleted Successfully!"
         ]);
+    }
+
+    /**
+     * Validate and sync user locations based on current user's permissions
+     */
+    private function validateAndSyncUserLocations(User $user, array $locationIds)
+    {
+        $currentUser = auth()->user();
+        
+        // Master Super Admin can assign any locations
+        if ($this->isMasterSuperAdmin($currentUser)) {
+            $user->locations()->sync($locationIds);
+            return;
+        }
+
+        // Users with bypass permission can assign any locations
+        if ($this->hasLocationBypassPermission($currentUser)) {
+            $user->locations()->sync($locationIds);
+            return;
+        }
+
+        // Regular users can only assign locations they have access to
+        $currentUserLocationIds = $currentUser->locations->pluck('id')->toArray();
+        $validLocationIds = array_intersect($locationIds, $currentUserLocationIds);
+
+        if (count($validLocationIds) !== count($locationIds)) {
+            $invalidIds = array_diff($locationIds, $currentUserLocationIds);
+            throw new \Exception("You cannot assign the following locations as you don't have access to them: " . implode(', ', $invalidIds));
+        }
+
+        $user->locations()->sync($validLocationIds);
+    }
+
+    /**
+     * Check if user is Master Super Admin
+     */
+    private function isMasterSuperAdmin($user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        return $user->roles->pluck('name')->contains('Master Super Admin') || 
+               $user->roles->pluck('key')->contains('master_super_admin');
+    }
+
+    /**
+     * Check if user has location bypass permission
+     */
+    private function hasLocationBypassPermission($user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        // Check if any role has bypass_location_scope flag
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                return true;
+            }
+        }
+
+        // Check for specific permissions
+        return $user->hasPermissionTo('override location scope');
     }
 }

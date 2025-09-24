@@ -17,11 +17,11 @@ use App\Models\LocationBatch;
 use App\Imports\importProduct;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ExportProductTemplate;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Events\StockUpdated;
@@ -47,15 +47,97 @@ class ProductController extends Controller
      */
     private function getCachedDropdownData()
     {
-        return Cache::remember('product_dropdown_data', 300, function () { // Cache for 5 minutes
+        $user = auth()->user();
+        $userId = $user ? $user->id : 0;
+        
+        // Cache key should include user ID to prevent location data leakage between users
+        $cacheKey = "product_dropdown_data_user_{$userId}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($user) { // Cache for 5 minutes per user
+            // Get locations with proper user access filtering
+            $locations = $this->getUserAccessibleLocations($user);
+            
+            // Add selection flags for frontend
+            $locationsWithSelection = $locations->map(function($location) use ($locations) {
+                return [
+                    'id' => $location->id,
+                    'name' => $location->name,
+                    'selected' => $locations->count() === 1 // Auto-select if only one location
+                ];
+            });
+            
             return [
                 'mainCategories' => MainCategory::select('id', 'mainCategoryName')->get(),
                 'subCategories' => SubCategory::select('id', 'subCategoryname', 'main_category_id')->get(),
                 'brands' => Brand::select('id', 'name')->get(),
                 'units' => Unit::select('id', 'name', 'allow_decimal')->get(),
-                'locations' => Location::select('id', 'name')->get(),
+                'locations' => $locationsWithSelection,
+                'auto_select_single_location' => $locations->count() === 1,
             ];
         });
+    }
+    
+    /**
+     * Get locations accessible to the current user
+     */
+    private function getUserAccessibleLocations($user)
+    {
+        if (!$user) {
+            Log::warning('getUserAccessibleLocations called with null user');
+            return collect([]); // Return empty collection if no user
+        }
+        
+        // Load user roles if not already loaded
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+        
+        // Check if user is Master Super Admin or has bypass permission
+        $isMasterSuperAdmin = $user->roles->pluck('name')->contains('Master Super Admin') || 
+                              $user->roles->pluck('key')->contains('master_super_admin');
+        
+        $hasBypassPermission = false;
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                $hasBypassPermission = true;
+                break;
+            }
+        }
+        
+        if (!$hasBypassPermission) {
+            try {
+                $hasBypassPermission = $user->hasPermissionTo('override location scope');
+            } catch (\Exception $e) {
+                // Permission doesn't exist, continue without bypass
+                $hasBypassPermission = false;
+            }
+        }
+        
+        Log::info('Location access check', [
+            'user_id' => $user->id,
+            'is_master_super_admin' => $isMasterSuperAdmin,
+            'has_bypass_permission' => $hasBypassPermission,
+            'user_roles' => $user->roles->pluck('name')->toArray()
+        ]);
+        
+        if ($isMasterSuperAdmin || $hasBypassPermission) {
+            // Master Super Admin or users with bypass permission see all locations
+            $locations = Location::select('id', 'name')->get();
+            Log::info('User has admin/bypass access, returning all locations', ['count' => $locations->count()]);
+            return $locations;
+        } else {
+            // Regular users see only their assigned locations
+            $locations = Location::select('locations.id', 'locations.name')
+                ->join('location_user', 'locations.id', '=', 'location_user.location_id')
+                ->where('location_user.user_id', $user->id)
+                ->get();
+            Log::info('Regular user, returning assigned locations', [
+                'user_id' => $user->id, 
+                'count' => $locations->count(),
+                'locations' => $locations->toArray()
+            ]);
+            return $locations;
+        }
     }
 
     public function product()
@@ -161,7 +243,7 @@ class ProductController extends Controller
 
         // For initial page load (non-AJAX)
         $products = Product::where('id', $productId)->get(); // Only load the current product initially
-        $locations = Location::all();
+        $locations = $this->getUserAccessibleLocations(auth()->user());
 
         return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
     }
@@ -169,34 +251,53 @@ class ProductController extends Controller
  
     public function initialProductDetails()
     {
-        // Use cached dropdown data for better performance
-        $dropdownData = $this->getCachedDropdownData();
-        
-        // Get subcategories with main category relationship for the frontend
-        $subCategories = Cache::remember('product_subcategories_with_main', 300, function () {
-            return SubCategory::with(['mainCategory:id,mainCategoryName'])
-                ->select('id', 'subCategoryname', 'main_category_id')
-                ->get();
-        });
+        try {
+            // Use cached dropdown data for better performance (now includes user-specific location filtering)
+            $dropdownData = $this->getCachedDropdownData();
+            
+            // Get subcategories with main category relationship for the frontend
+            $subCategories = Cache::remember('product_subcategories_with_main', 300, function () {
+                return SubCategory::with(['mainCategory:id,mainCategoryName'])
+                    ->select('id', 'subCategoryname', 'main_category_id')
+                    ->get();
+            });
 
-        // Check if all collections have records
-        if ($dropdownData['mainCategories']->count() > 0 || $subCategories->count() > 0 || 
-            $dropdownData['brands']->count() > 0 || $dropdownData['units']->count() > 0 || 
-            $dropdownData['locations']->count() > 0) {
-            return response()->json([
-                'status' => 200,
-                'message' => [
-                    'brands' => $dropdownData['brands'],
-                    'subCategories' => $subCategories,
-                    'mainCategories' => $dropdownData['mainCategories'],
-                    'units' => $dropdownData['units'],
-                    'locations' => $dropdownData['locations'],
-                ]
+            // Log location access for debugging
+            $user = auth()->user();
+            if ($user) {
+                Log::info('Initial product details - User: ' . $user->id . ', Locations: ' . count($dropdownData['locations']) . ', Auto-select: ' . ($dropdownData['auto_select_single_location'] ? 'true' : 'false'));
+            }
+
+            // Check if we have any data to return
+            if ($dropdownData['mainCategories']->count() > 0 || $subCategories->count() > 0 || 
+                $dropdownData['brands']->count() > 0 || $dropdownData['units']->count() > 0 || 
+                count($dropdownData['locations']) > 0) {
+                return response()->json([
+                    'status' => 200,
+                    'message' => [
+                        'brands' => $dropdownData['brands'],
+                        'subCategories' => $subCategories,
+                        'mainCategories' => $dropdownData['mainCategories'],
+                        'units' => $dropdownData['units'],
+                        'locations' => $dropdownData['locations'],
+                        'auto_select_single_location' => $dropdownData['auto_select_single_location'] ?? false,
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'status' => 404,
+                    'message' => "No Records Found!"
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in initialProductDetails: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'trace' => $e->getTraceAsString()
             ]);
-        } else {
+            
             return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
+                'status' => 500,
+                'message' => 'Error loading product details'
             ]);
         }
     }

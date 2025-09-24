@@ -119,9 +119,8 @@ class PaymentController extends Controller
             return;
         }
 
-        // Get outstanding sales ordered by date (oldest first)
-        $outstandingSales = Sale::withoutGlobalScopes()
-            ->where('customer_id', $customerId)
+        // Get outstanding sales ordered by date (oldest first) - respecting location scope
+        $outstandingSales = Sale::where('customer_id', $customerId)
             ->where('total_due', '>', 0)
             ->orderBy('sales_date', 'asc')
             ->get();
@@ -236,14 +235,12 @@ class PaymentController extends Controller
         // Get total customer payments
         $totalPayments = Payment::where('customer_id', $customerId)->sum('amount');
         
-        // Get total sales amount
-        $totalSales = Sale::withoutGlobalScopes()
-            ->where('customer_id', $customerId)
+        // Get total sales amount - respecting location scope
+        $totalSales = Sale::where('customer_id', $customerId)
             ->sum('final_total');
             
-        // Get total sales returns
-        $totalReturns = SalesReturn::withoutGlobalScopes()
-            ->where('customer_id', $customerId)
+        // Get total sales returns - respecting location scope
+        $totalReturns = SalesReturn::where('customer_id', $customerId)
             ->sum('return_total');
             
         // Manual advance calculation - only available amounts for manual application
@@ -453,7 +450,7 @@ class PaymentController extends Controller
         $openingBalance = $supplier ? floatval($supplier->opening_balance) : 0;
         
         $totalPayments = Payment::where('supplier_id', $supplierId)->sum('amount');
-        $totalPurchases = Purchase::withoutGlobalScopes()->where('supplier_id', $supplierId)->sum('final_total');
+        $totalPurchases = Purchase::where('supplier_id', $supplierId)->sum('final_total');
         $totalReturns = PurchaseReturn::where('supplier_id', $supplierId)->sum('return_total');
         
         $manualAdvanceAvailable = 0;
@@ -483,8 +480,7 @@ class PaymentController extends Controller
             return;
         }
 
-        $outstandingPurchases = Purchase::withoutGlobalScopes()
-            ->where('supplier_id', $supplierId)
+        $outstandingPurchases = Purchase::where('supplier_id', $supplierId)
             ->where('total_due', '>', 0)
             ->orderBy('purchase_date', 'asc')
             ->get();

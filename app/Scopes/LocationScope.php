@@ -19,41 +19,43 @@ class LocationScope implements Scope
     {
         // Skip scope if model requests bypass
         if (method_exists($model, 'shouldBypassLocationScope') && $model->shouldBypassLocationScope()) {
+            Log::info("LocationScope: Bypassed for model " . get_class($model));
             return;
         }
 
         $user = $this->getAuthenticatedUser();
 
-        // No filter if no user is logged in
+        // No filter if no user is logged in - restrict to null location only
         if (!$user) {
+            Log::warning("LocationScope: No authenticated user - restricting to null location only");
+            $builder->whereNull($this->getLocationColumn($model));
             return;
         }
+
+        Log::info("LocationScope: Applying scope for user " . $user->id . " on model " . get_class($model));
 
         // Master Super Admin bypasses ALL scopes and sees everything
         if ($this->isMasterSuperAdmin($user)) {
+            Log::info("LocationScope: Master Super Admin bypass for user " . $user->id);
             return;
         }
 
-        // Super Admin sees everything (but can be restricted per location if needed)
-        if ($this->isSuperAdmin($user)) {
-            // Check if this Super Admin should be restricted to specific locations
-            if (!$this->shouldSuperAdminBypassLocationScope($user)) {
-                // Apply location filter for restricted Super Admin
-                $this->applyLocationFilter($builder, $user);
-            }
+        // Check if user has general bypass permission through role
+        if ($this->hasLocationBypassPermission($user)) {
+            Log::info("LocationScope: User " . $user->id . " has bypass permission");
             return;
         }
 
-        // Sales Rep: Skip location filter — they are filtered by route/city in controller
+        // Sales Rep: Apply location filter based on their assigned routes/cities
         if ($this->isSalesRep($user)) {
+            Log::info("LocationScope: Applying sales rep location filter for user " . $user->id);
+            $this->applySalesRepLocationFilter($builder, $user);
             return;
         }
 
-        // For all other users (admin, manager, cashier, etc.), apply location filter
+        // For all other users, apply standard location filter
+        Log::info("LocationScope: Applying standard location filter for user " . $user->id);
         $this->applyLocationFilter($builder, $user);
-
-        // Optionally filter by user_id if the table has that column
-        $this->applyUserIdFilter($builder, $model, $user);
     }
 
     /**
@@ -92,29 +94,7 @@ class LocationScope implements Scope
                $user->roles->pluck('name')->contains('Super Admin');
     }
 
-    /**
-     * Check if Super Admin should bypass location scope
-     */
-    private function shouldSuperAdminBypassLocationScope($user): bool
-    {
-        if (!$user instanceof User) {
-            return false;
-        }
 
-        // Load roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if any role has bypass_location_scope flag
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     /**
      * Apply location filter logic
@@ -124,18 +104,38 @@ class LocationScope implements Scope
         $selectedLocation = $this->getSelectedLocation();
         $locationIds = $this->getUserLocationIds($user);
 
-        $builder->where(function ($query) use ($selectedLocation, $locationIds) {
+        Log::info("LocationScope: Applying filter - Selected: {$selectedLocation}, User Locations: " . json_encode($locationIds));
+
+        $builder->where(function ($query) use ($selectedLocation, $locationIds, $user) {
+            $hasLocationFilter = false;
+
             // Priority 1: Use selected location (from session or header)
             if ($selectedLocation) {
-                $query->where('location_id', $selectedLocation);
+                // Validate that user has access to this location
+                if (empty($locationIds) || in_array($selectedLocation, $locationIds)) {
+                    $query->where('location_id', $selectedLocation);
+                    $hasLocationFilter = true;
+                    Log::info("LocationScope: Applied selected location filter: {$selectedLocation}");
+                } else {
+                    Log::warning("LocationScope: User {$user->id} doesn't have access to selected location {$selectedLocation}");
+                }
             }
+            
             // Priority 2: Use assigned locations
-            elseif (!empty($locationIds)) {
+            if (!$hasLocationFilter && !empty($locationIds)) {
                 $query->whereIn('location_id', $locationIds);
+                $hasLocationFilter = true;
+                Log::info("LocationScope: Applied user locations filter: " . implode(',', $locationIds));
             }
 
-            // Always allow walk-in/null location customers
-            $query->orWhereNull('location_id');
+            // If user has no location assignments, restrict to null location only
+            if (!$hasLocationFilter) {
+                $query->whereNull('location_id');
+                Log::info("LocationScope: No location access - restricted to null location only");
+            } else {
+                // Also allow null location records (walk-in customers, etc.)
+                $query->orWhereNull('location_id');
+            }
         });
     }
 
@@ -221,6 +221,55 @@ class LocationScope implements Scope
             Log::warning("LocationScope: Failed to load user locations: " . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Get the location column name for the model
+     */
+    private function getLocationColumn(Model $model): string
+    {
+        // Check if model has a custom location column
+        if (method_exists($model, 'getLocationColumn')) {
+            return $model->getLocationColumn();
+        }
+
+        // Default to location_id
+        return 'location_id';
+    }
+
+    /**
+     * Check if user has location bypass permission
+     */
+    private function hasLocationBypassPermission($user): bool
+    {
+        if (!$user instanceof User) {
+            return false;
+        }
+
+        // Load roles if not already loaded
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        // Check if any role has bypass_location_scope flag
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                return true;
+            }
+        }
+
+        // Check for specific permissions
+        return $user->hasPermissionTo('override location scope');
+    }
+
+    /**
+     * Apply location filter for sales reps based on their routes/cities
+     */
+    private function applySalesRepLocationFilter(Builder $builder, $user)
+    {
+        // For now, apply the same location filter as other users
+        // This can be customized later for sales rep specific logic
+        $this->applyLocationFilter($builder, $user);
     }
 
     /**

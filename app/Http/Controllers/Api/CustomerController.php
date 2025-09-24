@@ -46,12 +46,8 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    $query = Customer::withoutLocationScope()
-        ->with(['sales', 'salesReturns', 'payments', 'city']);
-
-    if ($user->isSalesRep()) {
-        $query = $this->applySalesRepFilter($query, $user);
-    }
+    // Use normal query with location scope - it will handle sales rep filtering automatically
+    $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
 
     $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
         return [

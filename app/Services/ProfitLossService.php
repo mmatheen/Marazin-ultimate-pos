@@ -605,18 +605,72 @@ class ProfitLossService
     }
 
     /**
-     * Build base sales query with filters
+     * Build base sales query with filters - respecting user location access
      */
     private function buildSalesQuery(array $filters)
     {
-        $query = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-            ->whereBetween('sales_date', [$filters['start_date'], $filters['end_date']]);
+        $user = auth()->user();
         
-        if (!empty($filters['location_ids'])) {
-            $query->whereIn('location_id', $filters['location_ids']);
+        // Start with location-scoped query
+        $query = Sale::whereBetween('sales_date', [$filters['start_date'], $filters['end_date']]);
+        
+        // Only Master Super Admin or users with bypass permission can override location scope
+        if ($user && ($this->isMasterSuperAdmin($user) || $this->hasLocationBypassPermission($user))) {
+            $query = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                ->whereBetween('sales_date', [$filters['start_date'], $filters['end_date']]);
+                
+            // Apply requested location filter if provided
+            if (!empty($filters['location_ids'])) {
+                $query->whereIn('location_id', $filters['location_ids']);
+            }
+        } else {
+            // For regular users, validate they have access to requested locations
+            if (!empty($filters['location_ids'])) {
+                $userLocationIds = $user ? $user->locations->pluck('id')->toArray() : [];
+                $validLocationIds = array_intersect($filters['location_ids'], $userLocationIds);
+                
+                if (!empty($validLocationIds)) {
+                    $query->whereIn('location_id', $validLocationIds);
+                }
+            }
         }
         
         return $query;
+    }
+
+    /**
+     * Check if user is Master Super Admin
+     */
+    private function isMasterSuperAdmin($user): bool
+    {
+        if (!$user || !$user->relationLoaded('roles')) {
+            $user?->load('roles');
+        }
+
+        return $user && ($user->roles->pluck('name')->contains('Master Super Admin') || 
+               $user->roles->pluck('key')->contains('master_super_admin'));
+    }
+
+    /**
+     * Check if user has location bypass permission
+     */
+    private function hasLocationBypassPermission($user): bool
+    {
+        if (!$user || !$user->relationLoaded('roles')) {
+            $user?->load('roles');
+        }
+
+        if (!$user) return false;
+
+        // Check if any role has bypass_location_scope flag
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                return true;
+            }
+        }
+
+        // Check for specific permissions
+        return $user->hasPermissionTo('override location scope');
     }
 
     /**

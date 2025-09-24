@@ -24,18 +24,27 @@ class LocationController extends Controller
     }
 
     /**
-     * Display a listing of locations based on user role and vehicle type.
+     * Display a listing of locations based on user role and permissions.
      */
     public function index()
     {
         /** @var User $user */
         $user = Auth::user();
 
-        if ($user->is_admin) {
+        // Master Super Admin can see all locations
+        if ($this->isMasterSuperAdmin($user)) {
             $locations = Location::with('parent', 'children')->get();
-        } elseif ($this->isSalesRep($user)) {
+        }
+        // Users with override location scope permission can see all locations
+        elseif ($this->hasLocationBypassPermission($user)) {
+            $locations = Location::with('parent', 'children')->get();
+        }
+        // Sales Rep gets their accessible locations
+        elseif ($this->isSalesRep($user)) {
             $locations = $this->getSalesRepAccessibleLocations($user);
-        } else {
+        } 
+        // Regular users (including regular admin) see only their assigned locations
+        else {
             $locations = $user->locations()->with('parent', 'children')->get();
         }
 
@@ -612,5 +621,38 @@ class LocationController extends Controller
             'status' => true,
             'message' => 'Location deleted successfully.',
         ]);
+    }
+
+    /**
+     * Check if user is Master Super Admin
+     */
+    private function isMasterSuperAdmin($user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        return $user->roles->pluck('name')->contains('Master Super Admin') || 
+               $user->roles->pluck('key')->contains('master_super_admin');
+    }
+
+    /**
+     * Check if user has location bypass permission
+     */
+    private function hasLocationBypassPermission($user): bool
+    {
+        if (!$user->relationLoaded('roles')) {
+            $user->load('roles');
+        }
+
+        // Check if any role has bypass_location_scope flag
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                return true;
+            }
+        }
+
+        // Check for specific permissions
+        return $user->hasPermissionTo('override location scope');
     }
 }

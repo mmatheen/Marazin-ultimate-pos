@@ -77,6 +77,7 @@ class Kernel extends HttpKernel
         'check.session' => \App\Http\Middleware\CheckSession::class,
         'master.admin' => \App\Http\Middleware\MasterAdminOnly::class,
         'role.security' => \App\Http\Middleware\RoleSecurityMiddleware::class,
+        'location.access' => \App\Http\Middleware\ValidateLocationAccess::class,
 
 
     ];
