@@ -1183,7 +1183,7 @@
                         <!-- Action Buttons -->
                         <div class="col-md-6">
                             <div class="d-flex justify-content-end gap-3">
-                                <button class="btn btn-light btn-sm" onclick="history.back()" data-bs-toggle="tooltip"
+                                <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip"
                                     title="Go Back"><i class="fas fa-backward"></i></button>
 
                                 <!-- Calculator Button with Dropdown -->
@@ -1282,6 +1282,32 @@
                 </div>
             </div>
         </div>
+
+        <script>
+            // Handle back navigation properly for POS system
+            function handleGoBack() {
+                // Check if there's browser history available and user came from within app
+                const referrer = document.referrer;
+                const currentDomain = window.location.origin;
+                const hasValidHistory = window.history.length > 1;
+                const cameFromSameDomain = referrer && referrer.startsWith(currentDomain);
+                
+                if (hasValidHistory && cameFromSameDomain) {
+                    // Safe to use history.back()
+                    window.history.back();
+                } else {
+                    // Direct URL access or no history - use fallback navigation
+                    @can('view sale')
+                        window.location.href = "{{ route('sale.index') }}";
+                    @elsecan('view dashboard') 
+                        window.location.href = "{{ route('dashboard') }}";
+                    @else
+                        // Last resort - go to main page
+                        window.location.href = "{{ url('/') }}";
+                    @endcan
+                }
+            }
+        </script>
 
         <div class="row mt-2">
 
