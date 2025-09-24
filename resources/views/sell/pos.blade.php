@@ -1283,7 +1283,7 @@
             </div>
         </div>
 
-        <script>
+        {{-- <script>
             // Handle back navigation properly for POS system
             function handleGoBack() {
                 // Check if there's browser history available and user came from within app
@@ -1307,7 +1307,7 @@
                     @endcan
                 }
             }
-        </script>
+        </script> --}}
 
         <div class="row mt-2">
 
