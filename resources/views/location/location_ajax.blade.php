@@ -4,30 +4,50 @@
         showFetchData();
         populateLocationDropdown();
 
-        // Function to toggle vehicle details visibility
+        // Function to toggle vehicle details and contact details visibility
         function toggleVehicleDetails() {
             const parentId = $('#edit_parent_id').val();
             const vehicleSection = $('#vehicleDetailsSection');
             const parentDetailsSection = $('#parentLocationDetails');
+            const contactDetailsSection = $('#contactDetailsSection');
             
             if (parentId && parentId !== '') {
-                // Sublocation - show vehicle details and make them required
+                // SUBLOCATION - Show vehicle section, hide contact details, show parent info
                 vehicleSection.slideDown(300);
+                contactDetailsSection.slideUp(300);
+                parentDetailsSection.slideDown(300);
+                
+                // Make vehicle fields required, contact fields not required
                 $('#edit_vehicle_number').prop('required', true);
                 $('#edit_vehicle_type').prop('required', true);
                 
+                // Remove required status from contact fields
+                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile').prop('required', false);
+                
+                // Hide required asterisks for contact fields
+                $('#address_required, #province_required, #district_required, #city_required, #email_required, #mobile_required').hide();
+                
+                // Clear contact field values and errors (they'll be inherited from parent)
+                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile, #edit_telephone_no').val('');
+                $('#address_error, #province_error, #district_error, #city_error, #email_error, #mobile_error, #telephone_no_error').text('');
+                
                 // Fetch and display parent location details
                 fetchParentLocationDetails(parentId);
-                parentDetailsSection.slideDown(300);
             } else {
-                // Parent location - hide vehicle details and parent details
+                // MAIN LOCATION - Hide vehicle section, show contact details, hide parent info
                 vehicleSection.slideUp(300);
+                contactDetailsSection.slideDown(300);
                 parentDetailsSection.slideUp(300);
-                $('#edit_vehicle_number').prop('required', false).val('');
-                $('#edit_vehicle_type').prop('required', false).val('');
-                // Clear any vehicle validation errors
-                $('#vehicle_number_error').text('');
-                $('#vehicle_type_error').text('');
+                
+                // Make contact fields required, vehicle fields not required
+                $('#edit_address, #edit_province, #edit_district').prop('required', true);
+                $('#edit_vehicle_number, #edit_vehicle_type').prop('required', false).val('');
+                
+                // Show required asterisks for contact fields
+                $('#address_required, #province_required, #district_required').show();
+                
+                // Clear vehicle validation errors
+                $('#vehicle_number_error, #vehicle_type_error').text('');
             }
             
             // Revalidate the form
@@ -112,55 +132,61 @@
                     required: true,
                 },
                 address: {
-                    required: true,
+                    required: function() {
+                        // Address is required only for main locations (no parent)
+                        return $('#edit_parent_id').val() === '';
+                    }
                 },
                 province: {
-                    required: true,
+                    required: function() {
+                        // Province is required only for main locations (no parent)
+                        return $('#edit_parent_id').val() === '';
+                    }
                 },
                 district: {
-                    required: true,
+                    required: function() {
+                        // District is required only for main locations (no parent)
+                        return $('#edit_parent_id').val() === '';
+                    }
                 },
                 city: {
-                    required: true,
+                    required: false, // City is optional
                 },
                 email: {
-                    required: true,
+                    required: false, // Email is optional
+                    email: true
                 },
                 mobile: {
-                    required: true,
+                    required: false, // Mobile is optional
                 },
                 vehicle_number: {
                     required: function() {
+                        // Vehicle number is required only for sublocations (has parent)
                         return $('#edit_parent_id').val() !== '';
                     }
                 },
                 vehicle_type: {
                     required: function() {
+                        // Vehicle type is required only for sublocations (has parent)
                         return $('#edit_parent_id').val() !== '';
                     }
                 }
             },
             messages: {
                 name: {
-                    required: "Name is required",
+                    required: "Location name is required",
                 },
                 address: {
-                    required: "Address is required",
+                    required: "Address is required for main locations",
                 },
                 province: {
-                    required: "Province is required",
+                    required: "Province is required for main locations",
                 },
                 district: {
-                    required: "District is required",
-                },
-                city: {
-                    required: "City is required",
+                    required: "District is required for main locations",
                 },
                 email: {
-                    required: "Email is required",
-                },
-                mobile: {
-                    required: "Mobile is required",
+                    email: "Please enter a valid email address",
                 },
                 vehicle_number: {
                     required: "Vehicle number is required for sublocations",
@@ -227,6 +253,9 @@
 
         // Show Add Location Modal
         $('#addLocationButton').click(function() {
+            // Clear any existing toastr messages
+            toastr.clear();
+            
             $('#modalTitle').text('New Location');
             $('#modalButton').text('Save');
             $('#addAndLocationUpdateForm')[0].reset();
@@ -240,6 +269,7 @@
             
             // Reset parent details section
             $('#parentLocationDetails').hide();
+            $('#contactDetailsSection').show(); // Ensure contact details are shown for new location
             
             $('#addAndEditLocationModal').modal('show');
         });
@@ -327,14 +357,18 @@
         $(document).on('click', '.edit_btn', function() {
             const id = $(this).val();
 
+            // Clear any existing toastr messages
+            toastr.clear();
+            
             $('#modalTitle').text('Edit Location');
             $('#modalButton').text('Update');
             $('#edit_id').val(id);
             
+            // Clear all error messages
+            $('.text-danger').text('');
+            
             // Clear logo preview
             $('#logo_preview').html('');
-
-            $('#addAndEditLocationModal').modal('show');
 
             $.ajax({
                 url: '/location-edit/' + id,
@@ -391,6 +425,23 @@
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'location-update/' + id : 'location-store';
             let type = id ? 'post' : 'post';
+            let isSubLocation = $('#edit_parent_id').val() !== '';
+            let actionType = id ? 'Updating' : 'Creating';
+            let locationType = isSubLocation ? 'sublocation' : 'main location';
+            
+            // Clear any existing toastr notifications first
+            toastr.clear();
+            
+            // Show loading message
+            $('#modalButton').prop('disabled', true).text(`${actionType}...`);
+            
+            toastr.options = {
+                "closeButton": true,
+                "positionClass": "toast-top-right",
+                "timeOut": "0",
+                "extendedTimeOut": "0"
+            };
+            toastr.info(`${actionType} ${locationType}...`, 'Processing');
 
             $.ajax({
                 url: url,
@@ -403,23 +454,31 @@
                 processData: false,
                 dataType: 'json',
                 success: function(response) {
+                    // Clear loading message first
+                    toastr.clear();
+                    
+                    // Re-enable button and reset text
+                    $('#modalButton').prop('disabled', false).text(id ? 'Update' : 'Save');
+                    
                     // Handle validation errors
                     if (response.status == 400 || response.status === false) {
                         // Handle validation errors
                         if (response.errors) {
+                            // Clear previous error messages
+                            $('.text-danger').text('');
+                            
                             $.each(response.errors, function(key, err_value) {
                                 const errorMessage = Array.isArray(err_value) ? err_value[0] : err_value;
                                 $('#' + key + '_error').html(errorMessage);
-                                document.getElementsByClassName('errorSound')[0].play(); //for sound
-                                
-                                // Configure toastr for error messages
-                                toastr.options = {
-                                    "closeButton": true,
-                                    "positionClass": "toast-top-right",
-                                    "timeOut": "5000"
-                                };
-                                toastr.error(errorMessage, 'Validation Error');
                             });
+                            
+                            document.getElementsByClassName('errorSound')[0].play();
+                            toastr.options = {
+                                "closeButton": true,
+                                "positionClass": "toast-top-right",
+                                "timeOut": "5000"
+                            };
+                            toastr.error('Please fix the validation errors', 'Validation Error');
                         } else {
                             document.getElementsByClassName('errorSound')[0].play();
                             toastr.options = {
@@ -430,19 +489,45 @@
                             toastr.error(response.message || 'Validation failed', 'Error');
                         }
                     } else {
+                        // Success - close modal and refresh data
                         $('#addAndEditLocationModal').modal('hide');
-                        // Clear validation error messages
+                        
+                        // Clear all error messages
+                        $('.text-danger').text('');
+                        
+                        // Refresh data tables
                         showFetchData();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
+                        
+                        // Refresh parent dropdown if a new main location was created
+                        if (!isSubLocation) {
+                            populateLocationDropdown();
+                        }
+                        
+                        // Reset form
+                        resetFormAndValidation();
+                        
+                        // Play success sound and show success message
+                        document.getElementsByClassName('successSound')[0].play();
                         toastr.options = {
                             "closeButton": true,
-                            "positionClass": "toast-top-right"
+                            "positionClass": "toast-top-right",
+                            "timeOut": "3000"
                         };
-                        toastr.success(response.message, id ? 'Updated' : 'Added');
-                        resetFormAndValidation();
+                        
+                        const successMessage = id ? 
+                            `${locationType} updated successfully!` : 
+                            `${locationType} created successfully!`;
+                        
+                        toastr.success(successMessage, id ? 'Updated' : 'Created');
                     }
                 },
                 error: function(xhr, status, error) {
+                    // Clear loading message first
+                    toastr.clear();
+                    
+                    // Re-enable button and reset text
+                    $('#modalButton').prop('disabled', false).text(id ? 'Update' : 'Save');
+                    
                     // Handle HTTP error responses (422, 500, etc.)
                     document.getElementsByClassName('errorSound')[0].play();
                     
@@ -457,11 +542,14 @@
                         // Laravel validation errors
                         const response = xhr.responseJSON;
                         if (response && response.errors) {
+                            // Clear previous error messages
+                            $('.text-danger').text('');
+                            
                             $.each(response.errors, function(key, err_value) {
                                 const errorMessage = Array.isArray(err_value) ? err_value[0] : err_value;
                                 $('#' + key + '_error').html(errorMessage);
-                                toastr.error(errorMessage, 'Validation Error');
                             });
+                            toastr.error('Please fix the validation errors', 'Validation Error');
                         } else if (response && response.message) {
                             toastr.error(response.message, 'Validation Error');
                         } else {

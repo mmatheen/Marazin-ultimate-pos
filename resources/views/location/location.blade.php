@@ -302,107 +302,106 @@
                                         </div>
                                     </div>
 
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Address<span class="login-danger">*</span></label>
-                                                <textarea class="form-control" id="edit_address" name="address" placeholder="Address"></textarea>
-                                                <span class="text-danger" id="address_error"></span>
+                                    <!-- Contact and Address Details Section (Hidden for Sublocations) -->
+                                    <div id="contactDetailsSection" class="col-12">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Address<span class="login-danger" id="address_required">*</span></label>
+                                                        <textarea class="form-control" id="edit_address" name="address" placeholder="Address"></textarea>
+                                                        <span class="text-danger" id="address_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Province<span class="login-danger" id="province_required">*</span></label>
+                                                        <select class="form-control form-select" id="edit_province" name="province">
+                                                            <option value="">Select Province</option>
+                                                            <option value="Western">Western</option>
+                                                            <option value="Central">Central</option>
+                                                            <option value="Southern">Southern</option>
+                                                            <option value="North Western">North Western</option>
+                                                            <option value="North Central">North Central</option>
+                                                            <option value="Northern">Northern</option>
+                                                            <option value="Eastern">Eastern</option>
+                                                            <option value="Uva">Uva</option>
+                                                            <option value="Sabaragamuwa">Sabaragamuwa</option>
+                                                        </select>
+                                                        <span class="text-danger" id="province_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>District<span class="login-danger" id="district_required">*</span></label>
+                                                        <select class="form-control form-select" id="edit_district" name="district">
+                                                            <option value="">Select District</option>
+                                                        </select>
+                                                        <span class="text-danger" id="district_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>City<span class="login-danger" id="city_required"></span></label>
+                                                        <input class="form-control" id="edit_city" name="city" type="text" placeholder="City">
+                                                        <span class="text-danger" id="city_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Email<span class="login-danger" id="email_required"></span></label>
+                                                        <input type="text" class="form-control" id="edit_email" name="email" placeholder="Email">
+                                                        <span class="text-danger" id="email_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Phone<span class="login-danger" id="mobile_required"></span></label>
+                                                        <input type="text" class="form-control" id="edit_mobile" name="mobile" placeholder="Phone No">
+                                                        <span class="text-danger" id="mobile_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Telephone (Optional)</label>
+                                                        <input type="text" class="form-control" id="edit_telephone_no" name="telephone_no" placeholder="Telephone No">
+                                                        <span class="text-danger" id="telephone_no_error"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Location Logo<span class="login-danger"></span></label>
+                                                        <input type="file" class="form-control" id="edit_logo_image" name="logo_image" accept="image/*">
+                                                        <span class="text-danger" id="logo_image_error"></span>
+                                                        <div id="logo_preview" style="margin-top: 10px;">
+                                                            <!-- Logo preview will be shown here -->
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Province<span class="login-danger">*</span></label>
-                                                <select class="form-control form-select" id="edit_province" name="province">
-                                                    <option selected disabled>Select Province</option>
-                                                    <option value="Western">Western</option>
-                                                    <option value="Central">Central</option>
-                                                    <option value="Southern">Southern</option>
-                                                    <option value="North Western">North Western</option>
-                                                    <option value="North Central">North Central</option>
-                                                    <option value="Northern">Northern</option>
-                                                    <option value="Eastern">Eastern</option>
-                                                    <option value="Uva">Uva</option>
-                                                    <option value="Sabaragamuwa">Sabaragamuwa</option>
-                                                </select>
-                                                <span class="text-danger" id="province_error"></span>
-                                            </div>
-                                        </div>
-
-                                    </div>
-
-
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>District<span class="login-danger">*</span></label>
-                                                <select class="form-control form-select" id="edit_district"
-                                                    name="district">
-                                                    <option selected disabled>Select District</option>
-                                                </select>
-                                                <span class="text-danger" id="district_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>City<span class="login-danger"></span></label>
-                                                <input class="form-control" id="edit_city" name="city" type="text"
-                                                    placeholder="City">
-                                                <span class="text-danger" id="city_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Email<span class="login-danger"></span></label>
-                                                <input type="text" class="form-control" id="edit_email"
-                                                    name="email" placeholder="Email">
-                                                <span class="text-danger" id="email_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Phone<span class="login-danger"></span></label>
-                                                <input type="text" class="form-control" id="edit_mobile"
-                                                    name="mobile" placeholder="Phone No">
-                                                <span class="text-danger" id="mobile_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="mb-3">
-                                            <div class="form-group local-forms">
-                                                <label>Telephone (Optional)</label>
-                                                <input type="text" class="form-control" id="edit_telephone_no"
-                                                    name="telephone_no" placeholder="Telephone No">
-                                                <span class="text-danger" id="telephone_no_error"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                     <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <div class="form-group local-forms">
-                                            <label>Location Logo<span class="login-danger"></span></label>
-                                            <input type="file" class="form-control" id="edit_logo_image" name="logo_image" accept="image/*">
-                                            <span class="text-danger" id="logo_image_error"></span>
-                                            <div id="logo_preview" style="margin-top: 10px;">
-                                                <!-- Logo preview will be shown here -->
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                                 </div>
 
                                 <div class="modal-footer">

@@ -12,6 +12,12 @@ use App\Models\User; // Ensure User model is imported
 
 class LocationScope implements Scope
 {
+    // Cache properties to avoid repeated queries/calculations within the same request
+    private static $authenticatedUser;
+    private static $userRoles = [];
+    private static $userLocationIds = [];
+    private static $selectedLocation;
+    private static $locationBypassPermissions = [];
     /**
      * Apply the scope to a given Eloquent query builder.
      */
@@ -34,70 +40,94 @@ class LocationScope implements Scope
 
         Log::info("LocationScope: Applying scope for user " . $user->id . " on model " . get_class($model));
 
-        // Master Super Admin bypasses ALL scopes and sees everything
-        if ($this->isMasterSuperAdmin($user)) {
-            Log::info("LocationScope: Master Super Admin bypass for user " . $user->id);
-            return;
-        }
-
-        // Check if user has general bypass permission through role
-        if ($this->hasLocationBypassPermission($user)) {
+        // Check for bypass permissions (Master Super Admin or location bypass)
+        if ($this->canBypassLocationScope($user)) {
             Log::info("LocationScope: User " . $user->id . " has bypass permission");
             return;
         }
 
-        // Sales Rep: Apply location filter based on their assigned routes/cities
-        if ($this->isSalesRep($user)) {
-            Log::info("LocationScope: Applying sales rep location filter for user " . $user->id);
-            $this->applySalesRepLocationFilter($builder, $user);
-            return;
-        }
-
-        // For all other users, apply standard location filter
-        Log::info("LocationScope: Applying standard location filter for user " . $user->id);
+        // Apply location filter for all users (including sales reps)
+        Log::info("LocationScope: Applying location filter for user " . $user->id);
         $this->applyLocationFilter($builder, $user);
     }
 
     /**
-     * Check if the user is a Master Super Admin
+     * Check if user can bypass location scope (Master Super Admin or has bypass permission)
      */
-    private function isMasterSuperAdmin($user): bool
+    private function canBypassLocationScope($user): bool
     {
         if (!$user instanceof User) {
             return false;
         }
 
-        // Load roles if not already loaded
+        $userId = $user->id;
+        
+        // Return cached result if available
+        if (isset(self::$locationBypassPermissions[$userId])) {
+            return self::$locationBypassPermissions[$userId];
+        }
+
+        $userRoles = $this->getUserRoles($user);
+        
+        // Check for Master Super Admin or Super Admin roles
+        $adminRoles = ['master_super_admin', 'super_admin', 'Master Super Admin', 'Super Admin'];
+        $hasAdminRole = !empty(array_intersect($userRoles, $adminRoles));
+        
+        // Check for bypass permission in roles
+        $hasBypassRole = false;
         if (!$user->relationLoaded('roles')) {
             $user->load('roles');
         }
+        
+        foreach ($user->roles as $role) {
+            if ($role->bypass_location_scope ?? false) {
+                $hasBypassRole = true;
+                break;
+            }
+        }
 
-        return $user->roles->pluck('name')->contains('Master Super Admin') || 
-               $user->roles->pluck('key')->contains('master_super_admin');
+        // Check specific permission
+        $hasPermission = method_exists($user, 'hasPermissionTo') && 
+                        $user->hasPermissionTo('override location scope');
+
+        $canBypass = $hasAdminRole || $hasBypassRole || $hasPermission;
+        
+        // Cache the result
+        self::$locationBypassPermissions[$userId] = $canBypass;
+        
+        return $canBypass;
     }
 
     /**
-     * Check if the user is a Super Admin
+     * Get user roles (cached)
      */
-    private function isSuperAdmin($user): bool
+    private function getUserRoles($user): array
     {
         if (!$user instanceof User) {
-            return false;
+            return [];
         }
 
-        // Load roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
+        $userId = $user->id;
+        
+        if (!isset(self::$userRoles[$userId])) {
+            // Load roles if not already loaded
+            if (!$user->relationLoaded('roles')) {
+                $user->load('roles');
+            }
+            
+            self::$userRoles[$userId] = array_merge(
+                $user->roles->pluck('name')->toArray(),
+                $user->roles->pluck('key')->toArray()
+            );
         }
 
-        return $user->roles->pluck('key')->contains('super_admin') ||
-               $user->roles->pluck('name')->contains('Super Admin');
+        return self::$userRoles[$userId];
     }
 
 
 
     /**
-     * Apply location filter logic
+     * Apply location filter logic - optimized
      */
     private function applyLocationFilter(Builder $builder, $user)
     {
@@ -107,40 +137,36 @@ class LocationScope implements Scope
         Log::info("LocationScope: Applying filter - Selected: {$selectedLocation}, User Locations: " . json_encode($locationIds));
 
         $builder->where(function ($query) use ($selectedLocation, $locationIds, $user) {
-            $hasLocationFilter = false;
+            $filterLocationIds = [];
 
-            // Priority 1: Use selected location (from session or header)
-            if ($selectedLocation) {
-                // Validate that user has access to this location
-                if (empty($locationIds) || in_array($selectedLocation, $locationIds)) {
-                    $query->where('location_id', $selectedLocation);
-                    $hasLocationFilter = true;
-                    Log::info("LocationScope: Applied selected location filter: {$selectedLocation}");
-                } else {
-                    Log::warning("LocationScope: User {$user->id} doesn't have access to selected location {$selectedLocation}");
-                }
+            // Priority 1: Use selected location if user has access
+            if ($selectedLocation && (empty($locationIds) || in_array($selectedLocation, $locationIds))) {
+                $filterLocationIds = [$selectedLocation];
+                Log::info("LocationScope: Applied selected location filter: {$selectedLocation}");
             }
-            
-            // Priority 2: Use assigned locations
-            if (!$hasLocationFilter && !empty($locationIds)) {
-                $query->whereIn('location_id', $locationIds);
-                $hasLocationFilter = true;
+            // Priority 2: Use all assigned locations
+            elseif (!empty($locationIds)) {
+                $filterLocationIds = $locationIds;
                 Log::info("LocationScope: Applied user locations filter: " . implode(',', $locationIds));
             }
 
-            // If user has no location assignments, restrict to null location only
-            if (!$hasLocationFilter) {
+            // Apply location filter or restrict to null only
+            if (!empty($filterLocationIds)) {
+                $query->whereIn('location_id', $filterLocationIds)->orWhereNull('location_id');
+            } else {
                 $query->whereNull('location_id');
                 Log::info("LocationScope: No location access - restricted to null location only");
-            } else {
-                // Also allow null location records (walk-in customers, etc.)
-                $query->orWhereNull('location_id');
+            }
+            
+            // Log warning if selected location access denied
+            if ($selectedLocation && !empty($locationIds) && !in_array($selectedLocation, $locationIds)) {
+                Log::warning("LocationScope: User {$user->id} doesn't have access to selected location {$selectedLocation}");
             }
         });
     }
 
     /**
-     * Check if the user is a Sales Rep
+     * Check if the user is a Sales Rep - optimized
      */
     private function isSalesRep($user): bool
     {
@@ -148,77 +174,116 @@ class LocationScope implements Scope
             return false;
         }
 
-        // Use the method if available
+        // Use the method if available (most efficient)
         if (method_exists($user, 'isSalesRep')) {
             return $user->isSalesRep();
         }
 
-        // Fallback: check role key directly
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        return $user->roles->pluck('key')->contains('sales_rep');
+        // Use cached roles
+        $userRoles = $this->getUserRoles($user);
+        return in_array('sales_rep', $userRoles);
     }
 
     /**
-     * Get authenticated user from Sanctum, web guard, or default
+     * Get authenticated user from Sanctum, web guard, or default (cached)
      */
     private function getAuthenticatedUser()
     {
+        // Return cached user if available
+        if (self::$authenticatedUser !== null) {
+            return self::$authenticatedUser;
+        }
+
         try {
-            if (Auth::guard('sanctum')->check()) {
-                return Auth::guard('sanctum')->user();
+            $user = null;
+            
+            // Check guards in order of priority
+            foreach (['sanctum', 'web'] as $guard) {
+                if (Auth::guard($guard)->check()) {
+                    $user = Auth::guard($guard)->user();
+                    break;
+                }
             }
-
-            if (Auth::guard('web')->check()) {
-                return Auth::guard('web')->user();
+            
+            // Fallback to default guard
+            if (!$user) {
+                $user = Auth::user();
             }
-
-            return Auth::user(); // fallback
+            
+            // Cache the result
+            self::$authenticatedUser = $user;
+            
+            return $user;
         } catch (\Exception $e) {
             Log::warning("LocationScope: Failed to get authenticated user: " . $e->getMessage());
+            self::$authenticatedUser = null;
             return null;
         }
     }
 
     /**
-     * Get selected location from session (web) or header (API)
+     * Get selected location from session (web) or header (API) - cached
      */
     private function getSelectedLocation()
     {
+        // Return cached result if available
+        if (self::$selectedLocation !== null) {
+            return self::$selectedLocation;
+        }
+
         try {
+            $location = null;
+            
             // Web: from session
             if (!app()->runningInConsole() && Session::has('selected_location')) {
-                return Session::get('selected_location');
+                $location = Session::get('selected_location');
             }
-
             // API: from header
-            $request = request();
-            if ($request && $request->hasHeader('X-Selected-Location')) {
-                return $request->header('X-Selected-Location');
+            elseif (($request = request()) && $request->hasHeader('X-Selected-Location')) {
+                $location = $request->header('X-Selected-Location');
             }
 
-            return null;
+            // Cache the result
+            self::$selectedLocation = $location;
+            
+            return $location;
         } catch (\Exception $e) {
             Log::warning("LocationScope: Failed to get selected location: " . $e->getMessage());
+            self::$selectedLocation = null;
             return null;
         }
     }
 
     /**
-     * Get location IDs assigned to the user
+     * Get location IDs assigned to the user - cached
      */
     private function getUserLocationIds($user): array
     {
+        if (!$user instanceof User) {
+            return [];
+        }
+
+        $userId = $user->id;
+        
+        // Return cached result if available
+        if (isset(self::$userLocationIds[$userId])) {
+            return self::$userLocationIds[$userId];
+        }
+
         try {
             if (!$user->relationLoaded('locations')) {
                 $user->load('locations');
             }
 
-            return $user->locations->pluck('id')->toArray();
+            $locationIds = $user->locations->pluck('id')->toArray();
+            
+            // Cache the result
+            self::$userLocationIds[$userId] = $locationIds;
+            
+            return $locationIds;
         } catch (\Exception $e) {
             Log::warning("LocationScope: Failed to load user locations: " . $e->getMessage());
+            self::$userLocationIds[$userId] = [];
             return [];
         }
     }
@@ -238,55 +303,14 @@ class LocationScope implements Scope
     }
 
     /**
-     * Check if user has location bypass permission
+     * Reset static caches - useful for testing or long-running processes
      */
-    private function hasLocationBypassPermission($user): bool
+    public static function clearCache(): void
     {
-        if (!$user instanceof User) {
-            return false;
-        }
-
-        // Load roles if not already loaded
-        if (!$user->relationLoaded('roles')) {
-            $user->load('roles');
-        }
-
-        // Check if any role has bypass_location_scope flag
-        foreach ($user->roles as $role) {
-            if ($role->bypass_location_scope ?? false) {
-                return true;
-            }
-        }
-
-        // Check for specific permissions
-        return $user->hasPermissionTo('override location scope');
-    }
-
-    /**
-     * Apply location filter for sales reps based on their routes/cities
-     */
-    private function applySalesRepLocationFilter(Builder $builder, $user)
-    {
-        // For now, apply the same location filter as other users
-        // This can be customized later for sales rep specific logic
-        $this->applyLocationFilter($builder, $user);
-    }
-
-    /**
-     * Apply user_id filter if the column exists on the model's table
-     */
-    private function applyUserIdFilter(Builder $builder, Model $model, $user)
-    {
-        $table = $model->getTable();
-
-        try {
-            $columns = $model->getConnection()->getSchemaBuilder()->getColumnListing($table);
-
-            if (in_array('user_id', $columns)) {
-                $builder->where('user_id', $user->id);
-            }
-        } catch (\Exception $e) {
-            Log::warning("LocationScope: Could not fetch columns for table {$table}: " . $e->getMessage());
-        }
+        self::$authenticatedUser = null;
+        self::$userRoles = [];
+        self::$userLocationIds = [];
+        self::$selectedLocation = null;
+        self::$locationBypassPermissions = [];
     }
 }

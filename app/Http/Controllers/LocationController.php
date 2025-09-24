@@ -34,11 +34,11 @@ class LocationController extends Controller
 
         // Master Super Admin can see all locations
         if ($this->isMasterSuperAdmin($user)) {
-            $locations = Location::with('parent', 'children')->get();
+            $locations = Location::with('parent', 'children')->orderBy('id', 'asc')->get();
         }
         // Users with override location scope permission can see all locations
         elseif ($this->hasLocationBypassPermission($user)) {
-            $locations = Location::with('parent', 'children')->get();
+            $locations = Location::with('parent', 'children')->orderBy('id', 'asc')->get();
         }
         // Sales Rep gets their accessible locations
         elseif ($this->isSalesRep($user)) {
@@ -46,7 +46,7 @@ class LocationController extends Controller
         } 
         // Regular users (including regular admin) see only their assigned locations
         else {
-            $locations = $user->locations()->with('parent', 'children')->get();
+            $locations = $user->locations()->with('parent', 'children')->orderBy('id', 'asc')->get();
         }
 
         if ($locations->isNotEmpty()) {
@@ -101,6 +101,7 @@ class LocationController extends Controller
         // Return the assigned sublocations (vehicles)
         return Location::whereIn('id', $assignedLocationIds)
             ->with('parent', 'children')
+            ->orderBy('id', 'asc')
             ->get();
     }
 
@@ -114,13 +115,14 @@ class LocationController extends Controller
 
         if ($vehicle->vehicle_type === 'bike') {
             // Bike: Only main locations (no parent)
-            return Location::whereNull('parent_id')->with('parent', 'children')->get();
+            return Location::whereNull('parent_id')->with('parent', 'children')->orderBy('id', 'asc')->get();
         } else {
             // Van/Other: Only sub-locations (has parent) with vehicle details
             return Location::whereNotNull('parent_id')
                 ->whereNotNull('vehicle_number')
                 ->whereNotNull('vehicle_type')
                 ->with('parent', 'children')
+                ->orderBy('id', 'asc')
                 ->get();
         }
     }
@@ -135,7 +137,10 @@ class LocationController extends Controller
             $request->merge(['location_id' => $this->generateLocationId()]);
         }
 
-        $validator = Validator::make($request->all(), [
+        $isSubLocation = !empty($request->parent_id);
+        
+        // Build validation rules based on location type
+        $validationRules = [
             'name' => [
                 'required',
                 'string',
@@ -166,51 +171,70 @@ class LocationController extends Controller
                 'string',
                 'unique:locations,location_id',
                 'regex:/^LOC\d{4}$/',
-            ],
-            'address' => 'required|string|max:255',
-            'province' => 'required|string|max:255',
-            'district' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:locations,email',
-            'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
-            'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-            'vehicle_number' => [
-                'nullable',
-                'string',
-                'max:50',
-                'unique:locations,vehicle_number',
-                function ($attribute, $value, $fail) use ($request) {
-                    if ($request->parent_id && empty($value)) {
-                        $fail('Vehicle number is required for sublocations.');
+            ]
+        ];
+
+        if ($isSubLocation) {
+            // For sublocations - only vehicle details are required, others inherited from parent
+            $validationRules += [
+                'vehicle_number' => [
+                    'required',
+                    'string',
+                    'max:50',
+                    'unique:locations,vehicle_number',
+                    'regex:/^[A-Z0-9\-]+$/i'
+                ],
+                'vehicle_type' => [
+                    'required',
+                    'string',
+                    'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
+                ],
+            ];
+        } else {
+            // For main locations - all contact and address details are required
+            $validationRules += [
+                'address' => 'required|string|max:255',
+                'province' => 'required|string|max:255',
+                'district' => 'required|string|max:255',
+                'city' => 'nullable|string|max:255',
+                'email' => 'nullable|email|max:255|unique:locations,email',
+                'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
+                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                // Ensure no vehicle details for main locations
+                'vehicle_number' => [
+                    'nullable',
+                    function ($attribute, $value, $fail) {
+                        if (!empty($value)) {
+                            $fail('Main locations should not have vehicle details.');
+                        }
                     }
-                    if (!$request->parent_id && !empty($value)) {
-                        $fail('Parent locations should not have vehicle details.');
+                ],
+                'vehicle_type' => [
+                    'nullable',
+                    function ($attribute, $value, $fail) {
+                        if (!empty($value)) {
+                            $fail('Main locations should not have vehicle details.');
+                        }
                     }
-                }
-            ],
-            'vehicle_type' => [
-                'nullable',
-                'string',
-                'max:50',
-                function ($attribute, $value, $fail) use ($request) {
-                    if ($request->parent_id && empty($value)) {
-                        $fail('Vehicle type is required for sublocations.');
-                    }
-                    if (!$request->parent_id && !empty($value)) {
-                        $fail('Parent locations should not have vehicle details.');
-                    }
-                }
-            ],
-        ], [
-            'mobile.required' => 'Please enter a valid mobile number with 10 digits.',
+                ],
+            ];
+        }
+
+        $customMessages = [
             'mobile.regex' => 'Mobile must be 9 or 10 digits.',
             'location_id.regex' => 'Location ID must be in format LOC0001.',
             'location_id.unique' => 'This Location ID is already taken.',
             'vehicle_number.unique' => 'This vehicle number is already in use.',
+            'vehicle_number.regex' => 'Vehicle number format is invalid. Use letters, numbers, and hyphens only.',
+            'vehicle_number.required' => 'Vehicle number is required for sublocations.',
+            'vehicle_type.required' => 'Vehicle type is required for sublocations.',
+            'vehicle_type.in' => 'Please select a valid vehicle type.',
             'logo_image.image' => 'The logo must be an image file.',
             'logo_image.mimes' => 'The logo must be a file of type: jpeg, jpg, png, gif.',
             'logo_image.max' => 'The logo must not be greater than 2MB.',
-        ]);
+        ];
+
+        $validator = Validator::make($request->all(), $validationRules, $customMessages);
 
         if ($validator->fails()) {
             return response()->json([
@@ -234,20 +258,36 @@ class LocationController extends Controller
                 'name' => $request->name,
                 'location_id' => $request->location_id,
                 'parent_id' => $request->parent_id,
-                'address' => $request->address,
-                'province' => $request->province,
-                'district' => $request->district,
-                'city' => $request->city,
-                'email' => $request->email,
-                'mobile' => $request->mobile,
-                'telephone_no' => $request->telephone_no,
-                'logo_image' => $logoImagePath,
             ];
 
-            // Add vehicle details if this is a sublocation
-            if ($request->parent_id) {
-                $locationData['vehicle_number'] = $request->vehicle_number;
-                $locationData['vehicle_type'] = $request->vehicle_type;
+            if ($isSubLocation) {
+                // For sublocations - inherit parent details and add vehicle info
+                $parentLocation = Location::find($request->parent_id);
+                
+                $locationData += [
+                    'address' => $parentLocation->address,
+                    'province' => $parentLocation->province,
+                    'district' => $parentLocation->district,
+                    'city' => $parentLocation->city,
+                    'email' => $parentLocation->email,
+                    'mobile' => $parentLocation->mobile,
+                    'telephone_no' => $parentLocation->telephone_no,
+                    'logo_image' => $parentLocation->logo_image,
+                    'vehicle_number' => $request->vehicle_number,
+                    'vehicle_type' => $request->vehicle_type,
+                ];
+            } else {
+                // For main locations - use provided details
+                $locationData += [
+                    'address' => $request->address,
+                    'province' => $request->province,
+                    'district' => $request->district,
+                    'city' => $request->city ?? '',
+                    'email' => $request->email ?? '',
+                    'mobile' => $request->mobile ?? 0,
+                    'telephone_no' => $request->telephone_no,
+                    'logo_image' => $logoImagePath,
+                ];
             }
 
             $location = Location::create($locationData);
@@ -343,10 +383,14 @@ class LocationController extends Controller
                 ]);
             }
 
-            $validator = Validator::make($request->all(), [
+            $isSubLocation = !empty($request->parent_id);
+        
+            // Build validation rules based on location type (same as store method)
+            $validationRules = [
                 'name' => [
                     'required',
                     'string',
+                    'max:255',
                     function ($attribute, $value, $fail) use ($request, $location) {
                         $query = Location::where('name', $value)->where('id', '!=', $location->id);
                         if ($request->parent_id) {
@@ -377,55 +421,70 @@ class LocationController extends Controller
                     'string',
                     'regex:/^LOC\d{4}$/',
                     'unique:locations,location_id,' . $id,
-                ],
-                'address' => 'required|string|max:255',
-                'province' => 'required|string|max:255',
-                'district' => 'required|string|max:255',
-                'city' => 'required|string|max:255',
-                'email' => 'required|email|max:255',
-                'mobile' => ['required', 'regex:/^(0?\d{9,10})$/'],
-                'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
-                'vehicle_number' => [
-                    'nullable',
-                    'string',
-                    'max:50',
-                    'unique:locations,vehicle_number,' . $id,
-                    function ($attribute, $value, $fail) use ($request) {
-                        // If parent_id is set (sublocation), vehicle_number is required
-                        if ($request->parent_id && empty($value)) {
-                            $fail('Vehicle number is required for sublocations.');
+                ]
+            ];
+
+            if ($isSubLocation) {
+                // For sublocations - only vehicle details are required, others inherited from parent
+                $validationRules += [
+                    'vehicle_number' => [
+                        'required',
+                        'string',
+                        'max:50',
+                        'unique:locations,vehicle_number,' . $id,
+                        'regex:/^[A-Z0-9\-]+$/i'
+                    ],
+                    'vehicle_type' => [
+                        'required',
+                        'string',
+                        'in:Van,Truck,Bike,Car,Three Wheeler,Lorry,Other'
+                    ],
+                ];
+            } else {
+                // For main locations - all contact and address details are required
+                $validationRules += [
+                    'address' => 'required|string|max:255',
+                    'province' => 'required|string|max:255',
+                    'district' => 'required|string|max:255',
+                    'city' => 'nullable|string|max:255',
+                    'email' => 'nullable|email|max:255|unique:locations,email,' . $id,
+                    'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
+                    'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                    // Ensure no vehicle details for main locations
+                    'vehicle_number' => [
+                        'nullable',
+                        function ($attribute, $value, $fail) {
+                            if (!empty($value)) {
+                                $fail('Main locations should not have vehicle details.');
+                            }
                         }
-                        // If parent_id is null (parent location), vehicle_number should be null
-                        if (!$request->parent_id && !empty($value)) {
-                            $fail('Parent locations should not have vehicle details.');
+                    ],
+                    'vehicle_type' => [
+                        'nullable',
+                        function ($attribute, $value, $fail) {
+                            if (!empty($value)) {
+                                $fail('Main locations should not have vehicle details.');
+                            }
                         }
-                    }
-                ],
-                'vehicle_type' => [
-                    'nullable',
-                    'string',
-                    'max:50',
-                    function ($attribute, $value, $fail) use ($request) {
-                        // If parent_id is set (sublocation), vehicle_type is required
-                        if ($request->parent_id && empty($value)) {
-                            $fail('Vehicle type is required for sublocations.');
-                        }
-                        // If parent_id is null (parent location), vehicle_type should be null
-                        if (!$request->parent_id && !empty($value)) {
-                            $fail('Parent locations should not have vehicle details.');
-                        }
-                    }
-                ],
-            ], [
-                'mobile.required' => 'Mobile number is required.',
+                    ],
+                ];
+            }
+
+            $customMessages = [
                 'mobile.regex' => 'Mobile must be 9 or 10 digits.',
                 'location_id.regex' => 'Location ID must be in format LOC0001.',
                 'location_id.unique' => 'This Location ID is already taken.',
                 'vehicle_number.unique' => 'This vehicle number is already in use.',
+                'vehicle_number.regex' => 'Vehicle number format is invalid. Use letters, numbers, and hyphens only.',
+                'vehicle_number.required' => 'Vehicle number is required for sublocations.',
+                'vehicle_type.required' => 'Vehicle type is required for sublocations.',
+                'vehicle_type.in' => 'Please select a valid vehicle type.',
                 'logo_image.image' => 'The logo must be an image file.',
                 'logo_image.mimes' => 'The logo must be a file of type: jpeg, jpg, png, gif.',
                 'logo_image.max' => 'The logo must not be greater than 2MB.',
-            ]);
+            ];
+
+            $validator = Validator::make($request->all(), $validationRules, $customMessages);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -454,25 +513,38 @@ class LocationController extends Controller
                     'name' => $request->name,
                     'location_id' => $request->location_id,
                     'parent_id' => $request->parent_id,
-                    'address' => $request->address,
-                    'province' => $request->province,
-                    'district' => $request->district,
-                    'city' => $request->city,
-                    'email' => $request->email,
-                    'mobile' => $request->mobile,
-                    'telephone_no' => $request->telephone_no,
-                    'logo_image' => $logoImagePath,
                 ];
-                
-                // Handle vehicle details based on parent_id
-                if ($request->parent_id) {
-                    // Sublocation - add vehicle details
-                    $updateData['vehicle_number'] = $request->vehicle_number;
-                    $updateData['vehicle_type'] = $request->vehicle_type;
+
+                if ($isSubLocation) {
+                    // For sublocations - inherit parent details and update vehicle info
+                    $parentLocation = Location::find($request->parent_id);
+                    
+                    $updateData += [
+                        'address' => $parentLocation->address,
+                        'province' => $parentLocation->province,
+                        'district' => $parentLocation->district,
+                        'city' => $parentLocation->city,
+                        'email' => $parentLocation->email,
+                        'mobile' => $parentLocation->mobile,
+                        'telephone_no' => $parentLocation->telephone_no,
+                        'logo_image' => $parentLocation->logo_image,
+                        'vehicle_number' => $request->vehicle_number,
+                        'vehicle_type' => $request->vehicle_type,
+                    ];
                 } else {
-                    // Parent location - remove vehicle details
-                    $updateData['vehicle_number'] = null;
-                    $updateData['vehicle_type'] = null;
+                    // For main locations - use provided details
+                    $updateData += [
+                        'address' => $request->address,
+                        'province' => $request->province,
+                        'district' => $request->district,
+                        'city' => $request->city ?? '',
+                        'email' => $request->email ?? '',
+                        'mobile' => $request->mobile ?? 0,
+                        'telephone_no' => $request->telephone_no,
+                        'logo_image' => $logoImagePath,
+                        'vehicle_number' => null,
+                        'vehicle_type' => null,
+                    ];
                 }
                 
                 $location->update($updateData);
