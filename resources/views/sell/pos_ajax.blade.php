@@ -9,6 +9,20 @@
         canDeleteProduct: @json(auth()->user()->can('delete product'))
     };
 
+    // Global function to clean up modal backdrops and body styles
+    window.cleanupModalBackdrop = function() {
+        // Remove all modal backdrops
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        
+        // Reset body styles
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        console.log('Modal backdrop cleanup completed');
+    };
+
     document.addEventListener("DOMContentLoaded", function() {
         let selectedLocationId = null;
         let currentProductsPage = 1;
@@ -2097,6 +2111,24 @@
                     return;
                 }
                 const modal = new bootstrap.Modal(modalElement);
+                
+                // Add event listener for modal cleanup
+                modalElement.addEventListener('hidden.bs.modal', function modalCleanup() {
+                    // Ensure backdrop is removed and body styles are reset
+                    setTimeout(() => {
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) {
+                            backdrop.remove();
+                        }
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+                    }, 100);
+                    
+                    // Remove the event listener to prevent memory leaks
+                    modalElement.removeEventListener('hidden.bs.modal', modalCleanup);
+                });
+                
                 modal.show();
 
                 setupSearchAndFilter(tbody, imeiRows, searchTerm, matchType);
@@ -2195,11 +2227,6 @@
             }
             const modal = new bootstrap.Modal(modalElement);
             modal.show();
-
-            setupSearchAndFilter(tbody, imeiRows, searchTerm, matchType);
-            setupConfirmHandler(modal, product, stockEntry, selectedBatch, tbody, imeiRows);
-            setupAddButtonContainer(missingImeiCount, tbody, imeiRows);
-            attachEditRemoveHandlers();
         }
 
         // --- Helper Functions ---
@@ -2274,7 +2301,39 @@
                     return;
                 }
 
-                modal.hide();
+                // Properly hide modal and ensure backdrop is removed
+                try {
+                    modal.hide();
+                    // Remove any remaining backdrop manually as a fallback
+                    setTimeout(() => {
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) {
+                            backdrop.remove();
+                        }
+                        // Ensure body overflow is restored
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                        document.body.style.paddingRight = '';
+                    }, 300);
+                } catch (error) {
+                    console.error('Error hiding modal:', error);
+                    // Force cleanup if modal.hide() fails
+                    const modalElement = document.getElementById('imeiModal');
+                    if (modalElement) {
+                        modalElement.classList.remove('show');
+                        modalElement.style.display = 'none';
+                        modalElement.setAttribute('aria-hidden', 'true');
+                        modalElement.removeAttribute('aria-modal');
+                        modalElement.removeAttribute('role');
+                    }
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }
                 const batchId = selectedBatch ? selectedBatch.id : "all";
                 
                 // Get customer-type-based price
@@ -2316,13 +2375,19 @@
                             } else {
                                 toastr.error(data.message || "Failed to save new IMEIs");
                             }
+                            // Final cleanup to ensure modal is completely closed
+                            window.cleanupModalBackdrop();
                         })
                         .catch(err => {
                             console.error(err);
                             toastr.error("Error saving new IMEIs");
+                            // Final cleanup to ensure modal is completely closed
+                            window.cleanupModalBackdrop();
                         });
                 } else {
                     updateBilling(uniqueImeis, product, stockEntry, price, batchId);
+                    // Final cleanup to ensure modal is completely closed
+                    window.cleanupModalBackdrop();
                 }
             };
         }
