@@ -358,14 +358,25 @@ class SaleController extends Controller
         }
 
         // Validate walk-in customer credit sales restriction
-        $totalAmountGiven = $request->amount_given ?? 0;
-        $finalTotal = $request->total_amount ?? 0;
-        if ($request->customer_id == 1 && $totalAmountGiven < $finalTotal) {
-            return response()->json([
-                'status' => 400,
-                'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
-                'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
-            ]);
+        if ($request->customer_id == 1) {
+            $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
+            $totalPayments = 0;
+            
+            // Calculate total payments made
+            if (!empty($request->payments)) {
+                foreach ($request->payments as $payment) {
+                    $totalPayments += $payment['amount'] ?? 0;
+                }
+            }
+            
+            // Only block if there's insufficient payment (credit sale)
+            if ($totalPayments < $finalTotal) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
+                    'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
+                ]);
+            }
         }
 
         try {

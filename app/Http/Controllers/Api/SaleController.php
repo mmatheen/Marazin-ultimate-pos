@@ -343,7 +343,7 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        // Validate walk-in customer cheque payment restriction
+        // Validate walk-in customer payment restrictions
         if ($request->customer_id == 1 && !empty($request->payments)) {
             foreach ($request->payments as $payment) {
                 if (isset($payment['payment_method']) && $payment['payment_method'] === 'cheque') {
@@ -353,6 +353,28 @@ class SaleController extends Controller
                         'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
                     ]);
                 }
+            }
+        }
+
+        // Validate walk-in customer credit sales restriction
+        if ($request->customer_id == 1) {
+            $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
+            $totalPayments = 0;
+            
+            // Calculate total payments made
+            if (!empty($request->payments)) {
+                foreach ($request->payments as $payment) {
+                    $totalPayments += $payment['amount'] ?? 0;
+                }
+            }
+            
+            // Only block if there's insufficient payment (credit sale)
+            if ($totalPayments < $finalTotal) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
+                    'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
+                ]);
             }
         }
 
