@@ -962,7 +962,9 @@
         // Function to handle form submission
         function handleFormSubmit(buttonType) {
             if (isSubmitting) {
-                toastr.error('Form is already being submitted. Please wait.', 'Warning');
+                // Clear existing toastr notifications before showing new one
+                toastr.clear();
+                toastr.warning('Form is already being submitted. Please wait.', 'Please Wait');
                 return; // Prevent further execution
             }
 
@@ -1017,14 +1019,19 @@
                         if (buttonType === 'onlySave') {
                             if (isEditMode || isEditPage) {
                                 // Edit mode - show success message and navigate to list
+                                toastr.clear(); // Clear any existing notifications
                                 toastr.success('Product updated successfully!', 'Updated');
                                 // Navigate to list-product after edit
                                 window.location.href = '/list-product';
                             } else {
                                 // Add mode - normal behavior
+                                toastr.clear(); // Clear any existing notifications
                                 toastr.success(response.message, 'Success');
                                 resetFormAndValidation();
-                                fetchLastAddedProducts();
+                                // Only fetch and add to purchase table if it exists
+                                if ($('#purchase_product').length > 0) {
+                                    fetchLastAddedProducts();
+                                }
                                 
                                 // Navigate to list-product only when on add-product page
                                 if (isAddPage) {
@@ -1035,10 +1042,12 @@
                         } else if (buttonType === 'saveAndAnother') {
                             if (isEditMode || isEditPage) {
                                 // Edit mode - show success message and go to add product page
+                                toastr.clear(); // Clear any existing notifications
                                 toastr.success('Product updated successfully!', 'Updated');
                                 window.location.href = '/add-product';
                             } else {
                                 // Add mode - normal behavior
+                                toastr.clear(); // Clear any existing notifications
                                 toastr.success(response.message, 'Success');
                                 resetFormAndValidation();
                                 // Also fetch and add the last product to purchase table if it exists
@@ -1049,6 +1058,7 @@
                             }
                         } else if (buttonType === 'saveAndOpeningStock') {
                             const productId = $('#product_id').val();
+                            toastr.clear(); // Clear any existing notifications
                             toastr.success(response.message, 'Success');
                             if (productId) {
                                 window.location.href = `/edit-opening-stock/${response.product_id || productId}`;
@@ -1062,25 +1072,30 @@
                     toastr.error('Failed to add product. Please try again.', 'Error');
                 },
                 complete: function() {
-                    isSubmitting =
-                        false; // Reset the flag after the request completes (success or failure)
+                    isSubmitting = false; // Reset the flag after the request completes (success or failure)
+                    // Re-enable all buttons
+                    $('#onlySaveProductButton, #SaveProductButtonAndAnother, #openingStockAndProduct').prop('disabled', false);
                 }
             });
         }
 
-        // Button click event handlers
+        // Button click event handlers with debouncing
         $('#onlySaveProductButton').click(function(e) {
             e.preventDefault();
+            $(this).prop('disabled', true); // Disable button immediately
             handleFormSubmit('onlySave');
+            // Re-enable button after a delay (will be handled in complete callback)
         });
 
         $('#SaveProductButtonAndAnother').click(function(e) {
             e.preventDefault();
+            $(this).prop('disabled', true); // Disable button immediately
             handleFormSubmit('saveAndAnother');
         });
 
         $('#openingStockAndProduct').click(function(e) {
             e.preventDefault();
+            $(this).prop('disabled', true); // Disable button immediately
             handleFormSubmit('saveAndOpeningStock');
         });
 
@@ -1102,7 +1117,7 @@
                     }
                     
                     addProductToTable(product);
-                    toastr.success('New product added to the table!', 'Success');
+                    // Success message already shown from main form submission
                 } else {
                     toastr.error(response.message || 'Unable to fetch product details.', 'Error');
                 }

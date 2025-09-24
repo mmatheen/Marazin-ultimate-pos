@@ -533,11 +533,3 @@ Route::middleware(['auth', 'check.session'])->group(function () {
     });
 });
 
-// Location Scope Testing Routes (Development/Debug)
-Route::middleware(['auth', 'web'])->group(function () {
-    Route::get('/test/location-scope', [\App\Http\Controllers\Test\LocationScopeTestController::class, 'index'])->name('test.location.scope');
-    Route::post('/test/location-scope/set', [\App\Http\Controllers\Test\LocationScopeTestController::class, 'setLocation'])->name('test.location.set');
-    Route::get('/test/location-scope/clear', [\App\Http\Controllers\Test\LocationScopeTestController::class, 'clearLocation'])->name('test.location.clear');
-    Route::get('/test/debug-user-locations', [\App\Http\Controllers\Test\LocationScopeTestController::class, 'debugUserLocations'])->name('test.debug.user.locations');
-});
-

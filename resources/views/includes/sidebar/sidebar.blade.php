@@ -13,14 +13,6 @@
                     </a>
                 </li>
 
-                <!-- Location Scope Test Link (Development/Debug) -->
-                <li>
-                    <a href="{{ route('test.location.scope') }}" class="{{ request()->routeIs('test.location.scope') ? 'active' : '' }}">
-                        <i class="feather-settings"></i>
-                        <span class="sidebar-text">Location Scope Test</span>
-                    </a>
-                </li>
-
                 @canany(['view user', 'view role', 'view role-permission', 'view sales-commission-agent'])
                     <li class="submenu {{ set_active(['user', 'role', 'group-role-and-permission-view', 'group-role-and-permission', 'role-and-permission-edit']) }}">
                         <a href="#">
