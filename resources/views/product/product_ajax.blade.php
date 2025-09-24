@@ -2049,11 +2049,14 @@
         let formData = new FormData($('#importProductForm')[0]);
         let fileInput = $('input[name="file"]')[0];
 
+        // Clear any existing toastr notifications
+        toastr.clear();
+        
         // Validate file input
         if (fileInput.files.length === 0) {
             $('#file_error').html('Please select an Excel file.');
             $('.errorSound')[0].play();
-            toastr.error('Please select an Excel file.', 'Error');
+            toastr.error('Please select an Excel file.', 'File Required');
             return;
         } else {
             $('#file_error').html('');
@@ -2084,45 +2087,122 @@
             processData: false,
             dataType: "json",
             beforeSend: function() {
+                // Clear any existing notifications
+                toastr.clear();
+                $('#error-display-area').html('');
+                
                 $('.progress-bar').css('width', '0%').text('0%');
                 $('.progress').show();
                 $('#import_btn').prop('disabled', true).text('Processing...');
             },
             success: function(response) {
+                // Clear any existing toastr notifications first
+                toastr.clear();
+                
+                // Debug log
+                console.log('Import Response:', response);
+                
                 if (response.status == 400) {
                     // Handle file validation errors
                     $.each(response.errors, function(key, err_value) {
                         $('#' + key + '_error').html(err_value);
                         $('.errorSound')[0].play();
-                        toastr.error(err_value, 'Error');
+                        toastr.error(err_value, 'Validation Error');
                     });
                 } else if (response.status == 200) {
                     // Complete success
                     $("#importProductForm")[0].reset();
+                    $('#error-display-area').html(''); // Clear any previous errors
                     $('.successSound')[0].play();
-                    toastr.success(response.message, 'Success');
                     
-                    // Show success summary
-                    if (response.success_count > 0) {
-                        toastr.info(`${response.success_count} products imported successfully.`, 'Import Summary');
-                    }
-                } else if (response.status == 422) {
-                    // Partial success with errors
+                    // Show single consolidated success message
+                    let successCount = response.success_count || 0;
+                    
+                    // If status is 200, it's successful regardless of success_count
+                    toastr.success(response.message || `Import successful! Products have been imported.`, 'Import Complete', {
+                        timeOut: 5000,
+                        extendedTimeOut: 2000
+                    });
+                    
+                    // Show navigation button after a delay
+                    setTimeout(function() {
+                        toastr.info('<div class="text-center"><a href="/list-product" class="btn btn-primary btn-sm">View Products</a></div>', 'Next Step', {
+                            allowHtml: true,
+                            timeOut: 0,
+                            extendedTimeOut: 0,
+                            closeButton: true
+                        });
+                    }, 3000);
+                } else if (response.status == 401 || response.status == 422) {
+                    // Import validation errors
                     $("#importProductForm")[0].reset();
                     
                     // Show detailed error messages with row numbers
                     if (response.validation_errors && response.validation_errors.length > 0) {
-                        let errorHtml = '<div class="alert alert-warning"><h6>Import Completed with Errors:</h6>';
-                        errorHtml += '<p><strong>' + response.message + '</strong></p>';
-                        errorHtml += '<div style="max-height: 300px; overflow-y: auto;"><ul>';
-                        
+                        // Group errors by row number for better display
+                        let errorsByRow = {};
                         response.validation_errors.forEach(function(error) {
-                            errorHtml += '<li>' + error + '</li>';
+                            let rowMatch = error.match(/Row (\d+):/);
+                            if (rowMatch) {
+                                let rowNum = rowMatch[1];
+                                if (!errorsByRow[rowNum]) {
+                                    errorsByRow[rowNum] = [];
+                                }
+                                errorsByRow[rowNum].push(error.replace(/Row \d+:\s*/, ''));
+                            } else {
+                                if (!errorsByRow['general']) {
+                                    errorsByRow['general'] = [];
+                                }
+                                errorsByRow['general'].push(error);
+                            }
                         });
                         
-                        errorHtml += '</ul></div></div>';
+                        let errorHtml = '<div class="alert alert-danger"><h5><i class="fas fa-exclamation-triangle"></i> Import Failed</h5>';
+                        errorHtml += '<p><strong>' + response.message + '</strong></p>';
+                        errorHtml += '<div class="row">';
+                        errorHtml += '<div class="col-md-6">';
+                        errorHtml += '<p><strong>Total Errors:</strong> ' + response.validation_errors.length + '</p>';
+                        errorHtml += '</div>';
+                        errorHtml += '</div>';
                         
-                        // Display errors in a modal or alert area
+                        // Create a scrollable detailed error area
+                        errorHtml += '<div class="border rounded p-3 bg-light" style="max-height: 400px; overflow-y: auto;">';
+                        errorHtml += '<h6>Detailed Errors:</h6>';
+                        
+                        Object.keys(errorsByRow).forEach(function(rowKey) {
+                            if (rowKey === 'general') {
+                                errorHtml += '<div class="mb-2"><strong>General Errors:</strong><ul class="mb-0">';
+                                errorsByRow[rowKey].forEach(function(error) {
+                                    errorHtml += '<li class="text-danger">' + error + '</li>';
+                                });
+                                errorHtml += '</ul></div>';
+                            } else {
+                                errorHtml += '<div class="mb-2"><strong>Row ' + rowKey + ':</strong><ul class="mb-0">';
+                                errorsByRow[rowKey].forEach(function(error) {
+                                    errorHtml += '<li class="text-danger">' + error + '</li>';
+                                });
+                                errorHtml += '</ul></div>';
+                            }
+                        });
+                        
+                        errorHtml += '</div>';
+                        errorHtml += '<div class="mt-3">';
+                        errorHtml += '<div class="d-flex justify-content-between align-items-start">';
+                        errorHtml += '<div>';
+                        errorHtml += '<p class="mb-0"><i class="fas fa-info-circle"></i> <strong>Next Steps:</strong></p>';
+                        errorHtml += '<ol class="mb-0">';
+                        errorHtml += '<li>Fix the highlighted errors in your Excel file</li>';
+                        errorHtml += '<li>Ensure all required fields are filled</li>';
+                        errorHtml += '<li>Upload the corrected file again</li>';
+                        errorHtml += '</ol>';
+                        errorHtml += '</div>';
+                        errorHtml += '<button type="button" class="btn btn-sm btn-outline-secondary" onclick="$(\'#error-display-area\').html(\'\'); $(this).closest(\'.alert\').fadeOut();" title="Clear errors">';
+                        errorHtml += '<i class="fas fa-times"></i> Clear';
+                        errorHtml += '</button>';
+                        errorHtml += '</div>';
+                        errorHtml += '</div></div>';
+                        
+                        // Display errors in the error area
                         if ($('#error-display-area').length) {
                             $('#error-display-area').html(errorHtml);
                         } else {
@@ -2131,22 +2211,21 @@
                             $('#importProductForm').after(errorArea);
                         }
                         
+                        // Scroll to error area
+                        $('html, body').animate({
+                            scrollTop: $("#error-display-area").offset().top - 100
+                        }, 1000);
+                        
                         $('.errorSound')[0].play();
                         
-                        // Show ONLY ONE comprehensive toastr error message
+                        // Show summary toastr error message
                         let errorCount = response.validation_errors.length;
-                        let summary = `Import failed with ${errorCount} error${errorCount > 1 ? 's' : ''}. Please check the details below and fix your Excel file.`;
+                        let uniqueRows = Object.keys(errorsByRow).filter(k => k !== 'general').length;
+                        let summary = `Import failed with ${errorCount} error${errorCount > 1 ? 's' : ''} across ${uniqueRows} row${uniqueRows > 1 ? 's' : ''}. Please check the detailed errors above.`;
                         toastr.error(summary, 'Import Failed', {
-                            timeOut: 10000,
-                            extendedTimeOut: 5000
+                            timeOut: 8000,
+                            extendedTimeOut: 3000
                         });
-                    }
-                    
-                    // Show success count if any (this shouldn't happen with "all or nothing" approach)
-                    if (response.success_count > 0) {
-                        setTimeout(function() {
-                            toastr.success(`${response.success_count} products were imported successfully.`, 'Partial Success');
-                        }, 500);
                     }
                 } else if (response.status == 500) {
                     // Server error
@@ -2159,6 +2238,9 @@
                 $('#import_btn').prop('disabled', false).text('Upload');
             },
             error: function(xhr, status, error) {
+                // Clear existing toastr notifications
+                toastr.clear();
+                
                 console.error("AJAX Error:", xhr.responseText);
                 $('.errorSound')[0].play();
                 

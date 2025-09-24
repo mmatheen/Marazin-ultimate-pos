@@ -1517,20 +1517,34 @@ class ProductController extends Controller
                 // Get validation errors from the import process
                 $validationErrors = $import->getValidationErrors();
                 $records = $import->getData();
+                $successCount = count($records);
 
                 // If there are validation errors, return them in the response
                 if (!empty($validationErrors)) {
                     return response()->json([
                         'status' => 401,
                         'validation_errors' => $validationErrors, // Return specific error messages
+                        'success_count' => $successCount,
+                        'error_count' => count($validationErrors)
+                    ]);
+                }
 
+                // Check if no products were actually imported
+                if ($successCount === 0) {
+                    return response()->json([
+                        'status' => 401,
+                        'validation_errors' => ['No valid rows found in the Excel file. Please check that your file has data and follows the correct format.'],
+                        'success_count' => 0,
+                        'error_count' => 1
                     ]);
                 }
 
                 return response()->json([
                     'status' => 200,
                     'data' => $records,
-                    'message' => "Import Products Excel file uploaded successfully!"
+                    'message' => "Import successful! {$successCount} products imported successfully!",
+                    'success_count' => $successCount,
+                    'error_count' => 0
                 ]);
             } else {
                 return response()->json([

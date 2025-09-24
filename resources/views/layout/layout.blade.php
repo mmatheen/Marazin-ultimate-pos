@@ -326,6 +326,11 @@
 
     <script>
         $(document).on('submit', 'form', function(e) {
+            // Skip global handler for specific forms that have their own custom handlers
+            if ($(this).hasClass('skip-global-handler') || $(this).attr('id') === 'importProductForm' || $(this).attr('data-skip-global') === 'true') {
+                return; // Let the form handle its own submission
+            }
+            
             e.preventDefault(); // prevent default submit
 
             let $form = $(this);

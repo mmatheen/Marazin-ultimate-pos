@@ -1,4 +1,53 @@
 @extends('layout.layout')
+@push('styles')
+<style>
+    .error-container {
+        position: relative;
+    }
+    
+    .error-container .alert {
+        border-left: 5px solid #dc3545;
+        box-shadow: 0 2px 10px rgba(220, 53, 69, 0.1);
+    }
+    
+    .error-container .bg-light {
+        background-color: #f8f9fa !important;
+        border: 1px solid #e9ecef;
+    }
+    
+    .error-container li {
+        font-size: 0.9em;
+        margin-bottom: 2px;
+    }
+    
+    .error-container .text-danger {
+        color: #dc3545 !important;
+        font-weight: 500;
+    }
+    
+    .error-container h5, .error-container h6 {
+        color: #721c24;
+        margin-bottom: 15px;
+    }
+    
+    .error-container .fas {
+        margin-right: 8px;
+    }
+    
+    /* Progress bar styling */
+    .progress {
+        height: 25px;
+        border-radius: 15px;
+        background-color: #e9ecef;
+    }
+    
+    .progress-bar {
+        border-radius: 15px;
+        font-weight: 500;
+        line-height: 25px;
+    }
+</style>
+@endpush
 @section('content')
     <div class="content container-fluid">
         <div class="row">
@@ -24,7 +73,7 @@
                     <div class="card-body">
                         <div class="page-header">
                             <div class="row align-items-center">
-                                <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data">
+                                <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data" class="skip-global-handler" data-skip-global="true">
                                     @csrf
                                     <div class="row">
 
@@ -56,7 +105,7 @@
 
                                         <!-- Error Display Area -->
                                         <div class="col-md-12 mt-3">
-                                            <div id="error-display-area"></div>
+                                            <div id="error-display-area" class="error-container"></div>
                                         </div>
 
 

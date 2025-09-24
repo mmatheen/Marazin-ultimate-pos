@@ -46,6 +46,8 @@ class importProduct implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows)
     {
+        Log::info("Starting import with " . count($rows) . " rows");
+        
         // First pass: Validate all rows without inserting anything
         $this->validateAllRows($rows);
         
@@ -55,22 +57,39 @@ class importProduct implements ToCollection, WithHeadingRow
             return; // Stop processing - no data will be imported
         }
 
+        Log::info("Validation passed, starting import process");
+        
         // Second pass: Import all rows (only if validation passed)
         DB::beginTransaction();
         
         try {
+            $processedCount = 0;
             foreach ($rows as $index => $row) {
                 $excelRowNumber = $index + 2; // Excel row number (accounting for header)
-                $this->processRow($row->toArray(), $excelRowNumber);
+                Log::info("Processing row {$excelRowNumber}");
+                
+                try {
+                    $result = $this->processRow($row->toArray(), $excelRowNumber);
+                    if ($result !== null) {
+                        $processedCount++;
+                        Log::info("Successfully processed row {$excelRowNumber}");
+                    }
+                } catch (\Exception $rowException) {
+                    Log::error("Error processing row {$excelRowNumber}: " . $rowException->getMessage());
+                    $this->validationErrors[] = "Row {$excelRowNumber}: " . $rowException->getMessage();
+                    // Continue processing other rows instead of stopping entire import
+                    continue;
+                }
             }
             
             DB::commit();
-            Log::info("Successfully imported " . count($rows) . " products.");
+            Log::info("Successfully imported {$processedCount} out of " . count($rows) . " products.");
             
         } catch (\Exception $e) {
             DB::rollBack();
             $this->validationErrors[] = "Import failed: " . $e->getMessage();
             Log::error("Import transaction failed: " . $e->getMessage());
+            Log::error("Exception details: " . $e->getTraceAsString());
         }
     }
 
@@ -275,8 +294,11 @@ class importProduct implements ToCollection, WithHeadingRow
         try {
             // Skip empty rows
             if (empty(array_filter($row))) {
+                Log::info("Skipping empty row {$excelRowNumber}");
                 return null;
             }
+            
+            Log::info("Processing row {$excelRowNumber} with data: " . json_encode(array_slice($row, 0, 3))); // Log first 3 fields
 
             // Clean data before processing
             $this->cleanRowData($row);
@@ -349,9 +371,6 @@ class importProduct implements ToCollection, WithHeadingRow
                     'subCategoryname' => $row['sub_category_name'],
                     'main_category_id' => $mainCategory->id,
                 ], ['location_id' => $authLocationId]) : null;
-
-            // Store data for later use if necessary
-            $this->data[] = array_merge($row, ['excel_row' => $excelRowNumber]);
 
             // Create and save the product
             $product = new Product([
@@ -440,6 +459,13 @@ class importProduct implements ToCollection, WithHeadingRow
                     ->where('product_id', $productId)
                     ->update(['qty' => $row['qty']]);
             }
+
+            // Store data for later use - only after successful product creation
+            $this->data[] = array_merge($row, [
+                'excel_row' => $excelRowNumber,
+                'product_id' => $productId,
+                'success' => true
+            ]);
 
             return $product;
 
