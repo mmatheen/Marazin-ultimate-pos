@@ -55,6 +55,75 @@ class SaleController extends Controller
         })->only(['index']);
     }
 
+    /**
+     * Validate credit limit for customer sales
+     * Only checks credit limit when:
+     * 1. Customer has credit sales (partial payment or credit payment method)
+     * 2. Sale is finalized (not draft, quotation, suspend, jobticket)
+     * 3. Customer is not walk-in and has credit limit set
+     */
+    private function validateCreditLimit($customer, $finalTotal, $payments, $saleStatus)
+    {
+        // Skip validation for walk-in customers
+        if ($customer->id == 1) {
+            return true;
+        }
+
+        // Skip validation if customer has no credit limit
+        if ($customer->credit_limit <= 0) {
+            return true;
+        }
+
+        // Skip validation for non-final sales (draft, quotation, suspend, jobticket)
+        if (!in_array($saleStatus, ['final'])) {
+            return true;
+        }
+
+        // Calculate actual payment amount
+        $actualPaymentAmount = 0;
+        $hasCreditPayment = false;
+
+        if (!empty($payments)) {
+            $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
+            // Check if any payment method is 'credit'
+            foreach ($payments as $payment) {
+                if (isset($payment['payment_method']) && $payment['payment_method'] === 'credit') {
+                    $hasCreditPayment = true;
+                    break;
+                }
+            }
+        }
+
+        // Calculate remaining balance after payment
+        $remainingBalance = max(0, $finalTotal - $actualPaymentAmount);
+
+        // Only validate credit limit if:
+        // 1. There's remaining balance (partial payment), OR
+        // 2. Payment method explicitly includes 'credit'
+        if ($remainingBalance <= 0 && !$hasCreditPayment) {
+            return true; // Full payment made and no explicit credit sale
+        }
+
+        // Calculate projected new balance
+        $currentBalance = $customer->current_balance;
+        $projectedNewBalance = $currentBalance + $remainingBalance;
+
+        // Check if projected balance exceeds credit limit
+        if ($projectedNewBalance > $customer->credit_limit) {
+            $availableCredit = max(0, $customer->credit_limit - $currentBalance);
+            throw new \Exception(
+                "Credit limit exceeded for {$customer->full_name}.\n" .
+                "Current balance: Rs. " . number_format($currentBalance, 2) . "\n" .
+                "Credit limit: Rs. " . number_format($customer->credit_limit, 2) . "\n" .
+                "Available credit: Rs. " . number_format($availableCredit, 2) . "\n" .
+                "Sale amount due: Rs. " . number_format($remainingBalance, 2) . "\n" .
+                "This sale would exceed credit limit by Rs. " . number_format($projectedNewBalance - $customer->credit_limit, 2)
+            );
+        }
+
+        return true;
+    }
+
     public function listSale()
     {
         return view('sell.sale');
@@ -356,8 +425,8 @@ class SaleController extends Controller
             }
         }
 
-        // Validate walk-in customer credit sales restriction
-        if ($request->customer_id == 1) {
+        // Validate walk-in customer credit sales restriction (but allow suspended sales)
+        if ($request->customer_id == 1 && $request->status !== 'suspend') {
             $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
             $totalPayments = 0;
             
@@ -459,27 +528,9 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit check
+                // Credit limit validation using centralized method
                 $customer = Customer::findOrFail($request->customer_id);
-
-                // Calculate payments amount sent in request
-                $paymentAmount = 0;
-                if (!empty($request->payments)) {
-                    $paymentAmount = array_sum(array_column($request->payments, 'amount'));
-                } elseif ($newStatus === 'jobticket' && $advanceAmount > 0) {
-                    $paymentAmount = $advanceAmount;
-                } else {
-                    $paymentAmount = 0;
-                }
-
-                $netSaleAmount = $finalTotal - $paymentAmount;
-                $currentBalance = $customer->current_balance;
-
-                $newBalance = $currentBalance + $netSaleAmount;
-
-                if ($customer->id != 1 && $customer->credit_limit > 0 && $newBalance > $customer->credit_limit) {
-                    throw new \Exception("Credit limit exceeded for {$customer->full_name}. Current balance: {$currentBalance}, Sale amount due after payment: {$netSaleAmount}, Credit limit: {$customer->credit_limit}");
-                }
+                $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
 
 
                 // ----- Save Sale -----
@@ -596,8 +647,8 @@ class SaleController extends Controller
                     ]);
                 }
 
-                // Check for partial payments for Walk-In Customer
-                if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
+                // Check for partial payments for Walk-In Customer (but allow suspended sales)
+                if ($request->customer_id == 1 && $request->status !== 'suspend' && $amountGiven < $sale->final_total) {
                     throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
                 }
 
@@ -1167,8 +1218,26 @@ class SaleController extends Controller
 
     public function fetchSuspendedSales()
     {
-        $suspendedSales = Sale::where('status', 'suspend')->with('products')->get();
-        return response()->json($suspendedSales, 200);
+        try {
+            $suspendedSales = Sale::where('status', 'suspend')
+                ->with(['customer', 'products.product'])
+                ->get()
+                ->map(function ($sale) {
+                    return [
+                        'id' => $sale->id,
+                        'invoice_no' => $sale->invoice_no, // Changed from reference_no
+                        'sales_date' => $sale->created_at, // Changed to full date object
+                        'customer' => $sale->customer ? ['name' => trim($sale->customer->first_name . ' ' . $sale->customer->last_name)] : ['name' => 'Walk-In Customer'], // Nested object
+                        'products' => $sale->products->toArray(), // Full products array for .length
+                        'final_total' => $sale->final_total, // Raw number, not formatted
+                    ];
+                });
+            
+            return response()->json($suspendedSales->values(), 200); // Ensure it returns an array
+        } catch (\Exception $e) {
+            logger()->error('Error fetching suspended sales: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch suspended sales'], 500);
+        }
     }
 
 

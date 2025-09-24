@@ -1443,6 +1443,15 @@
                     color: #28a745;
                     pointer-events: none;
                 }
+                .quantity-error {
+                    border: 2px solid #dc3545 !important;
+                    box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important;
+                    background-color: #fff5f5 !important;
+                }
+                .quantity-error:focus {
+                    border-color: #dc3545 !important;
+                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+                }
             `;
             if (!document.getElementById('autocomplete-styles')) {
                 style.id = 'autocomplete-styles';
@@ -3457,6 +3466,55 @@
             if (modalTotalPayableElement) {
                 modalTotalPayableElement.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
             }
+            
+            // Validate quantities and update button states
+            updatePaymentButtonsState();
+        }
+
+        // Quantity validation functions - Global scope
+        function validateAllQuantities() {
+            let isValid = true;
+            const productRows = $('#billing-body tr');
+            
+            productRows.each(function() {
+                const quantityInput = $(this).find('.quantity-input');
+                const maxQuantity = parseFloat(quantityInput.attr('max')) || Infinity;
+                const currentQuantity = parseFloat(quantityInput.val()) || 0;
+                const isUnlimitedStock = quantityInput.attr('title') && quantityInput.attr('title').includes('Unlimited');
+                
+                // Check if quantity is valid
+                if (currentQuantity <= 0) {
+                    // Always invalid if quantity is zero or negative
+                    quantityInput.addClass('quantity-error');
+                    isValid = false;
+                } else if (!isUnlimitedStock && currentQuantity > maxQuantity) {
+                    // Invalid if exceeds stock (but only for non-unlimited stock items)
+                    quantityInput.addClass('quantity-error');
+                    isValid = false;
+                } else {
+                    // Valid quantity
+                    quantityInput.removeClass('quantity-error');
+                }
+            });
+            
+            return isValid;
+        }
+
+        function updatePaymentButtonsState() {
+            const isQuantityValid = validateAllQuantities();
+            const paymentButtons = ['#cashButton', '#cardButton', '#chequeButton', '#creditSaleButton', '#multiplePayButton'];
+            
+            paymentButtons.forEach(buttonId => {
+                if (isQuantityValid) {
+                    $(buttonId).prop('disabled', false);
+                } else {
+                    $(buttonId).prop('disabled', true);
+                }
+            });
+            
+            // Draft button is always enabled
+            $('#draftButton').prop('disabled', false);
+            $('#quotationButton').prop('disabled', false);
         }
 
         // Price validation and editability management
@@ -4089,9 +4147,28 @@
                 }];
             }
 
+            // Quantity validation functions now in global scope above
+
+            // Add event listeners for quantity input changes
+            $(document).on('input change', '.quantity-input', function() {
+                updatePaymentButtonsState();
+            });
+
+            // Initial validation on page load
+            $(document).ready(function() {
+                updatePaymentButtonsState();
+            });
+
             $('#cashButton').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // Validate quantities before processing
+                    if (!validateAllQuantities()) {
+                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        enableButton(button);
+                        return;
+                    }
+                    
                     const saleData = gatherSaleData('final');
                     if (!saleData) {
                         toastr.error(
@@ -4198,6 +4275,13 @@
             $('#confirmCardPayment').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // Validate quantities before processing
+                    if (!validateAllQuantities()) {
+                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        enableButton(button);
+                        return;
+                    }
+                    
                     const saleData = gatherSaleData('final');
                     if (!saleData) {
                         toastr.error(
@@ -4280,6 +4364,13 @@
             $('#confirmChequePayment').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // Validate quantities before processing
+                    if (!validateAllQuantities()) {
+                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        enableButton(button);
+                        return;
+                    }
+                    
                     // Check if customer is walk-in customer (ID = 1)
                     const customerId = $('#customer-id').val();
                     if (customerId == 1) {
@@ -4332,6 +4423,13 @@
             $('#creditSaleButton').on('click', function() {
                 const button = this;
                 preventDoubleClick(button, () => {
+                    // Validate quantities before processing
+                    if (!validateAllQuantities()) {
+                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        enableButton(button);
+                        return;
+                    }
+                    
                     const customerId = $('#customer-id').val();
                     if (customerId == 1) {
                         toastr.error(
@@ -4514,6 +4612,12 @@
             // }
 
             document.getElementById('finalize_payment').addEventListener('click', function() {
+                // Validate quantities before processing
+                if (!validateAllQuantities()) {
+                    toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                    return;
+                }
+                
                 const saleData = gatherSaleData('final');
                 if (!saleData) {
                     toastr.error('Please add at least one product before completing the sale.');
@@ -4622,7 +4726,7 @@
                     <td>${new Date(sale.sales_date).toLocaleDateString()}</td>
                     <td>${sale.customer ? sale.customer.name : 'Walk-In Customer'}</td>
                     <td>${sale.products.length}</td>
-                    <td>$${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
+                    <td>Rs. ${formatAmountWithSeparators(finalTotal.toFixed(2))}</td>
                     <td>
                         ${userPermissions.canEditSale ? `<a href="/sales/edit/${sale.id}" class="btn btn-success editSaleButton" data-sale-id="${sale.id}">Edit</a>` : ''}
                         ${userPermissions.canDeleteSale ? `<button class="btn btn-danger deleteSuspendButton" data-sale-id="${sale.id}">Delete</button>` : ''}

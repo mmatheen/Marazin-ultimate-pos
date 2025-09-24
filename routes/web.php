@@ -346,6 +346,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
+        // Suspended Sales - These need to come before the generic routes
+        Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
+        Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
+        
         Route::get('/sales/edit/{id}', [SaleController::class, 'editSale'])->name('sales.edit');
         Route::delete('/sales/delete/{id}', [SaleController::class, 'destroy'])->name('sales.destroy');
         Route::get('/sales/{invoiceNo}', [SaleController::class, 'getSaleByInvoiceNo']);
@@ -353,10 +357,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Sales Reports - These need to come before the generic routes
         Route::get('/sales-report', [SaleController::class, 'saleDailyReport'])->name('sales-report');
         Route::get('/daily-sales-report', [SaleController::class, 'dailyReport']);
-        
-        // Suspended Sales - These need to come before the generic routes
-        Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
-        Route::delete('/sales/delete-suspended/{id}', [SaleController::class, 'deleteSuspendedSale']);
         
         // Print Sales - These need to come before the generic routes
         Route::get('/sales/print-recent-transaction/{id}', [SaleController::class, 'printRecentTransaction']);
