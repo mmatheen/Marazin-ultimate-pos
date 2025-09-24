@@ -7,6 +7,7 @@ use App\Models\Location;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class LocationController extends Controller
 {
@@ -325,9 +326,21 @@ class LocationController extends Controller
                 ], 404);
             }
 
-            // Auto-generate location_id if not provided
+            // Preserve existing location_id during update if not provided in request
             if (!$request->location_id) {
-                $request->merge(['location_id' => $this->generateLocationId()]);
+                $request->merge(['location_id' => $location->location_id]);
+                Log::info('Location update: Preserving existing location_id', [
+                    'location_id' => $location->location_id,
+                    'location_name' => $location->name,
+                    'updated_by' => auth()->id()
+                ]);
+            } else {
+                Log::info('Location update: Using provided location_id', [
+                    'old_location_id' => $location->location_id,
+                    'new_location_id' => $request->location_id,
+                    'location_name' => $location->name,
+                    'updated_by' => auth()->id()
+                ]);
             }
 
             $validator = Validator::make($request->all(), [
