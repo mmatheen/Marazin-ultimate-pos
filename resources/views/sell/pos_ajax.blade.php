@@ -4033,69 +4033,97 @@ $('#locationSelect').on('change', () => {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                     },
                     data: JSON.stringify(saleData),
+                    timeout: 30000, // 30 second timeout to prevent infinite waiting
+                    cache: false, // Prevent caching for fresh responses
                     success: function(response) {
                         if (response.message && response.invoice_html) {
+                            // Immediate success feedback
                             document.getElementsByClassName('successSound')[0].play();
                             toastr.success(response.message);
-
-                            // Create a hidden iframe for printing
-                            const iframe = document.createElement('iframe');
-                            iframe.style.position = 'fixed';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = 'none';
-                            document.body.appendChild(iframe);
-
-                            // Write the receipt content to the iframe
-                            iframe.contentDocument.open();
-                            iframe.contentDocument.write(response.invoice_html);
-                            iframe.contentDocument.close();
-
-                            iframe.onload = function() {
-                                // Trigger the print dialog from the iframe
-                                iframe.contentWindow.print();
-
-                                iframe.contentWindow.onafterprint = function() {
-                                    // Remove the iframe after printing
-                                    document.body.removeChild(iframe);
-
-                                    // Only redirect for edit sales, not for new sales
-                                    if (saleId) {
-                                        window.location.href = '/pos-create';
-                                    }
-                                };
-                            };
 
                             // Store current customer before reset
                             const currentCustomerId = $('#customer-id').val();
                             
-                            // Reset the form and refresh products
+                            // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
-                            fetchPaginatedProducts(true);
-                            fetchSalesData();
                             
-                            // Refresh customer data to update due amounts after successful sale
-                            // Only for final sales that affect customer balances (not drafts, quotations, suspensions)
-                            if (saleData && saleData.status === 'final' && 
-                                typeof window.customerFunctions !== 'undefined' && 
-                                typeof window.customerFunctions.fetchCustomerData === 'function') {
-                                
-                                window.customerFunctions.fetchCustomerData().then(function() {
-                                    console.log('Customer data refreshed after successful sale');
-                                    
-                                    // Optionally restore the same customer (if it was not Walk-in) to see updated due amounts
-                                    if (currentCustomerId && currentCustomerId !== '1') {
-                                        setTimeout(function() {
-                                            $('#customer-id').val(currentCustomerId);
-                                            $('#customer-id').trigger('change');
-                                        }, 100); // Small delay to ensure dropdown is populated
-                                    }
-                                }).catch(function(error) {
-                                    console.error('Failed to refresh customer data:', error);
-                                });
-                            }
-
+                            // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
+
+                            // FAST print setup - simplified and optimized
+                            const printIframe = document.createElement('iframe');
+                            printIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
+                            document.body.appendChild(printIframe);
+
+                            // Optimized print process
+                            const printDoc = printIframe.contentDocument;
+                            printDoc.open();
+                            printDoc.write(response.invoice_html);
+                            printDoc.close();
+
+                            // Immediate print trigger - don't wait for onload
+                            setTimeout(() => {
+                                try {
+                                    printIframe.contentWindow.print();
+                                    
+                                    // Cleanup iframe after short delay
+                                    setTimeout(() => {
+                                        if (document.body.contains(printIframe)) {
+                                            document.body.removeChild(printIframe);
+                                        }
+                                    }, 1000);
+                                    
+                                    // Redirect for edits
+                                    if (saleId) {
+                                        setTimeout(() => {
+                                            window.location.href = '/pos-create';
+                                        }, 500);
+                                    }
+                                } catch (error) {
+                                    console.warn('Print failed:', error);
+                                    // Cleanup on error
+                                    if (document.body.contains(printIframe)) {
+                                        document.body.removeChild(printIframe);
+                                    }
+                                }
+                            }, 100);
+
+                            // ASYNC operations that don't block UI (moved to background)
+                            setTimeout(() => {
+                                // Background refresh - don't block main flow, make it truly async
+                                Promise.all([
+                                    new Promise(resolve => {
+                                        fetchPaginatedProducts(true);
+                                        resolve();
+                                    }),
+                                    new Promise(resolve => {
+                                        fetchSalesData();
+                                        resolve();
+                                    })
+                                ]).catch(error => {
+                                    console.warn('Background refresh error:', error);
+                                });
+                                
+                                // Background customer data refresh
+                                if (saleData && saleData.status === 'final' && 
+                                    typeof window.customerFunctions !== 'undefined' && 
+                                    typeof window.customerFunctions.fetchCustomerData === 'function') {
+                                    
+                                    window.customerFunctions.fetchCustomerData().then(function() {
+                                        console.log('Customer data refreshed after successful sale');
+                                        
+                                        // Restore customer selection if needed
+                                        if (currentCustomerId && currentCustomerId !== '1') {
+                                            setTimeout(function() {
+                                                $('#customer-id').val(currentCustomerId);
+                                                $('#customer-id').trigger('change');
+                                            }, 100);
+                                        }
+                                    }).catch(function(error) {
+                                        console.error('Failed to refresh customer data:', error);
+                                    });
+                                }
+                            }, 200); // Small delay to let UI update first
 
                         } else {
                             toastr.error('Failed to record sale: ' + response.message);
@@ -4136,6 +4164,9 @@ $('#locationSelect').on('change', () => {
 
             $('#cashButton').on('click', function() {
                 const button = this;
+                // Immediate visual feedback
+                $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...').prop('disabled', true);
+                
                 preventDoubleClick(button, () => {
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
@@ -5203,6 +5234,20 @@ $('#locationSelect').on('change', () => {
     function enableButton(button) {
         button.disabled = false;
         button.dataset.isProcessing = "false";
+        
+        // Restore button text based on button type
+        const $button = $(button);
+        if ($button.attr('id') === 'cashButton') {
+            $button.html('<i class="fa fa-money"></i> Cash');
+        } else if ($button.attr('id') === 'cardButton') {
+            $button.html('<i class="fa fa-credit-card"></i> Card');
+        } else if ($button.attr('id') === 'creditButton') {
+            $button.html('<i class="fa fa-credit-card"></i> Credit');
+        } else {
+            // Generic restore - remove spinner and restore original text if available
+            const originalText = $button.data('original-text') || $button.text().replace(/Processing\.\.\./g, '').replace(/fa-spinner fa-spin/g, 'fa-money');
+            $button.html(originalText);
+        }
     }
 
     // Helper: Wrap AJAX calls with button protection
