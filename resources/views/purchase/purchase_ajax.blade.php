@@ -241,21 +241,32 @@
         function initAutocomplete() {
             const $input = $("#productSearchInput");
 
-            // Add Enter key support for quick selection
-            $input.on('keydown', function(event) {
+            // Add Enter key support for quick selection - Updated with working POS AJAX solution
+            $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    const menu = $input.autocomplete('widget');
-                    const firstItem = menu.find('li:first-child');
-                    if (firstItem.length > 0 && !firstItem.text().includes('No products found')) {
-                        // Get the first item's data and trigger selection
-                        const firstItemData = firstItem.data('ui-autocomplete-item');
-                        if (firstItemData && firstItemData.product) {
-                            addProductToTable(firstItemData.product);
-                            $input.val('');
-                            $input.autocomplete('close');
+
+                    const widget = $(this).autocomplete("widget");
+                    const focused = widget.find(".ui-state-focus");
+                    const currentSearchTerm = $(this).val().trim();
+
+                    let itemToAdd = null;
+
+                    if (focused.length > 0) {
+                        // Get the item data from the autocomplete instance's active item
+                        const autocompleteInstance = $(this).autocomplete("instance");
+                        if (autocompleteInstance && autocompleteInstance.menu.active) {
+                            itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
                         }
                     }
+
+                    if (itemToAdd && itemToAdd.product) {
+                        addProductToTable(itemToAdd.product);
+                        $(this).val('');
+                        $(this).autocomplete('close');
+                    }
+
+                    event.stopImmediatePropagation();
                 }
             });
 
@@ -344,11 +355,16 @@
                 open: function() {
                     setTimeout(() => {
                         $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
-                        // Auto-focus first item for Enter key selection
-                        const menu = $input.autocomplete('widget');
-                        const firstItem = menu.find('li:first-child');
-                        if (firstItem.length > 0 && !firstItem.text().includes('No products found')) {
-                            firstItem.addClass('ui-state-focus');
+                        // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
+                        const autocompleteInstance = $input.autocomplete("instance");
+                        const menu = autocompleteInstance.menu;
+                        const firstItem = menu.element.find("li:first-child");
+                        
+                        if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
+                            // Properly set the active item using jQuery UI's method
+                            menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                            firstItem.addClass("ui-state-focus");
+                            menu.active = firstItem;
                             console.log('First item auto-focused - press Enter to add');
                         }
                     }, 50);
@@ -1523,43 +1539,89 @@
                 });
             }
             // Show the modal when the button is clicked
-            $('#bulkPaymentBtn').click(function() {
+            $('#bulkPaymentBtn').off('click').on('click', function() {
                 $('#bulkPaymentModal').modal('show');
             });
 
-            // Fetch suppliers and populate the dropdown
-            $.ajax({
+            // Fetch suppliers and populate the dropdown (only if not already loaded)
+            if ($('#supplierSelect option').length <= 1) {
+                console.log('Fetching suppliers for bulk payment modal...');
+                $.ajax({
                 url: '/supplier-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
+                    console.log('Bulk payment modal - Supplier API response:', response);
                     var supplierSelect = $('#supplierSelect');
                     supplierSelect.empty();
                     supplierSelect.append(
                         '<option value="" selected disabled>Select Supplier</option>');
-                    if (response.message && response.message.length > 0) {
-                        response.message.forEach(function(supplier) {
-                            supplierSelect.append(
-                                '<option value="' + supplier.id +
-                                '" data-opening-balance="' + supplier
-                                .opening_balance + '">' +
-                                supplier.first_name + ' ' + supplier.last_name +
-                                '</option>'
-                            );
+                    
+                    // Handle different response structures
+                    let suppliers = [];
+                    
+                    // Log the response for debugging
+                    console.log('Supplier API response:', response);
+                    
+                    if (response.status === 200 && Array.isArray(response.message)) {
+                        suppliers = response.message;
+                    } else if (response.status === 200 && Array.isArray(response.data)) {
+                        suppliers = response.data;
+                    } else if (Array.isArray(response.message)) {
+                        suppliers = response.message;
+                    } else if (Array.isArray(response.data)) {
+                        suppliers = response.data;
+                    } else if (Array.isArray(response)) {
+                        suppliers = response;
+                    } else if (response.status === 404 && typeof response.message === 'string') {
+                        // Handle 404 with string message
+                        console.warn('No suppliers found:', response.message);
+                        suppliers = [];
+                    } else if (response.message && typeof response.message === 'string') {
+                        // Handle any case where message is a string
+                        console.warn('Supplier API returned string message:', response.message);
+                        suppliers = [];
+                    } else {
+                        console.error("Invalid response format for suppliers:", response);
+                        suppliers = [];
+                    }
+                    
+                    if (suppliers && suppliers.length > 0) {
+                        suppliers.forEach(function(supplier) {
+                            // Validate supplier object
+                            if (supplier && supplier.id) {
+                                const supplierName = ((supplier.first_name || '') + ' ' + (supplier.last_name || '')).trim() || 'Unnamed Supplier';
+                                supplierSelect.append(
+                                    '<option value="' + supplier.id +
+                                    '" data-opening-balance="' + (supplier.opening_balance || 0) + '">' +
+                                    supplierName +
+                                    '</option>'
+                                );
+                            }
                         });
                     } else {
-                        console.error(
-                            "No suppliers found or response.message is undefined.");
+                        console.warn("No suppliers found in response. Response structure:", response);
+                        supplierSelect.append('<option value="" disabled>No suppliers available</option>');
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error("AJAX error: ", status, error);
+                    console.error("AJAX error fetching suppliers: ", status, error);
+                    var supplierSelect = $('#supplierSelect');
+                    supplierSelect.empty();
+                    supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
+                    supplierSelect.append('<option value="" disabled>Error loading suppliers</option>');
+                    
+                    // Show user-friendly error message
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('Failed to load suppliers. Please refresh the page and try again.', 'Error');
+                    }
                 }
             });
+            } // End of supplier dropdown population condition
 
             let originalOpeningBalance = 0; // Store the actual supplier opening balance
 
-            $('#supplierSelect').change(function() {
+            $('#supplierSelect').off('change').on('change', function() {
                 var supplierId = $(this).val();
                 originalOpeningBalance = parseFloat($(this).find(':selected').data(
                     'opening-balance')) || 0;

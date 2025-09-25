@@ -66,6 +66,40 @@
             if ($input.data('ui-autocomplete')) {
             $input.autocomplete("destroy");
             }
+            
+            // Add Enter key support for quick selection - Updated with working POS AJAX solution
+            $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+
+                    const widget = $(this).autocomplete("widget");
+                    const focused = widget.find(".ui-state-focus");
+
+                    let itemToAdd = null;
+
+                    if (focused.length > 0) {
+                        // Get the item data from the autocomplete instance's active item
+                        const autocompleteInstance = $(this).autocomplete("instance");
+                        if (autocompleteInstance && autocompleteInstance.menu.active) {
+                            itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
+                        }
+                    }
+
+                    if (itemToAdd) {
+                        const selectedProduct = productsData.find(data =>
+                            data.product.product_name === itemToAdd.value ||
+                            data.product.sku === itemToAdd.sku
+                        );
+                        if (selectedProduct) {
+                            addOrUpdateProductInTable(selectedProduct);
+                            $(this).val('');
+                            $(this).autocomplete('close');
+                        }
+                    }
+
+                    event.stopImmediatePropagation();
+                }
+            });
 
             // Prepare suggestions
             const productSuggestions = customProducts.map(data => ({
@@ -132,12 +166,27 @@
                 'overflow-x': 'hidden',
                 'z-index': 1050
                 });
+                
+                // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
+                setTimeout(() => {
+                    const autocompleteInstance = $input.autocomplete("instance");
+                    const menu = autocompleteInstance.menu;
+                    const firstItem = menu.element.find("li:first-child");
+                    
+                    if (firstItem.length > 0) {
+                        // Properly set the active item using jQuery UI's method
+                        menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                        firstItem.addClass("ui-state-focus");
+                        menu.active = firstItem;
+                    }
+                }, 50);
             }
             }).autocomplete("instance")._renderItem = function(ul, item) {
             return $("<li>")
                 .append(
                 `<div><strong>${item.value}</strong> <small class="autocomplete-sku">(${item.sku})</small></div>`
                 )
+                .data('ui-autocomplete-item', item)
                 .appendTo(ul);
             };
 

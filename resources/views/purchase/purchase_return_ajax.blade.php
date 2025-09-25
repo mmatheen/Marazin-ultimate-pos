@@ -83,8 +83,15 @@
                     if (item.id == selectedId) option.attr('selected', 'selected');
                     targetSelect.append(option);
                 });
+                } else if (data.status === 404 || (data.message && typeof data.message === 'string')) {
+                // Handle 404 or string message responses
+                targetSelect.html(`<option selected disabled>${placeholder}</option>`);
+                targetSelect.append('<option value="" disabled>No items available</option>');
+                console.warn(`No data found: ${data.message}`);
                 } else {
-                console.error(`Failed to fetch data: ${data.message}`);
+                console.error(`Failed to fetch data:`, data);
+                targetSelect.html(`<option selected disabled>${placeholder}</option>`);
+                targetSelect.append('<option value="" disabled>Error loading data</option>');
                 }
             },
             error: function(xhr, status, error) {
@@ -171,7 +178,37 @@
 
         // Initialize autocomplete functionality
         function initAutocomplete(products) {
-            $("#productSearchInput").autocomplete({
+            const $input = $("#productSearchInput");
+            
+            // Add Enter key support for quick selection - Updated with working POS AJAX solution
+            $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+
+                    const widget = $(this).autocomplete("widget");
+                    const focused = widget.find(".ui-state-focus");
+
+                    let itemToAdd = null;
+
+                    if (focused.length > 0) {
+                        // Get the item data from the autocomplete instance's active item
+                        const autocompleteInstance = $(this).autocomplete("instance");
+                        if (autocompleteInstance && autocompleteInstance.menu.active) {
+                            itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
+                        }
+                    }
+
+                    if (itemToAdd && itemToAdd.product) {
+                        $("#productSearchInput").val(itemToAdd.value);
+                        addProductToTable(itemToAdd.product);
+                        $(this).autocomplete('close');
+                    }
+
+                    event.stopImmediatePropagation();
+                }
+            });
+
+            $input.autocomplete({
                 source: function(request, response) {
                     const searchTerm = request.term.toLowerCase();
                     const filteredProducts = products.filter(product => product.name && product.name
@@ -186,9 +223,24 @@
                     $("#productSearchInput").val(ui.item.value);
                     addProductToTable(ui.item.product);
                     return false;
+                },
+                open: function() {
+                    setTimeout(() => {
+                        // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
+                        const autocompleteInstance = $input.autocomplete("instance");
+                        const menu = autocompleteInstance.menu;
+                        const firstItem = menu.element.find("li:first-child");
+                        
+                        if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
+                            // Properly set the active item using jQuery UI's method
+                            menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                            firstItem.addClass("ui-state-focus");
+                            menu.active = firstItem;
+                        }
+                    }, 50);
                 }
             }).autocomplete("instance")._renderItem = function(ul, item) {
-                return $("<li>").append(`<div>${item.label}</div>`).appendTo(ul);
+                return $("<li>").append(`<div>${item.label}</div>`).data('ui-autocomplete-item', item).appendTo(ul);
             };
         }
 

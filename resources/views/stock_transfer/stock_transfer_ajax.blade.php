@@ -4,7 +4,44 @@
         let locationFilteredProducts = [];
 
         // Initialize autocomplete to search by product name OR SKU, and only show products available in the selected "From" location
-        $('#productSearch').autocomplete({
+        const $productSearchInput = $('#productSearch');
+        
+        // Add Enter key support for quick selection - Updated with working POS AJAX solution
+        $productSearchInput.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+
+                const widget = $(this).autocomplete("widget");
+                const focused = widget.find(".ui-state-focus");
+
+                let itemToAdd = null;
+
+                if (focused.length > 0) {
+                    // Get the item data from the autocomplete instance's active item
+                    const autocompleteInstance = $(this).autocomplete("instance");
+                    if (autocompleteInstance && autocompleteInstance.menu.active) {
+                        itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
+                    }
+                }
+
+                if (itemToAdd && itemToAdd.value !== '') {
+                    // Find the product by name or SKU (case-insensitive)
+                    const selectedProduct = locationFilteredProducts.find(data =>
+                        (data.product.product_name && data.product.product_name.toLowerCase() === itemToAdd.value.toLowerCase()) ||
+                        (data.product.sku && data.product.sku.toLowerCase() === itemToAdd.value.toLowerCase())
+                    );
+                    if (selectedProduct) {
+                        addProductWithBatches(selectedProduct);
+                        $(this).val('');
+                        $(this).autocomplete('close');
+                    }
+                }
+
+                event.stopImmediatePropagation();
+            }
+        });
+
+        $productSearchInput.autocomplete({
             minLength: 1,
             source: function(request, response) {
             const fromLocationId = $('#from_location_id').val();
@@ -93,6 +130,21 @@
                 $(this).val('');
             }
             return false;
+            },
+            open: function() {
+                setTimeout(() => {
+                    // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
+                    const autocompleteInstance = $productSearchInput.autocomplete("instance");
+                    const menu = autocompleteInstance.menu;
+                    const firstItem = menu.element.find("li:first-child");
+                    
+                    if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
+                        // Properly set the active item using jQuery UI's method
+                        menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                        firstItem.addClass("ui-state-focus");
+                        menu.active = firstItem;
+                    }
+                }, 50);
             }
         });
 
@@ -104,10 +156,12 @@
                 if (item.value === '') {
                     return $("<li></li>")
                         .append(item.label)
+                        .data('ui-autocomplete-item', item)
                         .appendTo(ul);
                 }
                 return $("<li></li>")
                     .append($("<div></div>").text(item.label))
+                    .data('ui-autocomplete-item', item)
                     .appendTo(ul);
             };
         }

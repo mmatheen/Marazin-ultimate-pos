@@ -4,7 +4,37 @@
 
             // Use backend autocomplete for product search (supports large datasets)
             function initProductAutocomplete() {
-                $("#productSearch").autocomplete({
+                const $input = $("#productSearch");
+                
+                // Add Enter key support for quick selection - Updated with working POS AJAX solution
+                $input.off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+
+                        const widget = $(this).autocomplete("widget");
+                        const focused = widget.find(".ui-state-focus");
+
+                        let itemToAdd = null;
+
+                        if (focused.length > 0) {
+                            // Get the item data from the autocomplete instance's active item
+                            const autocompleteInstance = $(this).autocomplete("instance");
+                            if (autocompleteInstance && autocompleteInstance.menu.active) {
+                                itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
+                            }
+                        }
+
+                        if (itemToAdd) {
+                            disableInvoiceSearch();
+                            addProductToTable(itemToAdd);
+                            $(this).autocomplete('close');
+                        }
+
+                        event.stopImmediatePropagation();
+                    }
+                });
+
+                $input.autocomplete({
                     source: function(request, response) {
                         // Optionally, you can get locationId if you want to filter by location
                         let locationId = $("#locationId").val();
@@ -41,6 +71,21 @@
                         disableInvoiceSearch();
                         addProductToTable(ui.item);
                         return false; // Prevent default behavior
+                    },
+                    open: function() {
+                        setTimeout(() => {
+                            // Auto-focus first item for Enter key selection - Updated with working POS AJAX solution
+                            const autocompleteInstance = $input.autocomplete("instance");
+                            const menu = autocompleteInstance.menu;
+                            const firstItem = menu.element.find("li:first-child");
+                            
+                            if (firstItem.length > 0) {
+                                // Properly set the active item using jQuery UI's method
+                                menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                                firstItem.addClass("ui-state-focus");
+                                menu.active = firstItem;
+                            }
+                        }, 50);
                     }
                 });
 
@@ -50,6 +95,7 @@
                     instance._renderItem = function(ul, item) {
                         return $("<li>")
                             .append(`<div>${item.label}<br><small class="text-muted">${item.sku}</small></div>`)
+                            .data('ui-autocomplete-item', item)
                             .appendTo(ul);
                     };
                 }
