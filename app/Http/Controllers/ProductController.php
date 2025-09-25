@@ -1266,11 +1266,31 @@ class ProductController extends Controller
         ])->where('is_active', true); // Only show active products for POS
 
         if ($search) {
+            // Use ORDER BY with CASE statements to prioritize exact matches
             $query->where(function ($q) use ($search) {
                 $q->where('product_name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
-            });
+            })->orderByRaw("
+                CASE 
+                    WHEN sku = ? THEN 1
+                    WHEN LOWER(product_name) = LOWER(?) THEN 2
+                    WHEN sku LIKE ? THEN 3
+                    WHEN LOWER(product_name) LIKE LOWER(?) THEN 4
+                    WHEN description LIKE ? THEN 5
+                    ELSE 6
+                END,
+                CHAR_LENGTH(sku) ASC,
+                product_name ASC
+            ", [
+                $search,                    // Exact SKU match (priority 1)
+                $search,                    // Exact product name match (priority 2)
+                $search . '%',              // SKU starts with search term (priority 3)
+                $search . '%',              // Product name starts with search term (priority 4)
+                '%' . $search . '%'         // Description contains search term (priority 5)
+            ]);
+        } else {
+            $query->orderBy('product_name', 'ASC');
         }
 
         $products = $query->take($perPage)->get();
