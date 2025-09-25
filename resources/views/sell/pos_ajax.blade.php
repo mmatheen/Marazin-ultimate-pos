@@ -1358,10 +1358,15 @@ function initAutocomplete() {
         },
         open: function() {
             setTimeout(() => {
-                const menu = $("#productSearchInput").autocomplete("widget");
-                const firstItem = menu.find("li:first-child");
+                const autocompleteInstance = $("#productSearchInput").autocomplete("instance");
+                const menu = autocompleteInstance.menu;
+                const firstItem = menu.element.find("li:first-child");
+                
                 if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
+                    // Properly set the active item using jQuery UI's method
+                    menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
                     firstItem.addClass("ui-state-focus");
+                    menu.active = firstItem;
                     showSearchIndicator("↵ Press Enter to add");
                 }
             }, 50);
@@ -1413,24 +1418,44 @@ function initAutocomplete() {
     }
     function hideSearchIndicator() { $('.search-indicator').remove(); }
 
-    $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const widget = $(this).autocomplete("widget");
-            const focused = widget.find(".ui-state-focus");
-            const currentSearchTerm = $(this).val().trim();
+   // In the keydown handler for Enter
+$("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
 
-            if (focused.length > 0) {
-                const focusedItem = focused.data("ui-autocomplete-item");
-                if (focusedItem && focusedItem.product) addProductFromAutocomplete(focusedItem, currentSearchTerm, focusedItem.imeiMatch ? 'IMEI' : 'ENTER');
-                $(this).val('');
-            } else if (lastSearchResults.length > 0) {
-                addProductFromAutocomplete(lastSearchResults[0], currentSearchTerm, lastSearchResults[0].imeiMatch ? 'IMEI' : 'ENTER');
-                $(this).val('');
+        const widget = $(this).autocomplete("widget");
+        const focused = widget.find(".ui-state-focus");
+        const currentSearchTerm = $(this).val().trim();
+
+        let itemToAdd = null;
+
+        if (focused.length > 0) {
+            // Get the item data from the autocomplete instance's active item
+            const autocompleteInstance = $(this).autocomplete("instance");
+            if (autocompleteInstance && autocompleteInstance.menu.active) {
+                itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
             }
-            event.stopImmediatePropagation();
+        } 
+        
+        // Fallback: if no focused item found, use first item from last search results
+        if (!itemToAdd && lastSearchResults.length > 0) {
+            itemToAdd = lastSearchResults[0];
         }
-    });
+
+        if (itemToAdd && itemToAdd.product) {
+            // Prevent duplicate add of same product consecutively
+            if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
+                lastAddedProduct = itemToAdd.product;
+                addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd.imeiMatch ? 'IMEI' : 'ENTER');
+            }
+        }
+
+        // Close autocomplete immediately
+        $(this).autocomplete('close');
+        $(this).val('');
+        event.stopImmediatePropagation();
+    }
+});
 
     $("#productSearchInput").on('input', function() {
         lastAddedProduct = null; // reset on new input
