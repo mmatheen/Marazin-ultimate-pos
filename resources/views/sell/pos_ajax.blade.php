@@ -1247,373 +1247,258 @@
                 });
             });
         }
-        // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
-        function initAutocomplete() {
-            let autoAddTimeout = null;
-            let lastSearchResults = [];
-            let currentSearchTerm = '';
 
-            $("#productSearchInput").autocomplete({
-                source: function(request, response) {
-                    if (!selectedLocationId) return response([]);
-                    
-                    // Store the current search term
-                    currentSearchTerm = request.term;
-                    
-                    // Clear any pending auto-add timeout
-                    if (autoAddTimeout) {
-                        clearTimeout(autoAddTimeout);
-                        autoAddTimeout = null;
-                    }
+// ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
+function initAutocomplete() {
+    let autoAddTimeout = null;
+    let lastSearchResults = [];
+    let currentSearchTerm = '';
+    let autocompleteAdding = false; // Prevent double-add
+    let lastAddedProduct = null; // Prevent duplicate quantity increments
 
-                    $.ajax({
-                        url: '/api/products/stocks/autocomplete',
-                        data: {
-                            location_id: selectedLocationId,
-                            search: request.term,
-                            per_page: 15
-                        },
-                        success: function(data) {
-                            if (data.status === 200 && Array.isArray(data.data)) {
-                                // Only show products with stock > 0 (including decimals if allow_decimal) for the selected location, or unlimited stock
-                                const filtered = data.data.filter(stock =>
-                                    stock.product &&
-                                    (
-                                        stock.product.stock_alert == 0 ||
-                                        (
-                                            stock.product.unit && (stock.product
-                                                .unit.allow_decimal === true ||
-                                                stock.product.unit.allow_decimal ===
-                                                1) ?
-                                            parseFloat(stock.total_stock) > 0 :
-                                            parseInt(stock.total_stock) > 0
-                                        )
-                                    )
-                                );
-                                const results = filtered.map(stock => {
-                                    // Check if this product was found by IMEI search
-                                    let imeiMatch = '';
-                                    let exactImeiMatch = false;
-                                    if (stock.imei_numbers && stock.imei_numbers.length > 0) {
-                                        const matchingImei = stock.imei_numbers.find(imei => 
-                                            imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
-                                        );
-                                        if (matchingImei) {
-                                            imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
-                                            exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
-                                        }
-                                    }
-                                    
-                                    return {
-                                        label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
-                                        value: stock.product.product_name,
-                                        product: stock.product,
-                                        stockData: stock,
-                                        imeiMatch: imeiMatch ? true : false,
-                                        exactImeiMatch: exactImeiMatch
-                                    };
-                                });
-                                
-                                if (results.length === 0) {
-                                    results.push({
-                                        label: "No results found",
-                                        value: ""
-                                    });
-                                }
+    $("#productSearchInput").autocomplete({
+        source: function(request, response) {
+            if (!selectedLocationId) return response([]);
 
-                                // Store results for Enter key handling
-                                lastSearchResults = results.filter(r => r.product);
+            currentSearchTerm = request.term;
 
-                                // Check for exact SKU match or IMEI match and auto-add after delay
-                                const exactMatch = results.find(r => 
-                                    r.product && (
-                                        (r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) ||
-                                        r.exactImeiMatch
-                                    )
-                                );
-
-                                if (exactMatch && request.term.length >= 3) {
-                                    const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
-                                    console.log(`Exact ${matchType} match found:`, exactMatch.product.sku || request.term);
-                                    showSearchIndicator("⚡ Auto-adding...", "orange");
-                                    autoAddTimeout = setTimeout(() => {
-                                        $("#productSearchInput").autocomplete('close');
-                                        // Pass the search term to handle IMEI pre-selection
-                                        addProductFromAutocomplete(exactMatch, request.term, matchType);
-                                        $("#productSearchInput").val('');
-                                        hideSearchIndicator();
-                                    }, 500); // 500ms delay for exact match
-                                }
-
-                                response(results);
-                            } else {
-                                lastSearchResults = [];
-                                response([{
-                                    label: "No results found",
-                                    value: ""
-                                }]);
-                            }
-                        },
-                        error: function() {
-                            lastSearchResults = [];
-                            response([{
-                                label: "No results found",
-                                value: ""
-                            }]);
-                        }
-                    });
-                },
-                select: function(event, ui) {
-                    if (!ui.item.product) return false;
-                    
-                    // Clear any pending auto-add timeout
-                    if (autoAddTimeout) {
-                        clearTimeout(autoAddTimeout);
-                        autoAddTimeout = null;
-                    }
-                    
-                    $("#productSearchInput").val("");
-                    
-                    // Pass search term and match type for manual selection
-                    const isImeiMatch = ui.item.imeiMatch || false;
-                    addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
-                    return false;
-                },
-                open: function() {
-                    // Auto-select first item when dropdown opens
-                    setTimeout(() => {
-                        const menu = $("#productSearchInput").autocomplete("widget");
-                        const firstItem = menu.find("li:first-child");
-                        if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
-                            firstItem.addClass("ui-state-focus");
-                            // Add visual indicator
-                            showSearchIndicator("↵ Press Enter to add");
-                        }
-                    }, 50);
-                },
-                close: function() {
-                    hideSearchIndicator();
-                },
-                minLength: 1
-            }).autocomplete("instance")._renderItem = function(ul, item) {
-                const li = $("<li>");
-                if (item.product) {
-                    // Regular product item with special styling for IMEI matches
-                    const style = item.imeiMatch ? 
-                        "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
-                        "padding: 8px;";
-                    li.append(`<div style="${style}">${item.label}</div>`);
-                } else {
-                    // No results item
-                    li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
-                }
-                return li.appendTo(ul);
-            };
-
-            // Style the autocomplete dropdown for better UX
-            $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
-                this.menu.element.outerWidth(Math.max(
-                    this.element.outerWidth(),
-                    this.menu.element.width("").outerWidth()
-                ));
-            };
-
-            // Add CSS for better dropdown styling
-            const style = document.createElement('style');
-            style.textContent = `
-                .ui-autocomplete {
-                    max-height: 300px;
-                    overflow-y: auto;
-                    z-index: 1000;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                }
-                .ui-autocomplete .ui-menu-item {
-                    border-bottom: 1px solid #f0f0f0;
-                }
-                .ui-autocomplete .ui-menu-item:last-child {
-                    border-bottom: none;
-                }
-                .ui-autocomplete .ui-state-focus {
-                    background: #007bff !important;
-                    color: white !important;
-                    margin: 0;
-                }
-                .ui-autocomplete .ui-menu-item div {
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                #productSearchInput {
-                    position: relative;
-                }
-                .search-indicator {
-                    position: absolute;
-                    right: 10px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    font-size: 12px;
-                    color: #28a745;
-                    pointer-events: none;
-                }
-                .quantity-error {
-                    border: 2px solid #dc3545 !important;
-                    box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important;
-                    background-color: #fff5f5 !important;
-                }
-                .quantity-error:focus {
-                    border-color: #dc3545 !important;
-                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
-                }
-            `;
-            if (!document.getElementById('autocomplete-styles')) {
-                style.id = 'autocomplete-styles';
-                document.head.appendChild(style);
+            if (autoAddTimeout) {
+                clearTimeout(autoAddTimeout);
+                autoAddTimeout = null;
             }
 
-            // Helper functions for search indicator
-            function showSearchIndicator(text, color = "#28a745") {
-                hideSearchIndicator(); // Remove any existing indicator
-                const searchContainer = $("#productSearchInput").parent();
-                if (searchContainer.css('position') !== 'relative') {
-                    searchContainer.css('position', 'relative');
-                }
-                const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
-                searchContainer.append(indicator);
-            }
-
-            function hideSearchIndicator() {
-                $('.search-indicator').remove();
-            }
-
-            // Enhanced Enter key handling
-            $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    
-                    // Clear any pending auto-add timeout
-                    if (autoAddTimeout) {
-                        clearTimeout(autoAddTimeout);
-                        autoAddTimeout = null;
-                    }
-
-                    hideSearchIndicator();
-
-                    const widget = $("#productSearchInput").autocomplete("widget");
-                    const focused = widget.find(".ui-state-focus");
-                    const currentSearchTerm = $("#productSearchInput").val().trim();
-                    
-                    if (widget.is(":visible") && focused.length > 0) {
-                        // If dropdown is open and an item is focused, select it
-                        showSearchIndicator("✓ Adding...", "#28a745");
-                        setTimeout(() => {
-                            focused.click();
-                            hideSearchIndicator();
-                        }, 200);
-                    } else if (lastSearchResults.length > 0) {
-                        // If dropdown is not visible but we have results, add the first one
-                        $("#productSearchInput").autocomplete('close');
-                        showSearchIndicator("✓ Adding first match...", "#28a745");
-                        
-                        // Determine if the search term matches an IMEI in the first result
-                        const firstResult = lastSearchResults[0];
-                        const isImeiMatch = firstResult.imeiMatch || (
-                            firstResult.stockData && 
-                            firstResult.stockData.imei_numbers && 
-                            firstResult.stockData.imei_numbers.some(imei => 
-                                imei.imei_number.toLowerCase() === currentSearchTerm.toLowerCase()
+            $.ajax({
+                url: '/api/products/stocks/autocomplete',
+                data: {
+                    location_id: selectedLocationId,
+                    search: request.term,
+                    per_page: 15
+                },
+                success: function(data) {
+                    if (data.status === 200 && Array.isArray(data.data)) {
+                        const filtered = data.data.filter(stock =>
+                            stock.product &&
+                            (
+                                stock.product.stock_alert == 0 ||
+                                (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
+                                    ? parseFloat(stock.total_stock) > 0
+                                    : parseInt(stock.total_stock) > 0
+                                )
                             )
                         );
-                        
-                        setTimeout(() => {
-                            addProductFromAutocomplete(firstResult, currentSearchTerm, isImeiMatch ? 'IMEI' : 'ENTER');
-                            $("#productSearchInput").val('');
-                            hideSearchIndicator();
-                        }, 200);
-                    } else {
-                        // Force search if no results yet
-                        if (currentSearchTerm.length >= 1) {
-                            showSearchIndicator("🔍 Searching...", "#007bff");
-                            $("#productSearchInput").autocomplete('search', currentSearchTerm);
-                        }
-                    }
-                }
-            });
 
-            // Clear indicator when input changes
-            $("#productSearchInput").on('input', function() {
-                if (autoAddTimeout) {
-                    clearTimeout(autoAddTimeout);
-                    autoAddTimeout = null;
-                }
-                if ($(this).val().length === 0) {
-                    hideSearchIndicator();
-                }
-            });
-
-            function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
-                if (!item.product) return;
-                
-                console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
-                
-                // Try to find the stock entry in stockData
-                let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-                if (!stockEntry && item.stockData) {
-                    // If not found, but stockData is present from autocomplete, add it
-                    stockData.push(item.stockData);
-                    allProducts.push(item.stockData);
-                    stockEntry = item.stockData;
-                }
-                if (!stockEntry) {
-                    // If still not found, fetch the full stock entry from the server
-                    fetch(`/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                                stockData.push(data.data[0]);
-                                allProducts.push(data.data[0]);
-                                addProductToTable(data.data[0].product, searchTerm, matchType);
-                            } else {
-                                toastr.error('Stock entry not found for the product', 'Error');
+                        const results = filtered.map(stock => {
+                            let imeiMatch = '';
+                            let exactImeiMatch = false;
+                            if (stock.imei_numbers && stock.imei_numbers.length > 0) {
+                                const matchingImei = stock.imei_numbers.find(imei => 
+                                    imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
+                                );
+                                if (matchingImei) {
+                                    imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
+                                    exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
+                                }
                             }
-                        })
-                        .catch(() => {
-                            toastr.error('Error fetching product stock data', 'Error');
+                            return {
+                                label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
+                                value: stock.product.product_name,
+                                product: stock.product,
+                                stockData: stock,
+                                imeiMatch: imeiMatch ? true : false,
+                                exactImeiMatch: exactImeiMatch
+                            };
                         });
-                    return;
-                }
-                addProductToTable(item.product, searchTerm, matchType);
-            }
 
-            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+                        if (results.length === 0) results.push({ label: "No results found", value: "" });
 
-            // Custom _move to keep focus highlight in sync with up/down keys
-            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-                if (!this.menu.element.is(":visible")) {
-                    this.search(null, event);
-                    return;
+                        lastSearchResults = results.filter(r => r.product);
+
+                        // Auto-add exact SKU or IMEI match
+                        const exactMatch = results.find(r =>
+                            r.product && ((r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) || r.exactImeiMatch)
+                        );
+
+                        if (exactMatch && request.term.length >= 3) {
+                            const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
+                            showSearchIndicator("⚡ Auto-adding...", "orange");
+                            autoAddTimeout = setTimeout(() => {
+                                if (!autocompleteAdding) {
+                                    autocompleteAdding = true;
+                                    $("#productSearchInput").autocomplete('close');
+                                    addProductFromAutocomplete(exactMatch, request.term, matchType);
+                                    $("#productSearchInput").val('');
+                                    hideSearchIndicator();
+                                    setTimeout(() => { autocompleteAdding = false; }, 50);
+                                }
+                            }, 500);
+                        }
+
+                        response(results);
+                    } else {
+                        lastSearchResults = [];
+                        response([{ label: "No results found", value: "" }]);
+                    }
+                },
+                error: function() {
+                    lastSearchResults = [];
+                    response([{ label: "No results found", value: "" }]);
                 }
-                if ((this.menu.isFirstItem() && /^previous/.test(direction)) ||
-                    (this.menu.isLastItem() && /^next/.test(direction))) {
-                    this._value(this.term);
-                    this.menu.blur();
-                    return;
+            });
+        },
+        select: function(event, ui) {
+            if (!ui.item.product || autocompleteAdding) return false;
+
+            autocompleteAdding = true;
+            $("#productSearchInput").val("");
+            const isImeiMatch = ui.item.imeiMatch || false;
+            addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
+            setTimeout(() => { autocompleteAdding = false; }, 50);
+
+            return false;
+        },
+        open: function() {
+            setTimeout(() => {
+                const menu = $("#productSearchInput").autocomplete("widget");
+                const firstItem = menu.find("li:first-child");
+                if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
+                    firstItem.addClass("ui-state-focus");
+                    showSearchIndicator("↵ Press Enter to add");
                 }
-                this.menu[direction](event);
-                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                this.menu.active.addClass("ui-state-focus");
-            };
+            }, 50);
+        },
+        close: function() {
+            hideSearchIndicator();
+        },
+        minLength: 1
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        const li = $("<li>");
+        if (item.product) {
+            const style = item.imeiMatch ? 
+                "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
+                "padding: 8px;";
+            li.append(`<div style="${style}">${item.label}</div>`);
+        } else {
+            li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
         }
-        // Re-init autocomplete when location changes
-        $('#locationSelect').on('change', () => {
-            $("#productSearchInput").val('');
-            if ($("#productSearchInput").data('ui-autocomplete')) {
-                $("#productSearchInput").autocomplete('destroy');
+        return li.appendTo(ul);
+    };
+
+    $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
+        this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("").outerWidth()));
+    };
+
+    if (!document.getElementById('autocomplete-styles')) {
+        const style = document.createElement('style');
+        style.id = 'autocomplete-styles';
+        style.textContent = `
+            .ui-autocomplete { max-height: 300px; overflow-y: auto; z-index: 1000; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; }
+            .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
+            .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
+            .ui-autocomplete .ui-menu-item div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            #productSearchInput { position: relative; }
+            .search-indicator { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #28a745; pointer-events: none; }
+            .quantity-error { border: 2px solid #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; background-color: #fff5f5 !important; }
+            .quantity-error:focus { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function showSearchIndicator(text, color = "#28a745") {
+        hideSearchIndicator();
+        const searchContainer = $("#productSearchInput").parent();
+        if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
+        const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
+        searchContainer.append(indicator);
+    }
+    function hideSearchIndicator() { $('.search-indicator').remove(); }
+
+    $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const widget = $(this).autocomplete("widget");
+            const focused = widget.find(".ui-state-focus");
+            const currentSearchTerm = $(this).val().trim();
+
+            if (focused.length > 0) {
+                const focusedItem = focused.data("ui-autocomplete-item");
+                if (focusedItem && focusedItem.product) addProductFromAutocomplete(focusedItem, currentSearchTerm, focusedItem.imeiMatch ? 'IMEI' : 'ENTER');
+                $(this).val('');
+            } else if (lastSearchResults.length > 0) {
+                addProductFromAutocomplete(lastSearchResults[0], currentSearchTerm, lastSearchResults[0].imeiMatch ? 'IMEI' : 'ENTER');
+                $(this).val('');
             }
-            initAutocomplete();
-        });
+            event.stopImmediatePropagation();
+        }
+    });
+
+    $("#productSearchInput").on('input', function() {
+        lastAddedProduct = null; // reset on new input
+        if (autoAddTimeout) { clearTimeout(autoAddTimeout); autoAddTimeout = null; }
+        if ($(this).val().length === 0) hideSearchIndicator();
+    });
+
+    function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
+        if (!item.product) return;
+
+        // Prevent duplicate quantity increment for same product and matchType
+        if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL') return;
+
+        lastAddedProduct = item.product;
+
+        console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
+
+        let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
+        if (!stockEntry && item.stockData) {
+            stockData.push(item.stockData);
+            allProducts.push(item.stockData);
+            stockEntry = item.stockData;
+        }
+
+        if (!stockEntry) {
+            fetch(`/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
+                        stockData.push(data.data[0]);
+                        allProducts.push(data.data[0]);
+                        addProductToTable(data.data[0].product, searchTerm, matchType);
+                    } else {
+                        toastr.error('Stock entry not found for the product', 'Error');
+                    }
+                })
+                .catch(() => { toastr.error('Error fetching product stock data', 'Error'); });
+            return;
+        }
+
+        addProductToTable(item.product, searchTerm, matchType);
+    }
+
+    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+        if (!this.menu.element.is(":visible")) { this.search(null, event); return; }
+        if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() && /^next/.test(direction))) {
+            this._value(this.term);
+            this.menu.blur();
+            return;
+        }
+        this.menu[direction](event);
+        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+        this.menu.active.addClass("ui-state-focus");
+    };
+}
+
+// Re-init autocomplete when location changes
+$('#locationSelect').on('change', () => {
+    $("#productSearchInput").val('');
+    if ($("#productSearchInput").data('ui-autocomplete')) {
+        $("#productSearchInput").autocomplete('destroy');
+    }
+    initAutocomplete();
+});
+
 
 
         function formatAmountWithSeparators(amount) {
