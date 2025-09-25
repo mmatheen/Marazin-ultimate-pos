@@ -27,6 +27,33 @@
                         25% { transform: translateX(-5px); }
                         75% { transform: translateX(5px); }
                     }
+                    /* Autocomplete styling for purchase module */
+                    .ui-autocomplete {
+                        max-height: 200px;
+                        overflow-y: auto;
+                        overflow-x: hidden;
+                        background: #fff;
+                        border: 1px solid #ccc;
+                        border-radius: 4px;
+                        padding: 5px 0;
+                        font-size: 14px;
+                        z-index: 1000;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    }
+                    .ui-menu .ui-menu-item {
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        border-bottom: 1px solid #f0f0f0;
+                    }
+                    .ui-menu .ui-menu-item:hover,
+                    .ui-menu .ui-menu-item.ui-state-focus,
+                    .ui-menu .ui-menu-item.ui-state-active {
+                        background-color: #007bff !important;
+                        color: #fff !important;
+                        border-radius: 4px;
+                        margin: 2px 4px;
+                        border-bottom: none !important;
+                    }
                     .document-upload {
                         background-color: #f8f9fa;
                         transition: all 0.3s ease;
@@ -214,6 +241,24 @@
         function initAutocomplete() {
             const $input = $("#productSearchInput");
 
+            // Add Enter key support for quick selection
+            $input.on('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const menu = $input.autocomplete('widget');
+                    const firstItem = menu.find('li:first-child');
+                    if (firstItem.length > 0 && !firstItem.text().includes('No products found')) {
+                        // Get the first item's data and trigger selection
+                        const firstItemData = firstItem.data('ui-autocomplete-item');
+                        if (firstItemData && firstItemData.product) {
+                            addProductToTable(firstItemData.product);
+                            $input.val('');
+                            $input.autocomplete('close');
+                        }
+                    }
+                }
+            });
+
             $input.autocomplete({
                 minLength: 1,
                 source: function(request, response) {
@@ -234,7 +279,7 @@
                             if (data.status === 200 && Array.isArray(data.data)) {
                                 let items = data.data
                                     .map(item => ({
-                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'})`,
+                                        label: `${item.product.product_name} (${item.product.sku || 'N/A'}) [Stock: ${item.total_stock || 0}]`,
                                         value: item.product.product_name,
                                         product: {
                                             id: item.product.id,
@@ -260,18 +305,10 @@
                                         }
                                     }));
 
-                                // Strict filter: only show products that match search term in name or sku (anywhere)
-                                const filtered = items.filter(item => {
-                                    const normSku = normalizeString(item.product
-                                        .sku);
-                                    const normName = normalizeString(item
-                                        .product.name);
-                                    return normSku.includes(searchTerm) ||
-                                        normName.includes(searchTerm);
-                                });
-
-                                if (filtered.length > 0) {
-                                    response(filtered.slice(0, 10));
+                                // Remove client-side filtering - let server-side prioritization handle this
+                                // Server already returns results ordered by: exact SKU match > exact name > partial matches
+                                if (items.length > 0) {
+                                    response(items.slice(0, 15)); // Show up to 15 results
                                 } else {
                                     response([{
                                         label: "No products found",
@@ -307,7 +344,14 @@
                 open: function() {
                     setTimeout(() => {
                         $(".ui-autocomplete").scrollTop(0); // Reset scroll on new search
-                    }, 0);
+                        // Auto-focus first item for Enter key selection
+                        const menu = $input.autocomplete('widget');
+                        const firstItem = menu.find('li:first-child');
+                        if (firstItem.length > 0 && !firstItem.text().includes('No products found')) {
+                            firstItem.addClass('ui-state-focus');
+                            console.log('First item auto-focused - press Enter to add');
+                        }
+                    }, 50);
                 }
             });
 
@@ -322,6 +366,7 @@
                     }
                     return $("<li>")
                         .append(`<div>${item.label}</div>`)
+                        .data('ui-autocomplete-item', item)
                         .appendTo(ul);
                 };
             }
