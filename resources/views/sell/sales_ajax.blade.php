@@ -1,9 +1,321 @@
 <script>
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
-        fetchSalesData();
-        // Initialize DataTable
-        const table = $('#salesTable').DataTable();
+        
+       
+        // Make sure table exists and destroy any existing DataTable
+        if ($.fn.DataTable.isDataTable('#salesTable')) {
+            $('#salesTable').DataTable().destroy();
+        }
+        
+        // Check if table element exists
+        if ($('#salesTable').length === 0) {
+            return;
+        }
+        
+        const table = $('#salesTable').DataTable({
+            processing: true,
+            serverSide: true,
+            deferRender: true,
+            stateSave: false,
+            ajax: {
+                url: '/api/sales/paginated',
+                type: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json'
+                },
+                data: function(d) {
+                    // STRICT DataTable server-side parameter enforcement
+                    var requestData = {
+                        draw: parseInt(d.draw) || 1,
+                        start: parseInt(d.start) || 0,
+                        length: parseInt(d.length) || 10
+                    };
+                    
+                    // Add search parameters if present
+                    if (d.search && d.search.value) {
+                        requestData['search[value]'] = d.search.value;
+                        requestData['search[regex]'] = d.search.regex || false;
+                    }
+                    
+                    // Add order parameters if present
+                    if (d.order && d.order[0]) {
+                        requestData['order[0][column]'] = parseInt(d.order[0].column) || 0;
+                        requestData['order[0][dir]'] = d.order[0].dir || 'desc';
+                    }
+                    
+                    // Add custom filters
+                    if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter').val();
+                    if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter').val();
+                    if ($('#statusFilter').val()) requestData.status = $('#statusFilter').val();
+                    if ($('#startDateFilter').val()) requestData.start_date = $('#startDateFilter').val();
+                    if ($('#endDateFilter').val()) requestData.end_date = $('#endDateFilter').val();
+                    
+                    
+                    return requestData;
+                    
+                    return d;
+                },
+                // Simple DataTable server-side response handler
+                dataSrc: function(json) {
+                    console.log('DataTable Success:', {
+                        recordsTotal: json.recordsTotal,
+                        recordsFiltered: json.recordsFiltered,
+                        data_length: json.data ? json.data.length : 0,
+                        draw: json.draw,
+                        debug: json.debug || null
+                    });
+                    
+                    // Handle empty database case
+                    if (json.debug && json.debug.message === 'No sales found in database') {
+                        
+                        // Show helpful message to user
+                        if (typeof toastr !== 'undefined') {
+                            toastr.info('No sales found. Create your first sale using POS or Add Sale!', 'Getting Started', {
+                                timeOut: 8000,
+                                extendedTimeOut: 4000
+                            });
+                        }
+                        
+                        return [];
+                    }
+                    
+                    
+                    // Standard DataTable server-side response
+                    if (json.data && Array.isArray(json.data)) {
+                        return json.data;
+                    }
+                    
+                    return [];
+                },
+                error: function(xhr, error, code) {
+                                        
+                    let errorMessage = 'Failed to load sales data';
+                    if (xhr.status === 401) {
+                        errorMessage = 'Authentication required. Please login again.';
+                    } else if (xhr.status === 500) {
+                        errorMessage = 'Server error occurred';
+                    }
+                    
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(errorMessage);
+                    } else {
+                        alert(errorMessage);
+                    }
+                }
+            },
+            columns: [
+                { 
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Action',
+                    render: function(data, type, row) {
+                        return `
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="feather-menu"></i> Actions
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><button type="button" value="${row.id}" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>
+                                @can('edit sale')
+                                <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
+                                @endcan
+                                <li><button type="button" value="${row.id}" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>
+                                <li><button type="button" value="${row.id}" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>
+                                <li><button type="button" value="${row.id}" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>
+                                <li><button type="button" value="${row.id}" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>
+                            </ul>
+                        </div>`;
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'sales_date',
+                    title: 'Date',
+                    render: function(data, type, row) {
+                        return row.sales_date || 'N/A';
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'id', 
+                    title: 'Invoice No.',
+                    render: function(data, type, row) {
+                        return row.invoice_no || row.id || 'N/A';
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'customer_name',
+                    title: 'Customer Name',
+                    render: function(data, type, row) {
+                        if (row.customer) {
+                            // Handle both new format (name) and old format (first_name + last_name)
+                            if (row.customer.name) {
+                                return row.customer.name;
+                            } else if (row.customer.first_name || row.customer.last_name) {
+                                return ((row.customer.first_name || '') + ' ' + (row.customer.last_name || '')).trim();
+                            }
+                        }
+                        return 'N/A';
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'customer_phone',
+                    title: 'Phone',
+                    render: function(data, type, row) {
+                        if (row.customer) {
+                            return row.customer.phone || row.customer.mobile_no || 'N/A';
+                        }
+                        return 'N/A';
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'location_name',
+                    title: 'Location',
+                    render: function(data, type, row) {
+                        return row.location ? row.location.name : 'N/A';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Payment Status',
+                    render: function(data, type, row) {
+                        // Use payment status from database (don't recalculate)
+                        let paymentStatus = row.payment_status || 'Due';
+                        
+                        // Ensure proper capitalization
+                        paymentStatus = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1).toLowerCase();
+                        
+                        let badgeClass = paymentStatus === 'Paid' ? 'bg-success' : 
+                                        paymentStatus === 'Partial' ? 'bg-warning' : 'bg-danger';
+                        
+                        return `<span class="badge ${badgeClass}">${paymentStatus}</span>`;
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Payment Method',
+                    render: function(data, type, row) {
+                        if (row.payments && row.payments.length > 0) {
+                            // If multiple payments, show all methods
+                            if (row.payments.length > 1) {
+                                let methods = row.payments.map(p => p.method).join(', ');
+                                return `<span title="${methods}">${methods}</span>`;
+                            } else {
+                                // Single payment method
+                                return row.payments[0].method || 'N/A';
+                            }
+                        }
+                        return 'N/A';
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'final_total',
+                    title: 'Total Amount',
+                    render: function(data, type, row) {
+                        let finalTotal = typeof row.final_total === 'string' ? 
+                            row.final_total : 
+                            parseFloat(row.final_total || 0).toFixed(2);
+                        return finalTotal;
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Paid Amount',
+                    render: function(data, type, row) {
+                        let totalPaid = 0;
+                        if (row.payments && row.payments.length > 0) {
+                            totalPaid = row.payments.reduce((sum, payment) => {
+                                let amount = typeof payment.amount === 'string' ? 
+                                    parseFloat(payment.amount.replace(/,/g, '')) : 
+                                    parseFloat(payment.amount || 0);
+                                return sum + amount;
+                            }, 0);
+                        }
+                        return totalPaid.toFixed(2);
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Due Amount',
+                    render: function(data, type, row) {
+                        // Use total_due from database (don't recalculate)
+                        let dueAmount = typeof row.total_due === 'string' ? 
+                            parseFloat(row.total_due.replace(/,/g, '')) : 
+                            parseFloat(row.total_due || 0);
+                        return Math.max(0, dueAmount).toFixed(2);
+                    }
+                },
+                { 
+                    data: null, 
+                    name: 'status',
+                    title: 'Status',
+                    render: function(data, type, row) {
+                        return row.status || 'N/A';
+                    }
+                },
+                {
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    title: 'Total Items',
+                    render: function(data, type, row) {
+                        // Use total_items from database (don't recalculate)
+                        return row.total_items || 0;
+                    }
+                },
+                { 
+                    data: null,
+                    name: 'user_name',
+                    title: 'Added By',
+                    render: function(data, type, row) {
+                        if (row.user) {
+                            return row.user.name || row.user.user_name || 'N/A';
+                        }
+                        return 'N/A';
+                    }
+                }
+            ],
+            pageLength: 10, // STRICT default to 10
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            order: [[1, 'desc']], // Order by sales_date descending
+            dom: '<"row"<"col-sm-6"l><"col-sm-6"f>><"row"<"col-sm-12"t>><"row"<"col-sm-5"i><"col-sm-7"p>>',
+            lengthChange: true, // Enable length change dropdown
+            searching: true,
+            ordering: true,
+            info: true,
+            autoWidth: false,
+            pagingType: "simple_numbers", // Use simple pagination with numbers
+            stateSave: false, // Disable state saving to prevent conflicts
+            language: {
+                processing: '<div class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading sales data...</div>',
+                emptyTable: 'No sales records found',
+                info: 'Showing _START_ to _END_ of _TOTAL_ sales',
+                infoEmpty: 'No sales to show',
+                loadingRecords: 'Loading...',
+                search: 'Search sales:',
+                paginate: {
+                    first: 'First',
+                    last: 'Last',
+                    next: 'Next',
+                    previous: 'Previous'
+                }
+            }
+        });
 
         var saleValidationOptions = {
             rules: {
@@ -85,160 +397,168 @@
             }
         });
 
-        function fetchSalesData() {
+        // Add DataTable event handlers
+        table.on('draw.dt', function () {
+            console.log('DataTable draw completed');
+        });
+
+        table.on('error.dt', function (e, settings, techNote, message) {
+            console.error('DataTable error:', message, techNote);
+        });
+
+        // Enhanced pagination event tracking
+        table.on('length.dt', function (e, settings, len) {
+            console.log('=== Page Length Changed ===');
+            console.log('New length:', len);
+            console.log('Previous page info:', table.page.info());
+            console.log('Table will reload with', len, 'entries per page');
+            
+            // Force immediate reload to ensure strict compliance
+            setTimeout(() => {
+                console.log('After length change - page info:', table.page.info());
+            }, 500);
+            console.log('===========================');
+        });
+
+        // Track page changes (Next/Previous button clicks)
+        table.on('page.dt', function (e, settings) {
+            console.log('=== Page Changed ===');
+            console.log('New page info:', table.page.info());
+            console.log('Current page:', table.page());
+            console.log('Page length:', table.page.len());
+            console.log('==================');
+        });
+
+        // Also listen for changes on the length select element directly
+        $(document).on('change', 'select[name="salesTable_length"]', function() {
+            const selectedValue = $(this).val();
+            console.log('=== Length Selector Direct Change ===');
+            console.log('Selected value:', selectedValue);
+            console.log('Current page info before change:', table.page.info());
+            
+            // Force table refresh with new length
+            setTimeout(() => {
+                console.log('Page info after change:', table.page.info());
+            }, 1000);
+        });
+
+        // Debug: Watch for any select changes in the DataTable wrapper
+        $(document).on('change', '.dataTables_wrapper select', function() {
+            console.log('Any DataTable select changed:', $(this).attr('name'), 'to:', $(this).val());
+        });
+
+        // Add filter change handlers to refresh table
+        $('#customerFilter, #locationFilter, #statusFilter, #startDateFilter, #endDateFilter').on('change', function() {
+            table.ajax.reload();
+        });
+
+        // Global function to refresh sales data (can be called from payment success callbacks)
+        window.refreshSalesTable = function() {
+            if ($.fn.DataTable.isDataTable('#salesTable')) {
+                $('#salesTable').DataTable().ajax.reload(null, false); // false = stay on current page
+                console.log('Sales table refreshed after payment update');
+            }
+        };
+
+        // Legacy support for existing code
+        window.fetchSalesData = function() {
+            window.refreshSalesTable();
+        };
+
+        // Ensure pagination buttons are properly clickable
+        $(document).on('click', '.paginate_button:not(.disabled)', function(e) {
+            console.log('Pagination button clicked:', $(this).text(), 'Class:', $(this).attr('class'));
+        });
+
+        // Debug: Check if length selector exists after DataTable initialization
+        setTimeout(() => {
+            const lengthSelector = $('select[name="salesTable_length"]');
+            console.log('=== DataTable Length Selector Debug ===');
+            console.log('Length selector found:', lengthSelector.length > 0);
+            if (lengthSelector.length > 0) {
+                console.log('Current value:', lengthSelector.val());
+                console.log('Available options:', lengthSelector.find('option').map((i, el) => $(el).val()).get());
+                console.log('Element HTML:', lengthSelector[0].outerHTML);
+            } else {
+                console.log('Length selector not found! DataTable wrapper:', $('.dataTables_wrapper').length);
+                console.log('All selects in wrapper:', $('.dataTables_wrapper select').length);
+            }
+            console.log('=====================================');
+        }, 1500);
+
+        // Simple debug functions for testing
+        window.debugSalesTable = function() {
+            const info = table.page.info();
+            console.log('DataTable Info:', info);
+            console.log('Page length:', table.page.len());
+            alert(`Page: ${info.page + 1} of ${info.pages}\nRecords: ${info.start + 1} to ${info.end} of ${info.recordsTotal}\nPage Length: ${table.page.len()}`);
+        };
+        
+        window.testPageLength = function(length) {
+            table.page.len(length).draw();
+        };
+
+        // DataTable initialization completed above - no additional code needed
+
+        // Test API endpoint function - Simple test first
+        window.testSalesAPI = function() {
+            console.log('Testing basic sales endpoint...');
             $.ajax({
-                url: '/sales',
+                url: '/api/sales',
                 type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    table.clear().draw();
-                    if (response.sales && Array.isArray(response.sales)) {
-                        var counter = 1;
-                        response.sales.forEach(function(item) {
-                            if (item.status === 'final') { // Add this condition
-                                let row = $('<tr>');
-                                row.append('<td>' +
-                                    '<div class="btn-group">' +
-                                    '<button type="button" class="btn btn-outline-info btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">' +
-                                    '<i class="feather-menu"></i> Actions' +
-                                    '</button>' +
-                                    '<ul class="dropdown-menu">' +
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>' +
-
-                                    @can('edit sale')
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>' +
-                                    @endcan
-
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>' +
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>' +
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>' +
-                                    '<li><button type="button" value="' + item.id +
-                                    '" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>' +
-                                    '</ul>' +
-                                    '</div>' +
-                                    '</td>');
-                                row.append('<td>' + item.sales_date + '</td>');
-                                row.append('<td>' + item.invoice_no + '</td>');
-                                row.append('<td>' + item.customer.first_name + ' ' + item
-                                    .customer.last_name + '</td>');
-                                row.append('<td>' + item.customer.mobile_no + '</td>');
-                                row.append('<td>' + item.location.name + '</td>');
-                                let paymentStatusBadge = '';
-                                if (item.payment_status === 'Due') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-danger">Due</span>';
-                                } else if (item.payment_status === 'Partial') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-warning">Partial</span>';
-                                } else if (item.payment_status === 'Paid') {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-success">Paid</span>';
-                                } else {
-                                    paymentStatusBadge =
-                                        '<span class="badge bg-secondary">' + item
-                                        .payment_status + '</span>';
-                                }
-                                row.append('<td>' + paymentStatusBadge + '</td>');
-                                row.append('<td>' + (item.payments && item.payments[0] ?
-                                        item.payments[0].payment_method : 'N/A') +
-                                    '</td>');
-                                row.append('<td>' + item.final_total + '</td>');
-                                row.append('<td>' + item.total_paid + '</td>');
-                                row.append('<td>' + item.total_due + '</td>');
-                                row.append('<td>' + item.status + '</td>');
-                                row.append('<td>' + item.products.length + '</td>');
-                                row.append('<td>' + item.user.user_name + '</td>');
-
-                                table.row.add(row).draw(false);
-                                counter++;
-                            }
-                        });
-                    } else {
-                        console.error('Sales data is not in the expected format.');
-                    }
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json'
                 },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching sales data:', error);
+                success: function(response) {
+                    console.log('Basic API Test Success:', response);
+                    
+                    // Now test paginated endpoint
+                    console.log('Testing paginated endpoint...');
+                    $.ajax({
+                        url: '/api/sales/paginated',
+                        type: 'GET',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'Accept': 'application/json'
+                        },
+                        data: {
+                            draw: 1,
+                            start: 0,
+                            length: 10
+                        },
+                        success: function(paginatedResponse) {
+                            console.log('Paginated API Test Success:', paginatedResponse);
+                            alert('Both APIs are working! Check console for details.');
+                        },
+                        error: function(xhr, error, code) {
+                            console.error('Paginated API Test Error:', xhr.responseText);
+                            alert('Paginated API Error: ' + xhr.status + ' - ' + error);
+                        }
+                    });
+                },
+                error: function(xhr, error, code) {
+                    console.error('Basic API Test Error:', xhr.responseText);
+                    alert('Basic API Error: ' + xhr.status + ' - ' + error + '. Check browser console for details.');
                 }
             });
-        }
+        };
 
 
         // Show the modal when the button is clicked
         $('#bulkPaymentBtn').click(function() {
             $('#bulkPaymentModal').modal('show');
             
-            // Fetch customers and populate the dropdown when modal opens
-            $.ajax({
-                url: '/customer-get-all',
-                method: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    console.log('Customer response:', response); // Debug log
-                    var customerSelect = $('#customerSelect');
-                    customerSelect.empty();
-                    customerSelect.append(
-                    '<option value="" selected disabled>Select Customer</option>');
-                    if (response.status === 200 && response.message && response.message.length > 0) {
-                        response.message.forEach(function(customer) {
-                            // Skip walk-in customer (customer ID 1)
-                            if (customer.id === 1) {
-                                return;
-                            }
-                            
-                            // Calculate total due amount - use the model's current_due which includes proper calculations
-                            var openingBalance = parseFloat(customer.opening_balance) || 0;
-                            var saleDue = parseFloat(customer.total_sale_due) || 0;
-                            var currentDue = parseFloat(customer.current_due) || 0; // Use the calculated current_due
-                            
-                            // Only show customers who have due amounts
-                            if (currentDue > 0) {
-                                // Handle null last name properly
-                                var lastName = customer.last_name ? customer.last_name : '';
-                                var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
-                                var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
-                                if (openingBalance > 0) {
-                                    displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
-                                }
-                                
-                                customerSelect.append(
-                                    '<option value="' + customer.id +
-                                    '" data-opening-balance="' + openingBalance +
-                                    '" data-sale-due="' + saleDue +
-                                    '" data-total-due="' + currentDue +
-                                    '">' + displayText + '</option>'
-                                );
-                            }
-                        });
-                    } else {
-                        console.error("Failed to fetch customer data or no customers found.", response);
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error("AJAX error details:", {
-                        status: status,
-                        error: error,
-                        responseText: xhr.responseText,
-                        statusCode: xhr.status
-                    });
-                    // If we get HTML response instead of JSON, it might be a redirect or error page
-                    if (xhr.responseText && xhr.responseText.includes('<')) {
-                        console.error("Received HTML response instead of JSON - possible authentication issue or server error");
-                    }
-                }
-            });
+            // Load customers when modal opens (reuse the same function)
+            loadCustomersForBulkPayment();
         });
 
         let originalOpeningBalance = 0; // Store the actual customer opening balance
         let saleDueAmount = 0; // Store sale due amount
         let totalDueAmount = 0; // Store total due amount
         
-        $('#customerSelect').change(function() {
+        // Use event delegation to handle customer select changes (works for both modal and separate page)
+        $(document).on('change', '#customerSelect', function() {
             var customerId = $(this).val();
             var selectedOption = $(this).find(':selected');
             
@@ -248,8 +568,12 @@
 
             // Display balance breakdown with proper currency formatting
             $('#openingBalance').text('Rs. ' + originalOpeningBalance.toFixed(2));
-            $('#saleDueBalance').text('Rs. ' + saleDueAmount.toFixed(2));
+            // Sale due balance removed - using totalDueAmount instead
             $('#totalCustomerDue').text('Rs. ' + totalDueAmount.toFixed(2));
+
+            // Reset and clear previous validation errors
+            $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback').remove();
+            $('#globalPaymentAmount').val('');
 
             // Load sales data and update UI based on payment type
             loadSalesData(customerId);
@@ -296,19 +620,22 @@
                         totalPaidAmount = 0,
                         totalDueAmount = 0;
 
+                    console.log('Sales response:', response); // Debug log
+
                     if (response.sales && response.sales.length > 0) {
                         response.sales.forEach(function(sale) {
-                            if (sale.customer_id ==
-                                customerId) { // Filter by customer ID
+                            if (sale.customer_id == customerId && sale.status === 'final') { // Only final sales
                                 var finalTotal = parseFloat(sale.final_total) || 0;
                                 var totalPaid = parseFloat(sale.total_paid) || 0;
                                 var totalDue = parseFloat(sale.total_due) || 0;
 
-                                if (totalDue > 0) {
-                                    totalSalesAmount += finalTotal;
-                                    totalPaidAmount += totalPaid;
-                                    totalDueAmount += totalDue;
+                                // Include all sales (both paid and due) in totals
+                                totalSalesAmount += finalTotal;
+                                totalPaidAmount += totalPaid;
+                                totalDueAmount += totalDue;
 
+                                // Only add to table if there's a due amount
+                                if (totalDue > 0) {
                                     salesTable.row.add([
                                         sale.id + " (" + sale.invoice_no + ")",
                                         finalTotal.toFixed(2),
@@ -316,16 +643,29 @@
                                         totalDue.toFixed(2),
                                         '<input type="number" class="form-control reference-amount" data-reference-id="' +
                                         sale.id + '" min="0" max="' + totalDue +
-                                        '" step="0.01" placeholder="0.00">'
+                                        '" step="0.01" placeholder="0.00" value="0">'
                                     ]).draw();
                                 }
                             }
                         });
                     }
 
+                    console.log('Totals calculated:', {
+                        totalSalesAmount: totalSalesAmount,
+                        totalPaidAmount: totalPaidAmount,  
+                        totalDueAmount: totalDueAmount
+                    });
+
+                    // Update the display totals
                     $('#totalSalesAmount').text('Rs. ' + totalSalesAmount.toFixed(2));
                     $('#totalPaidAmount').text('Rs. ' + totalPaidAmount.toFixed(2));
                     $('#totalDueAmount').text('Rs. ' + totalDueAmount.toFixed(2));
+                    
+                    // Store totalDueAmount for validation purposes
+                    window.saleDueAmount = totalDueAmount;
+                    
+                    // Update individual payment total
+                    updateIndividualPaymentTotal();
                 },
                 error: function(xhr, status, error) {
                     console.error("Error loading sales data: ", status, error);
@@ -333,7 +673,8 @@
             });
         }
 
-        $('#globalPaymentAmount').on('input', function() {
+        // Use event delegation for global payment amount input (works for both modal and separate page)
+        $(document).on('input', '#globalPaymentAmount', function() {
             var globalAmount = parseFloat($(this).val()) || 0;
             var customerOpeningBalance = originalOpeningBalance; // Always use original balance
             var totalDueAmount = parseFloat($('#totalDueAmount').text()) || 0;
@@ -341,63 +682,110 @@
             var paymentType = $('input[name="paymentType"]:checked').val();
 
             // Validate global amount based on payment type
+            var totalCustomerDue = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
             var maxAmount = 0;
             if (paymentType === 'opening_balance') {
                 maxAmount = customerOpeningBalance;
             } else if (paymentType === 'sale_dues') {
-                maxAmount = saleDueAmount; // Only validate against sale dues amount
+                maxAmount = totalCustomerDue; // Allow payment up to total customer due
             } else if (paymentType === 'both') {
-                maxAmount = customerOpeningBalance + totalDueAmount;
+                maxAmount = totalCustomerDue; // Same as total customer due
             }
 
+            // Clear existing validation feedback first
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+            
             if (globalAmount > maxAmount) {
                 $(this).addClass('is-invalid').after(
                     '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
                     );
                 return;
-            } else {
-                $(this).removeClass('is-invalid').next('.invalid-feedback').remove();
             }
 
-            // Deduct from opening balance first
-            let newOpeningBalance = customerOpeningBalance;
-            if (newOpeningBalance > 0) {
-                if (remainingAmount <= newOpeningBalance) {
-                    newOpeningBalance -= remainingAmount;
-                    remainingAmount = 0;
-                } else {
-                    remainingAmount -= newOpeningBalance;
-                    newOpeningBalance = 0;
+            // Handle payment distribution based on payment type
+            if (paymentType === 'opening_balance') {
+                // Only apply to opening balance
+                let newOpeningBalance = Math.max(0, customerOpeningBalance - remainingAmount);
+                $('#openingBalance').text(newOpeningBalance.toFixed(2));
+                
+                // Clear all sales payment inputs
+                $('.reference-amount').val(0);
+                
+            } else if (paymentType === 'sale_dues') {
+                // Only apply to sales dues in order
+                $('.reference-amount').each(function() {
+                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+                    if (remainingAmount > 0 && referenceDue > 0) {
+                        var paymentAmount = Math.min(remainingAmount, referenceDue);
+                        $(this).val(paymentAmount.toFixed(2));
+                        remainingAmount -= paymentAmount;
+                    } else {
+                        $(this).val(0);
+                    }
+                });
+                
+                // Don't change opening balance
+                $('#openingBalance').text(customerOpeningBalance.toFixed(2));
+                
+            } else if (paymentType === 'both') {
+                // First deduct from opening balance
+                let newOpeningBalance = customerOpeningBalance;
+                if (newOpeningBalance > 0 && remainingAmount > 0) {
+                    if (remainingAmount <= newOpeningBalance) {
+                        newOpeningBalance -= remainingAmount;
+                        remainingAmount = 0;
+                    } else {
+                        remainingAmount -= newOpeningBalance;
+                        newOpeningBalance = 0;
+                    }
                 }
-            }
-            $('#openingBalance').text(newOpeningBalance.toFixed(2));
+                $('#openingBalance').text(newOpeningBalance.toFixed(2));
 
-            // Apply the remaining amount to the sales dynamically
-            $('.reference-amount').each(function() {
-                var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-                if (remainingAmount > 0) {
-                    var paymentAmount = Math.min(remainingAmount, referenceDue);
-                    $(this).val(paymentAmount);
-                    remainingAmount -= paymentAmount;
-                } else {
-                    $(this).val(0);
-                }
-            });
+                // Then apply remaining amount to sales in order
+                $('.reference-amount').each(function() {
+                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+                    if (remainingAmount > 0 && referenceDue > 0) {
+                        var paymentAmount = Math.min(remainingAmount, referenceDue);
+                        $(this).val(paymentAmount.toFixed(2));
+                        remainingAmount -= paymentAmount;
+                    } else {
+                        $(this).val(0);
+                    }
+                });
+            }
+            
+            // Update the individual payment total display
+            updateIndividualPaymentTotal();
         });
 
-        // Validate individual payment amounts
+        // Function to update individual payment total
+        function updateIndividualPaymentTotal() {
+            var total = 0;
+            $('.reference-amount').each(function() {
+                var amount = parseFloat($(this).val()) || 0;
+                total += amount;
+            });
+            $('#individualPaymentTotal').text('Rs. ' + total.toFixed(2));
+        }
+
+        // Validate individual payment amounts and update total
         $(document).on('input', '.reference-amount', function() {
             var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
-            var paymentAmount = parseFloat($(this).val());
+            var paymentAmount = parseFloat($(this).val()) || 0;
+            
+            // Clear existing validation feedback first
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+            
             if (paymentAmount > referenceDue) {
-                $(this).addClass('is-invalid');
-                $(this).next('.invalid-feedback').remove();
-                $(this).after(
-                '<span class="invalid-feedback d-block">Amount exceeds total due.</span>');
-            } else {
-                $(this).removeClass('is-invalid');
-                $(this).next('.invalid-feedback').remove();
+                $(this).addClass('is-invalid').after(
+                    '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
+                );
             }
+            
+            // Update individual payment total whenever amount changes
+            updateIndividualPaymentTotal();
         });
 
         // Function to update the opening balance
@@ -427,8 +815,119 @@
             updateOpeningBalance();
         });
 
-        // Initialize DataTable
+        // Function to load customers for bulk payment
+        // Debug: Check if this script is loading
+        console.log('sales_ajax.blade.php script is loading...');
+        
+        // Make this function globally available
+        window.loadCustomersForBulkPayment = function() {
+            console.log('Loading customers for bulk payment...');
+            console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
+            console.log('Current user authenticated:', $('meta[name="csrf-token"]').length > 0);
+            
+            $.ajax({
+                url: '/customer-get-all',
+                method: 'GET',
+                dataType: 'json',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    console.log('Customer response for bulk payment:', response);
+                    var customerSelect = $('#customerSelect');
+                    customerSelect.empty();
+                    customerSelect.append('<option value="" selected disabled>Select Customer</option>');
+                    
+                    if (response.status === 200 && response.message && response.message.length > 0) {
+                        response.message.forEach(function(customer) {
+                            // Skip walk-in customer (customer ID 1)
+                            if (customer.id === 1) {
+                                return;
+                            }
+                            
+                            // Calculate total due amount
+                            var openingBalance = parseFloat(customer.opening_balance) || 0;
+                            var saleDue = parseFloat(customer.total_sale_due) || 0;
+                            var currentDue = parseFloat(customer.current_due) || 0;
+                            
+                            // Only show customers who have due amounts
+                            if (currentDue > 0) {
+                                var lastName = customer.last_name ? customer.last_name : '';
+                                var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
+                                var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
+                                if (openingBalance > 0) {
+                                    displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
+                                }
+                                
+                                customerSelect.append(
+                                    '<option value="' + customer.id +
+                                    '" data-opening-balance="' + openingBalance +
+                                    '" data-sale-due="' + saleDue +
+                                    '" data-total-due="' + currentDue +
+                                    '">' + displayText + '</option>'
+                                );
+                            }
+                        });
+                    } else {
+                        console.error("Failed to fetch customer data or no customers found.", response);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("AJAX error loading customers:", {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+                    
+                    // Show user-friendly error message
+                    var errorMessage = 'Failed to load customers.';
+                    if (xhr.status === 401) {
+                        errorMessage = 'Authentication required. Please refresh the page and login again.';
+                    } else if (xhr.status === 403) {
+                        errorMessage = 'Permission denied to access customer data.';
+                    }
+                    
+                    $('#customerSelect').append('<option value="" disabled>Error: ' + errorMessage + '</option>');
+                }
+            });
+        }
+        
+        // Debug: Confirm function is defined
+        console.log('loadCustomersForBulkPayment function defined successfully');
+        console.log('Type of window.loadCustomersForBulkPayment:', typeof window.loadCustomersForBulkPayment);
+
+        // Initialize DataTable and Bulk Payment functionality
         $(document).ready(function() {
+            console.log('Document ready - checking for customerSelect element...');
+            console.log('Current URL:', window.location.href);
+            console.log('CustomerSelect element found:', $('#customerSelect').length > 0);
+            
+            // Load customers on page load for bulk payment functionality
+            if ($('#customerSelect').length > 0) {
+                console.log('CustomerSelect element exists, initializing...');
+                
+                // Wait a bit for DOM to be fully ready
+                setTimeout(function() {
+                    // Initialize select2 for customer dropdown if available
+                    if (typeof $.fn.select2 !== 'undefined') {
+                        $('#customerSelect').select2({
+                            placeholder: "Select Customer",
+                            allowClear: true
+                        });
+                        console.log('Select2 initialized for customerSelect');
+                    } else {
+                        console.log('Select2 not available, using regular dropdown');
+                    }
+                    
+                    // Load customers
+                    loadCustomersForBulkPayment();
+                }, 500);
+            } else {
+                console.log('CustomerSelect element not found on this page');
+            }
+            
             $('#salesList').DataTable({
                 columns: [{
                         title: "ID (Invoice)"
@@ -448,48 +947,195 @@
                 ]
             });
 
+            // Handle payment method change
+            $('#paymentMethod').on('change', function() {
+                togglePaymentFields('bulkPaymentModal');
+            });
+
+            // Initialize payment fields when modal is shown
+            $('#bulkPaymentModal').on('shown.bs.modal', function() {
+                togglePaymentFields('bulkPaymentModal');
+            });
+
             // Clear the modal content when the modal is hidden
             $('#bulkPaymentModal').on('hidden.bs.modal', function() {
                 $('#bulkPaymentForm')[0].reset(); // Reset the form
+                $('#customerSelect').val('').trigger('change'); // Clear customer selection
                 $('#salesList').DataTable().clear().draw(); // Clear the sales list
                 $('#openingBalance').text('Rs. 0.00'); // Reset the opening balance
-                $('#saleDueBalance').text('Rs. 0.00'); // Reset sale due balance
+                // Sale due balance removed - only using totalDueAmount
                 $('#totalSalesAmount').text('Rs. 0.00'); // Reset the total sales amount
                 $('#totalPaidAmount').text('Rs. 0.00'); // Reset the total paid amount
                 $('#totalDueAmount').text('Rs. 0.00'); // Reset the total due amount
                 $('#totalCustomerDue').text('Rs. 0.00'); // Reset total customer due
+                $('#individualPaymentTotal').text('Rs. 0.00'); // Reset individual payment total
                 $('#globalPaymentAmount').removeClass('is-invalid').next('.invalid-feedback')
                     .remove(); // Remove validation feedback
                 $('#paymentMethod').val('cash'); // Reset payment method to cash
+                togglePaymentFields('bulkPaymentModal'); // Reset payment fields
                 $('input[name="paymentType"][value="sale_dues"]').prop('checked', true); // Reset to sale dues
                 $('#salesListContainer').show(); // Show sales list by default
                 togglePaymentFields('bulkPaymentModal'); // Ensure the correct fields are shown
             });
         });
-        // Handle payment submission
-        $('#submitBulkPayment').click(function() {
+        // Handle payment submission (works for both modal and separate page)
+        $(document).on('click', '#submitBulkPayment', function() {
+            console.log('Submit bulk payment button clicked');
+            
             var customerId = $('#customerSelect').val();
             var paymentMethod = $('#paymentMethod').val();
-            var paymentDate = $('#paidOn').val();
+            
+            console.log('Customer ID:', customerId);
+            console.log('Payment Method raw:', paymentMethod);
+            // Get payment date - there might be multiple inputs with same ID, get the one with value
+            var paymentDate = '';
+            $('#paidOn, [name="payment_date"]').each(function() {
+                var val = $(this).val();
+                if (val && val.trim() !== '') {
+                    paymentDate = val;
+                    console.log('Found date value in input type:', this.type, 'Value:', val);
+                    return false; // Break the loop
+                }
+            });
+            
+            // If still empty, try to get from visible date inputs or set today's date
+            if (!paymentDate) {
+                paymentDate = $('input[type="date"]:visible').val();
+                console.log('Trying visible date input, payment_date:', paymentDate);
+            }
+            
+            // If still empty, set today's date
+            if (!paymentDate) {
+                var today = new Date();
+                paymentDate = today.getFullYear() + '-' + 
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                    String(today.getDate()).padStart(2, '0');
+                console.log('Using today\'s date:', paymentDate);
+            }
+            
+            console.log('Raw payment date from input:', paymentDate);
+            console.log('Payment date input element exists:', $('#paidOn').length > 0);
+            console.log('Payment date input is visible:', $('#paidOn').is(':visible'));
+            console.log('Payment date input element:', $('#paidOn')[0]);
+            console.log('Payment date input data-date:', $('#paidOn').data('date'));
+            console.log('All form inputs with values:');
+            $('#paidOn, [name="payment_date"]').each(function() {
+                console.log('Input:', this.id || this.name, 'Value:', $(this).val(), 'Type:', this.type);
+            });
+            
+            // Convert date format from DD-MM-YYYY to YYYY-MM-DD if needed
+            if (paymentDate && paymentDate.includes('-')) {
+                var dateParts = paymentDate.split('-');
+                if (dateParts.length === 3 && dateParts[0].length === 2) {
+                    // Assume DD-MM-YYYY format, convert to YYYY-MM-DD
+                    paymentDate = dateParts[2] + '-' + dateParts[1] + '-' + dateParts[0];
+                }
+            }
             var globalPaymentAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
             var paymentType = $('input[name="paymentType"]:checked').val();
+            
+            console.log('Global payment amount raw value:', $('#globalPaymentAmount').val());
+            console.log('Global payment amount parsed:', globalPaymentAmount);
+            console.log('Global amount element exists:', $('#globalPaymentAmount').length > 0);
+            console.log('Global amount element is visible:', $('#globalPaymentAmount').is(':visible'));
+            console.log('All amount inputs on page:');
+            $('[id*="Amount"], [name*="amount"], input[type="number"]').each(function() {
+                console.log('Amount input:', this.id || this.name || 'unnamed', 'Value:', $(this).val(), 'Visible:', $(this).is(':visible'));
+            });
             var salePayments = [];
+            
+            console.log('Form values collected:', {
+                customerId: customerId,
+                paymentMethod: paymentMethod,
+                paymentDate: paymentDate,
+                globalPaymentAmount: globalPaymentAmount,
+                paymentType: paymentType
+            });
+            
+            console.log('Date after conversion:', paymentDate);
 
             // Validate customer selection
             if (!customerId) {
-                alert('Please select a customer.');
+                console.error('Validation failed: No customer selected');
                 return;
             }
 
-            // Validate payment amount
-            if (globalPaymentAmount <= 0) {
-                alert('Please enter a valid payment amount.');
+            // Validate payment amount based on payment type
+            var maxAmount = 0;
+            var customerOpeningBalance = parseFloat($('#customerSelect').find(':selected').data('opening-balance')) || 0;
+            var totalDueAmount = parseFloat($('#totalDueAmount').text().replace('Rs. ', '')) || 0;
+            var totalCustomerDue = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
+            
+            console.log('Balance details:', {
+                customerOpeningBalance: customerOpeningBalance,
+                totalDueAmount: totalDueAmount, // This is sale dues only
+                totalCustomerDue: totalCustomerDue // This is total customer due (sales + opening balance)
+            });
+            
+            console.log('All balance elements on page:');
+            $('#totalCustomerDue, #totalDueAmount, #saleDueAmount').each(function() {
+                console.log('Element:', this.id, 'Text:', $(this).text(), 'Parsed:', parseFloat($(this).text().replace('Rs. ', '')));
+            });
+            
+            if (paymentType === 'opening_balance') {
+                maxAmount = customerOpeningBalance;
+            } else if (paymentType === 'sale_dues') {
+                // Allow payment up to total customer due even when "sale_dues" is selected
+                // The backend will intelligently distribute the payment
+                maxAmount = totalCustomerDue; 
+            } else if (paymentType === 'both') {
+                maxAmount = totalCustomerDue;
+            }
+
+            // Check if user is doing individual payments or global payment
+            var hasIndividualPayments = false;
+            var totalIndividualAmount = 0;
+            $('.reference-amount').each(function() {
+                var amount = parseFloat($(this).val()) || 0;
+                if (amount > 0) {
+                    hasIndividualPayments = true;
+                    totalIndividualAmount += amount;
+                }
+            });
+
+            console.log('Payment validation:', {
+                customerId: customerId,
+                globalPaymentAmount: globalPaymentAmount,
+                hasIndividualPayments: hasIndividualPayments,
+                totalIndividualAmount: totalIndividualAmount,
+                paymentType: paymentType,
+                paymentDate: paymentDate,
+                paymentMethod: paymentMethod,
+                maxAmount: maxAmount
+            });
+
+            // If no individual payments, require global payment amount
+            if (!hasIndividualPayments && globalPaymentAmount <= 0) {
+                console.error('Validation failed: No payment amounts entered');
+                return;
+            }
+
+            // If global payment amount is provided, validate it
+            if (globalPaymentAmount > 0 && globalPaymentAmount > maxAmount) {
+                console.error('Validation failed: Payment amount exceeds total customer due', {
+                    globalAmount: globalPaymentAmount,
+                    maxAmount: maxAmount,
+                    paymentType: paymentType,
+                    saleDues: totalDueAmount,
+                    totalCustomerDue: totalCustomerDue
+                });
                 return;
             }
 
             // Validate payment type
             if (!paymentType) {
-                alert('Please select a payment type.');
+                console.error('Validation failed: No payment type selected');
+                return;
+            }
+
+            // Validate payment date
+            if (!paymentDate) {
+                console.error('Validation failed: No payment date selected');
                 return;
             }
 
@@ -497,7 +1143,7 @@
             if (paymentType === 'sale_dues' || paymentType === 'both') {
                 $('.reference-amount').each(function() {
                     var referenceId = $(this).data('reference-id');
-                    var paymentAmount = parseFloat($(this).val());
+                    var paymentAmount = parseFloat($(this).val()) || 0;
                     if (paymentAmount > 0) {
                         salePayments.push({
                             reference_id: referenceId,
@@ -505,6 +1151,12 @@
                         });
                     }
                 });
+
+                // Validate that at least one sale payment is made for sale_dues type
+                if (paymentType === 'sale_dues' && salePayments.length === 0) {
+                    console.error('Validation failed: No sale payments for sale_dues type');
+                    return;
+                }
             }
 
             var paymentData = {
@@ -512,25 +1164,66 @@
                 entity_id: customerId,
                 payment_method: paymentMethod,
                 payment_date: paymentDate,
-                global_amount: globalPaymentAmount,
-                payment_type: paymentType, // Add payment type to distinguish settlement types
+                global_amount: globalPaymentAmount || 0,
+                payment_type: paymentType,
                 payments: salePayments
             };
+
+            // Add payment method specific fields
+            if (paymentMethod === 'card') {
+                paymentData.card_number = $('#cardNumber').val();
+                paymentData.card_holder_name = $('#cardHolderName').val();
+                paymentData.card_type = $('#cardType').val();
+                paymentData.card_expiry_month = $('#expiryMonth').val();
+                paymentData.card_expiry_year = $('#expiryYear').val();
+                paymentData.card_security_code = $('#securityCode').val();
+            } else if (paymentMethod === 'cheque') {
+                paymentData.cheque_number = $('#chequeNumber').val();
+                paymentData.cheque_bank_branch = $('#bankBranch').val();
+                paymentData.cheque_received_date = $('#cheque_received_date').val();
+                paymentData.cheque_valid_date = $('#cheque_valid_date').val();
+                paymentData.cheque_given_by = $('#cheque_given_by').val();
+            } else if (paymentMethod === 'bank_transfer') {
+                paymentData.bank_account_number = $('#bankAccountNumber').val();
+            }
+
+            console.log('Payment data being sent:', paymentData);
 
             $.ajax({
                 url: '/api/submit-bulk-payment',
                 type: 'POST',
                 contentType: 'application/json',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 data: JSON.stringify(paymentData),
                 success: function(response) {
+                    console.log('Payment submission successful:', response);
                     toastr.success(response.message, 'Payment Submitted');
                     $('#bulkPaymentModal').modal('hide');
                     $('#bulkPaymentForm')[0].reset(); // Reset the form
-                    fetchSalesData();
+                    
+                    // Refresh the DataTable to show updated payment information
+                    refreshSalesTable();
                 },
                 error: function(xhr, status, error) {
-                    console.error("AJAX error: ", status, error);
-                    alert('Failed to submit payment.');
+                    console.error("AJAX error: ", {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
+                    
+                    console.error('Payment submission failed:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseJSON: xhr.responseJSON,
+                        responseText: xhr.responseText
+                    });
+                    
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        console.error('Validation errors:', xhr.responseJSON.errors);
+                    }
                 }
             });
         });
@@ -619,7 +1312,7 @@
             });
         });
 
-        // Event handler for add payment button
+        /* Event handler for add payment button */
         $('#salesTable tbody').on('click', 'button.add-payment', function() {
             var saleId = $(this).val();
             $.ajax({
@@ -667,8 +1360,6 @@
                                 $('#amountError').hide();
                             }
                         });
-
-                        $('#paymentModal').modal('show');
                     } else {
                         console.error('Sales details data is not in the expected format.');
                     }
@@ -748,7 +1439,7 @@
             });
         });
 
-        // Event handler for delete payment button
+        /* Event handler for delete payment button */
         $(document).on('click', 'button.delete-payment', function() {
             var paymentId = $(this).val();
             if (confirm('Are you sure you want to delete this payment?')) {
@@ -761,7 +1452,9 @@
                     success: function(response) {
                         toastr.success('Payment deleted successfully.', 'Deleted');
                         $('#viewPaymentModal').modal('hide');
-                        fetchPurchases();
+                        
+                        // Refresh the DataTable to show updated payment information
+                        refreshSalesTable();
                     },
                     error: function(xhr) {
                         toastr.error(xhr.responseJSON.message);
@@ -770,7 +1463,7 @@
             }
         });
 
-        // Event handler for edit payment button
+        /* Event handler for edit payment button */
         $(document).on('click', 'button.edit-payment', function() {
             var paymentId = $(this).val();
             $.ajax({
@@ -851,7 +1544,9 @@
                     $('#paymentModal').modal('hide');
                     document.getElementsByClassName('successSound')[0].play();
                     toastr.success(response.message, 'Payment Added');
-                    fetchSalesData();
+                    
+                    // Refresh the DataTable to show updated payment information
+                    refreshSalesTable();
                 },
                 error: function(xhr, status, error) {
                     console.error('Error adding payment:', error);
@@ -1540,7 +2235,10 @@
                                         "Sale deleted successfully!");
                                     const successSound = document.querySelector(
                                         '.successSound');
-                                    fetchSalesData();
+                                    
+                                    // Refresh the DataTable to show updated sales list
+                                    refreshSalesTable();
+                                    
                                     swal.close();
                                     successSound.play();
 

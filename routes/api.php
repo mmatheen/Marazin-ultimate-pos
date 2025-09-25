@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\RoleController;
-// use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SellController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\BrandController;
@@ -44,7 +44,7 @@ use App\Http\Controllers\Api\{
   VehicleTrackingController,
   ProductController,
   CustomerController,
-  SaleController
+  SaleController as ApiSaleController
 };
 
 
@@ -222,7 +222,13 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::get('/customer-get-all', [CustomerController::class, 'index']);
   Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
   Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
+  Route::post('/sales/clear-cache', [SaleController::class, 'clearSalesCache']);
+});
+
+// Sales routes accessible from web (using web middleware for session auth)
+Route::middleware('web')->group(function () {
   Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
+  Route::get('/sales/paginated', [SaleController::class, 'getDataTableSales'])->name('sales.paginated');
 });
 //start Customer route
 Route::get('/customer-edit/{id}', [CustomerController::class, 'edit']);

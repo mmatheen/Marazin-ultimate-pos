@@ -798,7 +798,7 @@ class PaymentController extends Controller
             'payment_method' => 'required|string',
             'payment_date' => 'nullable|date',
             'payment_type' => 'nullable|in:opening_balance,sale_dues,both',
-            'global_amount' => 'nullable|numeric',
+            'global_amount' => 'nullable|numeric|min:0',
             'payments' => 'nullable|array',
             'payments.*.reference_id' => [
                 'required',

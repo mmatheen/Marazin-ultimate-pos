@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
@@ -151,13 +152,192 @@ class SaleController extends Controller
 
     //draft sales
 
-    public function index()
+    public function index(Request $request)
     {
+        // Check if this is a DataTable request
+        if ($request->has('draw') || $request->has('length')) {
+            return $this->getDataTableSales($request);
+        }
 
+        // Original simple format for backward compatibility
         $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+            ->where('status', 'final')
+            ->orderBy('created_at', 'desc')
+            ->limit(100) // Limit to prevent timeout
             ->get();
 
         return response()->json(['sales' => $sales], 200);
+    }
+
+    /**
+     * Get sales data for DataTable with server-side processing
+     * 
+     * This method fetches sales data from the database and returns it
+     * in a format that DataTable can understand. It includes pagination,
+     * search, and proper relationship loading.
+     */
+    public function getDataTableSales(Request $request)
+    {
+        try {
+            // 1. Get basic parameters from DataTable request
+            $perPage = (int) $request->input('length', 10);  // How many records per page
+            $start = (int) $request->input('start', 0);      // Starting record number
+            $draw = (int) $request->input('draw', 1);        // DataTable draw counter
+            $search = $request->input('search.value', '');    // Search term
+            
+            // Make sure parameters are valid
+            if ($perPage <= 0) $perPage = 10;
+            if ($start < 0) $start = 0;
+            
+            // 2. Check if we have any sales (bypassing location scopes to get all sales)
+            $totalSales = Sale::withoutGlobalScopes()->count();
+            
+            // If no sales exist in database, return helpful message
+            if ($totalSales === 0) {
+                return response()->json([
+                    'draw' => $draw,
+                    'recordsTotal' => 0,
+                    'recordsFiltered' => 0,
+                    'data' => [],
+                    'debug' => [
+                        'message' => 'No sales found in database',
+                        'suggestion' => 'Create some sales first using POS or Add Sale'
+                    ]
+                ]);
+            }
+            
+            // 3. Build the main query (bypass location scopes to show all user's sales)
+            $query = Sale::withoutGlobalScopes()->select([
+                'id', 'invoice_no', 'sales_date', 'customer_id', 'user_id', 'location_id',
+                'final_total', 'total_paid', 'total_due', 'payment_status', 'status', 
+                'created_at', 'updated_at'
+            ])->where('status', 'final');
+            
+            // Load related data (customer, user, location, payments) with correct column names
+            // Note: We only load the columns we need to make the query faster
+            $query->with([
+                'customer:id,first_name,last_name,mobile_no',  // Customer info
+                'user:id,full_name',                           // User who made the sale
+                'location:id,name',                            // Location where sale was made
+                'payments:id,reference_id,amount,payment_method,payment_date,notes' // Payment info
+            ]);
+            
+            // Count how many products are in each sale
+            $query->withCount('products as total_items');
+
+            // 4. Add search functionality if user is searching for something
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    // Search in invoice number
+                    $q->where('invoice_no', 'like', "%{$search}%")
+                      // Search in total amount
+                      ->orWhere('final_total', 'like', "%{$search}%")
+                      // Search in customer information
+                      ->orWhereHas('customer', function ($customerQ) use ($search) {
+                          $customerQ->where('first_name', 'like', "%{$search}%")
+                                   ->orWhere('last_name', 'like', "%{$search}%")
+                                   ->orWhere('mobile_no', 'like', "%{$search}%");
+                      });
+                });
+            }
+
+            // 5. Get total count for pagination
+            $totalCount = $query->count();
+            
+            // 6. Get the actual sales data with pagination
+            $sales = $query->orderBy('created_at', 'desc')  // Newest first
+                          ->skip($start)                      // Skip records for pagination
+                          ->take($perPage)                    // Take only what we need
+                          ->get();
+            
+            // 7. Format the data for DataTable
+            $salesData = [];
+            foreach ($sales as $sale) {
+                // Build customer name from first_name + last_name
+                $customerName = '';
+                if ($sale->customer) {
+                    $customerName = trim(($sale->customer->first_name ?? '') . ' ' . ($sale->customer->last_name ?? ''));
+                }
+                
+                // Use existing payment status from database (don't recalculate)
+                $paymentStatus = $sale->payment_status;
+                
+                // Format payment methods for display
+                $paymentMethods = [];
+                if ($sale->payments && $sale->payments->count() > 0) {
+                    foreach ($sale->payments as $payment) {
+                        $paymentMethods[] = [
+                            'id' => $payment->id,
+                            'method' => ucfirst($payment->payment_method),
+                            'amount' => (float) $payment->amount,
+                            'date' => $payment->payment_date,
+                            'notes' => $payment->notes
+                        ];
+                    }
+                }
+                
+                // Create the data array for this sale
+                $salesData[] = [
+                    'id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'sales_date' => $sale->sales_date,
+                    'customer' => $sale->customer ? [
+                        'id' => $sale->customer->id,
+                        'first_name' => $sale->customer->first_name,
+                        'last_name' => $sale->customer->last_name,
+                        'name' => $customerName,
+                        'phone' => $sale->customer->mobile_no
+                    ] : null,
+                    'user' => $sale->user ? [
+                        'id' => $sale->user->id,
+                        'name' => $sale->user->full_name
+                    ] : null,
+                    'location' => $sale->location ? [
+                        'id' => $sale->location->id,
+                        'name' => $sale->location->name
+                    ] : null,
+                    'payments' => $paymentMethods,  // Add payment methods
+                    'final_total' => (float) $sale->final_total,
+                    'total_paid' => (float) $sale->total_paid,
+                    'total_due' => (float) $sale->total_due,
+                    'payment_status' => $paymentStatus,
+                    'status' => $sale->status,
+                    'total_items' => (int) $sale->total_items,
+                    'created_at' => $sale->created_at,
+                    'updated_at' => $sale->updated_at
+                ];
+            }
+
+            // 8. Return the data in DataTable format
+            return response()->json([
+                'draw' => $draw,
+                'recordsTotal' => $totalCount,
+                'recordsFiltered' => $totalCount,
+                'data' => $salesData
+            ]);
+
+        } catch (\Exception $e) {
+            // If something goes wrong, log the error and return error response
+            Log::error('Sales DataTable Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'error' => 'Failed to fetch sales data',
+                'message' => $e->getMessage(),
+                'draw' => $request->input('draw', 1),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Clear sales cache to force refresh (called after new sales)
+     */
+    public function clearSalesCache()
+    {
+        Cache::forget('sales_final_count');
+        return response()->json(['message' => 'Sales cache cleared'], 200);
     }
 
     

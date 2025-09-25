@@ -590,12 +590,7 @@
                                                 <span id="openingBalance" class="d-block mt-2">Rs. 0.00</span>
                                             </div>
                                         </div>
-                                        <div class="col-md-2">
-                                            <div class="card bg-info p-3 rounded text-center shadow-sm">
-                                                <strong>Sale Due:</strong>
-                                                <span id="saleDueBalance" class="d-block mt-2">Rs. 0.00</span>
-                                            </div>
-                                        </div>
+
                                         <div class="col-md-2">
                                             <div class="card bg-success p-3 rounded text-center shadow-sm">
                                                 <strong>Total Sales:</strong>
@@ -665,12 +660,22 @@
                                             </thead>
                                             <tbody></tbody>
                                         </table>
+                                        
+                                        <!-- Individual Payment Total Display -->
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <div class="alert alert-info">
+                                                    <h5>Individual Payments Total: <span id="individualPaymentTotal">Rs. 0.00</span></h5>
+                                                    <small class="text-muted">This shows the sum of individual payment amounts entered above</small>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="row mb-3">
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label for="paymentMethod" class="form-label">Payment Method</label>
-                                                <select class="form-select" id="paymentMethod" name="payment_method" onchange="togglePaymentFields('bulkPaymentModal')">
+                                                <select class="form-select" id="paymentMethod" name="payment_method">
                                                     <option value="cash" selected>Cash</option>
                                                     <option value="card">Credit Card</option>
                                                     <option value="cheque">Cheque</option>
@@ -744,6 +749,14 @@
         </div>
 
         <script>
+            $(document).ready(function() {
+                // Ensure bulk payment modal uses the same functionality as the separate page
+                // The sales_ajax.blade.php file included at the end provides all the functionality
+                
+                // Override the local togglePaymentFields function to use the global one from sales_ajax.blade.php
+                window.togglePaymentFields = window.togglePaymentFields || togglePaymentFieldsLocal;
+            });
+
             // Define the openPaymentModal function
             function openPaymentModal(event, saleId) {
                 // Implement the logic to open the payment modal
@@ -806,9 +819,19 @@
                 });
             }
 
-            // Toggle payment fields based on selected payment method
+            // Bulk Payment Button Click Handler
+            $('#bulkPaymentBtn').click(function() {
+                $('#bulkPaymentModal').modal('show');
+            });
+
+            // Toggle payment fields based on selected payment method for bulk payments
             $('#bulkPaymentModal #paymentMethod').change(function() {
-                togglePaymentFields('bulkPaymentModal');
+                togglePaymentFieldsLocal('bulkPaymentModal');
+            });
+
+            // Initialize payment fields when bulk payment modal is shown
+            $('#bulkPaymentModal').on('shown.bs.modal', function() {
+                togglePaymentFieldsLocal('bulkPaymentModal');
             });
 
             // Toggle payment fields based on selected payment method for individual payments
@@ -816,25 +839,22 @@
                 togglePaymentFields('paymentModal');
             });
 
-            // Function to toggle payment fields based on payment method
-            function togglePaymentFields(modalId) {
+            // Function to toggle payment fields based on payment method (local version for sale.blade.php)
+            function togglePaymentFieldsLocal(modalId) {
                 const paymentMethod = $(`#${modalId} #paymentMethod`).val();
+                
+                // Hide all payment method specific fields
+                $(`#${modalId} #cardFields`).hide();
+                $(`#${modalId} #chequeFields`).hide();
+                $(`#${modalId} #bankTransferFields`).hide();
+                
+                // Show relevant fields based on payment method
                 if (paymentMethod === 'card') {
-                    $(`#${modalId} #creditCardFields`).removeClass('d-none');
-                    $(`#${modalId} #chequeFields`).addClass('d-none');
-                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                    $(`#${modalId} #cardFields`).show();
                 } else if (paymentMethod === 'cheque') {
-                    $(`#${modalId} #creditCardFields`).addClass('d-none');
-                    $(`#${modalId} #chequeFields`).removeClass('d-none');
-                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).show();
                 } else if (paymentMethod === 'bank_transfer') {
-                    $(`#${modalId} #creditCardFields`).addClass('d-none');
-                    $(`#${modalId} #chequeFields`).addClass('d-none');
-                    $(`#${modalId} #bankTransferFields`).removeClass('d-none');
-                } else {
-                    $(`#${modalId} #creditCardFields`).addClass('d-none');
-                    $(`#${modalId} #chequeFields`).addClass('d-none');
-                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).show();
                 }
             }
         </script>
