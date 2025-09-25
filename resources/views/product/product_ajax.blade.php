@@ -2076,11 +2076,50 @@
     });
 </script>
 
+<!-- Load user locations for import form -->
+<script>
+    $(document).ready(function() {
+        // Load locations when import product page is loaded
+        if ($('#import_location').length > 0) {
+            loadUserLocations();
+        }
+    });
+
+    function loadUserLocations() {
+        $.ajax({
+            url: '/api/initial-product-details',
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 200 && response.message.locations) {
+                    let locationSelect = $('#import_location');
+                    locationSelect.empty();
+                    locationSelect.append('<option value="">Choose Location to Import Products...</option>');
+                    
+                    response.message.locations.forEach(function(location) {
+                        let selected = location.selected ? 'selected' : '';
+                        locationSelect.append(`<option value="${location.id}" ${selected}>${location.name}</option>`);
+                    });
+
+                    // If only one location and auto-select is enabled, auto-select it
+                    if (response.message.auto_select_single_location && response.message.locations.length === 1) {
+                        locationSelect.val(response.message.locations[0].id);
+                    }
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading locations:', xhr.responseJSON);
+                toastr.error('Failed to load locations. Please refresh the page.', 'Error');
+            }
+        });
+    }
+</script>
+
 <script>
     $(document).on('submit', '#importProductForm', function(e) {
         e.preventDefault();
         let formData = new FormData($('#importProductForm')[0]);
         let fileInput = $('input[name="file"]')[0];
+        let locationId = $('#import_location').val();
 
         // Clear any existing toastr notifications
         toastr.clear();
@@ -2093,6 +2132,13 @@
             return;
         } else {
             $('#file_error').html('');
+        }
+
+        // Validate location selection
+        if (!locationId) {
+            toastr.error('Please select a location for import.', 'Location Required');
+            $('#import_location').focus();
+            return;
         }
 
         $.ajax({

@@ -964,6 +964,7 @@ class ProductController extends Controller
             $filterProductName = $request->input('product_name');
             $filterCategory = $request->input('main_category_id');
             $filterBrand = $request->input('brand_id');
+            $locationId = $request->input('location_id'); // Add location filtering
 
             // Build product query
             $query = Product::select([
@@ -1009,14 +1010,25 @@ class ProductController extends Controller
                             'expiry_date'
                         ]);
                     },
-                    'batches.locationBatches' => function ($query) {
+                    'batches.locationBatches' => function ($query) use ($locationId) {
                         $query->select(['id', 'batch_id', 'location_id', 'qty'])
                             ->with('location:id,name');
+                        // Filter by location if provided
+                        if ($locationId) {
+                            $query->where('location_id', $locationId);
+                        }
                     }
                 ])
                 // Only filter by is_active for POS (when show_all parameter is not set)
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
+                })
+                // Filter by location if provided (only show products with stock in that location)
+                ->when($locationId, function ($query) use ($locationId) {
+                    return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
+                        $q->where('location_id', $locationId)
+                          ->where('qty', '>', 0);
+                    });
                 });
 
             // Apply DataTable global search
@@ -1263,7 +1275,14 @@ class ProductController extends Controller
                 $q->select(['id', 'batch_id', 'location_id', 'qty'])
                     ->with('location:id,name');
             }
-        ])->where('is_active', true); // Only show active products for POS
+        ])->where('is_active', true) // Only show active products for POS
+        // Filter by location if provided (only show products with stock in that location)
+        ->when($locationId, function ($query) use ($locationId) {
+            return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
+                $q->where('location_id', $locationId)
+                  ->where('qty', '>', 0);
+            });
+        });
 
         if ($search) {
             // Use ORDER BY with CASE statements to prioritize exact matches
@@ -1650,9 +1669,10 @@ class ProductController extends Controller
 
     public function importProductStore(Request $request)
     {
-        // Validate the request file
+        // Validate the request file and location
         $validator = Validator::make($request->all(), [
             'file' => 'required|mimes:xlsx,xls',
+            'import_location' => 'required|integer|exists:locations,id',
         ]);
 
         if ($validator->fails()) {
@@ -1661,6 +1681,22 @@ class ProductController extends Controller
                 'errors' => $validator->messages()
             ]);
         }
+
+        // Verify that the selected location is assigned to the current user
+        $user = auth()->user();
+        $selectedLocationId = $request->input('import_location');
+        
+        // Check user access to the selected location
+        $userLocationIds = $user->locations->pluck('id')->toArray();
+        if (!in_array($selectedLocationId, $userLocationIds)) {
+            return response()->json([
+                'status' => 403,
+                'message' => 'You do not have access to the selected location.'
+            ]);
+        }
+
+        // Store the selected location in session for the import process
+        session(['selected_location' => $selectedLocationId]);
 
         // Check if the file is present in the request
         if ($request->hasFile('file')) {
