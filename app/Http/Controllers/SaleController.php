@@ -32,73 +32,6 @@ class SaleController extends Controller
 {
     protected $unifiedLedgerService;
 
-    protected function bulkProcessProductSales($products, $saleId, $locationId, $stockType, $status)
-    {
-        $stockHistoryRecords = [];
-        $batchUpdates = [];
-        
-        foreach ($products as $productData) {
-            if (!isset($productData['product_id'])) {
-                continue;
-            }
-            
-            $product = Product::with('unit')->find($productData['product_id']);
-            if (!$product) {
-                continue;
-            }
-            
-            // Skip stock updates for unlimited stock products
-            if ($product->unlimited_stock) {
-                continue;
-            }
-            
-            $quantity = $productData['quantity'];
-            $batch = Batch::where('id', $productData['batch_id'])->first();
-            
-            if (!$batch) {
-                continue;
-            }
-            
-            $locationBatch = LocationBatch::where('batch_id', $batch->id)
-                ->where('location_id', $locationId)
-                ->first();
-                
-            if (!$locationBatch || $locationBatch->qty < $quantity) {
-                continue;
-            }
-            
-            // Prepare batch update
-            if (!isset($batchUpdates[$locationBatch->id])) {
-                $batchUpdates[$locationBatch->id] = [
-                    'qty' => $locationBatch->qty - $quantity
-                ];
-            } else {
-                $batchUpdates[$locationBatch->id]['qty'] -= $quantity;
-            }
-            
-            // Prepare stock history record
-            $stockHistoryRecords[] = [
-                'loc_batch_id' => $locationBatch->id,
-                'product_id' => $product->id,
-                'type' => $stockType,
-                'quantity' => $quantity,
-                'sale_id' => $saleId,
-                'created_at' => now(),
-                'updated_at' => now()
-            ];
-        }
-        
-        // Bulk update location batches
-        foreach ($batchUpdates as $locBatchId => $update) {
-            LocationBatch::where('id', $locBatchId)->update($update);
-        }
-        
-        // Bulk insert stock history
-        if (!empty($stockHistoryRecords)) {
-            StockHistory::insert($stockHistoryRecords);
-        }
-    }
-
     function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
@@ -604,9 +537,6 @@ class SaleController extends Controller
 
     public function storeOrUpdate(Request $request, $id = null)
     {
-        $startTime = microtime(true);
-        Log::info('Sale processing started');
-        
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|integer|exists:customers,id',
             'location_id' => 'required|integer|exists:locations,id',
@@ -718,10 +648,7 @@ class SaleController extends Controller
                 ]);
             }
 
-            Log::info('Pre-transaction processing time: ' . (microtime(true) - $startTime) . ' seconds');
-            $transactionStart = microtime(true);
-            
-            $sale = DB::transaction(function () use ($request, $id, $transactionStart, $startTime) {
+            $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
                 $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
@@ -1004,17 +931,9 @@ class SaleController extends Controller
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
                         
-                        // Reset pending deductions for this batch of processing
-                        $this->pendingBatchDeductions = [];
-                        
-                        // Process sale based on status
+                        // Always process sale for final/suspend status
                         if (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
-                            
-                            // Process any collected deductions
-                            if (!empty($this->pendingBatchDeductions)) {
-                                $this->bulkDeductBatchStock($this->pendingBatchDeductions);
-                            }
                         } else {
                             // For non-final statuses, just simulate batch selection
                             $this->simulateBatchSelection($productData, $sale->id, $request->location_id, $newStatus);
@@ -1032,11 +951,7 @@ class SaleController extends Controller
                 }
 
                 $this->updatePaymentStatus($sale);
-                $endTime = microtime(true);
-            Log::info('Total sale processing time: ' . ($endTime - $startTime) . ' seconds');
-            Log::info('Transaction processing time: ' . ($endTime - $transactionStart) . ' seconds');
-            
-            return $sale;
+                return $sale;
             });
 
             $customer = Customer::findOrFail($sale->customer_id);
@@ -1141,85 +1056,29 @@ class SaleController extends Controller
         $sale->save();
     }
 
-    private function bulkDeductBatchStock($deductions)
-    {
-        if (empty($deductions)) {
-            return;
-        }
-
-        DB::transaction(function() use ($deductions) {
-            // Group deductions by location for efficient updates
-            $deductionsByLocation = collect($deductions)->groupBy('location_id');
-            
-            foreach ($deductionsByLocation as $locationId => $locationDeductions) {
-                $batchIds = $locationDeductions->pluck('batch_id')->toArray();
-                $cases = [];
-                $bindings = [];
-                
-                foreach ($locationDeductions as $deduction) {
-                    $cases[] = "WHEN batch_id = ? THEN qty - ?";
-                    $bindings[] = $deduction['batch_id'];
-                    $bindings[] = $deduction['quantity'];
-                }
-                
-                // Single query to update all batches for this location
-                if (!empty($cases)) {
-                    $sql = "UPDATE location_batches SET qty = CASE " . 
-                           implode(' ', $cases) . 
-                           " ELSE qty END " .
-                           "WHERE location_id = ? AND batch_id IN (" . implode(',', array_fill(0, count($batchIds), '?')) . ")";
-                    
-                    $bindings[] = $locationId;
-                    $bindings = array_merge($bindings, $batchIds);
-                    
-                    DB::update($sql, $bindings);
-                }
-            }
-            
-            // Bulk insert stock history
-            $now = now();
-            $stockHistories = array_map(function($deduction) use ($now) {
-                return [
-                    'batch_id' => $deduction['batch_id'],
-                    'location_id' => $deduction['location_id'],
-                    'quantity' => $deduction['quantity'],
-                    'type' => $deduction['type'],
-                    'sale_id' => $deduction['sale_id'],
-                    'created_at' => $now,
-                    'updated_at' => $now
-                ];
-            }, $deductions);
-            
-            DB::table('stock_histories')->insert($stockHistories);
-        });
-    }
-
-    private $pendingBatchDeductions = [];
-
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {
         $totalQuantity = $productData['quantity'];
         $remainingQuantity = $totalQuantity;
 
-        if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
-            // Specific batch selected - collect for bulk processing
-            $batch = Batch::select('id', 'qty')
-                ->with(['locationBatches' => function($q) use ($locationId) {
-                    $q->where('location_id', $locationId)->select('id', 'batch_id', 'qty');
-                }])
-                ->findOrFail($productData['batch_id']);
+        // We'll store info about each batch deduction
+        $batchDeductions = [];
 
-            $locationBatch = $batch->locationBatches->first();
-            if (!$locationBatch || $locationBatch->qty < $remainingQuantity) {
+        if (!empty($productData['batch_id']) && $productData['batch_id'] != 'all') {
+            // Specific batch selected
+            $batch = Batch::findOrFail($productData['batch_id']);
+            $locationBatch = LocationBatch::where('batch_id', $batch->id)
+                ->where('location_id', $locationId)
+                ->firstOrFail();
+
+            if ($locationBatch->qty < $remainingQuantity) {
                 throw new \Exception("Batch ID {$productData['batch_id']} does not have enough stock.");
             }
 
-            $this->pendingBatchDeductions[] = [
+            $this->deductBatchStock($productData['batch_id'], $locationId, $remainingQuantity, $stockType);
+            $batchDeductions[] = [
                 'batch_id' => $batch->id,
-                'location_id' => $locationId,
-                'quantity' => $remainingQuantity,
-                'type' => $stockType,
-                'sale_id' => $saleId
+                'quantity' => $remainingQuantity
             ];
         } else {
             // All batches selected — apply FIFO

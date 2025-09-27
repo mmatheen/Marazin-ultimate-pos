@@ -18,52 +18,14 @@ class LocationScope implements Scope
     private static $userLocationIds = [];
     private static $selectedLocation;
     private static $locationBypassPermissions = [];
-    private static $modelPermissions = [];
-    private static $bypassCache = [];
-    
-    private function getCachedBypassPermission($userId)
-    {
-        if (!isset(self::$bypassCache[$userId])) {
-            $cacheKey = 'location_bypass_' . $userId;
-            self::$bypassCache[$userId] = cache()->remember($cacheKey, now()->addMinutes(30), function() use ($userId) {
-                $user = User::find($userId);
-                return $user && ($user->hasRole('Master Super Admin') || $user->can('bypass location'));
-            });
-        }
-        return self::$bypassCache[$userId];
-    }
-    
     /**
      * Apply the scope to a given Eloquent query builder.
      */
     public function apply(Builder $builder, Model $model)
     {
-        $modelClass = get_class($model);
-        $user = $this->getAuthenticatedUser();
-        
-        if ($user) {
-            $userId = $user->id;
-            $cacheKey = "location_scope_{$userId}_{$modelClass}";
-            
-            // Try to get from static cache first
-            if (isset(self::$modelPermissions[$cacheKey])) {
-                if (self::$modelPermissions[$cacheKey] === true) {
-                    return;
-                }
-                $builder->whereIn($this->getLocationColumn($model), self::$modelPermissions[$cacheKey]);
-                return;
-            }
-            
-            // Check bypass permission with caching
-            if ($this->getCachedBypassPermission($userId)) {
-                self::$modelPermissions[$cacheKey] = true;
-                return;
-            }
-        }
-        
         // Skip scope if model requests bypass
         if (method_exists($model, 'shouldBypassLocationScope') && $model->shouldBypassLocationScope()) {
-            self::$modelPermissions[$modelClass] = true; // Cache the bypass
+            Log::info("LocationScope: Bypassed for model " . get_class($model));
             return;
         }
 
