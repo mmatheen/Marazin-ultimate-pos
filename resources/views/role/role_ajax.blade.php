@@ -114,14 +114,25 @@
                 url: 'role-edit/' + id,
                 type: 'get',
                 success: function(response) {
-                    if (response.status == 404) {
-                        toastr.error(response.message);
-                    } else if (response.status == 200) {
-                        $('#edit_name').val(response.message.name);
+                if (response.status === 200) {
+                    // toastr.success(response.message);
+                       $('#edit_name').val(response.message.name);
                         $('#edit_key').val(response.message.key); 
                         $('#addAndEditRoleModal').modal('show');
-                    }
+                } else if (response.status === 403) {
+                    toastr.error(response.message);
+                } else {
+                    toastr.error('Unexpected error occurred.');
                 }
+            },
+            error: function(xhr) {
+                // If backend returns 403 as HTTP status
+                if (xhr.status === 403 && xhr.responseJSON && xhr.responseJSON.message) {
+                    toastr.error(xhr.responseJSON.message);
+                } else {
+                    toastr.error('Server error!');
+                }
+            }
             });
         });
 
