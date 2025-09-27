@@ -208,9 +208,11 @@
                 // Populate "To Location" with ALL locations
                 populateDropdown($('#to_location_id'), allLocations, "Select Location");
 
-                // Populate "From Location" with ONLY parent locations (parent_id == null)
-                const parentOnlyLocations = allLocations.filter(loc => loc.parent_id === null);
-                populateDropdown($('#from_location_id'), parentOnlyLocations, "Select Location");
+                populateDropdown($('#from_location_id'), allLocations, "Select Location");
+
+                // // Populate "From Location" with ONLY parent locations (parent_id == null)
+                // const parentOnlyLocations = allLocations.filter(loc => loc.parent_id === null);
+                // populateDropdown($('#from_location_id'), parentOnlyLocations, "Select Location");
 
                 // If editing an existing transfer, restore selected values after dropdowns are populated
                 const pathSegments = window.location.pathname.split('/');
