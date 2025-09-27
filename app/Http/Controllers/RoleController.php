@@ -232,7 +232,7 @@ class RoleController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:50|unique:roles,name,' . $id,
-            'key'  => 'required|string|in:super_admin,admin,manager,sales_rep,cashier,pos_user,retail_user|unique:roles,key,' . $id,
+            'key'  => 'required|string|max:50',
         ]);
 
         if ($validator->fails()) {
