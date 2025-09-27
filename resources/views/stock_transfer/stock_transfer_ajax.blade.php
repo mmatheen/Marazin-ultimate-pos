@@ -3,6 +3,15 @@
         let productIndex = 1;
         let locationFilteredProducts = [];
 
+          // Set default status to "pending" and date to today
+        $('#status').val('pending').trigger('change');
+        let today = new Date();
+        let day = String(today.getDate()).padStart(2, '0');
+        let month = String(today.getMonth() + 1).padStart(2, '0');
+        let year = today.getFullYear();
+        let formattedDate = `${day}-${month}-${year}`;
+        $('#transfer_date').val(formattedDate);
+
         // Initialize autocomplete to search by product name OR SKU, and only show products available in the selected "From" location
         const $productSearchInput = $('#productSearch');
         
@@ -210,9 +219,6 @@
 
                 populateDropdown($('#from_location_id'), allLocations, "Select Location");
 
-                // // Populate "From Location" with ONLY parent locations (parent_id == null)
-                // const parentOnlyLocations = allLocations.filter(loc => loc.parent_id === null);
-                // populateDropdown($('#from_location_id'), parentOnlyLocations, "Select Location");
 
                 // If editing an existing transfer, restore selected values after dropdowns are populated
                 const pathSegments = window.location.pathname.split('/');
@@ -275,17 +281,32 @@
 
         // Function to populate the form with stock transfer data
         function populateForm(stockTransfer) {
-            $('#transfer_date').val(stockTransfer.transfer_date.split(' ')[0]);
+            // Fix: Set date in DD-MM-YYYY format
+            let date = stockTransfer.transfer_date.split(' ')[0];
+            if (date.includes('-')) {
+                let parts = date.split('-');
+                if (parts[0].length === 4) date = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            $('#transfer_date').val(date);
             $('#reference_no').val(stockTransfer.reference_no);
-            $('#status').val(stockTransfer.status);
-            fetchDropdownData('/location-get-all?context=all_locations', $('#from_location_id'),
-                "Select Location", stockTransfer.from_location_id);
-            fetchDropdownData('/location-get-all?context=all_locations', $('#to_location_id'),
-                "Select Location", stockTransfer.to_location_id);
-            stockTransfer.stock_transfer_products.forEach(product => {
-                addProductToTable(product, true);
-            });
-            updateTotalAmount();
+            $('#status').val(stockTransfer.status).trigger('change');
+            // Set dropdowns directly if options are already loaded
+            $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
+            $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
+            // Wait for dropdowns to be populated if needed
+            setTimeout(() => {
+                $('#from_location_id').val(stockTransfer.from_location_id).trigger('change');
+                $('#to_location_id').val(stockTransfer.to_location_id).trigger('change');
+                // Clear products table before adding
+                $('.add-table-items').empty();
+                productIndex = 1;
+                // Add each product row
+                stockTransfer.stock_transfer_products.forEach(product => {
+                    addProductToTable(product, true);
+                });
+                addTotalRow();
+                updateTotalAmount();
+            }, 300);
         }
 
         // Function to add a product to the table

@@ -46,9 +46,9 @@
                                         <label>Status<span class="login-danger">*</span></label>
                                         <select class="form-control form-select select" id="status" name="status">
                                             <option selected disabled>Please Select </option>
-                                            <option value="Pending">Pending</option>
-                                            <option value="In Transit">In Transit</option>
-                                            <option value="Completed">Completed</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="rejected">Rejected</option>
                                         </select>
                                     </div>
                                 </div>
