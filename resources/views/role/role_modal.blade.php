@@ -25,8 +25,6 @@
                             <option value="manager">Manager</option>
                             <option value="sales_rep">Sales Rep</option>
                             <option value="cashier">Cashier</option>
-                            <option value="pos_user">POS User</option>
-                            <option value="retail_user">Retail User</option>
                         </select>
                         <span class="text-danger" id="key_error"></span>
                         <small class="text-muted">This defines what the role can do in the system.</small>

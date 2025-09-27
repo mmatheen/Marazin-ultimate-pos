@@ -56,6 +56,7 @@
             $('#unitAddAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
+            $('#edit_allow_decimal').val('0');
             $('#addAndEditUnitModal').modal('show');
         });
 
