@@ -673,20 +673,69 @@
                     {
                         data: null,
                         render: function(data, type, row) {
-                            let locationName = 'N/A';
+                            let locationDisplay = [];
+                            
                             if (row.batches && row.batches.length > 0) {
-                                locationName = row.batches[0]?.location_batches?.[0]
-                                    ?.location_name || 'N/A';
+                                // Collect locations with stock from batches (already filtered by backend location scope)
+                                const locationStocks = {};
+                                
+                                row.batches.forEach(batch => {
+                                    if (batch.location_batches) {
+                                        batch.location_batches.forEach(lb => {
+                                            if (lb.quantity > 0) {
+                                                if (!locationStocks[lb.location_id]) {
+                                                    locationStocks[lb.location_id] = {
+                                                        name: lb.location_name,
+                                                        qty: 0
+                                                    };
+                                                }
+                                                locationStocks[lb.location_id].qty += parseFloat(lb.quantity);
+                                            }
+                                        });
+                                    }
+                                });
+                                
+                                // Build display array with quantities
+                                Object.values(locationStocks).forEach(location => {
+                                    if (location.qty > 0) {
+                                        locationDisplay.push(`${location.name} (${location.qty})`);
+                                    }
+                                });
+                                
                             } else if (row.locations && row.locations.length > 0) {
-                                locationName = row.locations[0]?.location_name || 'N/A';
+                                // Fallback to product locations (already filtered by backend scope)
+                                row.locations.forEach(location => {
+                                    locationDisplay.push(location.location_name);
+                                });
                             }
-                            return locationName;
+                            
+                            return locationDisplay.length > 0 ? locationDisplay.join(', ') : 'No locations';
                         }
                     },
                     {
                         data: null,
                         render: function(data, type, row) {
-                            return row.product.retail_price;
+                            // Get the latest batch retail price if batches exist, otherwise use product retail price
+                            let displayPrice = row.product.retail_price || 0;
+                            let priceSource = 'default'; // Track whether price is from batch or default
+                            
+                            if (row.product.batches && row.product.batches.length > 0) {
+                                // Get the latest batch (assuming they are ordered by creation date)
+                                const latestBatch = row.product.batches[row.product.batches.length - 1];
+                                if (latestBatch && latestBatch.retail_price !== null && latestBatch.retail_price !== undefined) {
+                                    displayPrice = latestBatch.retail_price;
+                                    priceSource = 'batch';
+                                }
+                            }
+                            
+                            const formattedPrice = parseFloat(displayPrice).toFixed(2);
+                            
+                            // Add a small indicator to show price source
+                            if (priceSource === 'batch') {
+                                return `${formattedPrice} <small class="text-muted">(B)</small>`;
+                            } else {
+                                return formattedPrice;
+                            }
                         }
                     },
                     {
@@ -2057,8 +2106,21 @@
                                     <td>${product.locations.map(loc => locationMap[loc.id] || 'N/A').join(', ')}</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Price</th>
-                                    <td>Rs. ${(Number(product.retail_price) || 0).toFixed(2)}</td>
+                                    <th scope="row">Selling Price</th>
+                                    <td>${(() => {
+                                        let displayPrice = product.retail_price || 0;
+                                        let priceSource = 'Default Product Price';
+                                        
+                                        if (product.batches && product.batches.length > 0) {
+                                            const latestBatch = product.batches[product.batches.length - 1];
+                                            if (latestBatch && latestBatch.retail_price !== null && latestBatch.retail_price !== undefined) {
+                                                displayPrice = latestBatch.retail_price;
+                                                priceSource = `Latest Batch Price (${latestBatch.batch_no || 'N/A'})`;
+                                            }
+                                        }
+                                        
+                                        return `Rs. ${parseFloat(displayPrice).toFixed(2)} <br><small class="text-muted">${priceSource}</small>`;
+                                    })()}</td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Imei is Checked</th>

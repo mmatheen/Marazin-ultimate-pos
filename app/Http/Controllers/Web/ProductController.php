@@ -924,6 +924,21 @@ class ProductController extends Controller
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filter
 
+            // Apply user location scope
+            $user = auth()->user();
+            $userAccessibleLocations = $this->getUserAccessibleLocations($user);
+            $userLocationIds = $userAccessibleLocations->pluck('id')->toArray();
+            
+            // If a specific location is selected in filter, ensure user has access to it
+            if ($locationId && !empty($userLocationIds) && !in_array($locationId, $userLocationIds)) {
+                Log::warning('User attempted to access unauthorized location', [
+                    'user_id' => $user->id,
+                    'requested_location' => $locationId,
+                    'accessible_locations' => $userLocationIds
+                ]);
+                $locationId = null; // Reset to prevent unauthorized access
+            }
+
             // Build product query
             $query = Product::select([
                 'id',
@@ -949,7 +964,13 @@ class ProductController extends Controller
                 'is_active'
             ])
                 ->with([
-                    'locations:id,name',
+                    'locations' => function ($query) use ($userLocationIds) {
+                        $query->select('locations.id', 'locations.name');
+                        // Only load locations user has access to
+                        if (!empty($userLocationIds)) {
+                            $query->whereIn('locations.id', $userLocationIds);
+                        }
+                    },
                     'unit:id,name,short_name,allow_decimal', // Eager load unit
                     'discounts' => function ($query) use ($now) {
                         $query->where('is_active', true)
@@ -968,10 +989,17 @@ class ProductController extends Controller
                             'expiry_date'
                         ]);
                     },
-                    'batches.locationBatches' => function ($query) use ($locationId) {
+                    'batches.locationBatches' => function ($query) use ($locationId, $userLocationIds) {
+                        // Always enforce user's accessible locations
+                        if (!empty($userLocationIds)) {
+                            $query->whereIn('location_id', $userLocationIds);
+                        }
+                        
+                        // Additionally filter by specific location if selected
                         if ($locationId) {
                             $query->where('location_id', $locationId);
                         }
+                        
                         $query->select(['id', 'batch_id', 'location_id', 'qty'])
                             ->with('location:id,name');
                     }
