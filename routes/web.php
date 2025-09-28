@@ -185,6 +185,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Save Changes & Discount
         Route::post('/save-changes', [ProductController::class, 'saveChanges']);
         Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
+        // Batch Price Management
+        Route::get('/product/{productId}/batches', [ProductController::class, 'getProductBatches'])->name('product.batches');
+        Route::post('/batches/update-prices', [ProductController::class, 'updateBatchPrices'])->name('batches.updatePrices');
 
         // -------------------- RoleController Routes --------------------
         Route::get('/role', [RoleController::class, 'role'])->name('role');

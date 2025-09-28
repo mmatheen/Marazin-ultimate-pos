@@ -560,6 +560,7 @@
                     <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${row.product.id}">
                         <li><a class="dropdown-item view-product" href="#" data-product-id="${row.product.id}"><i class="fas fa-eye"></i> View</a></li>
                         <li><a class="dropdown-item" href="/edit-product/${row.product.id}"><i class="fas fa-edit"></i> Edit</a></li>
+                        <li><a class="dropdown-item edit-batch-prices" href="#" data-product-id="${row.product.id}"><i class="fas fa-dollar-sign"></i> Edit Batch Prices</a></li>
                         ${statusButton}
                         <li><a class="dropdown-item" href="/edit-opening-stock/${row.product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
                         <li><a class="dropdown-item" href="/products/stock-history/${row.product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
@@ -740,6 +741,7 @@
             $('.dropdown-item').off('click');
             $('.btn-toggle-status').off('click');
             $('.view-product').off('click');
+            $('.edit-batch-prices').off('click');
             $('.show-imei-modal').off('click');
             $('#selectAll').off('change');
 
@@ -829,6 +831,14 @@
                     console.error('Product ID is undefined or null');
                     alert('Error: Product ID not found');
                 }
+            });
+
+            // Batch Prices modal - single event handler
+            $('.edit-batch-prices').on('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                const productId = $(this).data('product-id');
+                loadBatchPricesModal(productId);
             });
 
             // IMEI modal - single event handler
@@ -2335,6 +2345,152 @@
             complete: function() {
                 $('.progress').hide();
                 $('#import_btn').prop('disabled', false).text('Upload');
+            }
+        });
+    });
+
+    // Batch Prices Modal Functions
+    function loadBatchPricesModal(productId) {
+        $.ajax({
+            url: `/product/${productId}/batches`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 200) {
+                    populateBatchPricesModal(response.product, response.batches);
+                    $('#batchPricesModal').modal('show');
+                } else {
+                    toastr.error('Failed to load batch data', 'Error');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading batch data:', error);
+                toastr.error('Failed to load batch data', 'Error');
+            }
+        });
+    }
+
+    function populateBatchPricesModal(product, batches) {
+        // Set product info
+        $('#productName').text(product.product_name);
+        $('#productSku').text(product.sku);
+        
+        // Clear and populate table
+        $('#batchPricesTableBody').empty();
+        
+        if (batches.length === 0) {
+            $('#batchPricesTableBody').append(
+                '<tr><td colspan="9" class="text-center text-muted">No batches found for this product</td></tr>'
+            );
+            $('#saveBatchPrices').hide();
+            return;
+        }
+        
+        $('#saveBatchPrices').show();
+        
+        // Check if unit allows decimals
+        const allowDecimal = product.unit && product.unit.allow_decimal;
+        
+        batches.forEach(function(batch) {
+            // Format quantities based on unit decimal setting
+            const formattedQty = allowDecimal ? parseFloat(batch.qty || 0).toFixed(2) : parseInt(batch.qty || 0);
+            
+            // Format locations with proper quantity formatting
+            let locationsText = 'No locations';
+            if (batch.locations && batch.locations.length > 0) {
+                locationsText = batch.locations.map(loc => {
+                    const locQty = allowDecimal ? parseFloat(loc.qty || 0).toFixed(2) : parseInt(loc.qty || 0);
+                    return `${loc.name} (${locQty})`;
+                }).join(', ');
+            }
+            
+            // Format expiry date
+            let expiryDate = batch.expiry_date || '-';
+            if (batch.expiry_date) {
+                expiryDate = new Date(batch.expiry_date).toLocaleDateString();
+            }
+            
+            const row = `
+                <tr data-batch-id="${batch.id}">
+                    <td>${batch.batch_no || 'N/A'}</td>
+                    <td>${formattedQty}</td>
+                    <td class="text-muted">${parseFloat(batch.original_price || 0).toFixed(2)}</td>
+                    <td><input type="number" class="form-control form-control-sm" name="wholesale_price" value="${parseFloat(batch.wholesale_price || 0).toFixed(2)}" min="0" step="0.01"></td>
+                    <td><input type="number" class="form-control form-control-sm" name="special_price" value="${parseFloat(batch.special_price || 0).toFixed(2)}" min="0" step="0.01"></td>
+                    <td><input type="number" class="form-control form-control-sm" name="retail_price" value="${parseFloat(batch.retail_price || 0).toFixed(2)}" min="0" step="0.01"></td>
+                    <td><input type="number" class="form-control form-control-sm" name="max_retail_price" value="${parseFloat(batch.max_retail_price || 0).toFixed(2)}" min="0" step="0.01"></td>
+                    <td>${expiryDate}</td>
+                    <td><small class="text-muted">${locationsText}</small></td>
+                </tr>
+            `;
+            $('#batchPricesTableBody').append(row);
+        });
+    }
+
+    // Save batch prices
+    $('#saveBatchPrices').on('click', function() {
+        const batches = [];
+        
+        $('#batchPricesTableBody tr[data-batch-id]').each(function() {
+            const batchId = $(this).data('batch-id');
+            const wholesalePrice = $(this).find('input[name="wholesale_price"]').val();
+            const specialPrice = $(this).find('input[name="special_price"]').val();
+            const retailPrice = $(this).find('input[name="retail_price"]').val();
+            const maxRetailPrice = $(this).find('input[name="max_retail_price"]').val();
+            
+            batches.push({
+                id: batchId,
+                wholesale_price: parseFloat(wholesalePrice),
+                special_price: parseFloat(specialPrice),
+                retail_price: parseFloat(retailPrice),
+                max_retail_price: parseFloat(maxRetailPrice)
+            });
+        });
+        
+        if (batches.length === 0) {
+            toastr.warning('No batch data to save', 'Warning');
+            return;
+        }
+        
+        // Disable save button
+        $('#saveBatchPrices').prop('disabled', true).text('Saving...');
+        
+        $.ajax({
+            url: '/batches/update-prices',
+            method: 'POST',
+            data: {
+                batches: batches,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                if (response.status === 200) {
+                    toastr.success(response.message, 'Success');
+                    $('#batchPricesModal').modal('hide');
+                    
+                    // Reload DataTable if it exists
+                    if ($.fn.DataTable.isDataTable('#productTable')) {
+                        $('#productTable').DataTable().ajax.reload(null, false);
+                    }
+                } else {
+                    toastr.error(response.message || 'Failed to update batch prices', 'Error');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error saving batch prices:', error);
+                
+                let errorMessage = 'Failed to save batch prices';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                    // Handle validation errors
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join(', ');
+                }
+                
+                toastr.error(errorMessage, 'Error');
+            },
+            complete: function() {
+                // Re-enable save button
+                $('#saveBatchPrices').prop('disabled', false).text('Save Changes');
             }
         });
     });

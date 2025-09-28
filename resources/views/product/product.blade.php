@@ -477,6 +477,53 @@
         </div>
     </div>
 
+    <!-- Batch Prices Modal -->
+    <div class="modal fade" id="batchPricesModal" tabindex="-1" aria-labelledby="batchPricesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchPricesModalLabel">Edit Batch Prices</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6><strong>Product:</strong> <span id="productName"></span></h6>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><strong>SKU:</strong> <span id="productSku"></span></h6>
+                        </div>
+                    </div>
+                    
+                    <div id="batchPricesTable">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Batch No</th>
+                                    <th>Current Stock</th>
+                                    <th>Cost Price <small class="text-muted">(Not Editable)</small></th>
+                                    <th>Wholesale Price</th>
+                                    <th>Special Price</th>
+                                    <th>Retail Price</th>
+                                    <th>Max Retail Price</th>
+                                    <th>Expiry Date</th>
+                                    <th>Locations</th>
+                                </tr>
+                            </thead>
+                            <tbody id="batchPricesTableBody">
+                                <!-- Batch rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveBatchPrices">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @include('product.product_ajax')
 
 @endsection

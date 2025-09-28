@@ -1855,4 +1855,120 @@ class ProductController extends Controller
             ]);
         }
     }
+
+    /**
+     * Get all batches for a specific product with their prices
+     */
+    public function getProductBatches($productId)
+    {
+        try {
+            $product = Product::with(['unit:id,name,short_name,allow_decimal'])->findOrFail($productId);
+            
+            $batches = Batch::where('product_id', $productId)
+                ->with(['locationBatches.location:id,name'])
+                ->select([
+                    'id',
+                    'batch_no',
+                    'product_id',
+                    'unit_cost as original_price',
+                    'wholesale_price',
+                    'special_price', 
+                    'retail_price',
+                    'max_retail_price',
+                    'expiry_date',
+                    'qty',
+                    'created_at'
+                ])
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'status' => 200,
+                'product' => [
+                    'id' => $product->id,
+                    'product_name' => $product->product_name,
+                    'sku' => $product->sku,
+                    'unit' => $product->unit
+                ],
+                'batches' => $batches->map(function($batch) use ($product) {
+                    // Check if the product unit allows decimals
+                    $allowDecimal = $product->unit && $product->unit->allow_decimal;
+                    
+                    return [
+                        'id' => $batch->id,
+                        'batch_no' => $batch->batch_no,
+                        'original_price' => $batch->original_price,
+                        'wholesale_price' => $batch->wholesale_price,
+                        'special_price' => $batch->special_price,
+                        'retail_price' => $batch->retail_price,
+                        'max_retail_price' => $batch->max_retail_price,
+                        'expiry_date' => $batch->expiry_date,
+                        'qty' => $allowDecimal ? round((float)$batch->qty, 2) : (int)$batch->qty,
+                        'locations' => $batch->locationBatches->map(function($lb) use ($allowDecimal) {
+                            return [
+                                'id' => $lb->location->id,
+                                'name' => $lb->location->name,
+                                'qty' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                            ];
+                        })
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching product batches: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error fetching product batches'
+            ], 500);
+        }
+    }
+
+    /**
+     * Update batch prices (excluding original_price/cost price)
+     */
+    public function updateBatchPrices(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'batches' => 'required|array|min:1',
+            'batches.*.id' => 'required|exists:batches,id',
+            'batches.*.wholesale_price' => 'required|numeric|min:0',
+            'batches.*.special_price' => 'required|numeric|min:0', 
+            'batches.*.retail_price' => 'required|numeric|min:0',
+            'batches.*.max_retail_price' => 'required|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 400,
+                'errors' => $validator->messages()
+            ]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                foreach ($request->batches as $batchData) {
+                    $batch = Batch::findOrFail($batchData['id']);
+                    
+                    // Update only the editable prices (not original_price/unit_cost)
+                    $batch->update([
+                        'wholesale_price' => $batchData['wholesale_price'],
+                        'special_price' => $batchData['special_price'],
+                        'retail_price' => $batchData['retail_price'],
+                        'max_retail_price' => $batchData['max_retail_price'],
+                    ]);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Batch prices updated successfully!'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error updating batch prices: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'Error updating batch prices'
+            ], 500);
+        }
+    }
 }

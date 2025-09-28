@@ -181,8 +181,11 @@ class PurchaseController extends Controller
                     // Update existing product
                     $existingProduct = $existingProducts->get($productId);
                     $quantityDifference = $productData['quantity'] - $existingProduct->quantity;
+                    
+                    // Update stock quantity
                     $this->updateProductStock($existingProduct, $quantityDifference, $request->location_id);
 
+                    // Update purchase product record
                     $existingProduct->update([
                         'quantity' => $productData['quantity'],
                         'unit_cost' => $productData['unit_cost'],
@@ -192,6 +195,30 @@ class PurchaseController extends Controller
                         'max_retail_price' => $productData['max_retail_price'],
                         'total' => $productData['total'],
                     ]);
+
+                    // IMPORTANT: Also update batch prices when purchasing existing products
+                    $batch = Batch::find($existingProduct->batch_id);
+                    if ($batch) {
+                        $batch->update([
+                            'wholesale_price' => $productData['wholesale_price'],
+                            'special_price' => $productData['special_price'],
+                            'retail_price' => $productData['retail_price'],
+                            'max_retail_price' => $productData['max_retail_price'],
+                            // Note: We don't update unit_cost as it should remain the original purchase cost
+                        ]);
+                        
+                        Log::info('Updated batch prices for existing product', [
+                            'batch_id' => $batch->id,
+                            'product_id' => $productData['product_id'],
+                            'wholesale_price' => $productData['wholesale_price'],
+                            'retail_price' => $productData['retail_price'],
+                        ]);
+                    } else {
+                        Log::error('Batch not found for existing product', [
+                            'batch_id' => $existingProduct->batch_id,
+                            'product_id' => $productData['product_id']
+                        ]);
+                    }
                 } else {
                     // Add new product
                     $this->addNewProductToPurchase($purchase, $productData, $request->location_id);
@@ -261,21 +288,57 @@ class PurchaseController extends Controller
 
     private function addNewProductToPurchase($purchase, $productData, $locationId)
     {
-        $batch = Batch::firstOrCreate(
-            [
-                'batch_no' => $productData['batch_no'] ?? Batch::generateNextBatchNo(),
+        // First check if batch already exists with same batch_no and product_id
+        $batchNo = $productData['batch_no'] ?? Batch::generateNextBatchNo();
+        
+        $batch = Batch::where([
+            'batch_no' => $batchNo,
+            'product_id' => $productData['product_id'],
+        ])->first();
+
+        if ($batch) {
+            // Update existing batch with new prices and add quantity
+            $batch->update([
+                'wholesale_price' => $productData['wholesale_price'],
+                'special_price' => $productData['special_price'],
+                'retail_price' => $productData['retail_price'],
+                'max_retail_price' => $productData['max_retail_price'],
+                // Note: Don't update unit_cost and expiry_date as they should remain from original batch
+            ]);
+            $batch->increment('qty', $productData['quantity']);
+            
+            Log::info('Updated existing batch with new prices and quantity', [
+                'batch_id' => $batch->id,
+                'batch_no' => $batchNo,
+                'product_id' => $productData['product_id'],
+                'added_quantity' => $productData['quantity'],
+                'new_total_qty' => $batch->qty,
+                'retail_price' => $productData['retail_price'],
+            ]);
+        } else {
+            // Create new batch with all prices
+            $batch = Batch::create([
+                'batch_no' => $batchNo,
                 'product_id' => $productData['product_id'],
                 'unit_cost' => $productData['unit_cost'],
                 'expiry_date' => $productData['expiry_date'],
-            ],
-            [
                 'qty' => $productData['quantity'],
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
                 'retail_price' => $productData['retail_price'],
                 'max_retail_price' => $productData['max_retail_price'],
-            ]
-        );
+            ]);
+            
+            Log::info('Created new batch with all prices', [
+                'batch_id' => $batch->id,
+                'batch_no' => $batchNo,
+                'product_id' => $productData['product_id'],
+                'quantity' => $productData['quantity'],
+                'unit_cost' => $productData['unit_cost'],
+                'retail_price' => $productData['retail_price'],
+                'wholesale_price' => $productData['wholesale_price'],
+            ]);
+        }
 
         $locationBatch = LocationBatch::firstOrCreate(
             ['batch_id' => $batch->id, 'location_id' => $locationId],
