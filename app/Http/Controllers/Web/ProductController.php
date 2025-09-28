@@ -31,6 +31,17 @@ use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
+    function __construct()
+    {
+        $this->middleware('permission:view product', ['only' => ['product', 'index', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'getNotifications', 'OpeningStockGetAll', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
+        $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate']]);
+        $this->middleware('permission:edit product', ['only' => ['editProduct']]);
+        $this->middleware('permission:delete product', ['only' => ['deleteImei']]);
+        $this->middleware('permission:import product', ['only' => ['importProduct', 'importProductStore']]);
+        $this->middleware('permission:export product', ['only' => ['exportBlankTemplate', 'exportProducts']]);
+        $this->middleware('permission:edit batch prices', ['only' => ['getProductBatches', 'updateBatchPrices']]);
+    }
+
     public function product()
     {
         return view('product.product');

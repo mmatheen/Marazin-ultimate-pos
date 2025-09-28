@@ -99,7 +99,8 @@ class RolesAndPermissionsSeeder extends Seeder
                 'manage opening stock',
                 'view product details',
                 'manage product variations',
-                'duplicate product'
+                'duplicate product',
+                'edit batch prices'
             ],
 
             '9. unit-management' => [

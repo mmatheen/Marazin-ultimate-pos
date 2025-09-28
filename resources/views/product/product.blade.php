@@ -479,7 +479,7 @@
 
     <!-- Batch Prices Modal -->
     <div class="modal fade" id="batchPricesModal" tabindex="-1" aria-labelledby="batchPricesModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="batchPricesModalLabel">Edit Batch Prices</h5>
@@ -487,33 +487,38 @@
                 </div>
                 <div class="modal-body">
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6 mb-2 mb-md-0">
                             <h6><strong>Product:</strong> <span id="productName"></span></h6>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <h6><strong>SKU:</strong> <span id="productSku"></span></h6>
                         </div>
                     </div>
                     
-                    <div id="batchPricesTable">
-                        <table class="table table-bordered">
+                    <div id="batchPricesTable" class="table-responsive">
+                        <table class="table table-bordered table-sm">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Batch No</th>
-                                    <th>Current Stock</th>
-                                    <th>Cost Price <small class="text-muted">(Not Editable)</small></th>
-                                    <th>Wholesale Price</th>
-                                    <th>Special Price</th>
-                                    <th>Retail Price</th>
-                                    <th>Max Retail Price</th>
-                                    <th>Expiry Date</th>
-                                    <th>Locations</th>
+                                    <th class="text-nowrap">Batch No</th>
+                                    <th class="text-nowrap">Stock</th>
+                                    <th class="text-nowrap d-none d-md-table-cell">Cost Price <small class="text-muted d-block">(Not Editable)</small></th>
+                                    <th class="text-nowrap">Wholesale</th>
+                                    <th class="text-nowrap">Special</th>
+                                    <th class="text-nowrap">Retail</th>
+                                    <th class="text-nowrap">Max Retail</th>
+                                    <th class="text-nowrap d-none d-lg-table-cell">Expiry</th>
+                                    <th class="text-nowrap d-none d-lg-table-cell">Locations</th>
                                 </tr>
                             </thead>
                             <tbody id="batchPricesTableBody">
                                 <!-- Batch rows will be populated here -->
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Mobile-friendly info cards for small screens -->
+                    <div id="batchPricesMobile" class="d-block d-md-none">
+                        <!-- Mobile cards will be populated here -->
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -523,6 +528,15 @@
             </div>
         </div>
     </div>
+
+
+
+        </div>
+
+    <script>
+        // Set global permission variables - Most efficient Laravel approach
+        window.canEditBatchPrices = {{ Js::from(auth()->user()->can('edit batch prices')) }};
+    </script>
 
     @include('product.product_ajax')
 
