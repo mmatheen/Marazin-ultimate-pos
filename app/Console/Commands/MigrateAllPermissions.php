@@ -13,12 +13,12 @@ class MigrateAllPermissions extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'permissions:migrate-all {--backup : Create backup before migration} {--dry-run : Show what would be changed without making changes} {--force : Skip confirmation prompts}';
+    protected $signature = 'permissions:migrate-all {--backup : Create backup before migration} {--dry-run : Show what would be changed without making changes} {--force : Skip confirmation prompts} {--master-only : Only update Master Super Admin permissions} {--safe-mode : Extra safe mode - only add missing permissions}';
 
     /**
      * The console command description.
      */
-    protected $description = 'Safely migrate ALL permissions for existing production database without breaking existing assignments';
+    protected $description = 'Safely migrate ALL permissions for existing production database without breaking existing assignments. Use --master-only for safest Master Super Admin updates.';
 
     /**
      * Execute the console command.
@@ -37,6 +37,11 @@ class MigrateAllPermissions extends Command
         
         if ($this->option('backup')) {
             $this->createBackup();
+        }
+
+        // Check if this is Master Super Admin only mode (SAFEST)
+        if ($this->option('master-only')) {
+            return $this->updateMasterSuperAdminOnly();
         }
 
         // Step 1: Analyze current system
@@ -772,5 +777,85 @@ class MigrateAllPermissions extends Command
         $this->info('2. Update any custom role assignments as needed');
         $this->info('3. Review and assign new permissions to existing roles');
         $this->info('4. Consider running: php artisan permission:cache-reset');
+    }
+
+    /**
+     * SAFEST METHOD: Update only Master Super Admin to have ALL permissions
+     * This is the safest approach for production - only touches Master Super Admin role
+     */
+    private function updateMasterSuperAdminOnly()
+    {
+        $this->info('🛡️  SAFE MODE: Updating only Master Super Admin permissions...');
+        $this->info('This is the SAFEST method - only Master Super Admin will be updated');
+        
+        // Find Master Super Admin role
+        $masterRole = Role::where('name', 'Master Super Admin')->first();
+        
+        if (!$masterRole) {
+            $this->error('❌ Master Super Admin role not found!');
+            $this->info('💡 Please run: php artisan db:seed --class=RolesAndPermissionsSeeder first');
+            return 1;
+        }
+        
+        // Get ALL permissions
+        $allPermissions = Permission::all();
+        $currentPermissions = $masterRole->permissions()->pluck('name')->toArray();
+        
+        $this->info("📊 Current Master Super Admin status:");
+        $this->info("  - Total permissions in system: {$allPermissions->count()}");
+        $this->info("  - Master Super Admin has: " . count($currentPermissions));
+        
+        $missingPermissions = $allPermissions->pluck('name')->diff($currentPermissions);
+        
+        if ($missingPermissions->isEmpty()) {
+            $this->info('✅ Master Super Admin already has ALL permissions!');
+            $this->info('🎉 No action needed - system is perfect!');
+            return 0;
+        }
+        
+        $this->warn("⚠️  Master Super Admin is missing {$missingPermissions->count()} permissions:");
+        foreach ($missingPermissions as $permission) {
+            $this->line("  - {$permission}");
+        }
+        
+        if (!$this->option('dry-run')) {
+            if (!$this->option('force')) {
+                if (!$this->confirm('Add all missing permissions to Master Super Admin?')) {
+                    $this->info('Operation cancelled.');
+                    return 0;
+                }
+            }
+            
+            // Give ALL permissions to Master Super Admin
+            $masterRole->syncPermissions($allPermissions);
+            
+            $this->info('✅ Master Super Admin now has ALL permissions!');
+            $this->info('🎉 Safe update completed successfully!');
+            
+            // Clear cache
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+            $this->info('✅ Permission cache cleared');
+        } else {
+            $this->info('🔍 DRY RUN: Would add all missing permissions to Master Super Admin');
+        }
+        
+        // Final verification
+        if (!$this->option('dry-run')) {
+            $finalCheck = $masterRole->fresh()->permissions()->count();
+            $totalPermissions = Permission::count();
+            
+            $this->info('');
+            $this->info('📋 Final Verification:');
+            $this->info("  ✅ Master Super Admin permissions: {$finalCheck}");
+            $this->info("  ✅ Total system permissions: {$totalPermissions}");
+            
+            if ($finalCheck === $totalPermissions) {
+                $this->info('🎉 PERFECT! Master Super Admin has 100% of all permissions!');
+            } else {
+                $this->warn('⚠️  Something went wrong - permission counts don\'t match');
+            }
+        }
+        
+        return 0;
     }
 }
