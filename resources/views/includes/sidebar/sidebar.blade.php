@@ -281,19 +281,25 @@
                     </li>
                 @endcanany
 
-                {{-- @canany(['view parent-expense', 'view child-expense'])
-                <li class="submenu">
+                @canany(['view expense', 'view parent-expense', 'view child-expense'])
+                <li class="submenu {{ set_active(['expense-list', 'expense-create', 'expense-edit', 'expense-parent-catergory', 'sub-expense-category']) }}">
                     <a href="#"><i class="fas fa-file-invoice-dollar"></i> <span>Expenses</span> <span class="menu-arrow"></span></a>
                     <ul>
+                        @can('view expense')
+                        <li><a href="{{ route('expense.list') }}" class="{{ set_active(['expense-list']) }}">All Expenses</a></li>
+                        @endcan
+                        @can('create expense')
+                        <li><a href="{{ route('expense.create') }}" class="{{ set_active(['expense-create']) }}">Create Expense</a></li>
+                        @endcan
                         @can('view parent-expense')
-                        <li><a href="{{ route('expense-parent-catergory') }}" class="{{ set_active(['expense-parent-catergory'])}}">Parent Expense Catergories</a></li>
+                        <li><a href="{{ route('expense-parent-catergory') }}" class="{{ set_active(['expense-parent-catergory']) }}">Expense Categories</a></li>
                         @endcan
                         @can('view child-expense')
-                        <li><a href="{{ route('sub-expense-category') }}" class="{{ set_active(['sub-expense-category'])}}">Child Expense Catergories</a></li>
+                        <li><a href="{{ route('sub-expense-category') }}" class="{{ set_active(['sub-expense-category']) }}">Sub Categories</a></li>
                         @endcan
                     </ul>
                 </li>
-                @endcanany --}}
+                @endcanany
 
                 @canany(['view sales-rep', 'view routes', 'assign routes'])
                 <li class="submenu {{ set_active(['sales-rep/routes', 'sales-rep/cities', 'sales-rep/route-cities', 'sales-rep/sales-reps', 'sales-rep/targets', 'sales-rep/vehicle-locations']) }}">

@@ -1,6 +1,16 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+        
+        // Initialize DataTable for main categories
+        $('#mainCategory').DataTable({
+            responsive: true,
+            ordering: true,
+            searching: true,
+            paging: true,
+            pageLength: 25
+        });
+        
         showFetchData();
 
         // add form and update validation rules code start
@@ -71,7 +81,10 @@
                     var table = $('#mainCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    response.message.forEach(function(item) {
+                    
+                    // Check if response.message exists and is an array
+                    if (response.message && Array.isArray(response.message)) {
+                        response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter + '</td>');
                         row.append('<td>' + item.expenseParentCatergoryName + '</td>');
@@ -81,7 +94,14 @@
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
                         counter++;
-                    });
+                        });
+                    } else {
+                        console.warn('No data received or invalid data format');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching expense categories:', error);
+                    toastr.error('Failed to load expense categories');
                 },
             });
         }

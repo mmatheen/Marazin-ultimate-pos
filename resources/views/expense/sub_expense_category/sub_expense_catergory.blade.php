@@ -42,7 +42,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table id="SubCategory" class="datatable table table-stripped" style="width:100%">
+                            <table id="SubCategory" class="table table-striped" style="width:100%">
                                 <thead>
                                     <tr>
                                         <th>ID</th>

@@ -34,6 +34,7 @@ use App\Http\Controllers\{
     SellingPriceGroupController,
     ExpenseSubCategoryController,
     ExpenseParentCategoryController,
+    ExpenseController,
     SaleReturnController,
     SalesCommissionAgentsController,
     RoleController,
@@ -384,6 +385,7 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/expense-parent-catergory', [ExpenseParentCategoryController::class, 'mainCategory'])->name('expense-parent-catergory');
         Route::get('/expense-parent-catergory-edit/{id}', [ExpenseParentCategoryController::class, 'edit']);
         Route::get('/expense-parent-catergory-get-all', [ExpenseParentCategoryController::class, 'index']);
+        Route::get('/expense-parent-categories-dropdown', [ExpenseParentCategoryController::class, 'getForDropdown'])->name('expense-parent-categories.dropdown');
         Route::post('/expense-parent-catergory-store', [ExpenseParentCategoryController::class, 'store'])->name('expense-parent-catergory-store');
         Route::post('/expense-parent-catergory-update/{id}', [ExpenseParentCategoryController::class, 'update']);
         Route::delete('/expense-parent-catergory-delete/{id}', [ExpenseParentCategoryController::class, 'destroy']);
@@ -392,9 +394,30 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/sub-expense-category', [ExpenseSubCategoryController::class, 'SubCategory'])->name('sub-expense-category');
         Route::get('/sub-expense-category-edit/{id}', [ExpenseSubCategoryController::class, 'edit']);
         Route::get('/sub-expense-category-get-all', [ExpenseSubCategoryController::class, 'index']);
+        Route::get('/expense-sub-categories/{parentCategoryId}', [ExpenseSubCategoryController::class, 'getByParentCategory'])->name('expense-sub-categories.by-parent');
         Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class, 'store'])->name('sub-expense-category-store');
         Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
         Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
+
+        // -------------------- ExpenseController Routes --------------------
+        Route::get('/expense-list', [ExpenseController::class, 'expenseList'])->name('expense.list');
+        Route::get('/expense-create', [ExpenseController::class, 'create'])->name('expense.create');
+        Route::get('/expense-edit/{id}', [ExpenseController::class, 'edit'])->name('expense.edit');
+        Route::get('/expense-show/{id}', [ExpenseController::class, 'show']);
+        Route::get('/expense-get-all', [ExpenseController::class, 'index']);
+        Route::post('/expense-store', [ExpenseController::class, 'store'])->name('expense.store');
+        Route::post('/expense-update/{id}', [ExpenseController::class, 'update']);
+        Route::delete('/expense-delete/{id}', [ExpenseController::class, 'destroy']);
+        Route::get('/expense-sub-categories/{parentId}', [ExpenseController::class, 'getSubCategories']);
+        Route::get('/expense-locations', [ExpenseController::class, 'getLocationsForExpense']);
+        Route::get('/expense-suppliers', [ExpenseController::class, 'getSuppliersForExpense']);
+        Route::get('/expense-supplier-balance/{supplierId}', [ExpenseController::class, 'getSupplierBalanceHistory']);
+        Route::post('/expense-add-payment/{id}', [ExpenseController::class, 'addPayment']);
+        Route::get('/expense-payment-history/{id}', [ExpenseController::class, 'getPaymentHistory']);
+        Route::get('/expense-payment/{paymentId}', [ExpenseController::class, 'getPayment']);
+        Route::put('/expense-payment/{paymentId}', [ExpenseController::class, 'editPayment']);
+        Route::delete('/expense-payment/{paymentId}', [ExpenseController::class, 'deletePayment']);
+        Route::get('/expense-reports', [ExpenseController::class, 'reports']);
 
         // -------------------- VariationTitleController Routes --------------------
         Route::get('/variation-title', [VariationTitleController::class, 'variationTitle'])->name('variation-title');

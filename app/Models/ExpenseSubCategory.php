@@ -19,6 +19,11 @@ class ExpenseSubCategory extends Model
 
     public function mainExpenseCategory()
     {
-        return $this->belongsTo(ExpenseParentCategory::class); // Expense Parent Category is Expense Parent modal name
+        return $this->belongsTo(ExpenseParentCategory::class, 'main_expense_category_id');
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class, 'expense_sub_category_id');
     }
 }

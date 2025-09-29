@@ -1,6 +1,16 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
+        
+        // Initialize DataTable for sub categories
+        $('#SubCategory').DataTable({
+            responsive: true,
+            ordering: true,
+            searching: true,
+            paging: true,
+            pageLength: 25
+        });
+        
         showFetchData();
 
         // add form and update validation rules code start
@@ -78,10 +88,19 @@
                     var table = $('#SubCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    response.message.forEach(function(item) {
+                    
+                    // Check if response.message exists and is an array
+                    if (response.message && Array.isArray(response.message)) {
+                        response.message.forEach(function(item) {
                         let row = $('<tr>');
                         row.append('<td>' + counter + '</td>');
-                        row.append('<td>' + item.main_expense_category.expenseParentCatergoryName + '</td>');
+                        var parentCategoryName = 'N/A';
+                        if (item.main_expense_category && item.main_expense_category.expenseParentCatergoryName) {
+                            parentCategoryName = item.main_expense_category.expenseParentCatergoryName;
+                        } else if (item.mainExpenseCategory && item.mainExpenseCategory.expenseParentCatergoryName) {
+                            parentCategoryName = item.mainExpenseCategory.expenseParentCatergoryName;
+                        }
+                        row.append('<td>' + parentCategoryName + '</td>');
                         row.append('<td>' + item.subExpenseCategoryname + '</td>');
                         row.append('<td>' + item.subExpenseCategoryCode + '</td>');
                         row.append('<td>' + item.description + '</td>');
@@ -89,7 +108,14 @@
                             '@can("delete child-expense")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
                         table.row.add(row).draw(false);
                         counter++;
-                    });
+                        });
+                    } else {
+                        console.warn('No sub-category data received or invalid data format');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching expense sub-categories:', error);
+                    toastr.error('Failed to load expense sub-categories');
                 },
             });
         }

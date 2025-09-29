@@ -38,7 +38,7 @@
                         </div>
 
                         <div class="table-responsive">
-                            <table class="datatable table table-stripped" id="mainCategory" style="width:100%">
+                            <table class="table table-striped" id="mainCategory" style="width:100%">
                                 <thead>
                                     <tr>
                                         <th>ID</th>

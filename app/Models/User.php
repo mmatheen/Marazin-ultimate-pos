@@ -83,11 +83,7 @@ class User extends Authenticatable
             ->setDescriptionForEvent(fn(string $eventName) => "User has been {$eventName}");
     }
 
-    public function vehicle(): BelongsTo
-    {
-        return $this->belongsTo(Vehicle::class, 'vehicle_id'); // assuming field exists
-    }
-
+    
     public function salesRep(): HasOne
     {
         return $this->hasOne(SalesRep::class, 'user_id');
@@ -111,25 +107,6 @@ class User extends Authenticatable
         return $this->roles()->where('key', 'super_admin')->exists();
     }
 
-    public function isManager(): bool
-    {
-        return $this->roles()->where('key', 'manager')->exists();
-    }
-
-    public function isCashier(): bool
-    {
-        return $this->roles()->where('key', 'cashier')->exists();
-    }
-
-    public function isPosUser(): bool
-    {
-        return $this->roles()->where('key', 'pos_user')->exists();
-    }
-
-    public function isRetailUser(): bool
-    {
-        return $this->roles()->where('key', 'retail_user')->exists();
-    }
 
     // Optional: Get the primary role key
     public function getRoleKey(): ?string

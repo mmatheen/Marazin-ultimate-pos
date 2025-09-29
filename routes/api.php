@@ -28,6 +28,7 @@ use App\Http\Controllers\RoleAndPermissionController;
 use App\Http\Controllers\SellingPriceGroupController;
 use App\Http\Controllers\ExpenseSubCategoryController;
 use App\Http\Controllers\ExpenseParentCategoryController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\PurchaseReturnController;
 use App\Http\Controllers\VariationTitleController;
@@ -130,6 +131,17 @@ Route::post('/sub-expense-category-store', [ExpenseSubCategoryController::class,
 Route::post('/sub-expense-category-update/{id}', [ExpenseSubCategoryController::class, 'update']);
 Route::delete('/sub-expense-category-delete/{id}', [ExpenseSubCategoryController::class, 'destroy']);
 //stop  sub Expense Category route
+
+//start expense route
+Route::get('/expense-edit/{id}', [ExpenseController::class, 'edit']);
+Route::get('/expense-show/{id}', [ExpenseController::class, 'show']);
+Route::get('/expense-get-all', [ExpenseController::class, 'index']);
+Route::post('/expense-store', [ExpenseController::class, 'store'])->name('expense-store');
+Route::post('/expense-update/{id}', [ExpenseController::class, 'update']);
+Route::delete('/expense-delete/{id}', [ExpenseController::class, 'destroy']);
+Route::get('/expense-sub-categories/{parentId}', [ExpenseController::class, 'getSubCategories']);
+Route::get('/expense-reports', [ExpenseController::class, 'reports']);
+//stop  expense route
 
 //start variation title  route
 Route::get('/variation-title-edit/{id}', [VariationTitleController::class, 'edit']);

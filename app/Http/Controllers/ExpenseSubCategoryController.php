@@ -28,18 +28,12 @@ class ExpenseSubCategoryController extends Controller
     {
 
         $getValue = ExpenseSubCategory::with('mainExpenseCategory')->get();
-        if ($getValue->count() > 0) {
-
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
-            ]);
-        }
+        
+        // Always return an array for consistent JavaScript handling
+        return response()->json([
+            'status' => 200,
+            'message' => $getValue
+        ]);
     }
 
     /**
@@ -215,5 +209,20 @@ class ExpenseSubCategoryController extends Controller
                 'message' => "No Such Sub Expense Category Found!"
             ]);
         }
+    }
+
+    /**
+     * Get subcategories by parent category ID
+     */
+    public function getByParentCategory($parentCategoryId)
+    {
+        $subCategories = ExpenseSubCategory::where('main_expense_category_id', $parentCategoryId)
+            ->with('mainExpenseCategory')
+            ->get();
+        
+        return response()->json([
+            'status' => 200,
+            'data' => $subCategories
+        ]);
     }
 }

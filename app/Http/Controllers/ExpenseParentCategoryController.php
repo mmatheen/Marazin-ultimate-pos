@@ -22,12 +22,20 @@ class ExpenseParentCategoryController extends Controller
         return view('expense.main_expense');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-
-         $getValue = ExpenseParentCategory::all();
+        $query = ExpenseParentCategory::query();
+        
+        // Add search functionality
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where('expenseParentCatergoryName', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+        }
+        
+        $getValue = $query->latest()->get();
+        
         if ($getValue->count() > 0) {
-
             return response()->json([
                 'status' => 200,
                 'message' => $getValue
@@ -35,7 +43,7 @@ class ExpenseParentCategoryController extends Controller
         } else {
             return response()->json([
                 'status' => 404,
-                'message' => "No Records Found!"
+                'message' => []
             ]);
         }
     }
@@ -106,7 +114,7 @@ class ExpenseParentCategoryController extends Controller
         if ($getValue) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'data' => $getValue
             ]);
         } else {
             return response()->json([
@@ -128,7 +136,7 @@ class ExpenseParentCategoryController extends Controller
         if ($getValue) {
             return response()->json([
                 'status' => 200,
-                'message' => $getValue
+                'data' => $getValue
             ]);
         } else {
             return response()->json([
@@ -206,5 +214,20 @@ class ExpenseParentCategoryController extends Controller
                 'message' => "No Such Expense Parent Category Found!"
             ]);
         }
+    }
+
+    /**
+     * Get all parent categories for dropdown
+     */
+    public function getForDropdown()
+    {
+        $categories = ExpenseParentCategory::select('id', 'expenseParentCatergoryName')
+            ->orderBy('expenseParentCatergoryName')
+            ->get();
+        
+        return response()->json([
+            'status' => 200,
+            'data' => $categories
+        ]);
     }
 }

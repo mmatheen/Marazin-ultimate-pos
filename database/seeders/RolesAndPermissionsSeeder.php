@@ -213,14 +213,23 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 7. Expense Management
-            '21. parent-expense-management' => [
+            '21. expense-management' => [
+                'create expense',
+                'edit expense',
+                'view expense',
+                'delete expense',
+                'approve expense',
+                'export expense'
+            ],
+
+            '22. parent-expense-management' => [
                 'create parent-expense',
                 'edit parent-expense',
                 'view parent-expense',
                 'delete parent-expense'
             ],
 
-            '22. child-expense-management' => [
+            '23. child-expense-management' => [
                 'create child-expense',
                 'edit child-expense',
                 'view child-expense',
@@ -228,7 +237,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 8. Stock Management
-            '23. stock-transfer-management' => [
+            '24. stock-transfer-management' => [
                 'view stock-transfer',
                 'create stock-transfer',
                 'edit stock-transfer',
@@ -236,14 +245,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 'approve stock-transfer'
             ],
 
-            '24. stock-adjustment-management' => [
+            '25. stock-adjustment-management' => [
                 'view stock-adjustment',
                 'create stock-adjustment',
                 'edit stock-adjustment',
                 'delete stock-adjustment'
             ],
 
-            '25. opening-stock-management' => [
+            '26. opening-stock-management' => [
                 'view opening-stock',
                 'create opening-stock',
                 'edit opening-stock',
@@ -252,7 +261,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 9. Inventory Management
-            '26. inventory-management' => [
+            '27. inventory-management' => [
                 'view inventory',
                 'adjust inventory',
                 'view stock levels',
@@ -262,7 +271,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 10. Location Management
-            '27. location-management' => [
+            '28. location-management' => [
                 'create location',
                 'edit location',
                 'view location',
@@ -271,7 +280,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 11. Discount Management
-            '28. discount-management' => [
+            '29. discount-management' => [
                 'view discount',
                 'create discount',
                 'edit discount',
@@ -279,7 +288,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 12. Sales Rep Management
-            '29. sales-rep-management' => [
+            '30. sales-rep-management' => [
                 'view sales-rep',
                 'create sales-rep',
                 'edit sales-rep',
@@ -291,7 +300,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 13. Route Management
-            '30. route-management' => [
+            '31. route-management' => [
                 'view routes',
                 'create route',
                 'edit route',
@@ -300,7 +309,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 14. Vehicle Management
-            '31. vehicle-management' => [
+            '32. vehicle-management' => [
                 'view vehicles',
                 'create vehicle',
                 'edit vehicle',
@@ -310,7 +319,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 15. Reports Management
-            '32. report-management' => [
+            '33. report-management' => [
                 'view daily-report',
                 'view sales-report',
                 'view purchase-report',
@@ -324,7 +333,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 16. Settings Management
-            '33. settings-management' => [
+            '34. settings-management' => [
                 'view settings',
                 'edit business-settings',
                 'edit tax-settings',
@@ -337,7 +346,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 17. Print & Label Management
-            '34. print-label-management' => [
+            '35. print-label-management' => [
                 'print product-labels',
                 'print barcodes',
                 'design labels',
@@ -345,7 +354,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 18. Dashboard Management
-            '35. dashboard-management' => [
+            '36. dashboard-management' => [
                 'view dashboard',
                 'view sales-analytics',
                 'view purchase-analytics',
@@ -354,7 +363,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 19. Import/Export Management
-            '36. import-export-management' => [
+            '37. import-export-management' => [
                 'import products',
                 'export products',
                 'import customers',
@@ -367,14 +376,14 @@ class RolesAndPermissionsSeeder extends Seeder
             ],
 
             // 20. Profile Management
-            '37. profile-management' => [
+            '38. profile-management' => [
                 'view own-profile',
                 'edit own-profile',
                 'change own-password'
             ],
 
             // 21. Master Admin Management (Only for Master Super Admin)
-            '38. master-admin-management' => [
+            '39. master-admin-management' => [
                 'access master admin panel',
                 'manage all locations',
                 'create super admin',
