@@ -587,59 +587,57 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        // Validate walk-in customer cheque payment restriction
-        if ($request->customer_id == 1 && !empty($request->payments)) {
-            foreach ($request->payments as $payment) {
-                if (isset($payment['payment_method']) && $payment['payment_method'] === 'cheque') {
+        // Optimized Walk-In Customer validation (customer_id == 1)
+        if ($request->customer_id == 1) {
+            // Quick cheque payment check without heavy iteration
+            if (!empty($request->payments)) {
+                $hasCheque = collect($request->payments)->contains('payment_method', 'cheque');
+                if ($hasCheque) {
                     return response()->json([
                         'status' => 400, 
                         'message' => 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.',
                         'errors' => ['payment_method' => ['Cheque payment is not allowed for Walk-In Customer.']]
                     ]);
                 }
-            }
-        }
 
-        // Validate walk-in customer credit sales restriction (skip for suspended sales)
-        if ($request->customer_id == 1 && $request->status !== 'suspend') {
-            $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
-            $totalPayments = 0;
-            
-            // Calculate total payments made
-            if (!empty($request->payments)) {
-                foreach ($request->payments as $payment) {
-                    $totalPayments += $payment['amount'] ?? 0;
+                // Quick credit sales validation (skip for suspended sales)
+                if ($request->status !== 'suspend') {
+                    $finalTotal = $request->final_total ?? $request->total_amount ?? 0;
+                    $totalPayments = collect($request->payments)->sum('amount');
+                    
+                    // Only block if there's insufficient payment (credit sale)
+                    if ($totalPayments < $finalTotal) {
+                        return response()->json([
+                            'status' => 400,
+                            'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
+                            'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
+                        ]);
+                    }
                 }
-            }
-            
-            // Only block if there's insufficient payment (credit sale)
-            if ($totalPayments < $finalTotal) {
-                return response()->json([
-                    'status' => 400,
-                    'message' => 'Credit sales are not allowed for Walk-In Customer. Please collect full payment or select a different customer.',
-                    'errors' => ['amount_given' => ['Full payment required for Walk-In Customer.']]
-                ]);
             }
         }
 
         try {
-            // Pre-validation: Check credit limit BEFORE starting transaction
-            $customer = Customer::findOrFail($request->customer_id);
-            $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
-            $discount = $request->discount_amount ?? 0;
-            $finalTotal = $request->discount_type === 'percentage'
-                ? $subtotal - ($subtotal * $discount / 100)
-                : $subtotal - $discount;
+            // Pre-validation: Skip expensive credit limit check for Walk-In Customer
+            if ($request->customer_id != 1) {
+                // Only do credit limit validation for non Walk-In customers
+                $customer = Customer::findOrFail($request->customer_id);
+                $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
+                $discount = $request->discount_amount ?? 0;
+                $finalTotal = $request->discount_type === 'percentage'
+                    ? $subtotal - ($subtotal * $discount / 100)
+                    : $subtotal - $discount;
 
-            // Validate credit limit using centralized method
-            try {
-                $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $request->status);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'status' => 400,
-                    'message' => $e->getMessage(),
-                    'errors' => ['credit_limit' => ['Credit limit would be exceeded by this sale.']]
-                ]);
+                // Validate credit limit using centralized method
+                try {
+                    $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $request->status);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'status' => 400,
+                        'message' => $e->getMessage(),
+                        'errors' => ['credit_limit' => ['Credit limit would be exceeded by this sale.']]
+                    ]);
+                }
             }
 
             $sale = DB::transaction(function () use ($request, $id) {
@@ -722,9 +720,11 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit validation using centralized method
-                $customer = Customer::findOrFail($request->customer_id);
-                $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
+                // Credit limit validation using centralized method (skip for Walk-In)
+                if ($request->customer_id != 1) {
+                    $customer = Customer::findOrFail($request->customer_id);
+                    $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
+                }
 
                 // ----- Save Sale -----
                 $sale->fill([
@@ -779,8 +779,10 @@ class SaleController extends Controller
                             'customer_id' => $sale->customer_id,
                         ]);
                         
-                        // Use unified ledger service for payment
-                        $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                        // Use unified ledger service for payment - Skip for Walk-In customers
+                        if ($request->customer_id != 1) {
+                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                        }
                     }
                 }
 
@@ -902,7 +904,7 @@ class SaleController extends Controller
                     ]);
                 }
 
-                // Check for partial payments for Walk-In Customer
+                // Check for partial payments for Walk-In Customer (optimized)
                 if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
                     throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
                 }
@@ -944,23 +946,25 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger (optimized) -----
-                if ($isUpdate) {
-                    // For updates, use updateSale method to handle proper cleanup and recreation
-                    $this->unifiedLedgerService->updateSale($sale, $referenceNo);
-                } else {
-                    // For new sales, use regular recordSale method
-                    $this->unifiedLedgerService->recordSale($sale);
-                }
+                // ----- Ledger (optimized) - Skip for Walk-In customers -----
+                if ($request->customer_id != 1) {
+                    if ($isUpdate) {
+                        // For updates, use updateSale method to handle proper cleanup and recreation
+                        $this->unifiedLedgerService->updateSale($sale, $referenceNo);
+                    } else {
+                        // For new sales, use regular recordSale method
+                        $this->unifiedLedgerService->recordSale($sale);
+                    }
 
-                // Process ledger for payments (batch process)
-                if ($sale->status !== 'jobticket' && !empty($request->payments)) {
-                    $payments = Payment::where('reference_id', $sale->id)
-                        ->where('payment_type', 'sale')
-                        ->get();
-                    
-                    foreach ($payments as $payment) {
-                        $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                    // Process ledger for payments (batch process) - Skip for Walk-In customers
+                    if ($sale->status !== 'jobticket' && !empty($request->payments)) {
+                        $payments = Payment::where('reference_id', $sale->id)
+                            ->where('payment_type', 'sale')
+                            ->get();
+                        
+                        foreach ($payments as $payment) {
+                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                        }
                     }
                 }
 
@@ -969,8 +973,8 @@ class SaleController extends Controller
 
             // POST-TRANSACTION OPERATIONS (for better performance)
             
-            // Create cheque reminders outside transaction
-            if (!empty($request->payments)) {
+            // Create cheque reminders outside transaction - Skip for Walk-In customers
+            if (!empty($request->payments) && $request->customer_id != 1) {
                 $payments = Payment::where('reference_id', $sale->id)
                     ->where('payment_type', 'sale')
                     ->where('payment_method', 'cheque')
@@ -983,8 +987,23 @@ class SaleController extends Controller
             }
 
             // Load related data with eager loading for better performance
-            $sale->load(['customer', 'location', 'user']);
-            $customer = $sale->customer;
+            $sale->load(['location', 'user']);
+            
+            // Optimized customer loading (avoid re-loading for Walk-In Customer)
+            if ($sale->customer_id == 1) {
+                // Create a simple Walk-In Customer object to avoid database call
+                $customer = (object) [
+                    'id' => 1,
+                    'first_name' => 'Walk-In',
+                    'last_name' => 'Customer',
+                    'full_name' => 'Walk-In Customer',
+                    'mobile_no' => '',
+                    'email' => '',
+                ];
+            } else {
+                $customer = Customer::findOrFail($sale->customer_id);
+            }
+            
             $products = SalesProduct::with(['product'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $user = $sale->user;
@@ -1004,8 +1023,10 @@ class SaleController extends Controller
 
             $html = view('sell.receipt', $viewData)->render();
 
-            // SEND WHATSAPP MESSAGE ASYNCHRONOUSLY (NON-BLOCKING)
-            $this->sendWhatsAppAsync($customer, $sale, $viewData);
+            // SEND WHATSAPP MESSAGE ASYNCHRONOUSLY (NON-BLOCKING) - Skip for Walk-In customers
+            if ($sale->customer_id != 1) {
+                $this->sendWhatsAppAsync($customer, $sale, $viewData);
+            }
 
             return response()->json([
                 'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
@@ -1066,7 +1087,16 @@ class SaleController extends Controller
 
     private function updatePaymentStatus($sale)
     {
-        // Optimized: Use single query instead of separate sum and refresh
+        // For Walk-In customers, typically payment is full and immediate - simple optimization
+        if ($sale->customer_id == 1) {
+            $sale->update([
+                'total_paid' => $sale->final_total,
+                'payment_status' => 'Paid'
+            ]);
+            return;
+        }
+
+        // Optimized: Use single query instead of separate sum and refresh for non-Walk-In customers
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
             ->where(function($query) {
@@ -1527,6 +1557,7 @@ class SaleController extends Controller
             // Fetch sale details with related models, including product.unit
             $sale = Sale::with([
                 'products.product.unit', // eager load unit relation
+                'products.product.batches.locationBatches.location', // eager load all batches for the product
                 'products.batch',
                 'customer',
                 'location'
@@ -1590,28 +1621,31 @@ class SaleController extends Controller
                             'updated_at' => $product->updated_at,
                             'total_quantity' => 'Unlimited',
                             'current_stock' => 'Unlimited',
-                            'product' => optional($product->product)->only([
-                                'id',
-                                'product_name',
-                                'sku',
-                                'unit_id',
-                                'brand_id',
-                                'main_category_id',
-                                'sub_category_id',
-                                'stock_alert',
-                                'alert_quantity',
-                                'product_image',
-                                'description',
-                                'is_imei_or_serial_no',
-                                'is_for_selling',
-                                'product_type',
-                                'pax',
-                                'original_price',
-                                'retail_price',
-                                'whole_sale_price',
-                                'special_price',
-                                'max_retail_price'
-                            ]),
+                            'product' => array_merge(
+                                optional($product->product)->only([
+                                    'id',
+                                    'product_name',
+                                    'sku',
+                                    'unit_id',
+                                    'brand_id',
+                                    'main_category_id',
+                                    'sub_category_id',
+                                    'stock_alert',
+                                    'alert_quantity',
+                                    'product_image',
+                                    'description',
+                                    'is_imei_or_serial_no',
+                                    'is_for_selling',
+                                    'product_type',
+                                    'pax',
+                                    'original_price',
+                                    'retail_price',
+                                    'whole_sale_price',
+                                    'special_price',
+                                    'max_retail_price'
+                                ]) ?? [],
+                                ['batches' => []] // Ensure batches is always an array
+                            ),
                             'unit' => $unitDetails,
                             'batch' => null,
                             'imei_numbers' => $product->imeis->pluck('imei_number')->toArray(),
@@ -1634,6 +1668,32 @@ class SaleController extends Controller
                     // This represents what would be available if we "undo" this sale
                     $totalAllowedQuantity = $currentStock + $product->quantity;
 
+                    // Get product batches with location data for frontend compatibility
+                    $productBatches = [];
+                    if ($product->product && $product->product->batches) {
+                        $productBatches = $product->product->batches->map(function ($batch) {
+                            return [
+                                'id' => $batch->id,
+                                'batch_no' => $batch->batch_no,
+                                'product_id' => $batch->product_id,
+                                'unit_cost' => $batch->unit_cost,
+                                'wholesale_price' => $batch->wholesale_price,
+                                'special_price' => $batch->special_price,
+                                'retail_price' => $batch->retail_price,
+                                'max_retail_price' => $batch->max_retail_price,
+                                'expiry_date' => $batch->expiry_date,
+                                'location_batches' => $batch->locationBatches ? $batch->locationBatches->map(function ($lb) {
+                                    return [
+                                        'batch_id' => $lb->batch_id,
+                                        'location_id' => $lb->location_id,
+                                        'location_name' => optional($lb->location)->name ?? 'N/A',
+                                        'quantity' => $lb->qty
+                                    ];
+                                })->toArray() : []
+                            ];
+                        })->toArray();
+                    }
+
                     return [
                         'id' => $product->id,
                         'sale_id' => $product->sale_id,
@@ -1650,28 +1710,31 @@ class SaleController extends Controller
                         'updated_at' => $product->updated_at,
                         'total_quantity' => $totalAllowedQuantity,
                         'current_stock' => $currentStock,
-                        'product' => optional($product->product)->only([
-                            'id',
-                            'product_name',
-                            'sku',
-                            'unit_id',
-                            'brand_id',
-                            'main_category_id',
-                            'sub_category_id',
-                            'stock_alert',
-                            'alert_quantity',
-                            'product_image',
-                            'description',
-                            'is_imei_or_serial_no',
-                            'is_for_selling',
-                            'product_type',
-                            'pax',
-                            'original_price',
-                            'retail_price',
-                            'whole_sale_price',
-                            'special_price',
-                            'max_retail_price'
-                        ]),
+                        'product' => array_merge(
+                            optional($product->product)->only([
+                                'id',
+                                'product_name',
+                                'sku',
+                                'unit_id',
+                                'brand_id',
+                                'main_category_id',
+                                'sub_category_id',
+                                'stock_alert',
+                                'alert_quantity',
+                                'product_image',
+                                'description',
+                                'is_imei_or_serial_no',
+                                'is_for_selling',
+                                'product_type',
+                                'pax',
+                                'original_price',
+                                'retail_price',
+                                'whole_sale_price',
+                                'special_price',
+                                'max_retail_price'
+                            ]) ?? [],
+                            ['batches' => $productBatches] // Ensure batches is always an array
+                        ),
                         'unit' => $unitDetails,
                         'batch' => optional($product->batch)->only([
                             'id',

@@ -432,7 +432,7 @@
             
             // Search through all products' batches
             for (const product of allProducts) {
-                if (product.batches) {
+                if (product.batches && Array.isArray(product.batches)) {
                     const batch = product.batches.find(b => b.id == batchId);
                     if (batch) return batch;
                 }
@@ -440,7 +440,7 @@
             
             // Search through stockData
             for (const stockEntry of stockData) {
-                if (stockEntry.batches) {
+                if (stockEntry.batches && Array.isArray(stockEntry.batches)) {
                     const batch = stockEntry.batches.find(b => b.id == batchId);
                     if (batch) return batch;
                 }
@@ -3783,8 +3783,20 @@ $('#locationSelect').on('change', () => {
                                     }]
                                 }],
                                 total_stock: maxAvailableStock,
-                                product: saleProduct.product
+                                product: {
+                                    ...saleProduct.product,
+                                    batches: saleProduct.product.batches || [] // Ensure batches is always an array
+                                }
                             };
+
+                            // Add the product to allProducts array for getProductDataById to find it
+                            const existingProductIndex = allProducts.findIndex(p => p.id === saleProduct.product.id);
+                            if (existingProductIndex === -1) {
+                                allProducts.push({
+                                    ...saleProduct.product,
+                                    batches: saleProduct.product.batches || [] // Ensure batches is always an array
+                                });
+                            }
 
                             // Add product to billing with correct stock calculation
                             addProductToBillingBody(
