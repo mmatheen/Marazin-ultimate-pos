@@ -57,13 +57,7 @@ class SaleController extends Controller
         })->only(['index', 'listSale']);
     }
 
-    /**
-     * Validate credit limit for customer sales
-     * Only checks credit limit when:
-     * 1. Customer has credit sales (partial payment or credit payment method)
-     * 2. Sale is finalized (not draft, quotation, suspend, jobticket)
-     * 3. Customer is not walk-in and has credit limit set
-     */
+ 
     private function validateCreditLimit($customer, $finalTotal, $payments, $saleStatus)
     {
         // Skip validation for walk-in customers
@@ -650,7 +644,7 @@ class SaleController extends Controller
 
             $sale = DB::transaction(function () use ($request, $id) {
                 $isUpdate = $id !== null;
-                $sale = $isUpdate ? Sale::findOrFail($id) : new Sale();
+                $sale = $isUpdate ? Sale::with(['products'])->findOrFail($id) : new Sale();
                 $referenceNo = $isUpdate ? $sale->reference_no : $this->generateReferenceNo();
 
                 $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
@@ -794,15 +788,15 @@ class SaleController extends Controller
                 if ($sale->status !== 'jobticket') {
                     $totalPaid = 0;
                     if (!empty($request->payments)) {
-                        $totalPaid = $request->has('payments')
-                            ? array_sum(array_column($request->payments, 'amount'))
-                            : $sale->final_total;
+                        $totalPaid = array_sum(array_column($request->payments, 'amount'));
 
                         if ($isUpdate) {
+                            // Batch delete for better performance
                             Payment::where('reference_id', $sale->id)->delete();
-                            // Note: Ledger entries will be managed by UnifiedLedgerService
                         }
 
+                        // Prepare all payment data first, then batch create
+                        $paymentsToCreate = [];
                         foreach ($request->payments as $paymentData) {
                             // Prepare payment data with enhanced cheque handling
                             $paymentCreateData = [
@@ -814,6 +808,8 @@ class SaleController extends Controller
                                 'payment_type' => 'sale',
                                 'reference_id' => $sale->id,
                                 'customer_id' => $request->customer_id,
+                                'created_at' => now(),
+                                'updated_at' => now(),
                             ];
 
                             // Add payment method specific fields
@@ -843,15 +839,25 @@ class SaleController extends Controller
                                 $paymentCreateData['payment_status'] = 'completed';
                             }
 
-                            $payment = Payment::create($paymentCreateData);
+                            $paymentsToCreate[] = $paymentCreateData;
+                        }
 
-                            // Create cheque reminders if it's a cheque payment
-                            if ($paymentData['payment_method'] === 'cheque' && isset($paymentData['cheque_valid_date'])) {
-                                $payment->createReminders();
+                        // Batch insert payments for better performance
+                        Payment::insert($paymentsToCreate);
+
+                        // Get the created payments for ledger processing
+                        $createdPayments = Payment::where('reference_id', $sale->id)
+                            ->where('payment_type', 'sale')
+                            ->orderBy('id', 'desc')
+                            ->limit(count($paymentsToCreate))
+                            ->get();
+
+                        // Create cheque reminders for cheque payments (move outside transaction later)
+                        foreach ($createdPayments as $payment) {
+                            if ($payment->payment_method === 'cheque' && $payment->cheque_valid_date) {
+                                // Store for later processing outside transaction
+                                $payment->scheduleReminderCreation = true;
                             }
-
-                            // Use unified ledger service for payment recording
-                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
                         }
 
                         // Calculate total paid for sale completion (include all payments except bounced)
@@ -868,14 +874,11 @@ class SaleController extends Controller
                         // Update sale totals
                         $sale->update([
                             'total_paid' => $totalPaid,
-                            // total_due is auto-calculated by the database
                         ]);
                         
-                        // Refresh to get updated generated total_due column
-                        $sale->refresh();
-                        
-                        // Set payment status based on database calculated total_due
-                        if ($sale->total_due <= 0) {
+                        // Set payment status based on calculated amounts
+                        $totalDue = max(0, $sale->final_total - $totalPaid);
+                        if ($totalDue <= 0) {
                             $sale->payment_status = 'Paid';
                         } elseif ($sale->total_paid > 0) {
                             $sale->payment_status = 'Partial';
@@ -883,6 +886,7 @@ class SaleController extends Controller
                             $sale->payment_status = 'Due';
                         }
                         $sale->save();
+                        
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
                     }
@@ -893,7 +897,6 @@ class SaleController extends Controller
 
                     $sale->update([
                         'total_paid' => $totalPaid,
-                        // Removed total_due - it's auto-calculated by the database
                         'amount_given' => $amountGiven,
                         'balance_amount' => max(0, $amountGiven - $sale->final_total),
                     ]);
@@ -941,7 +944,7 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Ledger -----
+                // ----- Ledger (optimized) -----
                 if ($isUpdate) {
                     // For updates, use updateSale method to handle proper cleanup and recreation
                     $this->unifiedLedgerService->updateSale($sale, $referenceNo);
@@ -950,42 +953,83 @@ class SaleController extends Controller
                     $this->unifiedLedgerService->recordSale($sale);
                 }
 
-                $this->updatePaymentStatus($sale);
+                // Process ledger for payments (batch process)
+                if ($sale->status !== 'jobticket' && !empty($request->payments)) {
+                    $payments = Payment::where('reference_id', $sale->id)
+                        ->where('payment_type', 'sale')
+                        ->get();
+                    
+                    foreach ($payments as $payment) {
+                        $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                    }
+                }
+
                 return $sale;
             });
 
-            $customer = Customer::findOrFail($sale->customer_id);
-            $products = SalesProduct::where('sale_id', $sale->id)->get();
+            // POST-TRANSACTION OPERATIONS (for better performance)
+            
+            // Create cheque reminders outside transaction
+            if (!empty($request->payments)) {
+                $payments = Payment::where('reference_id', $sale->id)
+                    ->where('payment_type', 'sale')
+                    ->where('payment_method', 'cheque')
+                    ->whereNotNull('cheque_valid_date')
+                    ->get();
+                    
+                foreach ($payments as $payment) {
+                    $payment->createReminders();
+                }
+            }
+
+            // Load related data with eager loading for better performance
+            $sale->load(['customer', 'location', 'user']);
+            $customer = $sale->customer;
+            $products = SalesProduct::with(['product'])->where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
-            $user = User::find($sale->user_id);
-            // Use the location from the sale, not from user's first location
+            $user = $sale->user;
             $location = $sale->location;
 
-        $viewData = [
-            'sale' => $sale,
-            'customer' => $customer,
-            'products' => $products,
-            'payments' => $payments,
-            'total_discount' => $request->discount_amount ?? 0,
-            'amount_given' => $sale->amount_given,
-            'balance_amount' => $sale->balance_amount,
-            'user' => $user,
-            'location' => $location,
-        ];
+            $viewData = [
+                'sale' => $sale,
+                'customer' => $customer,
+                'products' => $products,
+                'payments' => $payments,
+                'total_discount' => $request->discount_amount ?? 0,
+                'amount_given' => $sale->amount_given,
+                'balance_amount' => $sale->balance_amount,
+                'user' => $user,
+                'location' => $location,
+            ];
 
-        $html = view('sell.receipt', $viewData)->render();
+            $html = view('sell.receipt', $viewData)->render();
 
-          
+            // SEND WHATSAPP MESSAGE ASYNCHRONOUSLY (NON-BLOCKING)
+            $this->sendWhatsAppAsync($customer, $sale, $viewData);
 
+            return response()->json([
+                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'invoice_html' => $html,
+                'data' => $viewData
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+            
+        }
+    }
 
+    /**
+     * Send WhatsApp message asynchronously (non-blocking)
+     */
+    private function sendWhatsAppAsync($customer, $sale, $viewData)
+    {
+        // Run in background to avoid blocking the response
+        dispatch(function () use ($customer, $sale, $viewData) {
             try {
                 $mobileNo = ltrim($customer->mobile_no, '0');
-                $whatsAppApiUrl = env('WHATSAPP_API_URL'); // load from .env
+                $whatsAppApiUrl = env('WHATSAPP_API_URL');
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
-
-
-
                     // Render the 80mm thermal receipt view to HTML
                     $thermalHtml = view('sell.receipt', $viewData)->render();
 
@@ -995,10 +1039,10 @@ class SaleController extends Controller
                     $pdfContent = $pdf->output();
 
                     // Send to WhatsApp API
-                    $response = Http::withHeaders([])
+                    $response = Http::timeout(30)->withHeaders([])
                         ->attach(
                             'files',
-                            $pdfContent, // Directly attach binary content
+                            $pdfContent,
                             "invoice_{$sale->invoice_no}_80mm.pdf"
                         )
                         ->post($whatsAppApiUrl, [
@@ -1017,43 +1061,38 @@ class SaleController extends Controller
             } catch (\Exception $ex) {
                 Log::error('WhatsApp send error: ' . $ex->getMessage());
             }
-
-
-
-
-            return response()->json([
-                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
-                'invoice_html' => $html,
-                'data' => $viewData
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 400);
-            
-        }
+        })->afterResponse();
     }
 
     private function updatePaymentStatus($sale)
     {
+        // Optimized: Use single query instead of separate sum and refresh
         $totalPaid = Payment::where('reference_id', $sale->id)
             ->where('payment_type', 'sale')
+            ->where(function($query) {
+                $query->where('payment_method', '!=', 'cheque')
+                      ->orWhere(function($subQuery) {
+                          $subQuery->where('payment_method', 'cheque')
+                                   ->where('cheque_status', '!=', 'bounced');
+                      });
+            })
             ->sum('amount');
 
-        $sale->total_paid = $totalPaid;
-        $sale->save();
+        // Calculate payment status
+        $totalDue = max(0, $sale->final_total - $totalPaid);
         
-        // Refresh to get updated generated total_due column
-        $sale->refresh();
-
-        // Set payment status based on database calculated total_due
-        if ($sale->total_due <= 0) {
-            $sale->payment_status = 'Paid';
-        } elseif ($sale->total_paid > 0) {
-            $sale->payment_status = 'Partial';
-        } else {
-            $sale->payment_status = 'Due';
+        $paymentStatus = 'Due';
+        if ($totalDue <= 0) {
+            $paymentStatus = 'Paid';
+        } elseif ($totalPaid > 0) {
+            $paymentStatus = 'Partial';
         }
 
-        $sale->save();
+        // Single update query
+        $sale->update([
+            'total_paid' => $totalPaid,
+            'payment_status' => $paymentStatus
+        ]);
     }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
@@ -1131,33 +1170,40 @@ class SaleController extends Controller
                 'tax' => $productData['tax'] ?? 0,
             ]);
 
-            // Handle IMEI insertion if available
+            // Handle IMEI insertion if available (optimized batch processing)
             if (!empty($productData['imei_numbers']) && is_array($productData['imei_numbers'])) {
-
-                // Counter to limit IMEIs to current batch deduction quantity
+                $imeiUpdates = [];
+                $saleImeiInserts = [];
                 $count = 0;
 
                 foreach ($productData['imei_numbers'] as $imei) {
                     if ($count >= $deduction['quantity']) break;
 
-                    // Update IMEI status to 'sold'
-                    ImeiNumber::where('imei_number', $imei)
-                        ->where('product_id', $productData['product_id'])
-                        ->where('batch_id', $deduction['batch_id']) // Use same batch ID as deduction
-                        ->where('location_id', $locationId)
-                        ->update(['status' => 'sold']);
-
-                    // Record IMEI in sale_imeis table
-                    SaleImei::create([
+                    // Prepare batch updates and inserts
+                    $imeiUpdates[] = $imei;
+                    $saleImeiInserts[] = [
                         'sale_id' => $saleId,
                         'sale_product_id' => $saleProduct->id,
                         'product_id' => $productData['product_id'],
                         'batch_id' => $deduction['batch_id'],
                         'location_id' => $locationId,
                         'imei_number' => $imei,
-                    ]);
-
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
                     $count++;
+                }
+
+                // Batch update IMEI statuses
+                if (!empty($imeiUpdates)) {
+                    ImeiNumber::whereIn('imei_number', $imeiUpdates)
+                        ->where('product_id', $productData['product_id'])
+                        ->where('batch_id', $deduction['batch_id'])
+                        ->where('location_id', $locationId)
+                        ->update(['status' => 'sold']);
+
+                    // Batch insert sale IMEIs
+                    SaleImei::insert($saleImeiInserts);
                 }
             }
         }
@@ -1166,31 +1212,29 @@ class SaleController extends Controller
     {
         Log::info("Deducting $quantity from batch ID $batchId at location $locationId");
 
-        $batch = Batch::findOrFail($batchId);
-        $locationBatch = LocationBatch::where('batch_id', $batch->id)
+        // Optimized: Single update query with error handling
+        $affected = DB::table('location_batches')
+            ->where('batch_id', $batchId)
             ->where('location_id', $locationId)
-            ->firstOrFail();
+            ->where('qty', '>=', $quantity) // Ensure sufficient stock
+            ->update(['qty' => DB::raw("qty - $quantity")]);
 
-        Log::info("Before deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
+        if ($affected === 0) {
+            throw new \Exception("Insufficient stock in batch ID $batchId at location $locationId");
+        }
 
-        DB::table('location_batches')
-            ->where('id', $locationBatch->id)
-            ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
+        // Get the location batch for stock history (single query)
+        $locationBatch = LocationBatch::where('batch_id', $batchId)
+            ->where('location_id', $locationId)
+            ->first();
 
-        // DB::table('batches')
-        //     ->where('id', $batch->id)
-        //     ->update(['qty' => DB::raw("GREATEST(qty - $quantity, 0)")]);
-
-        $locationBatch->refresh();
-        $batch->refresh();
-
-        Log::info("After deduction: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$batch->qty}");
-
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => -$quantity,
-            'stock_type' => $stockType,
-        ]);
+        if ($locationBatch) {
+            StockHistory::create([
+                'loc_batch_id' => $locationBatch->id,
+                'quantity' => -$quantity,
+                'stock_type' => $stockType,
+            ]);
+        }
     }
 
     private function processUnlimitedStockProductSale($productData, $saleId, $locationId, $stockType)
@@ -1306,7 +1350,6 @@ class SaleController extends Controller
         }
     }
 
-
     private function validateStockForUpdate($productData, $locationId, $originalProducts)
     {
         $totalQuantity = $productData['quantity'];
@@ -1353,30 +1396,29 @@ class SaleController extends Controller
     {
         Log::info("Restoring stock for product ID {$product->product_id} from batch ID {$product->batch_id} at location {$product->location_id}");
 
-        $locationBatch = LocationBatch::where('batch_id', $product->batch_id)
+        // Optimized: Single update query
+        $affected = DB::table('location_batches')
+            ->where('batch_id', $product->batch_id)
             ->where('location_id', $product->location_id)
-            ->firstOrFail();
-
-        DB::table('location_batches')
-            ->where('id', $locationBatch->id)
             ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
 
-        // DB::table('batches')
-        //     ->where('id', $product->batch_id)
-        //     ->update(['qty' => DB::raw("qty + {$product->quantity}")]);
+        if ($affected > 0) {
+            // Get location batch for stock history
+            $locationBatch = LocationBatch::where('batch_id', $product->batch_id)
+                ->where('location_id', $product->location_id)
+                ->first();
 
-        $locationBatch->refresh();
-
-        Log::info("After restoration: LocationBatch qty: {$locationBatch->qty}, Batch qty: {$product->batch->qty}");
+            if ($locationBatch) {
+                StockHistory::create([
+                    'loc_batch_id' => $locationBatch->id,
+                    'quantity' => $product->quantity,
+                    'stock_type' => $stockType,
+                ]);
+            }
+        }
 
         // Restore IMEI numbers to 'available' status
         $this->restoreImeiNumbers($product);
-
-        StockHistory::create([
-            'loc_batch_id' => $locationBatch->id,
-            'quantity' => $product->quantity,
-            'stock_type' => $stockType,
-        ]);
     }
 
     private function restoreImeiNumbers($salesProduct)
@@ -1386,22 +1428,20 @@ class SaleController extends Controller
         // Get all IMEI numbers associated with this sale product
         $saleImeis = SaleImei::where('sale_product_id', $salesProduct->id)->get();
         
-        foreach ($saleImeis as $saleImei) {
-            // Update IMEI status back to 'available'
-            $updated = ImeiNumber::where('imei_number', $saleImei->imei_number)
-                ->where('product_id', $saleImei->product_id)
-                ->where('batch_id', $saleImei->batch_id)
-                ->where('location_id', $saleImei->location_id)
+        if ($saleImeis->isNotEmpty()) {
+            // Batch update IMEI statuses
+            $imeiNumbers = $saleImeis->pluck('imei_number')->toArray();
+            
+            $updated = ImeiNumber::whereIn('imei_number', $imeiNumbers)
+                ->where('product_id', $salesProduct->product_id)
+                ->where('batch_id', $salesProduct->batch_id)
+                ->where('location_id', $salesProduct->location_id)
                 ->update(['status' => 'available']);
                 
-            if ($updated) {
-                Log::info("IMEI {$saleImei->imei_number} restored to available status");
-            } else {
-                Log::warning("Failed to restore IMEI {$saleImei->imei_number} to available status");
-            }
+            Log::info("Updated {$updated} IMEI numbers to available status");
             
-            // Delete the sale IMEI record
-            $saleImei->delete();
+            // Batch delete sale IMEI records
+            SaleImei::where('sale_product_id', $salesProduct->id)->delete();
         }
         
         Log::info("Completed IMEI restoration for sale product ID {$salesProduct->id}");
@@ -1411,7 +1451,6 @@ class SaleController extends Controller
     {
         return 'SALE-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
     }
-
 
     public function getSaleByInvoiceNo($invoiceNo)
     {
@@ -1448,7 +1487,6 @@ class SaleController extends Controller
         ], 200);
     }
 
-
     public function searchSales(Request $request)
     {
         $term = $request->get('term');
@@ -1458,8 +1496,6 @@ class SaleController extends Controller
 
         return response()->json($sales);
     }
-
-
 
     public function fetchSuspendedSales()
     {
@@ -1484,8 +1520,6 @@ class SaleController extends Controller
             return response()->json(['error' => 'Failed to fetch suspended sales'], 500);
         }
     }
-
-
 
     public function editSale($id)
     {
@@ -1694,7 +1728,6 @@ class SaleController extends Controller
         }
     }
 
-
     public function deleteSuspendedSale($id)
     {
         $sale = Sale::findOrFail($id);
@@ -1713,7 +1746,6 @@ class SaleController extends Controller
         return response()->json(['message' => 'Suspended sale deleted and stock restored successfully.'], 200);
     }
 
-
     public function destroy($id)
     {
         $sale = Sale::findOrFail($id);
@@ -1731,7 +1763,6 @@ class SaleController extends Controller
             'message' => 'Sale deleted and stock restored successfully.'
         ], 200);
     }
-
 
     public function printRecentTransaction($id)
     {
@@ -1768,9 +1799,6 @@ class SaleController extends Controller
         }
     }
 
-    /**
-     * Log pricing errors for admin review
-     */
     public function logPricingError(Request $request)
     {
         try {
@@ -1817,9 +1845,6 @@ class SaleController extends Controller
         }
     }
 
-    /**
-     * Update cheque status
-     */
     public function updateChequeStatus(Request $request, $paymentId)
     {
         $request->validate([
@@ -1854,9 +1879,6 @@ class SaleController extends Controller
         }
     }
 
-    /**
-     * Get cheque management dashboard data
-     */
     public function chequeManagement(Request $request)
     {
         $query = Payment::chequePayments()->with(['customer', 'sale']);
@@ -1905,9 +1927,6 @@ class SaleController extends Controller
         return view('sell.cheque-management', compact('cheques', 'stats'));
     }
 
-    /**
-     * Get cheque status history
-     */
     public function chequeStatusHistory($paymentId)
     {
         try {
@@ -1929,9 +1948,6 @@ class SaleController extends Controller
         }
     }
 
-    /**
-     * Get pending reminders for cheques
-     */
     public function pendingChequeReminders()
     {
         $reminders = \App\Models\ChequeReminder::pending()
@@ -1945,9 +1961,6 @@ class SaleController extends Controller
         ]);
     }
 
-    /**
-     * Mark reminder as sent
-     */
     public function markReminderSent(Request $request, $reminderId)
     {
         try {
