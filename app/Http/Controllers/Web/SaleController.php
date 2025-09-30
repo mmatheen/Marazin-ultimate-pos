@@ -54,6 +54,91 @@ class SaleController extends Controller
         })->only(['index']);
     }
 
+    private function validateCreditLimit($customer, $finalTotal, $payments, $saleStatus)
+    {
+        // Skip validation for walk-in customers
+        if ($customer->id == 1) {
+            return true;
+        }
+
+        // Skip validation if customer has no credit limit
+        if ($customer->credit_limit <= 0) {
+            return true;
+        }
+
+        // Skip validation for non-final sales (draft, quotation, suspend, jobticket)
+        if (!in_array($saleStatus, ['final'])) {
+            return true;
+        }
+
+        // Calculate actual payment amount and check payment methods
+        $actualPaymentAmount = 0;
+        $hasCreditPayment = false;
+        $hasChequePayment = false;
+
+        if (!empty($payments)) {
+            $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
+            
+            // Check payment methods
+            foreach ($payments as $payment) {
+                $paymentMethod = $payment['payment_method'] ?? '';
+                
+                if ($paymentMethod === 'credit') {
+                    $hasCreditPayment = true;
+                }
+                
+                // Skip credit limit validation for cheque payments
+                if ($paymentMethod === 'cheque') {
+                    $hasChequePayment = true;
+                }
+            }
+        }
+
+        // Skip credit limit validation if cheque payment is used
+        if ($hasChequePayment) {
+            return true; // Cheque payments don't check credit limit
+        }
+
+        // Calculate remaining balance after payment (amount that goes to credit)
+        $remainingBalance = max(0, $finalTotal - $actualPaymentAmount);
+
+        // Only validate credit limit if there's remaining balance OR explicit credit payment
+        if ($remainingBalance <= 0 && !$hasCreditPayment) {
+            return true; // Full payment made and no explicit credit sale
+        }
+
+        // Get customer's current outstanding balance (calculate fresh from ledger)
+        $currentBalance = $customer->calculateBalanceFromLedger();
+        
+        // Calculate available credit remaining
+        $availableCredit = max(0, $customer->credit_limit - $currentBalance);
+        
+        // Check if the credit amount exceeds available credit
+        if ($remainingBalance > $availableCredit) {
+            // Format error message with clear breakdown
+            $errorMessage = "Credit limit exceeded for {$customer->full_name}.\n\n";
+            $errorMessage .= "Credit Details:\n";
+            $errorMessage .= "• Credit Limit: Rs. " . number_format($customer->credit_limit, 2) . "\n";
+            $errorMessage .= "• Current Outstanding: Rs. " . number_format($currentBalance, 2) . "\n";
+            $errorMessage .= "• Available Credit: Rs. " . number_format($availableCredit, 2) . "\n\n";
+            $errorMessage .= "Sale Details:\n";
+            $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
+            $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
+            $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
+            
+            if ($availableCredit > 0) {
+                $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
+                $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
+            } else {
+                $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
+            }
+            
+            throw new \Exception($errorMessage);
+        }
+
+        return true;
+    }
+
     public function listSale()
     {
         return view('sell.sale');
@@ -436,27 +521,9 @@ class SaleController extends Controller
                     $balanceAmount = max(0, $amountGiven - $finalTotal);
                 }
 
-                // Credit limit check
+                // Credit limit validation using the enhanced method
                 $customer = Customer::findOrFail($request->customer_id);
-
-                // Calculate payments amount sent in request
-                $paymentAmount = 0;
-                if (!empty($request->payments)) {
-                    $paymentAmount = array_sum(array_column($request->payments, 'amount'));
-                } elseif ($newStatus === 'jobticket' && $advanceAmount > 0) {
-                    $paymentAmount = $advanceAmount;
-                } else {
-                    $paymentAmount = 0;
-                }
-
-                $netSaleAmount = $finalTotal - $paymentAmount;
-                $currentBalance = $customer->current_balance;
-
-                $newBalance = $currentBalance + $netSaleAmount;
-
-                if ($customer->id != 1 && $customer->credit_limit > 0 && $newBalance > $customer->credit_limit) {
-                    throw new \Exception("Credit limit exceeded for {$customer->full_name}. Current balance: {$currentBalance}, Sale amount due after payment: {$netSaleAmount}, Credit limit: {$customer->credit_limit}");
-                }
+                $this->validateCreditLimit($customer, $finalTotal, $request->payments ?? [], $newStatus);
 
 
                 // ----- Save Sale -----

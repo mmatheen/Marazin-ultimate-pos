@@ -79,46 +79,69 @@ class SaleController extends Controller
             return true;
         }
 
-        // Calculate actual payment amount
+        // Calculate actual payment amount and check payment methods
         $actualPaymentAmount = 0;
         $hasCreditPayment = false;
+        $hasChequePayment = false;
 
         if (!empty($payments)) {
             $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
-            // Check if any payment method is 'credit'
+            
+            // Check payment methods
             foreach ($payments as $payment) {
-                if (isset($payment['payment_method']) && $payment['payment_method'] === 'credit') {
+                $paymentMethod = $payment['payment_method'] ?? '';
+                
+                if ($paymentMethod === 'credit') {
                     $hasCreditPayment = true;
-                    break;
+                }
+                
+                // Skip credit limit validation for cheque payments
+                if ($paymentMethod === 'cheque') {
+                    $hasChequePayment = true;
                 }
             }
         }
 
-        // Calculate remaining balance after payment
+        // Skip credit limit validation if cheque payment is used
+        if ($hasChequePayment) {
+            return true; // Cheque payments don't check credit limit
+        }
+
+        // Calculate remaining balance after payment (amount that goes to credit)
         $remainingBalance = max(0, $finalTotal - $actualPaymentAmount);
 
-        // Only validate credit limit if:
-        // 1. There's remaining balance (partial payment), OR
-        // 2. Payment method explicitly includes 'credit'
+        // Only validate credit limit if there's remaining balance OR explicit credit payment
         if ($remainingBalance <= 0 && !$hasCreditPayment) {
             return true; // Full payment made and no explicit credit sale
         }
 
-        // Calculate projected new balance
-        $currentBalance = $customer->current_balance;
-        $projectedNewBalance = $currentBalance + $remainingBalance;
-
-        // Check if projected balance exceeds credit limit
-        if ($projectedNewBalance > $customer->credit_limit) {
-            $availableCredit = max(0, $customer->credit_limit - $currentBalance);
-            throw new \Exception(
-                "Credit limit exceeded for {$customer->full_name}.\n" .
-                "Current balance: Rs. " . number_format($currentBalance, 2) . "\n" .
-                "Credit limit: Rs. " . number_format($customer->credit_limit, 2) . "\n" .
-                "Available credit: Rs. " . number_format($availableCredit, 2) . "\n" .
-                "Sale amount due: Rs. " . number_format($remainingBalance, 2) . "\n" .
-                "This sale would exceed credit limit by Rs. " . number_format($projectedNewBalance - $customer->credit_limit, 2)
-            );
+        // Get customer's current outstanding balance (calculate fresh from ledger)
+        $currentBalance = $customer->calculateBalanceFromLedger();
+        
+        // Calculate available credit remaining
+        $availableCredit = max(0, $customer->credit_limit - $currentBalance);
+        
+        // Check if the credit amount exceeds available credit
+        if ($remainingBalance > $availableCredit) {
+            // Format error message with clear breakdown
+            $errorMessage = "Credit limit exceeded for {$customer->full_name}.\n\n";
+            $errorMessage .= "Credit Details:\n";
+            $errorMessage .= "• Credit Limit: Rs. " . number_format($customer->credit_limit, 2) . "\n";
+            $errorMessage .= "• Current Outstanding: Rs. " . number_format($currentBalance, 2) . "\n";
+            $errorMessage .= "• Available Credit: Rs. " . number_format($availableCredit, 2) . "\n\n";
+            $errorMessage .= "Sale Details:\n";
+            $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
+            $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
+            $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
+            
+            if ($availableCredit > 0) {
+                $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
+                $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
+            } else {
+                $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
+            }
+            
+            throw new \Exception($errorMessage);
         }
 
         return true;

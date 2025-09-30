@@ -75,46 +75,69 @@ class SaleController extends Controller
             return true;
         }
 
-        // Calculate actual payment amount
+        // Calculate actual payment amount and check payment methods
         $actualPaymentAmount = 0;
         $hasCreditPayment = false;
+        $hasChequePayment = false;
 
         if (!empty($payments)) {
             $actualPaymentAmount = array_sum(array_column($payments, 'amount'));
-            // Check if any payment method is 'credit'
+            
+            // Check payment methods
             foreach ($payments as $payment) {
-                if (isset($payment['payment_method']) && $payment['payment_method'] === 'credit') {
+                $paymentMethod = $payment['payment_method'] ?? '';
+                
+                if ($paymentMethod === 'credit') {
                     $hasCreditPayment = true;
-                    break;
+                }
+                
+                // Skip credit limit validation for cheque payments
+                if ($paymentMethod === 'cheque') {
+                    $hasChequePayment = true;
                 }
             }
         }
 
-        // Calculate remaining balance after payment
+        // Skip credit limit validation if cheque payment is used
+        if ($hasChequePayment) {
+            return true; // Cheque payments don't check credit limit
+        }
+
+        // Calculate remaining balance after payment (amount that goes to credit)
         $remainingBalance = max(0, $finalTotal - $actualPaymentAmount);
 
-        // Only validate credit limit if:
-        // 1. There's remaining balance (partial payment), OR
-        // 2. Payment method explicitly includes 'credit'
+        // Only validate credit limit if there's remaining balance OR explicit credit payment
         if ($remainingBalance <= 0 && !$hasCreditPayment) {
             return true; // Full payment made and no explicit credit sale
         }
 
-        // Calculate projected new balance
-        $currentBalance = $customer->current_balance;
-        $projectedNewBalance = $currentBalance + $remainingBalance;
-
-        // Check if projected balance exceeds credit limit
-        if ($projectedNewBalance > $customer->credit_limit) {
-            $availableCredit = max(0, $customer->credit_limit - $currentBalance);
-            throw new \Exception(
-                "Credit limit exceeded for {$customer->full_name}.\n" .
-                "Current balance: Rs. " . number_format($currentBalance, 2) . "\n" .
-                "Credit limit: Rs. " . number_format($customer->credit_limit, 2) . "\n" .
-                "Available credit: Rs. " . number_format($availableCredit, 2) . "\n" .
-                "Sale amount due: Rs. " . number_format($remainingBalance, 2) . "\n" .
-                "This sale would exceed credit limit by Rs. " . number_format($projectedNewBalance - $customer->credit_limit, 2)
-            );
+        // Get customer's current outstanding balance (calculate fresh from ledger)
+        $currentBalance = $customer->calculateBalanceFromLedger();
+        
+        // Calculate available credit remaining
+        $availableCredit = max(0, $customer->credit_limit - $currentBalance);
+        
+        // Check if the credit amount exceeds available credit
+        if ($remainingBalance > $availableCredit) {
+            // Format error message with clear breakdown
+            $errorMessage = "Credit limit exceeded for {$customer->full_name}.\n\n";
+            $errorMessage .= "Credit Details:\n";
+            $errorMessage .= "• Credit Limit: Rs. " . number_format($customer->credit_limit, 2) . "\n";
+            $errorMessage .= "• Current Outstanding: Rs. " . number_format($currentBalance, 2) . "\n";
+            $errorMessage .= "• Available Credit: Rs. " . number_format($availableCredit, 2) . "\n\n";
+            $errorMessage .= "Sale Details:\n";
+            $errorMessage .= "• Total Sale Amount: Rs. " . number_format($finalTotal, 2) . "\n";
+            $errorMessage .= "• Payment Received: Rs. " . number_format($actualPaymentAmount, 2) . "\n";
+            $errorMessage .= "• Credit Amount Required: Rs. " . number_format($remainingBalance, 2) . "\n\n";
+            
+            if ($availableCredit > 0) {
+                $errorMessage .= "Maximum credit sale allowed: Rs. " . number_format($availableCredit, 2) . "\n";
+                $errorMessage .= "Exceeds limit by: Rs. " . number_format($remainingBalance - $availableCredit, 2);
+            } else {
+                $errorMessage .= "No credit available. Please settle previous outstanding amount or pay full amount.";
+            }
+            
+            throw new \Exception($errorMessage);
         }
 
         return true;
@@ -797,8 +820,7 @@ class SaleController extends Controller
                             Payment::where('reference_id', $sale->id)->delete();
                         }
 
-                        // Prepare all payment data first, then batch create
-                        $paymentsToCreate = [];
+                        // Create payments individually instead of batch insert to handle different column structures
                         foreach ($request->payments as $paymentData) {
                             // Prepare payment data with enhanced cheque handling
                             $paymentCreateData = [
@@ -810,8 +832,6 @@ class SaleController extends Controller
                                 'payment_type' => 'sale',
                                 'reference_id' => $sale->id,
                                 'customer_id' => $request->customer_id,
-                                'created_at' => now(),
-                                'updated_at' => now(),
                             ];
 
                             // Add payment method specific fields
@@ -841,17 +861,20 @@ class SaleController extends Controller
                                 $paymentCreateData['payment_status'] = 'completed';
                             }
 
-                            $paymentsToCreate[] = $paymentCreateData;
+                            // Create individual payment record
+                            $payment = Payment::create($paymentCreateData);
+                            
+                            // Process ledger for this payment - Skip for Walk-In customers  
+                            if ($request->customer_id != 1) {
+                                $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+                            }
                         }
 
-                        // Batch insert payments for better performance
-                        Payment::insert($paymentsToCreate);
-
-                        // Get the created payments for ledger processing
+                        // Get the created payments for verification
                         $createdPayments = Payment::where('reference_id', $sale->id)
                             ->where('payment_type', 'sale')
                             ->orderBy('id', 'desc')
-                            ->limit(count($paymentsToCreate))
+                            ->limit(count($request->payments))
                             ->get();
 
                         // Create cheque reminders for cheque payments (move outside transaction later)
@@ -955,17 +978,7 @@ class SaleController extends Controller
                         // For new sales, use regular recordSale method
                         $this->unifiedLedgerService->recordSale($sale);
                     }
-
-                    // Process ledger for payments (batch process) - Skip for Walk-In customers
-                    if ($sale->status !== 'jobticket' && !empty($request->payments)) {
-                        $payments = Payment::where('reference_id', $sale->id)
-                            ->where('payment_type', 'sale')
-                            ->get();
-                        
-                        foreach ($payments as $payment) {
-                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
-                        }
-                    }
+                    // Note: Payment ledger processing is handled in payment creation loop above
                 }
 
                 return $sale;

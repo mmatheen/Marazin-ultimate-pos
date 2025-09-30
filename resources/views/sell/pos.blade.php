@@ -2375,6 +2375,19 @@
         function parseFormattedAmount(formattedAmount) {
             return parseFloat(formattedAmount.replace(/,/g, ''));
         }
+        
+        // Format input field value with commas for better readability
+        function formatAmount(input) {
+            // Get the current value and remove any existing commas
+            let value = input.value.replace(/,/g, '');
+            
+            // Only format if it's a valid number
+            if (value && !isNaN(value)) {
+                // Format with commas and update the input
+                input.value = formatAmountWithSeparators(parseFloat(value));
+            }
+        }
+        
         let totalPayable = 0;
         document.getElementById('addPaymentRow').addEventListener('click', function() {
             const paymentRows = document.getElementById('paymentRows');

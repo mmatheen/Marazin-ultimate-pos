@@ -410,13 +410,19 @@
          * Get product data by ID from available sources
          */
         function getProductDataById(productId) {
-            // Try to find product in allProducts array first
-            let product = allProducts.find(p => p.id == productId);
+            if (!productId) return null;
             
-            if (!product) {
+            // Try to find product in allProducts array first with null checks
+            let product = null;
+            
+            if (allProducts && Array.isArray(allProducts)) {
+                product = allProducts.find(p => p && p.id && p.id == productId);
+            }
+            
+            if (!product && stockData && Array.isArray(stockData)) {
                 // Try to find in stockData if available
-                const stockEntry = stockData.find(s => s.product && s.product.id == productId);
-                if (stockEntry) {
+                const stockEntry = stockData.find(s => s && s.product && s.product.id && s.product.id == productId);
+                if (stockEntry && stockEntry.product) {
                     product = stockEntry.product;
                 }
             }
@@ -1248,281 +1254,281 @@
             });
         }
 
-// ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
-function initAutocomplete() {
-    let autoAddTimeout = null;
-    let lastSearchResults = [];
-    let currentSearchTerm = '';
-    let autocompleteAdding = false; // Prevent double-add
-    let lastAddedProduct = null; // Prevent duplicate quantity increments
+    // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
+    function initAutocomplete() {
+        let autoAddTimeout = null;
+        let lastSearchResults = [];
+        let currentSearchTerm = '';
+        let autocompleteAdding = false; // Prevent double-add
+        let lastAddedProduct = null; // Prevent duplicate quantity increments
 
-    $("#productSearchInput").autocomplete({
-        source: function(request, response) {
-            if (!selectedLocationId) return response([]);
+        $("#productSearchInput").autocomplete({
+            source: function(request, response) {
+                if (!selectedLocationId) return response([]);
 
-            currentSearchTerm = request.term;
+                currentSearchTerm = request.term;
 
-            if (autoAddTimeout) {
-                clearTimeout(autoAddTimeout);
-                autoAddTimeout = null;
-            }
+                if (autoAddTimeout) {
+                    clearTimeout(autoAddTimeout);
+                    autoAddTimeout = null;
+                }
 
-            $.ajax({
-                url: '/api/products/stocks/autocomplete',
-                data: {
-                    location_id: selectedLocationId,
-                    search: request.term,
-                    per_page: 15
-                },
-                success: function(data) {
-                    if (data.status === 200 && Array.isArray(data.data)) {
-                        const filtered = data.data.filter(stock =>
-                            stock.product &&
-                            (
-                                stock.product.stock_alert == 0 ||
-                                (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
-                                    ? parseFloat(stock.total_stock) > 0
-                                    : parseInt(stock.total_stock) > 0
+                $.ajax({
+                    url: '/api/products/stocks/autocomplete',
+                    data: {
+                        location_id: selectedLocationId,
+                        search: request.term,
+                        per_page: 15
+                    },
+                    success: function(data) {
+                        if (data.status === 200 && Array.isArray(data.data)) {
+                            const filtered = data.data.filter(stock =>
+                                stock.product &&
+                                (
+                                    stock.product.stock_alert == 0 ||
+                                    (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
+                                        ? parseFloat(stock.total_stock) > 0
+                                        : parseInt(stock.total_stock) > 0
+                                    )
                                 )
-                            )
-                        );
+                            );
 
-                        const results = filtered.map(stock => {
-                            let imeiMatch = '';
-                            let exactImeiMatch = false;
-                            if (stock.imei_numbers && stock.imei_numbers.length > 0) {
-                                const matchingImei = stock.imei_numbers.find(imei => 
-                                    imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
-                                );
-                                if (matchingImei) {
-                                    imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
-                                    exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
+                            const results = filtered.map(stock => {
+                                let imeiMatch = '';
+                                let exactImeiMatch = false;
+                                if (stock.imei_numbers && stock.imei_numbers.length > 0) {
+                                    const matchingImei = stock.imei_numbers.find(imei => 
+                                        imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
+                                    );
+                                    if (matchingImei) {
+                                        imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
+                                        exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
+                                    }
                                 }
+                                return {
+                                    label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
+                                    value: stock.product.product_name,
+                                    product: stock.product,
+                                    stockData: stock,
+                                    imeiMatch: imeiMatch ? true : false,
+                                    exactImeiMatch: exactImeiMatch
+                                };
+                            });
+
+                            if (results.length === 0) results.push({ label: "No results found", value: "" });
+
+                            lastSearchResults = results.filter(r => r.product);
+
+                            // Auto-add exact SKU or IMEI match
+                            const exactMatch = results.find(r =>
+                                r.product && ((r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) || r.exactImeiMatch)
+                            );
+
+                            if (exactMatch && request.term.length >= 3) {
+                                const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
+                                showSearchIndicator("⚡ Auto-adding...", "orange");
+                                autoAddTimeout = setTimeout(() => {
+                                    if (!autocompleteAdding) {
+                                        autocompleteAdding = true;
+                                        $("#productSearchInput").autocomplete('close');
+                                        addProductFromAutocomplete(exactMatch, request.term, matchType);
+                                        $("#productSearchInput").val('');
+                                        hideSearchIndicator();
+                                        setTimeout(() => { autocompleteAdding = false; }, 50);
+                                    }
+                                }, 500);
                             }
-                            return {
-                                label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
-                                value: stock.product.product_name,
-                                product: stock.product,
-                                stockData: stock,
-                                imeiMatch: imeiMatch ? true : false,
-                                exactImeiMatch: exactImeiMatch
-                            };
-                        });
 
-                        if (results.length === 0) results.push({ label: "No results found", value: "" });
-
-                        lastSearchResults = results.filter(r => r.product);
-
-                        // Auto-add exact SKU or IMEI match
-                        const exactMatch = results.find(r =>
-                            r.product && ((r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) || r.exactImeiMatch)
-                        );
-
-                        if (exactMatch && request.term.length >= 3) {
-                            const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
-                            showSearchIndicator("⚡ Auto-adding...", "orange");
-                            autoAddTimeout = setTimeout(() => {
-                                if (!autocompleteAdding) {
-                                    autocompleteAdding = true;
-                                    $("#productSearchInput").autocomplete('close');
-                                    addProductFromAutocomplete(exactMatch, request.term, matchType);
-                                    $("#productSearchInput").val('');
-                                    hideSearchIndicator();
-                                    setTimeout(() => { autocompleteAdding = false; }, 50);
-                                }
-                            }, 500);
+                            response(results);
+                        } else {
+                            lastSearchResults = [];
+                            response([{ label: "No results found", value: "" }]);
                         }
-
-                        response(results);
-                    } else {
+                    },
+                    error: function() {
                         lastSearchResults = [];
                         response([{ label: "No results found", value: "" }]);
                     }
-                },
-                error: function() {
-                    lastSearchResults = [];
-                    response([{ label: "No results found", value: "" }]);
-                }
-            });
-        },
-        select: function(event, ui) {
-            if (!ui.item.product || autocompleteAdding) return false;
+                });
+            },
+            select: function(event, ui) {
+                if (!ui.item.product || autocompleteAdding) return false;
 
-            autocompleteAdding = true;
-            $("#productSearchInput").val("");
-            const isImeiMatch = ui.item.imeiMatch || false;
-            addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
-            setTimeout(() => { autocompleteAdding = false; }, 50);
+                autocompleteAdding = true;
+                $("#productSearchInput").val("");
+                const isImeiMatch = ui.item.imeiMatch || false;
+                addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
+                setTimeout(() => { autocompleteAdding = false; }, 50);
 
-            return false;
-        },
-        open: function() {
-            setTimeout(() => {
-                const autocompleteInstance = $("#productSearchInput").autocomplete("instance");
-                const menu = autocompleteInstance.menu;
-                const firstItem = menu.element.find("li:first-child");
-                
-                if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
-                    // Properly set the active item using jQuery UI's method
-                    menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                    firstItem.addClass("ui-state-focus");
-                    menu.active = firstItem;
-                    showSearchIndicator("↵ Press Enter to add");
-                }
-            }, 50);
-        },
-        close: function() {
-            hideSearchIndicator();
-        },
-        minLength: 1
-    }).autocomplete("instance")._renderItem = function(ul, item) {
-        const li = $("<li>");
-        if (item.product) {
-            const style = item.imeiMatch ? 
-                "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
-                "padding: 8px;";
-            li.append(`<div style="${style}">${item.label}</div>`);
-        } else {
-            li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
-        }
-        return li.appendTo(ul);
-    };
-
-    $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
-        this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("").outerWidth()));
-    };
-
-    if (!document.getElementById('autocomplete-styles')) {
-        const style = document.createElement('style');
-        style.id = 'autocomplete-styles';
-        style.textContent = `
-            .ui-autocomplete { max-height: 300px; overflow-y: auto; z-index: 1000; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-            .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; }
-            .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
-            .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
-            .ui-autocomplete .ui-menu-item div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            #productSearchInput { position: relative; }
-            .search-indicator { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #28a745; pointer-events: none; }
-            .quantity-error { border: 2px solid #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; background-color: #fff5f5 !important; }
-            .quantity-error:focus { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; }
-        `;
-        document.head.appendChild(style);
-    }
-
-    function showSearchIndicator(text, color = "#28a745") {
-        hideSearchIndicator();
-        const searchContainer = $("#productSearchInput").parent();
-        if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
-        const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
-        searchContainer.append(indicator);
-    }
-    function hideSearchIndicator() { $('.search-indicator').remove(); }
-
-   // In the keydown handler for Enter
-$("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-
-        const widget = $(this).autocomplete("widget");
-        const focused = widget.find(".ui-state-focus");
-        const currentSearchTerm = $(this).val().trim();
-
-        let itemToAdd = null;
-
-        if (focused.length > 0) {
-            // Get the item data from the autocomplete instance's active item
-            const autocompleteInstance = $(this).autocomplete("instance");
-            if (autocompleteInstance && autocompleteInstance.menu.active) {
-                itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
-            }
-        } 
-        
-        // Fallback: if no focused item found, use first item from last search results
-        if (!itemToAdd && lastSearchResults.length > 0) {
-            itemToAdd = lastSearchResults[0];
-        }
-
-        if (itemToAdd && itemToAdd.product) {
-            // Prevent duplicate add of same product consecutively
-            if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
-                lastAddedProduct = itemToAdd.product;
-                addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd.imeiMatch ? 'IMEI' : 'ENTER');
-            }
-        }
-
-        // Close autocomplete immediately
-        $(this).autocomplete('close');
-        $(this).val('');
-        event.stopImmediatePropagation();
-    }
-});
-
-    $("#productSearchInput").on('input', function() {
-        lastAddedProduct = null; // reset on new input
-        if (autoAddTimeout) { clearTimeout(autoAddTimeout); autoAddTimeout = null; }
-        if ($(this).val().length === 0) hideSearchIndicator();
-    });
-
-    function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
-        if (!item.product) return;
-
-        // Prevent duplicate quantity increment for same product and matchType
-        if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL') return;
-
-        lastAddedProduct = item.product;
-
-        console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
-
-        let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-        if (!stockEntry && item.stockData) {
-            stockData.push(item.stockData);
-            allProducts.push(item.stockData);
-            stockEntry = item.stockData;
-        }
-
-        if (!stockEntry) {
-            fetch(`/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                        stockData.push(data.data[0]);
-                        allProducts.push(data.data[0]);
-                        addProductToTable(data.data[0].product, searchTerm, matchType);
-                    } else {
-                        toastr.error('Stock entry not found for the product', 'Error');
+                return false;
+            },
+            open: function() {
+                setTimeout(() => {
+                    const autocompleteInstance = $("#productSearchInput").autocomplete("instance");
+                    const menu = autocompleteInstance.menu;
+                    const firstItem = menu.element.find("li:first-child");
+                    
+                    if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
+                        // Properly set the active item using jQuery UI's method
+                        menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                        firstItem.addClass("ui-state-focus");
+                        menu.active = firstItem;
+                        showSearchIndicator("↵ Press Enter to add");
                     }
-                })
-                .catch(() => { toastr.error('Error fetching product stock data', 'Error'); });
-            return;
+                }, 50);
+            },
+            close: function() {
+                hideSearchIndicator();
+            },
+            minLength: 1
+        }).autocomplete("instance")._renderItem = function(ul, item) {
+            const li = $("<li>");
+            if (item.product) {
+                const style = item.imeiMatch ? 
+                    "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
+                    "padding: 8px;";
+                li.append(`<div style="${style}">${item.label}</div>`);
+            } else {
+                li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
+            }
+            return li.appendTo(ul);
+        };
+
+        $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
+            this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("").outerWidth()));
+        };
+
+        if (!document.getElementById('autocomplete-styles')) {
+            const style = document.createElement('style');
+            style.id = 'autocomplete-styles';
+            style.textContent = `
+                .ui-autocomplete { max-height: 300px; overflow-y: auto; z-index: 1000; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; }
+                .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
+                .ui-autocomplete .ui-state-focus { background: #007bff !important; color: white !important; margin: 0; }
+                .ui-autocomplete .ui-menu-item div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                #productSearchInput { position: relative; }
+                .search-indicator { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #28a745; pointer-events: none; }
+                .quantity-error { border: 2px solid #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; background-color: #fff5f5 !important; }
+                .quantity-error:focus { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; }
+            `;
+            document.head.appendChild(style);
         }
 
-        addProductToTable(item.product, searchTerm, matchType);
-    }
-
-    $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-    $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-    $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-        if (!this.menu.element.is(":visible")) { this.search(null, event); return; }
-        if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() && /^next/.test(direction))) {
-            this._value(this.term);
-            this.menu.blur();
-            return;
+        function showSearchIndicator(text, color = "#28a745") {
+            hideSearchIndicator();
+            const searchContainer = $("#productSearchInput").parent();
+            if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
+            const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
+            searchContainer.append(indicator);
         }
-        this.menu[direction](event);
-        this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-        this.menu.active.addClass("ui-state-focus");
-    };
-}
+        function hideSearchIndicator() { $('.search-indicator').remove(); }
 
-// Re-init autocomplete when location changes
-$('#locationSelect').on('change', () => {
-    $("#productSearchInput").val('');
-    if ($("#productSearchInput").data('ui-autocomplete')) {
-        $("#productSearchInput").autocomplete('destroy');
+    // In the keydown handler for Enter
+        $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+
+                const widget = $(this).autocomplete("widget");
+                const focused = widget.find(".ui-state-focus");
+                const currentSearchTerm = $(this).val().trim();
+
+                let itemToAdd = null;
+
+                if (focused.length > 0) {
+                    // Get the item data from the autocomplete instance's active item
+                    const autocompleteInstance = $(this).autocomplete("instance");
+                    if (autocompleteInstance && autocompleteInstance.menu.active) {
+                        itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
+                    }
+                } 
+                
+                // Fallback: if no focused item found, use first item from last search results
+                if (!itemToAdd && lastSearchResults.length > 0) {
+                    itemToAdd = lastSearchResults[0];
+                }
+
+                if (itemToAdd && itemToAdd.product) {
+                    // Prevent duplicate add of same product consecutively
+                    if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
+                        lastAddedProduct = itemToAdd.product;
+                        addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd.imeiMatch ? 'IMEI' : 'ENTER');
+                    }
+                }
+
+                // Close autocomplete immediately
+                $(this).autocomplete('close');
+                $(this).val('');
+                event.stopImmediatePropagation();
+            }
+        });
+
+        $("#productSearchInput").on('input', function() {
+            lastAddedProduct = null; // reset on new input
+            if (autoAddTimeout) { clearTimeout(autoAddTimeout); autoAddTimeout = null; }
+            if ($(this).val().length === 0) hideSearchIndicator();
+        });
+
+        function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
+            if (!item.product) return;
+
+            // Prevent duplicate quantity increment for same product and matchType
+            if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL') return;
+
+            lastAddedProduct = item.product;
+
+            console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
+
+            let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
+            if (!stockEntry && item.stockData) {
+                stockData.push(item.stockData);
+                allProducts.push(item.stockData);
+                stockEntry = item.stockData;
+            }
+
+            if (!stockEntry) {
+                fetch(`/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
+                            stockData.push(data.data[0]);
+                            allProducts.push(data.data[0]);
+                            addProductToTable(data.data[0].product, searchTerm, matchType);
+                        } else {
+                            toastr.error('Stock entry not found for the product', 'Error');
+                        }
+                    })
+                    .catch(() => { toastr.error('Error fetching product stock data', 'Error'); });
+                return;
+            }
+
+            addProductToTable(item.product, searchTerm, matchType);
+        }
+
+        $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+        $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+        $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+            if (!this.menu.element.is(":visible")) { this.search(null, event); return; }
+            if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() && /^next/.test(direction))) {
+                this._value(this.term);
+                this.menu.blur();
+                return;
+            }
+            this.menu[direction](event);
+            this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+            this.menu.active.addClass("ui-state-focus");
+        };
     }
-    initAutocomplete();
-});
+
+        // Re-init autocomplete when location changes
+        $('#locationSelect').on('change', () => {
+            $("#productSearchInput").val('');
+            if ($("#productSearchInput").data('ui-autocomplete')) {
+                $("#productSearchInput").autocomplete('destroy');
+            }
+            initAutocomplete();
+        });
 
 
 
@@ -2712,6 +2718,15 @@ $('#locationSelect').on('change', () => {
         function addProductToBillingBody(product, stockEntry, price, batchId, batchQuantity, priceType,
             saleQuantity = 1, imeis = [], discountType = null, discountAmount = null, selectedBatch = null) {
 
+            console.log('addProductToBillingBody called with:', {
+                productId: product.id,
+                productName: product.product_name,
+                batchId: batchId,
+                price: price,
+                saleQuantity: saleQuantity,
+                imeis: imeis
+            });
+
             const billingBody = document.getElementById('billing-body');
             locationId = selectedLocationId || 1;
 
@@ -2827,15 +2842,41 @@ $('#locationSelect').on('change', () => {
             // If not IMEI and not in edit mode, try to merge row
             if (imeis.length === 0 && !isEditing) {
                 const existingRow = Array.from(billingBody.querySelectorAll('tr')).find(row => {
-                    const rowProductId = row.querySelector('.product-id').textContent.trim();
-                    const rowBatchId = row.querySelector('.batch-id').textContent.trim();
-                    const rowPrice = row.querySelector('.price-input')?.value.trim();
+                    const productIdElement = row.querySelector('.product-id');
+                    const batchIdElement = row.querySelector('.batch-id');
+                    const priceInputElement = row.querySelector('.price-input');
 
+                    if (!productIdElement || !batchIdElement || !priceInputElement) {
+                        return false;
+                    }
+
+                    const rowProductId = productIdElement.textContent.trim();
+                    const rowBatchId = batchIdElement.textContent.trim();
+                    const rowPrice = priceInputElement.value.trim();
+
+                    // Debug logging
+                    console.log('Checking merge for:', {
+                        existingProductId: rowProductId,
+                        newProductId: product.id,
+                        existingBatchId: rowBatchId,
+                        newBatchId: batchId,
+                        existingPrice: parseFloat(rowPrice).toFixed(2),
+                        newPrice: finalPrice.toFixed(2)
+                    });
+
+                    // For products that appear identical (same product, same price), 
+                    // merge regardless of batch to avoid confusion
                     return (
                         rowProductId == product.id &&
-                        rowBatchId == batchId &&
                         parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
                     );
+                    
+                    // Original strict matching (uncomment if you want batch-specific rows):
+                    // return (
+                    //     rowProductId == product.id &&
+                    //     rowBatchId == batchId &&
+                    //     parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
+                    // );
                 });
                 if (existingRow) {
                     const quantityInput = existingRow.querySelector('.quantity-input');
@@ -3400,47 +3441,75 @@ $('#locationSelect').on('change', () => {
             // Prevent negative totals
             totalAmountWithDiscount = Math.max(0, totalAmountWithDiscount);
 
-            // Update UI
+            // Update UI with null checks
             // Calculate total quantity and build unit summary for all products in billing
             let unitSummary = {};
-            billingBody.querySelectorAll('tr').forEach(row => {
-                const productId = row.querySelector('.product-id')?.textContent;
-                const quantityInput = row.querySelector('.quantity-input');
-                let quantity = quantityInput ? parseFloat(quantityInput.value) : 0;
-                if (productId && quantity > 0) {
-                    // Find the product in stockData or allProducts
-                    let stock = stockData.find(s => String(s.product.id) === productId) || allProducts
-                        .find(s =>
-                            String(s.product.id) === productId);
-                    if (stock && stock.product && stock.product.unit) {
-                        // Prefer short_name, fallback to name, fallback to 'pcs'
-                        let unitShort = stock.product.unit.short_name || stock.product.unit.name ||
-                            'pcs';
-                        if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
-                        unitSummary[unitShort] += quantity;
+            try {
+                billingBody.querySelectorAll('tr').forEach(row => {
+                    const productId = row.querySelector('.product-id')?.textContent;
+                    const quantityInput = row.querySelector('.quantity-input');
+                    let quantity = quantityInput ? parseFloat(quantityInput.value) : 0;
+                    if (productId && quantity > 0) {
+                        // Find the product in stockData or allProducts with proper null checks
+                        let stock = null;
+                        
+                        // Search in stockData first
+                        if (stockData && Array.isArray(stockData)) {
+                            stock = stockData.find(s => s && s.product && s.product.id && String(s.product.id) === productId);
+                        }
+                        
+                        // Search in allProducts if not found in stockData
+                        if (!stock && allProducts && Array.isArray(allProducts)) {
+                            stock = allProducts.find(s => s && s.product && s.product.id && String(s.product.id) === productId);
+                            
+                            // Also try direct product structure (for when allProducts contains products directly)
+                            if (!stock) {
+                                stock = allProducts.find(s => s && s.id && String(s.id) === productId);
+                                if (stock) {
+                                    // Normalize structure
+                                    stock = { product: stock };
+                                }
+                            }
+                        }
+                        
+                        // Use unit information if available, otherwise default to 'pcs'
+                        if (stock && stock.product && stock.product.unit) {
+                            let unitShort = stock.product.unit.short_name || stock.product.unit.name || 'pcs';
+                            if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
+                            unitSummary[unitShort] += quantity;
+                        } else {
+                            // Default to 'pcs' if no unit information available
+                            if (!unitSummary['pcs']) unitSummary['pcs'] = 0;
+                            unitSummary['pcs'] += quantity;
+                        }
                     }
-                }
-            });
+                });
+            } catch (error) {
+                console.error('Error calculating unit summary:', error);
+                // Fallback to simple count
+                unitSummary = { 'pcs': totalItems };
+            }
             // Build display string like "4 kg, 2 pcs, 1 pack"
             let unitDisplay = Object.entries(unitSummary)
                 .map(([unit, qty]) => `${qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '')} ${unit}`)
                 .join(', ');
-            document.getElementById('items-count').textContent = unitDisplay || totalItems.toFixed(2);
-            document.getElementById('modal-total-items').textContent = unitDisplay || totalItems.toFixed(2);
-            document.getElementById('total-amount').textContent = formatAmountWithSeparators(totalAmount
-                .toFixed(2));
-            document.getElementById('final-total-amount').textContent = formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
-            document.getElementById('total').textContent = formatAmountWithSeparators(totalAmountWithDiscount
-                .toFixed(2));
-            document.getElementById('payment-amount').textContent = 'Rs ' + formatAmountWithSeparators(
-                totalAmountWithDiscount.toFixed(2));
             
-            // Update modal total payable for payment modal
-            const modalTotalPayableElement = document.getElementById('modal-total-payable');
-            if (modalTotalPayableElement) {
-                modalTotalPayableElement.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
-            }
+            // Safe DOM updates with null checks
+            const itemsCountEl = document.getElementById('items-count');
+            const modalTotalItemsEl = document.getElementById('modal-total-items');
+            const totalAmountEl = document.getElementById('total-amount');
+            const finalTotalAmountEl = document.getElementById('final-total-amount');
+            const totalEl = document.getElementById('total');
+            const paymentAmountEl = document.getElementById('payment-amount');
+            const modalTotalPayableEl = document.getElementById('modal-total-payable');
+            
+            if (itemsCountEl) itemsCountEl.textContent = unitDisplay || totalItems.toFixed(2);
+            if (modalTotalItemsEl) modalTotalItemsEl.textContent = unitDisplay || totalItems.toFixed(2);
+            if (totalAmountEl) totalAmountEl.textContent = formatAmountWithSeparators(totalAmount.toFixed(2));
+            if (finalTotalAmountEl) finalTotalAmountEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+            if (totalEl) totalEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+            if (paymentAmountEl) paymentAmountEl.textContent = 'Rs ' + formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+            if (modalTotalPayableEl) modalTotalPayableEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
             
             // Validate quantities and update button states
             updatePaymentButtonsState();
@@ -3790,27 +3859,40 @@ $('#locationSelect').on('change', () => {
                             };
 
                             // Add the product to allProducts array for getProductDataById to find it
-                            const existingProductIndex = allProducts.findIndex(p => p.id === saleProduct.product.id);
-                            if (existingProductIndex === -1) {
-                                allProducts.push({
+                            const existingProductIndex = allProducts.findIndex(p => p && p.id && p.id === saleProduct.product.id);
+                            if (existingProductIndex === -1 && saleProduct.product && saleProduct.product.id) {
+                                const productToAdd = {
                                     ...saleProduct.product,
                                     batches: saleProduct.product.batches || [] // Ensure batches is always an array
-                                });
+                                };
+                                
+                                // Ensure unit structure exists for updateTotals function
+                                if (!productToAdd.unit && saleProduct.unit) {
+                                    productToAdd.unit = saleProduct.unit;
+                                }
+                                
+                                allProducts.push(productToAdd);
+                                console.log('Added product to allProducts:', productToAdd.product_name, productToAdd.id);
                             }
 
                             // Add product to billing with correct stock calculation
-                            addProductToBillingBody(
-                                saleProduct.product,
-                                normalizedStockEntry,
-                                price,
-                                saleProduct.batch_id,
-                                maxAvailableStock, // Batch quantity (max available)
-                                saleProduct.price_type,
-                                saleProduct.quantity, // Sale quantity (current quantity in sale)
-                                saleProduct.imei_numbers || [],
-                                saleProduct.discount_type,
-                                saleProduct.discount_amount
-                            );
+                            try {
+                                addProductToBillingBody(
+                                    saleProduct.product,
+                                    normalizedStockEntry,
+                                    price,
+                                    saleProduct.batch_id,
+                                    maxAvailableStock, // Batch quantity (max available)
+                                    saleProduct.price_type,
+                                    saleProduct.quantity, // Sale quantity (current quantity in sale)
+                                    saleProduct.imei_numbers || [],
+                                    saleProduct.discount_type,
+                                    saleProduct.discount_amount
+                                );
+                            } catch (error) {
+                                console.error('Error adding product to billing:', error, saleProduct);
+                                // Continue with next product instead of breaking the whole process
+                            }
 
                             // Apply product-level discount
                             const productRow = $('#billing-body tr:last-child');
@@ -4147,12 +4229,87 @@ $('#locationSelect').on('change', () => {
                             }, 200); // Small delay to let UI update first
 
                         } else {
-                            toastr.error('Failed to record sale: ' + response.message);
+                            // Check if this is a credit limit error
+                            if (response.message && response.message.includes('Credit limit exceeded')) {
+                                // Format the error message for better display
+                                const formattedMessage = response.message.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+                                
+                                swal({
+                                    title: "Credit Limit Exceeded",
+                                    text: formattedMessage,
+                                    html: true,
+                                    type: "error",
+                                    confirmButtonText: "OK",
+                                    confirmButtonColor: "#d33"
+                                });
+                            } else {
+                                toastr.error('Failed to record sale: ' + response.message);
+                            }
                             if (onComplete) onComplete();
                         }
                     },
                     error: function(xhr, status, error) {
-                        toastr.error('An error occurred: ' + xhr.responseText);
+                        console.log('AJAX Error Details:', {
+                            status: xhr.status,
+                            responseText: xhr.responseText,
+                            responseJSON: xhr.responseJSON
+                        });
+                        
+                        let errorMessage = 'An error occurred while processing the sale.';
+                        let useToastr = true;
+                        
+                        try {
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                                
+                                // Check if this is a credit limit error
+                                if (errorMessage.includes('Credit limit exceeded')) {
+                                    useToastr = false;
+                                    
+                                    // Format the error message for better display
+                                    const formattedMessage = errorMessage.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+                                    
+                                    swal({
+                                        title: "Credit Limit Exceeded",
+                                        text: formattedMessage,
+                                        html: true,
+                                        type: "error",
+                                        confirmButtonText: "OK",
+                                        confirmButtonColor: "#d33"
+                                    });
+                                }
+                            } else if (xhr.responseText) {
+                                // Try to parse responseText as JSON
+                                try {
+                                    const parsedResponse = JSON.parse(xhr.responseText);
+                                    if (parsedResponse.message && parsedResponse.message.includes('Credit limit exceeded')) {
+                                        useToastr = false;
+                                        const formattedMessage = parsedResponse.message.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+                                        
+                                        swal({
+                                            title: "Credit Limit Exceeded", 
+                                            text: formattedMessage,
+                                            html: true,
+                                            type: "error",
+                                            confirmButtonText: "OK",
+                                            confirmButtonColor: "#d33"
+                                        });
+                                    } else {
+                                        errorMessage = parsedResponse.message || xhr.responseText;
+                                    }
+                                } catch (parseError) {
+                                    errorMessage = xhr.responseText;
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error parsing response:', e);
+                        }
+                        
+                        // Use toastr for other errors
+                        if (useToastr) {
+                            toastr.error(errorMessage);
+                        }
+                        
                         if (onComplete) onComplete();
                     }
                 });
@@ -4474,6 +4631,18 @@ $('#locationSelect').on('change', () => {
                         enableButton(button);
                         return;
                     }
+
+                    // Add credit payment information
+                    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
+                    
+                    saleData.payments = [{
+                        payment_method: 'credit',
+                        payment_date: new Date().toISOString().slice(0, 10),
+                        amount: 0 // No payment amount for credit sale
+                    }];
+                    
+                    saleData.amount_given = 0;
+                    saleData.balance_amount = 0;
 
                     sendSaleData(saleData, null, () => enableButton(button));
                 });
@@ -4824,36 +4993,58 @@ $('#locationSelect').on('change', () => {
             });
 
 
+            // Flag to prevent double alerts
+            let isProcessingAmountGiven = false;
+
             $('#amount-given').on('keyup', function(event) {
                 if (event.key === 'Enter') {
+                    // Prevent double processing
+
+                    
+                    if (isProcessingAmountGiven) {
+                        return;
+                    }
+                    isProcessingAmountGiven = true;
+                    
                     const totalAmount = parseFormattedAmount($('#final-total-amount').text()
                         .trim());
                     const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
 
                     if (isNaN(amountGiven) || amountGiven <= 0) {
                         toastr.error('Please enter a valid amount given by the customer.');
+                        isProcessingAmountGiven = false;
                         return;
                     }
 
                     const balance = amountGiven - totalAmount;
 
                     if (balance > 0) {
+                        const formattedBalance = formatAmountWithSeparators(balance.toFixed(2));
+                        
                         swal({
                             title: "Return Amount",
-                            text: "The balance amount to be returned is Rs. " +
-                                formatAmountWithSeparators(balance.toFixed()),
+                            text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
+                                      <div style="font-size: 18px; color: #7f8c8d; margin-bottom: 10px;">Balance amount to be returned</div>
+                                      <div style="font-size: 32px; color: #e74c3c;">Rs. ${formattedBalance}</div>
+                                   </div>`,
+                            html: true,
                             type: "info",
                             showCancelButton: false,
                             confirmButtonText: "OK",
-                            customClass: {
-                                title: 'swal-title-large',
-                                text: 'swal-title-large'
+                            allowOutsideClick: false,
+                            allowEscapeKey: true,
+                            closeOnEsc: true
+                        }, function(isConfirm) {
+                            // Reset flag whether OK clicked or ESC pressed
+                            isProcessingAmountGiven = false;
+                            
+                            // Only proceed with cash button if OK was clicked
+                            if (isConfirm) {
+                                $('#cashButton').trigger('click');
                             }
-                        }, function() {
-                            $('#cashButton').trigger('click');
                         });
                     } else {
-
+                        isProcessingAmountGiven = false;
                         $('#cashButton').trigger('click');
                     }
                 }
@@ -5084,6 +5275,7 @@ $('#locationSelect').on('change', () => {
             event.preventDefault();
             if (confirm('Are you sure you want to refresh the page?')) {
                 location.reload();
+                
             }
         });
 
