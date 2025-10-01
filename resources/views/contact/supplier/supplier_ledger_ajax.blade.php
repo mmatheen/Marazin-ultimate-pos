@@ -67,9 +67,6 @@ $(document).ready(function() {
     loadSuppliers();
     loadLocations();
     
-    // Auto-select supplier if coming from supplier list
-    checkAutoSelectSupplier();
-    
     // Initialize DataTable
     initializeDataTable();
     
@@ -136,6 +133,9 @@ $(document).ready(function() {
                         const displayText = `${fullName} - ${supplier.mobile_no || 'N/A'} (ID: ${supplier.id})`;
                         supplierSelect.append(`<option value="${supplier.id}">${displayText}</option>`);
                     });
+                    
+                    // After suppliers are loaded, check for auto-selection
+                    checkAutoSelectSupplier();
                 }
             },
             error: function(xhr) {
@@ -169,12 +169,20 @@ $(document).ready(function() {
         const urlParams = new URLSearchParams(window.location.search);
         const supplierId = urlParams.get('supplier_id');
         
+        console.log('Checking auto-select for supplier ID:', supplierId);
+        
         if (supplierId) {
+            // Set the supplier dropdown value
             $('#supplier_id').val(supplierId);
+            
+            // Show the notification
             $('#autoSelectedNotification').removeClass('d-none');
             $('#autoSelectedMessage').text('Supplier automatically selected from supplier list.');
-            loadSupplierDetails(supplierId);
-            loadSupplierLedger();
+            
+            // Trigger the change event to load data
+            $('#supplier_id').trigger('change');
+            
+            console.log('Auto-selected supplier ID:', supplierId);
         }
     }
     
@@ -268,7 +276,7 @@ $(document).ready(function() {
             processing: true,
             serverSide: false,
             responsive: true,
-            order: [[1, 'desc']], // Sort by date descending
+            order: [[1, 'asc']], // Sort by date ascending (chronological order)
             columnDefs: [
                 { targets: [6, 7, 8], className: 'text-right' }, // Amount columns right-aligned
                 { targets: [0], width: '5%' }, // Serial number

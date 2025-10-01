@@ -3,6 +3,8 @@ namespace App\Models;
 use App\Traits\LocationTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Services\UnifiedLedgerService;
+use Illuminate\Support\Facades\Log;
 
 class Supplier extends Model
 {
@@ -19,6 +21,31 @@ class Supplier extends Model
         'current_balance',
 
     ];
+
+    /**
+     * Boot method to handle model events
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // When a supplier is created, automatically create opening balance ledger entry
+        static::created(function ($supplier) {
+            if ($supplier->opening_balance && $supplier->opening_balance != 0) {
+                try {
+                    $unifiedLedgerService = new UnifiedLedgerService();
+                    $unifiedLedgerService->recordOpeningBalance(
+                        $supplier->id, 
+                        'supplier', 
+                        $supplier->opening_balance,
+                        "Opening balance for supplier {$supplier->full_name}"
+                    );
+                } catch (\Exception $e) {
+                    Log::error("Failed to create opening balance ledger for supplier {$supplier->id}: " . $e->getMessage());
+                }
+            }
+        });
+    }
 
     public function getFullNameAttribute()
     {
@@ -80,6 +107,11 @@ class Supplier extends Model
     public function purchaseReturns()
     {
         return $this->hasMany(\App\Models\PurchaseReturn::class);
+    }
+
+    public function ledgerEntries()
+    {
+        return $this->hasMany(\App\Models\Ledger::class, 'user_id')->where('contact_type', 'supplier');
     }
 
     // Total Purchase Due for the supplier

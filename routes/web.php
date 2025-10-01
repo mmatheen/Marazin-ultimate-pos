@@ -479,6 +479,15 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/submit-bulk-payment', [PaymentController::class, 'submitBulkPayment']);
         Route::get('/add-sale-bulk-payments', [PaymentController::class, 'addSaleBulkPayments'])->name('add-sale-bulk-payments');
         Route::get('/add-purchase-bulk-payments', [PaymentController::class, 'addPurchaseBulkPayments'])->name('add-purchase-bulk-payments');
+        Route::get('/manage-bulk-payments', function() { return view('bulk_payments.bulk_payments_list'); })->name('manage-bulk-payments');
+        Route::get('/manage-bulk-payments-simple', function() { return view('bulk_payments.bulk_payments_list_simple'); })->name('manage-bulk-payments-simple');
+        
+        // Bulk Payment Management Routes
+        Route::get('/bulk-payments-list', [PaymentController::class, 'getBulkPaymentsList'])->name('bulk.payments.list');
+        Route::get('/bulk-payment/{id}/edit', [PaymentController::class, 'editBulkPayment'])->name('bulk.payment.edit');
+        Route::put('/bulk-payment/{id}', [PaymentController::class, 'updateBulkPayment'])->name('bulk.payment.update');
+        Route::delete('/bulk-payment/{id}', [PaymentController::class, 'deleteBulkPayment'])->name('bulk.payment.delete');
+        Route::get('/bulk-payment-logs', [PaymentController::class, 'getBulkPaymentLogs'])->name('bulk.payment.logs');
         
         // Customer Ledger Routes
         Route::get('/customer-ledger', [PaymentController::class, 'customerLedger'])->name('customer.ledger');

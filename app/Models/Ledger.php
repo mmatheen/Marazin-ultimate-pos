@@ -57,10 +57,10 @@ class Ledger extends Model
     public function scopeByDateRange($query, $fromDate = null, $toDate = null)
     {
         if ($fromDate) {
-            $query->where('transaction_date', '>=', Carbon::parse($fromDate));
+            $query->where('transaction_date', '>=', Carbon::parse($fromDate)->startOfDay());
         }
         if ($toDate) {
-            $query->where('transaction_date', '<=', Carbon::parse($toDate));
+            $query->where('transaction_date', '<=', Carbon::parse($toDate)->endOfDay());
         }
         return $query;
     }
@@ -111,9 +111,16 @@ class Ledger extends Model
         $running_balance = 0;
 
         foreach ($ledgers as $ledger) {
-            // Unified ledger logic: running_balance = previous_balance + debit - credit
-            // The transaction type determines what goes to debit vs credit based on business logic
-            $running_balance = $running_balance + $ledger->debit - $ledger->credit;
+            // Balance calculation depends on contact type:
+            // CUSTOMERS: Debit increases what they owe us, Credit reduces it
+            // SUPPLIERS: Credit increases what we owe them, Debit reduces it
+            if ($contact_type === 'customer') {
+                // Customer balance: debit increases, credit decreases
+                $running_balance = $running_balance + $ledger->debit - $ledger->credit;
+            } else {
+                // Supplier balance: credit increases, debit decreases
+                $running_balance = $running_balance + $ledger->credit - $ledger->debit;
+            }
         }
 
         // Return the final calculated balance without updating any records
@@ -308,7 +315,16 @@ class Ledger extends Model
         $running_balance = 0;
 
         foreach ($entries as $entry) {
-            $running_balance = $running_balance + $entry->debit - $entry->credit;
+            // Balance calculation depends on contact type:
+            // CUSTOMERS: Debit increases what they owe us, Credit reduces it
+            // SUPPLIERS: Credit increases what we owe them, Debit reduces it
+            if ($contact_type === 'customer') {
+                // Customer balance: debit increases, credit decreases
+                $running_balance = $running_balance + $entry->debit - $entry->credit;
+            } else {
+                // Supplier balance: credit increases, debit decreases  
+                $running_balance = $running_balance + $entry->credit - $entry->debit;
+            }
             
             // Update only the balance field without changing created_at/updated_at
             self::where('id', $entry->id)

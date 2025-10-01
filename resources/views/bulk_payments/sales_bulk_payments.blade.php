@@ -9,11 +9,16 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Add Sale</h3>
+                            <h3 class="page-title">Add Sale Bulk Payment</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Bulk payments</a></li>
-                                <li class="breadcrumb-item active">Add Sale Paments</li>
+                                <li class="breadcrumb-item"><a href="{{ route('manage-bulk-payments') }}">Bulk payments</a></li>
+                                <li class="breadcrumb-item active">Add Sale Payments</li>
                             </ul>
+                        </div>
+                        <div class="page-btn">
+                            <a href="{{ route('manage-bulk-payments') }}" class="btn btn-outline-primary">
+                                <i class="feather-list"></i> Manage Payments
+                            </a>
                         </div>
                     </div>
                 </div>

@@ -214,16 +214,16 @@
                 @endcanany
 
                 @canany(['bulk sale payment', 'bulk purchase payment'])
-                    <li class="submenu {{ set_active(['add-sale-bulk-payments', 'add-purchase-bulk-payments']) }}">
+                    <li class="submenu {{ set_active(['add-sale-bulk-payments', 'add-purchase-bulk-payments', 'manage-bulk-payments']) }}">
                         <a href="#">
-                            <i class="fas fa-clipboard"></i>
-                            <span class="sidebar-text">Add Bulk Payments</span>
+                            <i class="fas fa-credit-card"></i>
+                            <span class="sidebar-text">Bulk Payments</span>
                             <span class="menu-arrow"></span>
                         </a>
                         <ul>
                             @can('bulk sale payment')
                                 <li><a href="{{ route('add-sale-bulk-payments') }}"
-                                        class="{{ set_active(['add-sale-bulk-payments']) }}">All Sales Bulk Payments</a></li>
+                                        class="{{ set_active(['add-sale-bulk-payments']) }}">Add Sales Bulk Payments</a></li>
                             @endcan
 
                             @can('bulk purchase payment')
@@ -231,6 +231,12 @@
                                         class="{{ set_active(['add-purchase-bulk-payments']) }}">Add Purchase Bulk Payments</a>
                                 </li>
                             @endcan
+
+                            @canany(['bulk sale payment', 'bulk purchase payment'])
+                                <li><a href="{{ route('manage-bulk-payments') }}"
+                                        class="{{ set_active(['manage-bulk-payments']) }}">
+                                        <i class="feather-list"></i> Manage Bulk Payments</a></li>
+                            @endcanany
                         </ul>
                     </li>
                 @endcanany

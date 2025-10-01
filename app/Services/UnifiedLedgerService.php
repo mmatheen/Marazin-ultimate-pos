@@ -24,7 +24,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now(), // Keep UTC time
+            'transaction_date' => Carbon::now()->startOfDay(), // Set to start of day (00:00:00)
             'reference_no' => 'OB-' . strtoupper($contactType) . '-' . $contactId,
             'transaction_type' => 'opening_balance',
             'amount' => $amount,
@@ -40,10 +40,15 @@ class UnifiedLedgerService
         // Generate a proper reference number for the sale
         $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
         
+        // Normalize sales date to start of day for consistent timing
+        $transactionDate = $sale->sales_date ? 
+            Carbon::parse($sale->sales_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $sale->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $sale->sales_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => 'sale',
             'amount' => $sale->final_total,
@@ -59,10 +64,15 @@ class UnifiedLedgerService
         // Generate a proper reference number for the purchase
         $referenceNo = $purchase->reference_no ?: 'PUR-' . $purchase->id;
         
+        // Normalize purchase date to start of day for consistent timing
+        $transactionDate = $purchase->purchase_date ? 
+            Carbon::parse($purchase->purchase_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $purchase->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $purchase->purchase_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => 'purchase',
             'amount' => $purchase->final_total,
@@ -77,10 +87,15 @@ class UnifiedLedgerService
     {
         $referenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
         
+        // Normalize payment date to start of day for consistent timing
+        $transactionDate = $payment->payment_date ? 
+            Carbon::parse($payment->payment_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $payment->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $payment->payment_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -95,10 +110,15 @@ class UnifiedLedgerService
     {
         $referenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
         
+        // Normalize payment date to start of day for consistent timing
+        $transactionDate = $payment->payment_date ? 
+            Carbon::parse($payment->payment_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $payment->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $payment->payment_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -117,10 +137,15 @@ class UnifiedLedgerService
         // Determine transaction type based on whether it's linked to a sale
         $transactionType = $saleReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
         
+        // Normalize return date to start of day for consistent timing
+        $transactionDate = $saleReturn->return_date ? 
+            Carbon::parse($saleReturn->return_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $saleReturn->customer_id,
             'contact_type' => 'customer',
-            'transaction_date' => $saleReturn->return_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => $transactionType,
             'amount' => $saleReturn->return_total,
@@ -136,10 +161,15 @@ class UnifiedLedgerService
         // Generate a proper reference number for the purchase return
         $referenceNo = $purchaseReturn->reference_no ?: 'PR-' . $purchaseReturn->id;
         
+        // Normalize return date to start of day for consistent timing
+        $transactionDate = $purchaseReturn->return_date ? 
+            Carbon::parse($purchaseReturn->return_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $purchaseReturn->supplier_id,
             'contact_type' => 'supplier',
-            'transaction_date' => $purchaseReturn->return_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $referenceNo,
             'transaction_type' => 'purchase_return',
             'amount' => $purchaseReturn->return_total,
@@ -152,10 +182,15 @@ class UnifiedLedgerService
      */
     public function recordReturnPayment($payment, $contactType)
     {
+        // Normalize payment date to start of day for consistent timing
+        $transactionDate = $payment->payment_date ? 
+            Carbon::parse($payment->payment_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
-            'transaction_date' => $payment->payment_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $payment->reference_no,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -168,10 +203,15 @@ class UnifiedLedgerService
      */
     public function recordOpeningBalancePayment($payment, $contactType)
     {
+        // Normalize payment date to start of day for consistent timing
+        $transactionDate = $payment->payment_date ? 
+            Carbon::parse($payment->payment_date)->startOfDay() : 
+            Carbon::now()->startOfDay();
+        
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
             'contact_type' => $contactType,
-            'transaction_date' => $payment->payment_date, // Keep original date format
+            'transaction_date' => $transactionDate, // Use normalized date
             'reference_no' => $payment->reference_no,
             'transaction_type' => 'payments',
             'amount' => $payment->amount,
@@ -197,7 +237,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now('Asia/Colombo'),
+            'transaction_date' => Carbon::now('Asia/Colombo')->startOfDay(), // Set to start of day (00:00:00)
             'reference_no' => $referenceNo,
             'transaction_type' => 'opening_balance',
             'amount' => $adjustmentAmount, // Pass the actual adjustment amount (can be negative)
@@ -226,15 +266,15 @@ class UnifiedLedgerService
         }
 
         $ledgerTransactions = $ledgerQuery
-            ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
-            ->orderBy('id', 'asc')
+            ->orderBy('transaction_date', 'asc') // Order by actual transaction date for chronological view
+            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions
             ->get();
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Convert UTC created_at to Asia/Colombo timezone for display
-            $displayDate = $ledger->created_at ? 
-                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
+            // Use transaction_date for display (this is the actual business date)
+            $displayDate = $ledger->transaction_date ? 
+                Carbon::parse($ledger->transaction_date)->format('d/m/Y H:i:s') : 
                 'N/A';
             
             // Get location information based on transaction type
@@ -343,15 +383,15 @@ class UnifiedLedgerService
         }
 
         $ledgerTransactions = $ledgerQuery
-            ->orderBy('created_at', 'asc') // Order by created_at (UTC time)
-            ->orderBy('id', 'asc')
+            ->orderBy('transaction_date', 'asc') // Order by actual transaction date
+            ->orderBy('id', 'asc') // Secondary sort by ID for same-date transactions
             ->get();
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Convert UTC created_at to Asia/Colombo timezone for display
-            $displayDate = $ledger->created_at ? 
-                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
+            // Use transaction_date for display (this is the actual business date)
+            $displayDate = $ledger->transaction_date ? 
+                Carbon::parse($ledger->transaction_date)->format('d/m/Y H:i:s') : 
                 'N/A';
             
             // Get location information based on transaction type

@@ -11,12 +11,15 @@ use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use App\Models\Location;
+use App\Models\BulkPaymentLog;
 use App\Services\SupplierLedgerService;
+use Illuminate\Support\Facades\Log;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class PaymentController extends Controller
@@ -30,12 +33,14 @@ class PaymentController extends Controller
         $this->ledgerService = $ledgerService;
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
+        // Temporarily disable middleware to test data loading
+        // Fixed middleware - remove duplicate permissions
         $this->middleware('permission:view payments', ['only' => ['index', 'show']]);
-        $this->middleware('permission:create payment', ['only' => ['store', 'addSaleBulkPayments', 'addPurchaseBulkPayments']]);
+        $this->middleware('permission:create payment', ['only' => ['store']]);
         $this->middleware('permission:edit payment', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete payment', ['only' => ['destroy']]);
-        $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments']]);
-        $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments']]);
+        $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'storeSaleBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
+        $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'storePurchaseBulkPayments', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
     }
 
     public function index()
@@ -1141,5 +1146,414 @@ class PaymentController extends Controller
         ]);
 
         return response()->json(['success' => true, 'data' => $locations]);
+    }
+
+    /**
+     * Get bulk payments list for sales or purchases with edit/delete options
+     */
+    public function getBulkPaymentsList(Request $request)
+    {
+        try {
+            // Make entity_type optional, default to sale
+            $validator = Validator::make($request->all(), [
+                'entity_type' => 'nullable|in:sale,purchase',
+                'entity_id' => 'nullable|integer',
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after_or_equal:start_date',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+            }
+
+            $entityType = $request->get('entity_type', 'sale'); // Default to sale
+            $query = Payment::query();
+
+            // Filter by entity type with more flexible conditions
+            if ($entityType === 'sale') {
+                $query->where('payment_type', 'sale')
+                      ->with(['customer']);
+                // Don't require customer_id to be not null as it might be optional
+            } else {
+                $query->where('payment_type', 'purchase')
+                      ->with(['supplier']);
+                // Don't require supplier_id to be not null as it might be optional
+            }
+
+            // Filter by specific entity ID if provided
+            if ($request->entity_id) {
+                $query->where('reference_id', $request->entity_id);
+            }
+
+            // Default to today's payments if no date range provided
+            $startDate = $request->get('start_date', date('Y-m-d'));
+            $endDate = $request->get('end_date', date('Y-m-d'));
+
+            // Filter by date range (be more flexible with date filtering)
+            if ($startDate) {
+                $query->whereDate('payment_date', '>=', $startDate);
+            }
+            if ($endDate) {
+                $query->whereDate('payment_date', '<=', $endDate);
+            }
+
+            // Get payments ordered by date descending (latest first)
+            $payments = $query->orderBy('payment_date', 'desc')
+                             ->orderBy('created_at', 'desc')
+                             ->get();
+
+            // Debug: Log the query and results
+            Log::info('Bulk payments query', [
+                'entity_type' => $entityType,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'sql' => $query->toSql(),
+                'count' => $payments->count()
+            ]);
+
+            // Add related entity information
+            foreach ($payments as $payment) {
+                if ($entityType === 'sale') {
+                    $payment->sale = Sale::find($payment->reference_id);
+                } else {
+                    $payment->purchase = Purchase::find($payment->reference_id);
+                }
+            }
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Bulk payments retrieved successfully',
+                'data' => $payments,
+                'entity_type' => $entityType,
+                'count' => $payments->count(),
+                'filters' => [
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'entity_type' => $entityType
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            // Log::error('Error getting bulk payments list: ' . $e->getMessage());
+            return response()->json([
+                'status' => 500,
+                'message' => 'An error occurred while retrieving payments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get bulk payment details for editing
+     */
+    public function editBulkPayment($id)
+    {
+        try {
+            $payment = Payment::findOrFail($id);
+            
+            // Determine entity type
+            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+            
+            // Get related entity
+            $entity = null;
+            if ($entityType === 'sale') {
+                $entity = Sale::find($payment->reference_id);
+                $contact = Customer::find($payment->customer_id);
+            } else {
+                $entity = Purchase::find($payment->reference_id);
+                $contact = Supplier::find($payment->supplier_id);
+            }
+
+            return response()->json([
+                'status' => 200,
+                'payment' => $payment,
+                'entity' => $entity,
+                'contact' => $contact,
+                'entity_type' => $entityType
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Payment not found or error occurred: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Update bulk payment
+     */
+    public function updateBulkPayment(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string',
+            'payment_date' => 'required|date',
+            'notes' => 'nullable|string',
+            'reason' => 'required|string|max:500',
+            // Card fields
+            'card_number' => 'nullable|string',
+            'card_holder_name' => 'nullable|string',
+            'card_expiry_month' => 'nullable|string',
+            'card_expiry_year' => 'nullable|string',
+            'card_security_code' => 'nullable|string',
+            // Cheque fields
+            'cheque_number' => 'nullable|string',
+            'cheque_bank_branch' => 'nullable|string',
+            'cheque_received_date' => 'nullable|date',
+            'cheque_valid_date' => 'nullable|date',
+            'cheque_given_by' => 'nullable|string',
+            // Bank transfer fields
+            'bank_account_number' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $payment = Payment::findOrFail($id);
+            $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+            
+            DB::transaction(function () use ($request, $id) {
+                $payment = Payment::findOrFail($id);
+                
+                // Store old payment data for logging and ledger management
+                $oldPaymentData = $payment->toArray();
+                $oldAmount = $payment->amount;
+                
+                // Determine entity type and get related info
+                $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                $entityId = $payment->reference_id;
+                $customerId = $payment->customer_id;
+                $supplierId = $payment->supplier_id;
+
+                // Validate the new amount doesn't exceed what's due
+                if ($entityType === 'sale') {
+                    $entity = Sale::find($entityId);
+                    $maxAmount = $entity->total_due + $oldAmount; // Current due + old payment amount
+                } else {
+                    $entity = Purchase::find($entityId);
+                    $maxAmount = $entity->total_due + $oldAmount; // Current due + old payment amount
+                }
+
+                if ($request->amount > $maxAmount) {
+                    throw new \Exception('Payment amount cannot exceed the total due amount');
+                }
+
+                // Update payment data
+                $updateData = [
+                    'amount' => $request->amount,
+                    'payment_method' => $request->payment_method,
+                    'payment_date' => $request->payment_date,
+                    'notes' => $request->notes,
+                ];
+
+                // Handle payment method specific fields
+                if ($request->payment_method === 'card') {
+                    $updateData = array_merge($updateData, [
+                        'card_number' => $request->card_number,
+                        'card_holder_name' => $request->card_holder_name,
+                        'card_expiry_month' => $request->card_expiry_month,
+                        'card_expiry_year' => $request->card_expiry_year,
+                        'card_security_code' => $request->card_security_code,
+                    ]);
+                } elseif ($request->payment_method === 'cheque') {
+                    $updateData = array_merge($updateData, [
+                        'cheque_number' => $request->cheque_number,
+                        'cheque_bank_branch' => $request->cheque_bank_branch,
+                        'cheque_received_date' => $request->cheque_received_date,
+                        'cheque_valid_date' => $request->cheque_valid_date,
+                        'cheque_given_by' => $request->cheque_given_by,
+                    ]);
+                } elseif ($request->payment_method === 'bank_transfer') {
+                    $updateData['bank_account_number'] = $request->bank_account_number;
+                }
+
+                // Update the payment
+                $payment->update($updateData);
+
+                // Handle unified ledger update - this is crucial for accurate accounting
+                try {
+                    // Create old payment object for ledger cleanup
+                    $oldPayment = new Payment($oldPaymentData);
+                    $oldPayment->id = $payment->id;
+                    
+                    // Update unified ledger with both old and new payment data
+                    $this->unifiedLedgerService->updatePayment($payment->fresh(), $oldPayment);
+                    
+                    Log::info('Unified ledger updated successfully for payment ID: ' . $payment->id);
+                } catch (\Exception $e) {
+                    Log::error('Failed to update unified ledger for payment ID: ' . $payment->id . '. Error: ' . $e->getMessage());
+                    throw new \Exception('Failed to update payment ledger: ' . $e->getMessage());
+                }
+
+                // Log the edit action
+                BulkPaymentLog::create([
+                    'action' => 'edit',
+                    'entity_type' => $entityType,
+                    'payment_id' => $payment->id,
+                    'entity_id' => $entityId,
+                    'customer_id' => $customerId,
+                    'supplier_id' => $supplierId,
+                    'old_data' => $oldPaymentData,
+                    'new_data' => $payment->fresh()->toArray(),
+                    'old_amount' => $oldAmount,
+                    'new_amount' => $request->amount,
+                    'reference_no' => $payment->reference_no,
+                    'reason' => $request->reason,
+                    'performed_by' => Auth::id(),
+                    'performed_at' => Carbon::now(),
+                ]);
+
+                // Update related tables and balances
+                if ($entityType === 'sale') {
+                    $this->updateSaleTable($entityId);
+                    $this->updateCustomerBalance($customerId);
+                } else {
+                    $this->updatePurchaseTable($entityId);
+                    $this->updateSupplierBalance($supplierId);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Payment updated successfully! The ' . $entityType . ' balance has been recalculated.',
+                'payment' => $payment->fresh()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to update payment: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Delete bulk payment
+     */
+    public function deleteBulkPayment(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'reason' => 'required|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $entityType = '';
+            $amount = 0;
+            
+            DB::transaction(function () use ($request, $id, &$entityType, &$amount) {
+                $payment = Payment::findOrFail($id);
+                
+                // Store data for logging before deletion
+                $paymentData = $payment->toArray();
+                $entityType = $payment->payment_type === 'sale' ? 'sale' : 'purchase';
+                $entityId = $payment->reference_id;
+                $customerId = $payment->customer_id;
+                $supplierId = $payment->supplier_id;
+                $amount = $payment->amount;
+
+                // Handle unified ledger cleanup - this is crucial for accurate accounting
+                try {
+                    // Delete the payment ledger entries from unified ledger
+                    $this->unifiedLedgerService->deletePaymentLedger($payment);
+                    
+                    Log::info('Unified ledger payment entries deleted successfully for payment ID: ' . $payment->id);
+                } catch (\Exception $e) {
+                    Log::error('Failed to delete unified ledger entries for payment ID: ' . $payment->id . '. Error: ' . $e->getMessage());
+                    throw new \Exception('Failed to delete payment ledger entries: ' . $e->getMessage());
+                }
+
+                // Log the delete action
+                BulkPaymentLog::create([
+                    'action' => 'delete',
+                    'entity_type' => $entityType,
+                    'payment_id' => $payment->id,
+                    'entity_id' => $entityId,
+                    'customer_id' => $customerId,
+                    'supplier_id' => $supplierId,
+                    'old_data' => $paymentData,
+                    'new_data' => null,
+                    'old_amount' => $amount,
+                    'new_amount' => null,
+                    'reference_no' => $payment->reference_no,
+                    'reason' => $request->reason,
+                    'performed_by' => Auth::id(),
+                    'performed_at' => Carbon::now(),
+                ]);
+
+                // Delete the payment
+                $payment->delete();
+
+                // Update related tables and balances
+                if ($entityType === 'sale') {
+                    $this->updateSaleTable($entityId);
+                    $this->updateCustomerBalance($customerId);
+                } else {
+                    $this->updatePurchaseTable($entityId);
+                    $this->updateSupplierBalance($supplierId);
+                }
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Payment of Rs. ' . number_format($amount, 2) . ' deleted successfully! The ' . $entityType . ' balance has been updated.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to delete payment: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get bulk payment logs
+     */
+    public function getBulkPaymentLogs(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'entity_type' => 'nullable|in:sale,purchase',
+            'action' => 'nullable|in:edit,delete',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'per_page' => 'nullable|integer|min:1|max:100'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        $query = BulkPaymentLog::with(['performedBy', 'customer', 'supplier']);
+
+        // Apply filters
+        if ($request->entity_type) {
+            $query->where('entity_type', $request->entity_type);
+        }
+
+        if ($request->action) {
+            $query->where('action', $request->action);
+        }
+
+        if ($request->start_date) {
+            $query->whereDate('performed_at', '>=', $request->start_date);
+        }
+
+        if ($request->end_date) {
+            $query->whereDate('performed_at', '<=', $request->end_date);
+        }
+
+        $perPage = $request->per_page ?? 20;
+        $logs = $query->orderBy('performed_at', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'status' => 200,
+            'data' => $logs
+        ]);
     }
 }
