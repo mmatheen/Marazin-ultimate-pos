@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('expenses', function (Blueprint $table) {
+        if (!Schema::hasTable('expenses')) {
+            Schema::create('expenses', function (Blueprint $table) {
             $table->id();
             $table->string('expense_no')->unique();
             $table->date('date');
@@ -53,6 +54,7 @@ return new class extends Migration
             $table->index(['expense_sub_category_id']);
             $table->index(['location_id']);
         });
+        }
     }
 
     /**
