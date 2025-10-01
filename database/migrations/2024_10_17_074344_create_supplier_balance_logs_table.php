@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('supplier_balance_logs', function (Blueprint $table) {
+        if (!Schema::hasTable('supplier_balance_logs')) {
+            Schema::create('supplier_balance_logs', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('supplier_id');
             $table->unsignedBigInteger('expense_id')->nullable();
@@ -45,6 +46,7 @@ return new class extends Migration
             $table->index(['payment_id']);
             $table->index(['transaction_type']);
         });
+        }
     }
 
     /**
