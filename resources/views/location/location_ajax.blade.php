@@ -338,7 +338,7 @@
                         data: 'invoice_layout_pos',
                         render: function(data) {
                             const layouts = {
-                                '80mm': '<span class="badge bg-primary">80mm Thermal</span>',
+                                '80mm': '<span class="badge bg-warning text-dark border border-warning">80mm Thermal</span>',
                                 'a4': '<span class="badge bg-success">A4 Size</span>',
                                 'dot_matrix': '<span class="badge bg-secondary">Dot Matrix</span>'
                             };
