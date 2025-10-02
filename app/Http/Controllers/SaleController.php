@@ -1034,7 +1034,9 @@ class SaleController extends Controller
                 'location' => $location,
             ];
 
-            $html = view('sell.receipt', $viewData)->render();
+            // Get location-specific receipt view
+            $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+            $html = view($receiptView, $viewData)->render();
 
             // SEND WHATSAPP MESSAGE ASYNCHRONOUSLY (NON-BLOCKING) - Skip for Walk-In customers
             if ($sale->customer_id != 1) {
@@ -1064,12 +1066,24 @@ class SaleController extends Controller
                 $whatsAppApiUrl = env('WHATSAPP_API_URL');
 
                 if (!empty($mobileNo) && !empty($whatsAppApiUrl)) {
-                    // Render the 80mm thermal receipt view to HTML
-                    $thermalHtml = view('sell.receipt', $viewData)->render();
+                    // Get location from sale for receipt template selection
+                    $location = $sale->location;
+                    $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+                    
+                    // Render the location-specific receipt view to HTML
+                    $receiptHtml = view($receiptView, $viewData)->render();
 
-                    // Generate PDF (no saving to disk)
-                    $pdf = Pdf::loadHTML($thermalHtml)
-                        ->setPaper([0, 0, 226.77, 842], 'portrait'); // 80mm x 297mm
+                    // Generate PDF with appropriate paper size based on layout
+                    $paperSize = [0, 0, 226.77, 842]; // Default 80mm x 297mm
+                    $layoutType = $location ? $location->invoice_layout_pos : '80mm';
+                    
+                    if ($layoutType === 'a4') {
+                        $paperSize = 'A4';
+                    } elseif ($layoutType === 'dot_matrix') {
+                        $paperSize = [0, 0, 612, 792]; // 8.5" x 11"
+                    }
+                    
+                    $pdf = Pdf::loadHTML($receiptHtml)->setPaper($paperSize, 'portrait');
                     $pdfContent = $pdf->output();
 
                     // Send to WhatsApp API
@@ -1077,7 +1091,7 @@ class SaleController extends Controller
                         ->attach(
                             'files',
                             $pdfContent,
-                            "invoice_{$sale->invoice_no}_80mm.pdf"
+                            "invoice_{$sale->invoice_no}_{$layoutType}.pdf"
                         )
                         ->post($whatsAppApiUrl, [
                             'number' => "+94" . $mobileNo,
@@ -1857,17 +1871,21 @@ class SaleController extends Controller
             // Use the location from the sale, not from user's first location
             $location = $sale->location;
 
-            $html = view('sell.receipt', [
+            $viewData = [
                 'sale' => $sale,
                 'customer' => $customer,
                 'products' => $products,
                 'payments' => $payments,
-                'total_discount' => $request->discount_amount ?? 0,
+                'total_discount' => 0, // Fix: use 0 instead of undefined $request variable
                 'amount_given' => $sale->amount_given,
                 'balance_amount' => $sale->balance_amount,
                 'user' => $user,
                 'location' => $location,
-            ])->render();
+            ];
+
+            // Get location-specific receipt view
+            $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
+            $html = view($receiptView, $viewData)->render();
 
             return response()->json(['invoice_html' => $html], 200);
         } catch (\Exception $e) {

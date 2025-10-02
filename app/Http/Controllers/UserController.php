@@ -28,17 +28,40 @@ class UserController extends Controller
 
     public function index()
     {
-        // Get users that current user can see based on hierarchy
+        // Get users that current user can see based on hierarchy and location
         $user = auth()->user();
         $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
         
         if ($isMasterSuperAdmin) {
+            // Master Super Admin can see all users
             $users = User::with(['roles', 'locations'])->get();
         } else {
-            // Non-Master Super Admin users cannot see Master Super Admin users
-            $users = User::whereDoesntHave('roles', function($query) {
+            // Non-Master Super Admin users filtering
+            $query = User::whereDoesntHave('roles', function($query) {
                 $query->where('name', 'Master Super Admin');
-            })->with(['roles', 'locations'])->get();
+            })->with(['roles', 'locations']);
+            
+            // Apply location filtering for non-bypass users
+            // Check if user is Master Super Admin or has bypass permission
+            $isSuperAdmin = $user->roles->whereIn('name', ['Master Super Admin', 'Super Admin'])->count() > 0;
+            $hasBypassRole = $user->roles->where('bypass_location_scope', true)->count() > 0;
+            $canBypass = $isSuperAdmin || $hasBypassRole;
+            
+            if (!$canBypass) {
+                $userLocationIds = $user->locations->pluck('id')->toArray();
+                
+                if (!empty($userLocationIds)) {
+                    // Show only users from same locations
+                    $query->whereHas('locations', function($locationQuery) use ($userLocationIds) {
+                        $locationQuery->whereIn('locations.id', $userLocationIds);
+                    });
+                } else {
+                    // User has no location access - show no users
+                    $query->whereRaw('1 = 0');
+                }
+            }
+            
+            $users = $query->get();
         }
 
         if ($users->isNotEmpty()) {

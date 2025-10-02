@@ -796,7 +796,7 @@ class UnifiedLedgerService
             
         // Also clean up any associated payment entries for this sale
         Ledger::where('reference_no', $referenceNo)
-            ->where('transaction_type', 'payment')
+            ->where('transaction_type', 'payments')
             ->where('user_id', $sale->customer_id)
             ->delete();
             
@@ -819,7 +819,7 @@ class UnifiedLedgerService
             
         // Also clean up any associated payment entries for this purchase
         Ledger::where('reference_no', $referenceNo)
-            ->where('transaction_type', 'payment')
+            ->where('transaction_type', 'payments')
             ->where('user_id', $purchase->supplier_id)
             ->delete();
             
@@ -836,7 +836,7 @@ class UnifiedLedgerService
         if ($oldPayment) {
             $oldReferenceNo = $oldPayment->reference_no ?: 'PAY-' . $oldPayment->id;
             Ledger::where('reference_no', $oldReferenceNo)
-                ->where('transaction_type', 'payment')
+                ->where('transaction_type', 'payments')
                 ->where('user_id', $oldPayment->customer_id ?: $oldPayment->supplier_id)
                 ->delete();
         }
@@ -894,7 +894,7 @@ class UnifiedLedgerService
         
         return Ledger::where('reference_no', $referenceNo)
             ->where('user_id', $sale->customer_id)
-            ->whereIn('transaction_type', ['sale', 'payment'])
+            ->whereIn('transaction_type', ['sale', 'payments'])
             ->delete();
     }
 
@@ -907,7 +907,7 @@ class UnifiedLedgerService
         
         return Ledger::where('reference_no', $referenceNo)
             ->where('user_id', $purchase->supplier_id)
-            ->whereIn('transaction_type', ['purchase', 'payment'])
+            ->whereIn('transaction_type', ['purchase', 'payments'])
             ->delete();
     }
 
@@ -921,7 +921,7 @@ class UnifiedLedgerService
         
         return Ledger::where('reference_no', $referenceNo)
             ->where('user_id', $userId)
-            ->where('transaction_type', 'payment')
+            ->where('transaction_type', 'payments')
             ->delete();
     }
 

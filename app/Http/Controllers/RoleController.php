@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role; //it will use the role from permission modal
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Schema;
 
 class RoleController extends Controller
 {
@@ -26,21 +27,21 @@ class RoleController extends Controller
 
     public function index()
     {
-        // Get roles that current user can see based on hierarchy
         $user = auth()->user();
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
         
-        if ($isMasterSuperAdmin) {
-            $roles = Role::select('id', 'name', 'key')->get();
-        } else {
-            // Non-Master Super Admin users cannot see Master Super Admin role
-            $roles = Role::select('id', 'name', 'key')->where('name', '!=', 'Master Super Admin')->get();
-        }
+        // Get roles that current user can see based on their actual permissions
+        $roles = $this->getUserAccessibleRoles($user)->get();
 
         if ($roles->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
-                'message' => $roles
+                'message' => $roles->map(function($role) {
+                    return [
+                        'id' => $role->id,
+                        'name' => $role->name,
+                        'key' => $role->key
+                    ];
+                })
             ]);
         }
 
@@ -50,21 +51,21 @@ class RoleController extends Controller
 
     public function SelectRoleNameDropdown()
     {
-        // Get roles that current user can assign based on hierarchy
         $user = auth()->user();
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
         
-        if ($isMasterSuperAdmin) {
-            $roles = Role::select('id', 'name')->get();
-        } else {
-            $roles = Role::select('id', 'name')->where('name', '!=', 'Master Super Admin')->get();
-        }
+        // Get roles that current user can assign based on their actual permissions
+        $roles = $this->getUserAccessibleRoles($user)->get();
 
         // Check if the collection is not empty
         if ($roles->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
-                'roles' => $roles,
+                'roles' => $roles->map(function($role) {
+                    return [
+                        'id' => $role->id,
+                        'name' => $role->name
+                    ];
+                }),
             ]);
         } else {
             return response()->json([
@@ -324,5 +325,71 @@ class RoleController extends Controller
             'status' => 200,
             'message' => "Role Details Deleted Successfully!"
         ]);
+    }
+
+    /**
+     * Get roles that the authenticated user can access based on their permissions
+     */
+    private function getUserAccessibleRoles($user)
+    {
+        // If user can bypass role scope or is Master Super Admin, show all roles
+        if (method_exists($user, 'canBypassLocationScope') && $user->canBypassLocationScope()) {
+            return Role::query();
+        }
+        
+        // Check for specific permissions to determine role access
+        if ($user->can('manage all roles')) {
+            // User has permission to manage all roles
+            return Role::query();
+        }
+        
+        if ($user->can('manage role hierarchy')) {
+            // User can manage roles below their level
+            $userRoleLevel = $this->getUserRoleLevel($user);
+            return Role::where('level', '>=', $userRoleLevel);
+        }
+        
+        if ($user->can('view role')) {
+            // Check if user has Master Super Admin role
+            if ($user->roles->where('name', 'Master Super Admin')->count() > 0) {
+                return Role::query(); // Master Super Admin sees all
+            }
+            
+            // Check if user has Super Admin role
+            if ($user->roles->where('name', 'Super Admin')->count() > 0 || 
+                $user->roles->where('key', 'super_admin')->count() > 0) {
+                // Super Admin can see all except Master Super Admin
+                return Role::where('name', '!=', 'Master Super Admin');
+            }
+            
+            // Check if user has Admin role
+            if ($user->roles->where('name', 'Admin')->count() > 0 || 
+                $user->roles->where('key', 'admin')->count() > 0) {
+                // Admin can see Admin and Sales Rep only
+                return Role::whereIn('name', ['Admin', 'Sales Rep'])
+                          ->orWhereIn('key', ['admin', 'sales_rep']);
+            }
+        }
+        
+        // Default: User can only see their own roles
+        $userRoleIds = $user->roles->pluck('id')->toArray();
+        return Role::whereIn('id', $userRoleIds);
+    }
+    
+    /**
+     * Get user role level for hierarchy (if level column exists)
+     */
+    private function getUserRoleLevel($user)
+    {
+        // Check if roles table has a 'level' column
+        if (Schema::hasColumn('roles', 'level')) {
+            return $user->roles->min('level') ?? 999; // Higher number = lower level
+        }
+        
+        // Fallback: determine level by role name/key
+        if ($user->roles->where('name', 'Master Super Admin')->count() > 0) return 1;
+        if ($user->roles->where('name', 'Super Admin')->count() > 0) return 2;
+        if ($user->roles->where('name', 'Admin')->count() > 0) return 3;
+        return 4; // Sales Rep or other roles
     }
 }

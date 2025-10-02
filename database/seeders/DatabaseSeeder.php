@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
         $this->call(UserSeeder::class);
         $this->call([WalkInCustomerSeeder::class,
         ]);
+        
+        // Set default invoice layout for existing locations
+        $this->call(SetDefaultInvoiceLayoutSeeder::class);
 
 
     }

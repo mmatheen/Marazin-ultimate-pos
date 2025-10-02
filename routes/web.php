@@ -117,8 +117,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // -------------------- AuthenticationController Routes --------------------
         // Guard & Location
         Route::get('/get-all-details-using-guard', [AuthenticationController::class, 'getDetailsFromGuardDetailsUsingLoginUer']);
-        Route::get('/update-location', [AuthenticationController::class, 'updateLocation']);
-        Route::get('/user-location-get-all', [AuthenticationController::class, 'getAlluserDetails']);
 
         // -------------------- ProfileController Routes --------------------
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

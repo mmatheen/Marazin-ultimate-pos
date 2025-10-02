@@ -200,6 +200,7 @@ class LocationController extends Controller
                 'email' => 'nullable|email|max:255|unique:locations,email',
                 'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
                 'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
                 // Ensure no vehicle details for main locations
                 'vehicle_number' => [
                     'nullable',
@@ -275,6 +276,7 @@ class LocationController extends Controller
                     'logo_image' => $parentLocation->logo_image,
                     'vehicle_number' => $request->vehicle_number,
                     'vehicle_type' => $request->vehicle_type,
+                    'invoice_layout_pos' => $request->invoice_layout_pos ?? $parentLocation->invoice_layout_pos ?? '80mm',
                 ];
             } else {
                 // For main locations - use provided details
@@ -287,6 +289,7 @@ class LocationController extends Controller
                     'mobile' => $request->mobile ?? 0,
                     'telephone_no' => $request->telephone_no,
                     'logo_image' => $logoImagePath,
+                    'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                 ];
             }
 
@@ -450,6 +453,7 @@ class LocationController extends Controller
                     'email' => 'nullable|email|max:255|unique:locations,email,' . $id,
                     'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
                     'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
+                    'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
                     // Ensure no vehicle details for main locations
                     'vehicle_number' => [
                         'nullable',
@@ -530,6 +534,7 @@ class LocationController extends Controller
                         'logo_image' => $parentLocation->logo_image,
                         'vehicle_number' => $request->vehicle_number,
                         'vehicle_type' => $request->vehicle_type,
+                        'invoice_layout_pos' => $request->invoice_layout_pos ?? $parentLocation->invoice_layout_pos ?? '80mm',
                     ];
                 } else {
                     // For main locations - use provided details
@@ -544,6 +549,7 @@ class LocationController extends Controller
                         'logo_image' => $logoImagePath,
                         'vehicle_number' => null,
                         'vehicle_type' => null,
+                        'invoice_layout_pos' => $request->invoice_layout_pos ?? '80mm',
                     ];
                 }
                 

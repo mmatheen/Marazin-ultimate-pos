@@ -13,8 +13,11 @@ class Location extends Seeder
      */
     public function run(): void
     {
-        DB::table('locations')->insert([
-         
+        // Use updateOrInsert to handle duplicates gracefully
+        DB::table('locations')->updateOrInsert(
+            // Search criteria - if any of these match, update instead of insert
+            ['id' => 1],
+            // Data to insert or update
             [
                 'id' => 1,
                 'name' => 'Main Location',
@@ -28,9 +31,9 @@ class Location extends Seeder
                 'telephone_no' => '0672222257',
                 'created_at' => '2025-03-15 07:55:07',
                 'updated_at' => '2025-03-15 07:55:07',
-            ],
-            
-
-        ]);
+            ]
+        );
+        
+        $this->command->info('Main location processed successfully.');
     }
 }

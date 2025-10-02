@@ -235,6 +235,9 @@
             $('#edit_vehicle_number').val('').prop('required', false);
             $('#edit_vehicle_type').val('').prop('required', false);
             
+            // Reset invoice layout to default
+            $('#edit_invoice_layout_pos').val('80mm');
+            
             // Hide parent details section and reset parent info
             $('#parentLocationDetails').hide();
             $('#parentLocationName').text('Parent Location Details');
@@ -332,6 +335,17 @@
                         data: 'mobile'
                     },
                     {
+                        data: 'invoice_layout_pos',
+                        render: function(data) {
+                            const layouts = {
+                                '80mm': '<span class="badge bg-primary">80mm Thermal</span>',
+                                'a4': '<span class="badge bg-success">A4 Size</span>',
+                                'dot_matrix': '<span class="badge bg-secondary">Dot Matrix</span>'
+                            };
+                            return layouts[data] || '<span class="badge bg-warning">Unknown</span>';
+                        }
+                    },
+                    {
                         data: 'logo_url',
                         render: data => data ? `<img src="${data}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">` : '—'
                     },
@@ -388,6 +402,7 @@
                         $('#edit_telephone_no').val(d.telephone_no);
                         $('#edit_vehicle_number').val(d.vehicle_number || '');
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
+                        $('#edit_invoice_layout_pos').val(d.invoice_layout_pos || '80mm');
                         
                         // Display existing logo if available
                         if (d.logo_url) {

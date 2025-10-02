@@ -141,6 +141,7 @@
                                         <th>City</th>
                                         <th>Email</th>
                                         <th>Mobile</th>
+                                        <th>Invoice Layout</th>
                                         <th>Logo</th>
                                         <th>Action</th>
 
@@ -397,6 +398,27 @@
                                                         <div id="logo_preview" style="margin-top: 10px;">
                                                             <!-- Logo preview will be shown here -->
                                                         </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Invoice Layout Selection -->
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <div class="form-group local-forms">
+                                                        <label>Receipt Layout for POS <span class="login-danger">*</span></label>
+                                                        <select class="form-control form-select" id="edit_invoice_layout_pos" name="invoice_layout_pos" required>
+                                                            <option value="">Select Receipt Layout</option>
+                                                            <option value="80mm">80mm Thermal Printer</option>
+                                                            <option value="a4">A4 Size Printer</option>
+                                                            <option value="dot_matrix">Dot Matrix Printer</option>
+                                                        </select>
+                                                        <span class="text-danger" id="invoice_layout_pos_error"></span>
+                                                        <small class="text-muted mt-1">
+                                                            <strong>80mm:</strong> Standard thermal receipt | 
+                                                            <strong>A4:</strong> Detailed invoice | 
+                                                            <strong>Dot Matrix:</strong> Traditional format
+                                                        </small>
                                                     </div>
                                                 </div>
                                             </div>

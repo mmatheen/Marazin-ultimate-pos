@@ -13,27 +13,7 @@ class AuthenticationController extends Controller
     }
 
 
-    public function getAlluserDetails()
-    {
-         $getValue = User::with('locations')->get();
-        if ($getValue->count() > 0) {
-
-            return response()->json([
-                'status' => 200,
-                'message' => $getValue
-            ]);
-        } else {
-            return response()->json([
-                'status' => 404,
-                'message' => "No Records Found!"
-            ]);
-        }
-    }
-
-
-
-
-     public function getDetailsFromGuardDetailsUsingLoginUer()
+    public function getDetailsFromGuardDetailsUsingLoginUer()
     {
         // Retrieve the authenticated user's details, including their location if it exists
         $user = auth()->guard('web')->user();
@@ -56,26 +36,6 @@ class AuthenticationController extends Controller
                 'message' => "No Records Found!"
             ]);
         }
-    }
-
-
-    public function updateLocation(Request $request)
-    {
-        $user = auth()->user();
-        $location = $user->locations()->find($request->id);
-    
-        if (!$location) {
-            return response()->json([
-                'status' => 404,
-                'message' => "Location not found or access denied"
-            ]);
-        }
-    
-        session()->put('selectedLocation', $request->id);
-        return response()->json([
-            'status' => 200,
-            'message' => "Location Changed Successfully"
-        ]);
     }
 
 }

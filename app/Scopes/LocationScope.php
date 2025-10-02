@@ -49,6 +49,12 @@ class LocationScope implements Scope
         // Apply location filter for all users (including sales reps)
         Log::info("LocationScope: Applying location filter for user " . $user->id);
         $this->applyLocationFilter($builder, $user);
+        
+        // Apply additional sales rep filtering for Customer model
+        if ($model instanceof \App\Models\Customer && $this->isSalesRep($user)) {
+            Log::info("LocationScope: Applying sales rep customer filtering for user " . $user->id);
+            $this->applySalesRepCustomerFilter($builder, $user);
+        }
     }
 
     /**
@@ -127,7 +133,7 @@ class LocationScope implements Scope
 
 
     /**
-     * Apply location filter logic - optimized
+     * Apply location filter logic - optimized and strict
      */
     private function applyLocationFilter(Builder $builder, $user)
     {
@@ -150,12 +156,14 @@ class LocationScope implements Scope
                 Log::info("LocationScope: Applied user locations filter: " . implode(',', $locationIds));
             }
 
-            // Apply location filter or restrict to null only
+            // Apply strict location filter - no null records for regular users
             if (!empty($filterLocationIds)) {
-                $query->whereIn('location_id', $filterLocationIds)->orWhereNull('location_id');
+                $query->whereIn('location_id', $filterLocationIds);
+                Log::info("LocationScope: Applied strict location filter: " . implode(',', $filterLocationIds));
             } else {
-                $query->whereNull('location_id');
-                Log::info("LocationScope: No location access - restricted to null location only");
+                // If user has no location access, restrict to impossible condition
+                $query->where('location_id', 0); // Assuming 0 is never a valid location ID
+                Log::info("LocationScope: No location access - blocked all records");
             }
             
             // Log warning if selected location access denied
@@ -163,6 +171,50 @@ class LocationScope implements Scope
                 Log::warning("LocationScope: User {$user->id} doesn't have access to selected location {$selectedLocation}");
             }
         });
+    }
+
+    /**
+     * Apply sales rep customer filter - restrict customers to assigned route cities
+     */
+    private function applySalesRepCustomerFilter(Builder $builder, $user)
+    {
+        try {
+            // Load sales rep relationship if not already loaded
+            if (!$user->relationLoaded('salesRep')) {
+                $user->load('salesRep.route.cities');
+            }
+
+            $salesRep = $user->salesRep;
+            
+            if (!$salesRep || !$salesRep->route) {
+                Log::warning("LocationScope: Sales rep {$user->id} has no route assigned - blocking all customer access");
+                // Block all customers if no route assigned
+                $builder->where('city_id', 0); // Impossible condition
+                return;
+            }
+
+            $routeCityIds = $salesRep->route->cities->pluck('id')->toArray();
+            
+            if (empty($routeCityIds)) {
+                Log::warning("LocationScope: Sales rep {$user->id} route has no cities - blocking all customer access");
+                // Block all customers if route has no cities
+                $builder->where('city_id', 0); // Impossible condition
+                return;
+            }
+
+            Log::info("LocationScope: Sales rep {$user->id} can access customers from cities: " . implode(',', $routeCityIds));
+            
+            // Only show customers from assigned route cities
+            $builder->where(function ($query) use ($routeCityIds) {
+                $query->whereIn('city_id', $routeCityIds)
+                      ->orWhereNull('city_id'); // Allow customers without city assignment
+            });
+            
+        } catch (\Exception $e) {
+            Log::error("LocationScope: Failed to apply sales rep customer filter: " . $e->getMessage());
+            // On error, block all customers for safety
+            $builder->where('city_id', 0);
+        }
     }
 
     /**

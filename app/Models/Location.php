@@ -25,6 +25,7 @@ class Location extends Model
         'parent_id',
         'vehicle_number',
         'vehicle_type',
+        'invoice_layout_pos',
     ];
 
     protected $appends = ['logo_url'];
@@ -162,5 +163,47 @@ class Location extends Model
         static::saving(function ($location) {
             $location->validateVehicleRequirements();
         });
+    }
+
+    // Add constants for layout types
+    const LAYOUT_80MM = '80mm';
+    const LAYOUT_A4 = 'a4';
+    const LAYOUT_DOT_MATRIX = 'dot_matrix';
+
+    /**
+     * Get the receipt view name based on layout
+     */
+    public function getReceiptViewName()
+    {
+        switch ($this->invoice_layout_pos) {
+            case self::LAYOUT_A4:
+                return 'sell.receipt_a4';
+            case self::LAYOUT_DOT_MATRIX:
+                return 'sell.receipt_dot_matrix';
+            case self::LAYOUT_80MM:
+            default:
+                return 'sell.receipt'; // Default 80mm thermal
+        }
+    }
+
+    /**
+     * Get available layout options for form selection
+     */
+    public static function getLayoutOptions()
+    {
+        return [
+            self::LAYOUT_80MM => '80mm Thermal Printer',
+            self::LAYOUT_A4 => 'A4 Size Printer',
+            self::LAYOUT_DOT_MATRIX => 'Dot Matrix Printer'
+        ];
+    }
+
+    /**
+     * Get the layout display name
+     */
+    public function getLayoutDisplayName()
+    {
+        $options = self::getLayoutOptions();
+        return $options[$this->invoice_layout_pos] ?? 'Unknown Layout';
     }
 }

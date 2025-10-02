@@ -122,7 +122,6 @@
 <script>
     $(document).ready(function() {
         // Initialize elements
-        const locationSelect = $('#location_dropdown');
         const locationNameDisplay = $('#location_name');
 
         // Function to update location display
@@ -145,79 +144,6 @@
             },
             error: function() {
                 $('#location_name').text('Error retrieving details');
-            }
-        });
-
-        // Populate location dropdown
-        $.ajax({
-            url: '/user-location-get-all',
-            type: 'GET',
-            success: function(response) {
-                if (response.status === 200) {
-                    // Clear existing options
-                    locationSelect.empty();
-                    locationSelect.append('<option value="">Select Location</option>');
-
-                    // Track unique locations
-                    const uniqueLocations = new Set();
-
-                    response.message.forEach(user => {
-                        if (user.locations) {
-                            user.locations.forEach(location => {
-                                if (!uniqueLocations.has(location.id)) {
-                                    uniqueLocations.add(location.id);
-                                    const selected = sessionStorage.getItem(
-                                            'selectedLocationId') == location.id ?
-                                        'selected' : '';
-                                    locationSelect.append(
-                                        `<option value="${location.id}" ${selected}>${location.name}</option>`
-                                    );
-                                }
-                            });
-                        }
-                    });
-
-                    // Restore from localStorage if available
-                    const savedLocationId = localStorage.getItem('selectedLocationId');
-                    const savedLocationName = localStorage.getItem('selectedLocationName');
-
-                    if (savedLocationId && savedLocationName) {
-                        locationSelect.val(savedLocationId);
-                        updateLocationDisplay(savedLocationId, savedLocationName);
-                    }
-                }
-            },
-            error: function(error) {
-                console.log("Error:", error);
-            }
-        });
-
-        // Handle location change
-        locationSelect.on('change', function() {
-            const locationId = $(this).val();
-            const locationName = $(this).find('option:selected').text();
-
-            if (locationId) {
-                $.ajax({
-                    url: '/update-location',
-                    type: 'GET',
-                    data: {
-                        id: locationId
-                    },
-                    success: function(response) {
-                        if (response.status === 200) {
-                            updateLocationDisplay(locationId, locationName);
-                            window.location
-                                .reload(); // Refresh to update session-based content
-                        }
-                    },
-                    error: function() {
-                        console.error('Error updating location');
-                    }
-                });
-            } else {
-                localStorage.removeItem('selectedLocationId');
-                localStorage.removeItem('selectedLocationName');
             }
         });
     });

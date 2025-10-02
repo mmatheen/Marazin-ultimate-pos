@@ -65,14 +65,9 @@ class RoleAndPermissionController extends Controller
     public function groupRoleAndPermissionList()
     {
         $user = auth()->user();
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
         
-        // Get roles that current user can see
-        if ($isMasterSuperAdmin) {
-            $roles = Role::with('permissions')->get();
-        } else {
-            $roles = Role::where('name', '!=', 'Master Super Admin')->with('permissions')->get();
-        }
+        // Get roles that current user can see based on their actual permissions
+        $roles = $this->getUserAccessibleRoles($user)->with('permissions')->get();
 
         // Format data to match the required output structure
         $result = $roles->map(function ($role) {
@@ -515,5 +510,36 @@ class RoleAndPermissionController extends Controller
                 })
             ]
         ]);
+    }
+
+    /**
+     * Get roles that the authenticated user can access based on their permissions
+     */
+    private function getUserAccessibleRoles($user)
+    {
+        $rolesQuery = Role::query();
+        
+        // If user is not Master Super Admin, exclude Master Super Admin role
+        if (!$user->roles->where('name', 'Master Super Admin')->count() > 0) {
+            $rolesQuery->where('name', '!=', 'Master Super Admin');
+            
+            // If user is not Super Admin, further restrict access
+            if (!$user->roles->where('name', 'Super Admin')->count() > 0 && 
+                !$user->roles->where('key', 'super_admin')->count() > 0) {
+                
+                // If user is Admin, only show Admin and Sales Rep
+                if ($user->roles->where('name', 'Admin')->count() > 0 || 
+                    $user->roles->where('key', 'admin')->count() > 0) {
+                    $rolesQuery->whereIn('name', ['Admin', 'Sales Rep'])
+                              ->orWhereIn('key', ['admin', 'sales_rep']);
+                } else {
+                    // For other roles (like Sales Rep), only show their own roles
+                    $userRoleIds = $user->roles->pluck('id')->toArray();
+                    $rolesQuery->whereIn('id', $userRoleIds);
+                }
+            }
+        }
+        
+        return $rolesQuery;
     }
 }
