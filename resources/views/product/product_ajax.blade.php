@@ -900,45 +900,67 @@
                 $('#currentProductId').val(productId);
                 $('#imeiTableBody').empty();
 
-                // Find row data in current table page
-                const table = $('#productTable').DataTable();
-                const rowData = table.rows().data().toArray().find(r => r.id == productId);
-
-                if (!rowData || !rowData.imei_numbers || rowData.imei_numbers.length === 0) {
-                    $('#imeiTableBody').append(
-                        '<tr><td colspan="5" class="text-center">No IMEI numbers found.</td></tr>'
-                    );
-                    $('#imeiModal').modal('show');
-                    return;
-                }
-
-                let counter = 1;
-                rowData.imei_numbers.forEach(imei => {
-                    $('#imeiTableBody').append(`
-                <tr>
-                    <td>${counter++}</td>
-                    <td>
-                        <input type="text" class="form-control imei-input"
-                            data-imei-id="${imei.id}"
-                            value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
-                    </td>
-                    <td>${imei.location_name}</td>
-                    <td>${imei.batch_no || 'N/A'}</td>
-                    <td>
-                        ${imei.status === 'available'
-                            ? '<span class="badge bg-success">Available</span>'
-                            : imei.status === 'unavailable'
-                            ? '<span class="badge bg-danger">Unavailable</span>'
-                            : '<span class="badge bg-warning text-dark">Sold</span>'}
-                    </td>
-                </tr>
-            `);
-                });
-
-                $('#imeiModalTitle').html(
-                    `<span class="text-info">${rowData.product_name}</span> (IMEI NO: ${rowData.imei_numbers.length})`
+                // Show loading message
+                $('#imeiTableBody').append(
+                    '<tr><td colspan="5" class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading IMEI numbers...</td></tr>'
                 );
                 $('#imeiModal').modal('show');
+
+                // Get selected location from filter
+                const selectedLocationId = $('#locationFilter').val();
+
+                // Fetch IMEI data from server
+                $.ajax({
+                    url: `/get-imeis/${productId}`,
+                    type: 'GET',
+                    data: {
+                        location_id: selectedLocationId
+                    },
+                    success: function(response) {
+                        $('#imeiTableBody').empty();
+                        
+                        if (response.status === 200 && response.data && response.data.length > 0) {
+                            let counter = 1;
+                            response.data.forEach(imei => {
+                                $('#imeiTableBody').append(`
+                            <tr>
+                                <td>${counter++}</td>
+                                <td>
+                                    <input type="text" class="form-control imei-input"
+                                        data-imei-id="${imei.id}"
+                                        value="${imei.imei_number}" ${!imei.editable ? 'disabled' : ''}>
+                                </td>
+                                <td>${imei.location_name || 'N/A'}</td>
+                                <td>${imei.batch_no || 'N/A'}</td>
+                                <td>
+                                    ${imei.status === 'available'
+                                        ? '<span class="badge bg-success">Available</span>'
+                                        : imei.status === 'unavailable'
+                                        ? '<span class="badge bg-danger">Unavailable</span>'
+                                        : '<span class="badge bg-warning text-dark">Sold</span>'}
+                                </td>
+                            </tr>
+                        `);
+                            });
+                            
+                            $('#imeiModalTitle').html(
+                                `<span class="text-info">${response.product_name || 'Product'}</span> (IMEI NO: ${response.data.length})`
+                            );
+                        } else {
+                            $('#imeiTableBody').append(
+                                '<tr><td colspan="5" class="text-center">No IMEI numbers found for this product in the selected location.</td></tr>'
+                            );
+                            $('#imeiModalTitle').html('<span class="text-info">Product</span> (IMEI NO: 0)');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching IMEI data:', error);
+                        $('#imeiTableBody').empty();
+                        $('#imeiTableBody').append(
+                            '<tr><td colspan="5" class="text-center text-danger">Error loading IMEI numbers. Please try again.</td></tr>'
+                        );
+                    }
+                });
             });
 
             // Row click handler - only for non-interactive elements

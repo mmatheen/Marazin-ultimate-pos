@@ -844,13 +844,42 @@ class ProductController extends Controller
         }
     }
 
-    public function getImeis($productId)
+    public function getImeis($productId, Request $request)
     {
-        $imeis = ImeiNumber::where('product_id', $productId)->get(['id', 'imei_number']);
+        $locationId = $request->input('location_id');
+        
+        // Get the product info
+        $product = Product::find($productId);
+        if (!$product) {
+            return response()->json([
+                'status' => 404,
+                'message' => 'Product not found'
+            ], 404);
+        }
+        
+        $query = ImeiNumber::where('product_id', $productId)
+            ->with(['location:id,name', 'batch:id,batch_no']);
+            
+        // Filter by location if provided
+        if ($locationId && $locationId !== '') {
+            $query->where('location_id', $locationId);
+        }
+        
+        $imeis = $query->get()->map(function ($imei) {
+            return [
+                'id' => $imei->id,
+                'imei_number' => $imei->imei_number,
+                'status' => $imei->status ?? 'available',
+                'location_name' => $imei->location ? $imei->location->name : 'N/A',
+                'batch_no' => $imei->batch ? $imei->batch->batch_no : 'N/A',
+                'editable' => true // Allow editing by default
+            ];
+        });
 
         return response()->json([
             'status' => 200,
-            'imeis' => $imeis
+            'data' => $imeis,
+            'product_name' => $product->product_name
         ]);
     }
 
