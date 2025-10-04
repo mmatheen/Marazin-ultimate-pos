@@ -312,7 +312,9 @@
                                             stock_alert: item.product
                                                 .stock_alert || 0,
                                             allow_decimal: item.product.unit
-                                                ?.allow_decimal || false
+                                                ?.allow_decimal || false,
+                                            is_imei_or_serial_no: item.product
+                                                .is_imei_or_serial_no || false
                                         }
                                     }));
 
@@ -499,7 +501,7 @@
                 }
 
                 const newRow = `
-            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}">
+            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
             <td>${product.id}</td>
             <td>
                 ${product.name} 

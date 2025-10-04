@@ -1613,12 +1613,7 @@
             // If product is unlimited stock (stock_alert === 0), allow sale even if quantity is 0
             if (product.stock_alert === 0) {
                 // Proceed to add product with batch "all" and quantity 0 (unlimited)
-                let batchesArray = [];
-                if (Array.isArray(stockEntry.batches)) {
-                    batchesArray = stockEntry.batches;
-                } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-                    batchesArray = Object.values(stockEntry.batches);
-                }
+                const batchesArray = normalizeBatches(stockEntry);
                 
                 // Use latest batch for pricing determination
                 const latestBatch = batchesArray.length > 0 ? batchesArray[0] : null;
@@ -1655,11 +1650,13 @@
                 );
 
                 if (existingRows.length > 0) {
-                    showImeiSelectionModal(product, stockEntry, availableImeis, searchTerm, matchType);
+                    console.log('Found existing rows for product, showing modal for additional selection');
+                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType);
                     return;
                 }
 
-                showImeiSelectionModal(product, stockEntry, availableImeis, searchTerm, matchType);
+                console.log('No existing rows, showing fresh IMEI modal');
+                showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType);
                 return;
             }
 
@@ -1670,13 +1667,8 @@
                 return;
             }
 
-            // Ensure batches is always an array
-            let batchesArray = [];
-            if (Array.isArray(stockEntry.batches)) {
-                batchesArray = stockEntry.batches;
-            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-                batchesArray = Object.values(stockEntry.batches);
-            }
+            // Ensure batches is always an array using helper function
+            let batchesArray = normalizeBatches(stockEntry);
 
             // Filter batches by selected location and available quantity
             batchesArray = batchesArray.filter(batch =>
@@ -1744,6 +1736,21 @@
             }
         }
 
+
+        // Helper function to normalize batches to array format
+        function normalizeBatches(stockEntry) {
+            if (!stockEntry || !stockEntry.batches) {
+                return [];
+            }
+            
+            if (Array.isArray(stockEntry.batches)) {
+                return stockEntry.batches;
+            } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
+                return Object.values(stockEntry.batches);
+            }
+            
+            return [];
+        }
 
         // Global variable to track currently opened modal product
         let activeModalProductId = null;
@@ -1943,6 +1950,54 @@
             console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType);
             console.log('Is editing:', isEditing, 'Current sale ID:', currentEditingSaleId);
 
+            // Force refresh stock data for IMEI products to get latest status
+            if (!isEditing) {
+                console.log('Force refreshing stock data for IMEI product...');
+                fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        // Find the current product in the response
+                        const updatedStockEntry = data.find(item => item.product.id === product.id);
+                        if (updatedStockEntry) {
+                            console.log('Updated stock entry:', updatedStockEntry);
+                            // Update the global stockData
+                            const stockIndex = stockData.findIndex(stock => stock.product.id === product.id);
+                            if (stockIndex !== -1) {
+                                stockData[stockIndex] = updatedStockEntry;
+                                console.log('Updated global stockData for product:', product.id);
+                            }
+                            // Use the updated stock entry
+                            continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType);
+                        } else {
+                            console.log('Product not found in updated data, using original');
+                            continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                        }
+                    } else {
+                        console.log('No updated data received, using original');
+                        continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing stock data:', error);
+                    continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                });
+            } else {
+                continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+            }
+        }
+
+        function continueWithImeiModal(product, stockEntry, searchTerm = '', matchType = '') {
+            console.log('=== CONTINUE WITH IMEI MODAL ===');
+            console.log('Product:', product);
+            console.log('StockEntry:', stockEntry);
+            console.log('StockEntry IMEI Numbers:', stockEntry.imei_numbers);
+
             // Collect already selected IMEIs in billing
             selectedImeisInBilling = [];
             const billingBody = document.getElementById('billing-body');
@@ -1962,8 +2017,13 @@
 
             // Function to process and display IMEI data
             const processImeiData = (allRelevantImeis) => {
-                const selectedBatch = stockEntry.batches.find(b =>
-                    b.location_batches.some(lb => lb.location_id == selectedLocationId)
+                console.log('ProcessImeiData called with:', allRelevantImeis);
+                
+                // Ensure batches is always an array using helper function
+                const batchesArray = normalizeBatches(stockEntry);
+                
+                const selectedBatch = batchesArray.find(b =>
+                    b.location_batches && b.location_batches.some(lb => lb.location_id == selectedLocationId)
                 );
                 const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
                 let missingImeiCount = Math.max(0, batchQty - allRelevantImeis.length);
@@ -2000,8 +2060,8 @@
                 <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
                 <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
                 <td>
-                    ${userPermissions.canEditProduct ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
-                    ${userPermissions.canDeleteProduct ? `<button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>` : ''}
+                    ${(typeof userPermissions !== 'undefined' && userPermissions.canEditProduct) ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
+                    ${(typeof userPermissions !== 'undefined' && userPermissions.canDeleteProduct) ? `<button class="btn btn-sm btn-danger remove-imei-btn">Remove</button>` : ''}
                 </td>
             `;
                     row.classList.add('clickable-row');
@@ -2124,25 +2184,22 @@
             function processImeiDataFallback() {
                 let allRelevantImeis = [];
                 
+                console.log('StockEntry imei_numbers:', stockEntry.imei_numbers);
+                console.log('Selected Location ID:', selectedLocationId);
+                
                 if (stockEntry.imei_numbers) {
                     // Add available IMEIs
-                    const availableImeis = stockEntry.imei_numbers.filter(imei =>
-                        imei.status === "available" && imei.location_id == selectedLocationId
-                    );
+                    const availableImeis = stockEntry.imei_numbers.filter(imei => {
+                        console.log('Checking IMEI:', imei, 'Status:', imei.status, 'Location:', imei.location_id);
+                        return imei.status === "available" && imei.location_id == selectedLocationId;
+                    });
+                    console.log('Filtered available IMEIs:', availableImeis);
                     allRelevantImeis.push(...availableImeis);
                 }
                 
+                console.log('ProcessImeiDataFallback - allRelevantImeis:', allRelevantImeis);
                 processImeiData(allRelevantImeis);
             }
-
-            // Show modal
-            const modalElement = document.getElementById('imeiModal');
-            if (!modalElement) {
-                toastr.error("IMEI modal not found");
-                return;
-            }
-            const modal = new bootstrap.Modal(modalElement);
-            modal.show();
         }
 
         // --- Helper Functions ---
@@ -2333,8 +2390,10 @@
 
             // Get current customer and determine appropriate price
             const currentCustomer = getCurrentCustomer();
-            const selectedBatch = Array.isArray(stockEntry.batches) ? 
-                stockEntry.batches.find(b => b.id === parseInt(batchId)) : null;
+            
+            // Ensure batches is always an array using helper function
+            const batchesArray = normalizeBatches(stockEntry);
+            const selectedBatch = batchesArray.find(b => b.id === parseInt(batchId));
             
             // Get customer-type-based price
             const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
@@ -2512,15 +2571,8 @@
             let batchOptions = '';
             let locationBatches = [];
 
-            // Normalize batches to array if it's an object
-            let batchesArray = [];
-            if (stockEntry && stockEntry.batches) {
-                if (Array.isArray(stockEntry.batches)) {
-                    batchesArray = stockEntry.batches;
-                } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
-                    batchesArray = Object.values(stockEntry.batches);
-                }
-            }
+            // Normalize batches to array using helper function
+            const batchesArray = normalizeBatches(stockEntry);
 
             // Only show batches for the selected location
             locationBatches = batchesArray
@@ -2731,8 +2783,7 @@
             locationId = selectedLocationId || 1;
 
             // Use selectedBatch if provided; fallback to stockEntry batch
-            const batch = selectedBatch || (Array.isArray(stockEntry.batches) ? stockEntry.batches.find(b => b
-                .id === parseInt(batchId)) : undefined);
+            const batch = selectedBatch || normalizeBatches(stockEntry).find(b => b.id === parseInt(batchId));
 
             // The price parameter is already calculated based on customer type in the calling function
             // So we use it directly instead of recalculating
@@ -4086,6 +4137,63 @@
             }
 
 
+            // Function to refresh stock data immediately after sale for IMEI products
+            function refreshStockDataAfterSale(saleData) {
+                console.log('Refreshing stock data after sale...');
+                
+                // Get list of products sold in this sale
+                const soldProducts = [];
+                const billingBody = document.getElementById('billing-body');
+                const billingRows = Array.from(billingBody.querySelectorAll('tr'));
+                
+                billingRows.forEach(row => {
+                    const productId = row.querySelector('.product-id')?.textContent;
+                    const imeiData = row.querySelector('.imei-data')?.textContent.trim();
+                    
+                    if (productId && imeiData) {
+                        // This row has IMEI data - need to refresh this product
+                        const imeis = imeiData.split(',').filter(Boolean);
+                        soldProducts.push({
+                            productId: parseInt(productId),
+                            soldImeis: imeis
+                        });
+                    }
+                });
+                
+                console.log('Products with IMEIs sold:', soldProducts);
+                
+                if (soldProducts.length > 0) {
+                    // Update the global stockData immediately
+                    soldProducts.forEach(soldProduct => {
+                        const stockIndex = stockData.findIndex(stock => stock.product.id === soldProduct.productId);
+                        if (stockIndex !== -1) {
+                            console.log(`Updating stock data for product ${soldProduct.productId}`);
+                            
+                            // Mark sold IMEIs as "sold" in the stockData
+                            if (stockData[stockIndex].imei_numbers) {
+                                stockData[stockIndex].imei_numbers.forEach(imei => {
+                                    if (soldProduct.soldImeis.includes(imei.imei_number)) {
+                                        console.log(`Marking IMEI ${imei.imei_number} as sold`);
+                                        imei.status = 'sold';
+                                    }
+                                });
+                            }
+                            
+                            // Update total stock count
+                            const availableImeis = stockData[stockIndex].imei_numbers?.filter(imei => imei.status === 'available') || [];
+                            stockData[stockIndex].total_stock = availableImeis.length;
+                            
+                            console.log(`Updated stock for product ${soldProduct.productId}: ${stockData[stockIndex].total_stock} available`);
+                        }
+                    });
+                    
+                    // Also trigger a background refresh for server sync
+                    setTimeout(() => {
+                        fetchPaginatedProducts(true);
+                    }, 1000);
+                }
+            }
+
             function sendSaleData(saleData, saleId = null, onComplete = () => {}) {
                 // Check sales rep access before processing sale
                 if (!checkSalesAccess()) {
@@ -4137,6 +4245,9 @@
 
                             // Store current customer before reset
                             const currentCustomerId = $('#customer-id').val();
+                            
+                            // IMMEDIATE stock refresh for IMEI products - before form reset
+                            refreshStockDataAfterSale(saleData);
                             
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
