@@ -872,7 +872,7 @@ class ProductController extends Controller
                 'status' => $imei->status ?? 'available',
                 'location_name' => $imei->location ? $imei->location->name : 'N/A',
                 'batch_no' => $imei->batch ? $imei->batch->batch_no : 'N/A',
-                'editable' => true // Allow editing by default
+                'editable' => false // Make IMEI numbers non-editable (read-only)
             ];
         });
 
