@@ -1858,8 +1858,10 @@
                                                         .append(`
                                             <tr>
                                                 <td>${index + 1}</td>
-                                                <td><input type="text" class="form-control imei-input" value="${imei.imei_number}" data-id="${imei.id}"></td>
-                                                <td><button class="btn btn-sm btn-danger removeImei">Remove</button></td>
+                                                <td><span class="form-control-plaintext">${imei.imei_number}</span></td>
+                                                <td>${imei.location_name || 'N/A'}</td>
+                                                <td>${imei.batch_no || 'N/A'}</td>
+                                                <td><span class="badge badge-${imei.status === 'available' ? 'success' : (imei.status === 'sold' ? 'warning' : 'secondary')}">${imei.status}</span></td>
                                             </tr>
                                         `);
                                                 });
