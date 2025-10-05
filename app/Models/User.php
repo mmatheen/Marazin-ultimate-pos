@@ -139,4 +139,35 @@ class User extends Authenticatable
     {
         return $this->canBypassLocationScope();
     }
+
+    /**
+     * Sync the legacy role_name field with Spatie role
+     */
+    public function syncRoleName(): void
+    {
+        $role = $this->roles->first();
+        if ($role) {
+            $this->update(['role_name' => $role->name]);
+        }
+    }
+
+    /**
+     * Override the assignRole method to sync role_name
+     */
+    public function assignRole(...$roles)
+    {
+        $result = parent::assignRole(...$roles);
+        $this->syncRoleName();
+        return $result;
+    }
+
+    /**
+     * Override the syncRoles method to sync role_name
+     */
+    public function syncRoles(...$roles)
+    {
+        $result = parent::syncRoles(...$roles);
+        $this->syncRoleName();
+        return $result;
+    }
 }

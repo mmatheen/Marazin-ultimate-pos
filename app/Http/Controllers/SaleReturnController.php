@@ -100,6 +100,17 @@ class SaleReturnController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
+        // Check for duplicate returns - only for new returns (not updates)
+        if (!$id && $request->sale_id) {
+            $existingReturns = SalesReturn::where('sale_id', $request->sale_id)->count();
+            if ($existingReturns > 0) {
+                return response()->json([
+                    'status' => 409, // Conflict status code
+                    'errors' => ['This sale has already been returned. Multiple returns for the same invoice are not allowed.']
+                ]);
+            }
+        }
+
         // Check if the return quantity is greater than the sale quantity
         $sale = Sale::find($request->sale_id);
         $errors = [];

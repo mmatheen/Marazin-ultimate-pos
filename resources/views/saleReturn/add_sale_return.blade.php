@@ -202,7 +202,7 @@
                             <div class="mb-3">
                                 <label for="returnTotal" class="form-label">Return Total:</label>
                                 <input type="number" class="form-control" id="returnTotal" name="return_total"
-                                    placeholder="Enter total return amount" required>
+                                    placeholder="Enter total return amount" readonly required>
                             </div>
                         </div>
                     </div>

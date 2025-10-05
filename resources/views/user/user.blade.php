@@ -215,7 +215,7 @@
                             <input type="hidden" id="deleting_id">
                             <div class="row">
                                 <div class="col-6">
-                                    <button type="submit" class="confirm_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
+                                    <button type="submit" class="confirm_user_delete_btn btn btn-primary paid-continue-btn" style="width: 100%;">Delete</button>
                                 </div>
                                 <div class="col-6">
                                     <a data-bs-dismiss="modal" class="btn btn-primary paid-cancel-btn">Cancel

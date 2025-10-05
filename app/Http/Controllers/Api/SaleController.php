@@ -743,7 +743,12 @@ class SaleController extends Controller
 
         // Get location-specific receipt view
         $receiptView = $location ? $location->getReceiptViewName() : 'sell.receipt';
-        $html = view($receiptView, $viewData)->render();
+        
+        // Only generate invoice HTML for non-suspended sales
+        $html = '';
+        if ($sale->status !== 'suspend') {
+            $html = view($receiptView, $viewData)->render();
+        }
 
           
 
@@ -802,8 +807,20 @@ class SaleController extends Controller
 
 
 
+            // Customize success message based on sale status
+            $message = '';
+            if ($id) {
+                $message = 'Sale updated successfully.';
+            } else {
+                if ($sale->status === 'suspended') {
+                    $message = 'Sale suspended successfully.';
+                } else {
+                    $message = 'Sale recorded successfully.';
+                }
+            }
+
             return response()->json([
-                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'message' => $message,
                 'invoice_html' => $html,
                 'data' => $viewData
             ], 200);

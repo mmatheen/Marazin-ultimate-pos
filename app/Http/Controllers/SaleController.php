@@ -176,12 +176,22 @@ class SaleController extends Controller
             return $this->getDataTableSales($request);
         }
 
-        // Original simple format for backward compatibility
-        $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
-            ->where('status', 'final')
-            ->orderBy('created_at', 'desc')
-            ->limit(100) // Limit to prevent timeout
-            ->get();
+        // Check if this is a request for Recent Transactions (includes all statuses)
+        if ($request->has('recent_transactions') && $request->get('recent_transactions') == 'true') {
+            // For Recent Transactions in POS, we need all statuses so frontend can filter by tabs
+            $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspended'])
+                ->orderBy('created_at', 'desc')
+                ->limit(200) // Increased limit for Recent Transactions
+                ->get();
+        } else {
+            // Original simple format for backward compatibility (only final sales)
+            $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                ->where('status', 'final')
+                ->orderBy('created_at', 'desc')
+                ->limit(100) // Limit to prevent timeout
+                ->get();
+        }
 
         return response()->json(['sales' => $sales], 200);
     }
@@ -1043,8 +1053,20 @@ class SaleController extends Controller
                 $this->sendWhatsAppAsync($customer, $sale, $viewData);
             }
 
+            // Customize success message based on sale status
+            $message = '';
+            if ($id) {
+                $message = 'Sale updated successfully.';
+            } else {
+                if ($sale->status === 'suspended') {
+                    $message = 'Sale suspended successfully.';
+                } else {
+                    $message = 'Sale recorded successfully.';
+                }
+            }
+
             return response()->json([
-                'message' => $id ? 'Sale updated successfully.' : 'Sale recorded successfully.',
+                'message' => $message,
                 'invoice_html' => $html,
                 'data' => $viewData
             ], 200);
@@ -1512,28 +1534,63 @@ class SaleController extends Controller
     public function getSaleByInvoiceNo($invoiceNo)
     {
         $sale = Sale::with([
-            'products.product.unit' // eager load product and its unit
+            'products.product.unit', // eager load product and its unit
+            'salesReturns' // load existing returns
         ])->where('invoice_no', $invoiceNo)->first();
 
         if (!$sale) {
             return response()->json(['error' => 'Sale not found'], 404);
         }
 
+        // Check if this sale has already been returned
+        if ($sale->salesReturns->count() > 0) {
+            return response()->json([
+                'error' => 'This sale has already been returned. Multiple returns for the same invoice are not allowed.',
+                'returned_count' => $sale->salesReturns->count(),
+                'return_details' => $sale->salesReturns->map(function($return) {
+                    return [
+                        'return_date' => $return->return_date,
+                        'return_total' => $return->return_total,
+                        'notes' => $return->notes
+                    ];
+                })
+            ], 409); // 409 Conflict status code
+        }
+
         $products = $sale->products->map(function ($product) use ($sale) {
             $currentQuantity = $sale->getCurrentSaleQuantity($product->product_id);
             $product->current_quantity = $currentQuantity;
 
-            // Add unit details if available
-            $unit = optional(optional($product->product)->unit);
-            $product->unit = $unit ? $unit->only([
-                'id',
-                'name',
-                'short_name',
-                'allow_decimal'
-            ]) : null;
+            // Use the actual stored price from sales_products table
+            // This already includes all discounts applied during the sale
+            $actualPrice = $product->price; // This is the final price customer paid per unit
+            
+            // Add unit details with better null handling
+            $productModel = $product->product;
+            if ($productModel && $productModel->unit) {
+                $product->unit = [
+                    'id' => $productModel->unit->id,
+                    'name' => $productModel->unit->name,
+                    'short_name' => $productModel->unit->short_name,
+                    'allow_decimal' => $productModel->unit->allow_decimal
+                ];
+            } else {
+                $product->unit = [
+                    'id' => null,
+                    'name' => 'Pieces',
+                    'short_name' => 'Pc(s)',
+                    'allow_decimal' => false
+                ];
+            }
+
+            // Set the return price (same as the price customer actually paid)
+            $product->return_price = $actualPrice;
 
             return $product;
-        });
+        })->filter(function ($product) {
+            // Only include products with current quantity > 0
+            return $product->current_quantity > 0;
+        })->values(); // Reset array keys after filtering
 
         return response()->json([
             'sale_id' => $sale->id,
@@ -1541,6 +1598,14 @@ class SaleController extends Controller
             'customer_id' => $sale->customer_id,
             'location_id' => $sale->location_id,
             'products' => $products,
+            // Include original sale discount information for proportional calculation
+            'original_discount' => [
+                'discount_type' => $sale->discount_type, // 'percentage' or 'fixed'
+                'discount_amount' => $sale->discount_amount ?? 0,
+                'subtotal' => $sale->subtotal ?? 0,
+                'final_total' => $sale->final_total ?? 0,
+                'total_original_quantity' => $sale->products->sum('quantity') // Total quantity in original sale
+            ]
         ], 200);
     }
 

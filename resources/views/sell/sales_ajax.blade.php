@@ -1608,6 +1608,12 @@
                     submitButton.prop('disabled', false).text('Save');
                     if (response.message) {
                         toastr.success(response.message, 'Success');
+                        
+                        // Refresh sales data for Recent Transactions
+                        if (typeof fetchSalesData === 'function') {
+                            fetchSalesData();
+                        }
+                        
                         resetFormAndValidation();
                         window.location.href = '/list-sale';
                         if (response.invoice_html) {

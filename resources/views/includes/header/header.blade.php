@@ -86,7 +86,7 @@
                             width="31" alt="Soeng Souy">
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
-                            <p class="text-muted mb-0">{{ Auth::user()->role_name }}</p>
+                            <p class="text-muted mb-0">{{ Auth::user()->getRoleName() ?? 'No Role' }}</p>
                         </div>
                     </span>
                 </a>
@@ -98,7 +98,7 @@
                         </div>
                         <div class="user-text">
                             <h6>{{ Auth::user()->user_name }}</h6>
-                            <p class="text-muted mb-0">{{ Auth::user()->role_name }}</p>
+                            <p class="text-muted mb-0">{{ Auth::user()->getRoleName() ?? 'No Role' }}</p>
 
                         </div>
                     </div>

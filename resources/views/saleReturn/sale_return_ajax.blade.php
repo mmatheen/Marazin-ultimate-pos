@@ -1,6 +1,6 @@
     <script>
         $(document).ready(function() {
-            let productToRemove;
+            // Remove unused productToRemove variable since we removed confirmation dialog
 
             // Use backend autocomplete for product search (supports large datasets)
             function initProductAutocomplete() {
@@ -202,7 +202,31 @@
                         productsTableBody.empty();
 
                         if (!data || !data.products) {
-                            alert('Invalid Sale ID');
+                            swal({
+                                title: "Invalid Sale",
+                                text: "Invalid Sale ID. Please check and try again.",
+                                type: "error",
+                                confirmButtonText: "OK"
+                            });
+                            return;
+                        }
+
+                        // Check if there are any returnable products (quantity > 0)
+                        if (data.products.length === 0) {
+                            swal({
+                                title: "No Returnable Products",
+                                text: "All products in this sale have already been returned or have zero quantity.",
+                                type: "info",
+                                confirmButtonText: "OK"
+                            });
+                            
+                            // Clear the invoice field
+                            $("#invoiceNo").val('');
+                            $("#sale-id").val('');
+                            
+                            // Reset display
+                            $("#displayInvoiceNo").html('<strong>Invoice No.:</strong>');
+                            $("#displayDate").html('<strong>Date:</strong>');
                             return;
                         }
 
@@ -214,14 +238,34 @@
                             const inputAttrs =
                                 `type="number" step="any" inputmode="decimal" autocomplete="off"`;
 
+                            // Unit should always be available now
+                            const unitDisplay = product.unit.short_name || 'Pc(s)';
+                            
+                            // Use the actual stored price from sales_products table
+                            const returnPrice = parseFloat(product.return_price || product.price || 0);
+                            const discountInfo = `<small class="text-info">Return: Rs. ${returnPrice.toFixed(2)}/unit</small>`;
+
                             const row = `
                                             <tr data-index="${index}">
                                                 <td>${index + 1}</td>
-                                                <td>${product.product.product_name}<br><small class="text-muted">${product.product.sku}</small></td>
-                                                <td>Rs. ${parseFloat(product.price).toFixed(2)}</td>
-                                                <td><del>${product.quantity}</del>  ${product.current_quantity} ${product.unit ? product.unit.short_name : 'Pc(s)'}</td>
                                                 <td>
-                                                    <input ${inputAttrs} class="form-control return-quantity" name="products[${index}][quantity]" placeholder="Enter qty" max="${product.current_quantity}" data-unit-price="${product.price}" data-product-id="${product.product.id}" data-batch-id="${product.batch_id}" required>
+                                                    ${product.product.product_name}<br>
+                                                    <small class="text-muted">${product.product.sku}</small>
+                                                </td>
+                                                <td>
+                                                    <div>Rs. ${returnPrice.toFixed(2)}</div>
+                                                    ${discountInfo}
+                                                </td>
+                                                <td><del>${product.quantity}</del>  ${product.current_quantity} ${unitDisplay}</td>
+                                                <td>
+                                                    <input ${inputAttrs} class="form-control return-quantity" 
+                                                           name="products[${index}][quantity]" 
+                                                           placeholder="Enter qty (optional)" 
+                                                           max="${product.current_quantity}" 
+                                                           data-unit-price="${returnPrice}" 
+                                                           data-original-price="${returnPrice}"
+                                                           data-product-id="${product.product.id}" 
+                                                           data-batch-id="${product.batch_id}">
                                                     <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                                                 </td>
                                                 <td class="return-subtotal">Rs. 0.00</td>
@@ -235,6 +279,13 @@
                         $("#displayDate").html(
                             `<strong>Date:</strong> ${new Date(data.products[0].created_at).toLocaleDateString()}`
                         );
+
+                        // Store original discount data for proportional calculation
+                        window.originalDiscountData = data.original_discount;
+
+                        // Initially clear discount fields
+                        $("#discountType").val("");
+                        $("#discountAmount").val("");
 
                         fetchCustomerDetails(data.customer_id);
                         setLocationId(data.location_id);
@@ -288,12 +339,99 @@
                         });
 
                         $(".remove-product").on('click', function() {
-                            productToRemove = $(this).closest('tr');
-                            $('#confirmDeleteModal').modal('show');
+                            // Remove immediately without confirmation
+                            $(this).closest('tr').remove();
+                            toastr.success('Product removed successfully.');
+                            calculateReturnTotal();
+                            
+                            // If no products left, reset the invoice
+                            if ($("#productsTableBody tr").length === 0) {
+                                resetInvoice();
+                            }
                         });
                     },
-                    error: function(error) {
+                    error: function(xhr, status, error) {
                         console.error('Error fetching sales data:', error);
+                        
+                        if (xhr.status === 404) {
+                            swal({
+                                title: "Sale Not Found",
+                                text: "No sale found with this invoice number. Please check the invoice number and try again.",
+                                type: "error",
+                                confirmButtonText: "OK"
+                            });
+                        } else if (xhr.status === 409) {
+                            // Handle duplicate return conflict with SweetAlert and table view
+                            const response = xhr.responseJSON;
+                            let title = 'Multiple Returns Not Allowed';
+                            let baseMessage = 'This sale has already been returned. Multiple returns for the same invoice are not allowed.';
+                            
+                            let htmlContent = `<div style="text-align: left;">
+                                <p style="margin-bottom: 15px; font-size: 14px; color: #666;">${baseMessage}</p>`;
+                            
+                            if (response && response.return_details && response.return_details.length > 0) {
+                                htmlContent += `
+                                    <div style="margin-top: 20px;">
+                                        <h4 style="margin-bottom: 10px; color: #333; font-size: 16px;">Existing Returns:</h4>
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                            <thead>
+                                                <tr style="background-color: #f8f9fa;">
+                                                    <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left; font-weight: 600;">#</th>
+                                                    <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left; font-weight: 600;">Date</th>
+                                                    <th style="border: 1px solid #dee2e6; padding: 8px; text-align: right; font-weight: 600;">Amount</th>
+                                                    <th style="border: 1px solid #dee2e6; padding: 8px; text-align: left; font-weight: 600;">Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+                                
+                                response.return_details.forEach((returnDetail, index) => {
+                                    const returnDate = new Date(returnDetail.return_date).toLocaleDateString();
+                                    const notes = returnDetail.notes || 'No notes';
+                                    
+                                    htmlContent += `
+                                        <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
+                                            <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">${index + 1}</td>
+                                            <td style="border: 1px solid #dee2e6; padding: 8px;">${returnDate}</td>
+                                            <td style="border: 1px solid #dee2e6; padding: 8px; text-align: right; font-weight: 500;">Rs. ${returnDetail.return_total}</td>
+                                            <td style="border: 1px solid #dee2e6; padding: 8px;">${notes}</td>
+                                        </tr>`;
+                                });
+                                
+                                htmlContent += `
+                                            </tbody>
+                                        </table>
+                                    </div>`;
+                            }
+                            
+                            htmlContent += `</div>`;
+                            
+                            swal({
+                                title: title,
+                                text: htmlContent,
+                                html: true, // Enable HTML content
+                                type: "warning",
+                                confirmButtonText: "OK",
+                                confirmButtonColor: "#dd6b55"
+                            });
+                            
+                            // Clear the invoice field
+                            $("#invoiceNo").val('');
+                            $("#sale-id").val('');
+                            
+                            // Clear any existing products
+                            $("#productsTableBody").empty();
+                            
+                            // Reset display
+                            $("#displayInvoiceNo").html('<strong>Invoice No.:</strong>');
+                            $("#displayDate").html('<strong>Date:</strong>');
+                        } else {
+                            swal({
+                                title: "Error",
+                                text: "Error loading sale data. Please try again.",
+                                type: "error",
+                                confirmButtonText: "OK"
+                            });
+                        }
                     }
                 });
             }
@@ -333,18 +471,65 @@
 
             function calculateReturnTotal() {
                 let totalSubtotal = 0;
+                let totalReturnQuantity = 0;
+                
+                // Calculate total subtotal and return quantity
                 $('.return-subtotal').each(function() {
                     totalSubtotal += parseFloat($(this).text().replace('Rs. ', ''));
                 });
+                
+                $('.return-quantity').each(function() {
+                    const qty = parseFloat($(this).val()) || 0;
+                    totalReturnQuantity += qty;
+                });
 
-                const discountType = $('#discountType').val();
-                const discountAmount = parseFloat($('#discountAmount').val()) || 0;
+                // Calculate proportional discount based on original sale data
                 let totalDiscount = 0;
-
-                if (discountType === 'percentage') {
-                    totalDiscount = (totalSubtotal * discountAmount) / 100;
+                let discountType = "";
+                let discountAmount = 0;
+                
+                if (window.originalDiscountData && window.originalDiscountData.discount_amount > 0 && totalReturnQuantity > 0) {
+                    const originalDiscount = window.originalDiscountData;
+                    const originalQuantity = originalDiscount.total_original_quantity || 1;
+                    
+                    // Calculate proportion of return vs original sale
+                    const returnProportion = totalReturnQuantity / originalQuantity;
+                    
+                    discountType = originalDiscount.discount_type;
+                    
+                    if (discountType === "percentage") {
+                        // For percentage discount, use the same percentage
+                        discountAmount = originalDiscount.discount_amount;
+                        totalDiscount = (totalSubtotal * discountAmount) / 100;
+                    } else if (discountType === "fixed") {
+                        // For fixed discount, apply proportionally
+                        discountAmount = originalDiscount.discount_amount * returnProportion;
+                        totalDiscount = discountAmount;
+                    }
+                    
+                    // Update UI to show the calculated discount
+                    const frontendDiscountType = discountType === "fixed" ? "flat" : discountType;
+                    $("#discountType").val(frontendDiscountType);
+                    $("#discountAmount").val(discountAmount.toFixed(2));
+                    
+                    console.log('Proportional discount calculated:', {
+                        originalQuantity: originalQuantity,
+                        returnQuantity: totalReturnQuantity,
+                        proportion: returnProportion,
+                        originalDiscountAmount: originalDiscount.discount_amount,
+                        calculatedDiscountAmount: discountAmount,
+                        discountType: discountType
+                    });
                 } else {
-                    totalDiscount = discountAmount;
+                    // Manual discount override
+                    discountType = $('#discountType').val();
+                    discountAmount = parseFloat($('#discountAmount').val()) || 0;
+                    
+                    if (discountType === 'percentage') {
+                        totalDiscount = (totalSubtotal * discountAmount) / 100;
+                    } else {
+                        totalDiscount = discountAmount;
+                    }
                 }
 
                 const returnTotal = totalSubtotal - totalDiscount;
@@ -357,17 +542,7 @@
                 calculateReturnTotal();
             });
 
-            $("#confirmDeleteButton").on('click', function() {
-                productToRemove.remove();
-                $('#confirmDeleteModal').modal('hide');
-                toastr.success('Product removed successfully.');
-
-                if ($("#productsTableBody tr").length === 0) {
-                    resetInvoice();
-                } else {
-                    calculateReturnTotal();
-                }
-            });
+            // Removed confirmation dialog code since we now do instant removal
 
             function resetInvoice() {
                 $("#displayInvoiceNo").html('<strong>Invoice No.:</strong> PR0001');
@@ -406,7 +581,7 @@
                     <td>Rs. ${product.retail_price.toFixed(2)}</td>
                     <td>${product.total_stock !== undefined && product.total_stock !== null ? product.total_stock : 0} Pcs</td>
                     <td>
-                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty" max="${product.total_stock}" data-unit-price="${product.retail_price}" data-product-id="${product.value}" required>
+                        <input type="number" class="form-control return-quantity" name="products[${product.value}][quantity]" placeholder="Enter qty (optional)" max="${product.total_stock}" data-unit-price="${product.retail_price}" data-product-id="${product.value}">
                         <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                     </td>
                     <td class="return-subtotal">Rs. 0.00</td>
@@ -480,12 +655,8 @@
                     return_total: {
                         required: true,
                         number: true
-                    },
-                    'products[][quantity]': {
-                        required: true,
-                        number: true,
-                        min: 1
                     }
+                    // Removed quantity validation - it's now optional
                 },
                 messages: {
                     return_date: "Please select a return date",
@@ -493,12 +664,8 @@
                     return_total: {
                         required: "Please enter the return total amount",
                         number: "Please enter a valid number"
-                    },
-                    'products[][quantity]': {
-                        required: "Please enter a return quantity",
-                        number: "Please enter a valid number",
-                        min: "Quantity must be at least 1"
                     }
+                    // Removed quantity validation messages
                 },
                 submitHandler: function(form) {
                     const isValid = validateForm();
@@ -511,27 +678,36 @@
 
                         console.log('Form Data:', jsonData);
 
-                        // Adding nested product data
+                        // Adding nested product data - only include products with return quantity > 0
                         jsonData.products = [];
                         $("#productsTableBody tr").each(function(index, row) {
-                            const product = {
-                                product_id: $(row).find('.return-quantity').data(
-                                    'productId'),
-                                quantity: $(row).find('.return-quantity').val(),
-                                original_price: $(row).find('.return-quantity').data(
-                                    'unitPrice'),
-                                return_price: $(row).find('.return-quantity').data(
-                                    'unitPrice'),
-                                subtotal: parseFloat($(row).find('.return-subtotal').text()
-                                    .replace('Rs. ', '')),
-                                batch_id: $(row).find('.return-quantity').data('batchId') ||
-                                    null,
-                                price_type: "retail",
-                                discount: 0,
-                                tax: 0,
-                            };
-                            jsonData.products.push(product);
+                            const quantity = parseFloat($(row).find('.return-quantity').val()) || 0;
+                            
+                            // Only include products with return quantity > 0
+                            if (quantity > 0) {
+                                const $input = $(row).find('.return-quantity');
+                                const product = {
+                                    product_id: $input.data('productId'),
+                                    quantity: quantity,
+                                    original_price: $input.data('originalPrice') || $input.data('unitPrice'),
+                                    return_price: $input.data('unitPrice'), // This is the actual return price
+                                    subtotal: parseFloat($(row).find('.return-subtotal').text()
+                                        .replace('Rs. ', '')),
+                                    batch_id: $input.data('batchId') || null,
+                                    price_type: "retail",
+                                    discount: 0,
+                                    tax: 0,
+                                };
+                                jsonData.products.push(product);
+                            }
                         });
+
+                        // Check if at least one product is being returned
+                        if (jsonData.products.length === 0) {
+                            toastr.error("Please enter return quantity for at least one product.");
+                            $submitButton.prop('disabled', false).html('Save');
+                            return;
+                        }
 
                         // Using jQuery AJAX
                         $.ajax({
@@ -575,9 +751,17 @@
 
             function validateForm() {
                 let isValid = true;
+                
+                // Validate required fields (excluding quantity fields)
                 document.querySelectorAll(
                     '#salesReturnForm input, #salesReturnForm select, #salesReturnForm textarea').forEach(
                     element => {
+                        // Skip validation for return-quantity fields as they are optional
+                        if (element.classList.contains('return-quantity')) {
+                            element.classList.remove('is-invalid');
+                            return;
+                        }
+                        
                         if (element.required && !element.value) {
                             isValid = false;
                             element.classList.add('is-invalid');
@@ -585,6 +769,21 @@
                             element.classList.remove('is-invalid');
                         }
                     });
+
+                // Check if at least one product has return quantity > 0
+                let hasReturnQuantity = false;
+                $('.return-quantity').each(function() {
+                    const quantity = parseFloat($(this).val()) || 0;
+                    if (quantity > 0) {
+                        hasReturnQuantity = true;
+                        return false; // break out of loop
+                    }
+                });
+
+                if (!hasReturnQuantity) {
+                    toastr.error("Please enter return quantity for at least one product.");
+                    isValid = false;
+                }
 
                 return isValid;
             }
@@ -1096,7 +1295,13 @@
                         method: 'DELETE',
                         success: function(response) {
                             if (response.status === 200) {
-                                alert('Payment deleted successfully');
+                                swal({
+                                    title: "Success",
+                                    text: "Payment deleted successfully",
+                                    type: "success",
+                                    confirmButtonText: "OK",
+                                    timer: 2000
+                                });
                                 location.reload();
                             }
                         },

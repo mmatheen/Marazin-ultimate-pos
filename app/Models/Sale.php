@@ -70,6 +70,11 @@ class Sale extends Model
         return $this->belongsTo(Location::class);
     }
 
+    public function salesReturns()
+    {
+        return $this->hasMany(SalesReturn::class);
+    }
+
     // Function to get the total quantity of items sold for a specific product in this sale
     public function getTotalSoldQuantity($productId)
     {

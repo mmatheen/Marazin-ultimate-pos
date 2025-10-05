@@ -4249,49 +4249,55 @@
                             // IMMEDIATE stock refresh for IMEI products - before form reset
                             refreshStockDataAfterSale(saleData);
                             
+                            // IMMEDIATE refresh of Recent Transactions data
+                            fetchSalesData();
+                            
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
                             
                             // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
 
-                            // FAST print setup - simplified and optimized
-                            const printIframe = document.createElement('iframe');
-                            printIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
-                            document.body.appendChild(printIframe);
+                            // Only print for non-suspended sales
+                            if (saleData.status !== 'suspend') {
+                                // FAST print setup - simplified and optimized
+                                const printIframe = document.createElement('iframe');
+                                printIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
+                                document.body.appendChild(printIframe);
 
-                            // Optimized print process
-                            const printDoc = printIframe.contentDocument;
-                            printDoc.open();
-                            printDoc.write(response.invoice_html);
-                            printDoc.close();
+                                // Optimized print process
+                                const printDoc = printIframe.contentDocument;
+                                printDoc.open();
+                                printDoc.write(response.invoice_html);
+                                printDoc.close();
 
-                            // Immediate print trigger - don't wait for onload
-                            setTimeout(() => {
-                                try {
-                                    printIframe.contentWindow.print();
-                                    
-                                    // Cleanup iframe after short delay
-                                    setTimeout(() => {
+                                // Immediate print trigger - don't wait for onload
+                                setTimeout(() => {
+                                    try {
+                                        printIframe.contentWindow.print();
+                                        
+                                        // Cleanup iframe after short delay
+                                        setTimeout(() => {
+                                            if (document.body.contains(printIframe)) {
+                                                document.body.removeChild(printIframe);
+                                            }
+                                        }, 1000);
+                                        
+                                        // Redirect for edits
+                                        if (saleId) {
+                                            setTimeout(() => {
+                                                window.location.href = '/pos-create';
+                                            }, 500);
+                                        }
+                                    } catch (error) {
+                                        console.warn('Print failed:', error);
+                                        // Cleanup on error
                                         if (document.body.contains(printIframe)) {
                                             document.body.removeChild(printIframe);
                                         }
-                                    }, 1000);
-                                    
-                                    // Redirect for edits
-                                    if (saleId) {
-                                        setTimeout(() => {
-                                            window.location.href = '/pos-create';
-                                        }, 500);
                                     }
-                                } catch (error) {
-                                    console.warn('Print failed:', error);
-                                    // Cleanup on error
-                                    if (document.body.contains(printIframe)) {
-                                        document.body.removeChild(printIframe);
-                                    }
-                                }
-                            }, 100);
+                                }, 100);
+                            }
 
                             // ASYNC operations that don't block UI (moved to background)
                             setTimeout(() => {
@@ -4879,45 +4885,6 @@
 
 
 
-
-            // document.getElementById('finalize_payment').addEventListener('click', function() {
-            //     const saleData = gatherSaleData('final');
-            //     if (!saleData) {
-            //         toastr.error('Please add at least one product before completing the sale.');
-            //         return;
-            //     }
-
-            //     const paymentData = gatherPaymentData();
-            //     saleData.payments = paymentData;
-            //     sendSaleData(saleData);
-            //     let modal = bootstrap.Modal.getInstance(document.getElementById(
-            //         "paymentModal"));
-            //     modal.hide();
-            // });
-
-            // function gatherPaymentData() {
-            //     const paymentData = [];
-            //     document.querySelectorAll('.payment-row').forEach(row => {
-            //         const paymentMethod = row.querySelector('.payment-method').value;
-            //         const paymentDate = row.querySelector('.payment-date').value;
-            //         const amount = parseFormattedAmount(row.querySelector('.payment-amount')
-            //             .value);
-            //         const conditionalFields = {};
-
-            //         row.querySelectorAll('.conditional-fields input').forEach(input => {
-            //             conditionalFields[input.name] = input.value;
-            //         });
-
-            //         paymentData.push({
-            //             payment_method: paymentMethod,
-            //             payment_date: paymentDate,
-            //             amount: amount,
-            //             ...conditionalFields
-            //         });
-            //     });
-            //     return paymentData;
-            // }
-
             document.getElementById('finalize_payment').addEventListener('click', function() {
                 // Validate quantities before processing
                 if (!validateAllQuantities()) {
@@ -5245,6 +5212,9 @@
             url: '/sales',
             type: 'GET',
             dataType: 'json',
+            data: {
+                recent_transactions: 'true' // Add parameter to get all statuses for Recent Transactions
+            },
             success: function(data) {
                 if (Array.isArray(data)) {
                     sales = data;

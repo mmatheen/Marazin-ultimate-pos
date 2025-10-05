@@ -28,55 +28,104 @@ class UserController extends Controller
 
     public function index()
     {
-        // Get users that current user can see based on hierarchy and location
-        $user = auth()->user();
-        $isMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
+        $currentUser = auth()->user();
         
-        if ($isMasterSuperAdmin) {
-            // Master Super Admin can see all users
-            $users = User::with(['roles', 'locations'])->get();
-        } else {
-            // Non-Master Super Admin users filtering
-            $query = User::whereDoesntHave('roles', function($query) {
-                $query->where('name', 'Master Super Admin');
-            })->with(['roles', 'locations']);
+        // Check role hierarchy for access control
+        $isMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
+        $isSuperAdmin = $currentUser->roles->where('name', 'Super Admin')->count() > 0;
+        $hasBypassRole = $currentUser->roles->where('bypass_location_scope', true)->count() > 0;
+        $canBypassLocationScope = $isMasterSuperAdmin || $hasBypassRole;
+        
+        // Start with base query
+        $query = User::with(['roles', 'locations']);
+        
+        if (!$isMasterSuperAdmin) {
+            // Non-Master Super Admin users cannot see Master Super Admin users
+            $query->whereDoesntHave('roles', function($roleQuery) {
+                $roleQuery->where('name', 'Master Super Admin');
+            });
+        }
+        
+        // Apply permission-based filtering
+        if (!$isMasterSuperAdmin && !$isSuperAdmin) {
+            // Since this method has middleware protection, user already has 'view user' permission
+            // Now determine scope of access based on additional permissions and location
             
-            // Apply location filtering for non-bypass users
-            // Check if user is Master Super Admin or has bypass permission
-            $isSuperAdmin = $user->roles->whereIn('name', ['Master Super Admin', 'Super Admin'])->count() > 0;
-            $hasBypassRole = $user->roles->where('bypass_location_scope', true)->count() > 0;
-            $canBypass = $isSuperAdmin || $hasBypassRole;
+            $canEditUsers = $this->userHasPermission($currentUser, 'edit user');
+            $canDeleteUsers = $this->userHasPermission($currentUser, 'delete user');
+            $canCreateUsers = $this->userHasPermission($currentUser, 'create user');
             
-            if (!$canBypass) {
-                $userLocationIds = $user->locations->pluck('id')->toArray();
-                
-                if (!empty($userLocationIds)) {
-                    // Show only users from same locations
-                    $query->whereHas('locations', function($locationQuery) use ($userLocationIds) {
-                        $locationQuery->whereIn('locations.id', $userLocationIds);
-                    });
+            // If user only has 'view user' but no edit/delete/create permissions, 
+            // they might be restricted to own location only
+            $hasFullUserManagement = $canEditUsers || $canDeleteUsers || $canCreateUsers;
+            
+            if (!$hasFullUserManagement) {
+                // Limited access - only show users from same location + self
+                if (!$canBypassLocationScope) {
+                    $userLocationIds = $currentUser->locations->pluck('id')->toArray();
+                    
+                    if (!empty($userLocationIds)) {
+                        $query->where(function($subQuery) use ($userLocationIds, $currentUser) {
+                            $subQuery->whereHas('locations', function($locationQuery) use ($userLocationIds) {
+                                $locationQuery->whereIn('locations.id', $userLocationIds);
+                            })
+                            ->orWhere('id', $currentUser->id);
+                        });
+                    } else {
+                        // No location access - show only self
+                        $query->where('id', $currentUser->id);
+                    }
                 } else {
-                    // User has no location access - show no users
-                    $query->whereRaw('1 = 0');
+                    // Can bypass location scope but limited permissions - show all non-master admin users
+                    // (already filtered out Master Super Admin users above)
+                }
+            } else {
+                // Has full user management permissions, apply location-based filtering
+                if (!$canBypassLocationScope) {
+                    $userLocationIds = $currentUser->locations->pluck('id')->toArray();
+                    
+                    if (!empty($userLocationIds)) {
+                        $query->where(function($subQuery) use ($userLocationIds, $currentUser) {
+                            $subQuery->whereHas('locations', function($locationQuery) use ($userLocationIds) {
+                                $locationQuery->whereIn('locations.id', $userLocationIds);
+                            })
+                            ->orWhere('id', $currentUser->id);
+                        });
+                    } else {
+                        // No location access - show only self
+                        $query->where('id', $currentUser->id);
+                    }
                 }
             }
+        } elseif ($isSuperAdmin && !$canBypassLocationScope) {
+            // Super Admin with location restrictions
+            $userLocationIds = $currentUser->locations->pluck('id')->toArray();
             
-            $users = $query->get();
+            if (!empty($userLocationIds)) {
+                $query->where(function($subQuery) use ($userLocationIds, $currentUser) {
+                    $subQuery->whereHas('locations', function($locationQuery) use ($userLocationIds) {
+                        $locationQuery->whereIn('locations.id', $userLocationIds);
+                    })
+                    ->orWhere('id', $currentUser->id);
+                });
+            }
         }
+        
+        $users = $query->get();
 
         if ($users->isNotEmpty()) {
             return response()->json([
                 'status' => 200,
                 'message' => $users->map(function ($user) {
-                    $role = $user->roles->first(); // Assume one role per user (or pick primary)
+                    $role = $user->roles->first();
                     return [
                         'id' => $user->id,
                         'name_title' => $user->name_title,
                         'full_name' => $user->full_name,
                         'user_name' => $user->user_name,
                         'email' => $user->email,
-                        'role' => $role?->name ?? '—',        // Display name
-                        'role_key' => $role?->key ?? '—',     // Canonical key
+                        'role' => $role?->name ?? '—',
+                        'role_key' => $role?->key ?? '—',
                         'locations' => $user->locations->pluck('name')->toArray(),
                     ];
                 }),
@@ -177,10 +226,15 @@ class UserController extends Controller
             ]);
         }
 
+        // Check role hierarchy
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('name', 'Super Admin')->count() > 0;
         $targetUserIsMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-        $targetUserIsSuperAdmin = $user->roles->where('key', 'super_admin')->count() > 0;
+        
+        // Check if current user can bypass location scope
+        $hasBypassRole = $currentUser->roles->where('bypass_location_scope', true)->count() > 0;
+        $canBypassLocationScope = $currentUserIsMasterSuperAdmin || $hasBypassRole;
+        $isOwnProfile = $currentUser->id === $user->id;
 
         // Prevent non-Master Super Admin users from editing Master Super Admin users
         if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
@@ -190,9 +244,34 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Allow super admin and master admin to edit their own profile
-        // This will be handled in the update method for role restrictions
-        $isOwnProfile = $currentUser->id === $user->id;
+        // Check permission-based access (unless it's own profile)
+        if (!$isOwnProfile && !$currentUserIsMasterSuperAdmin && !$currentUserIsSuperAdmin) {
+            // Check if current user has edit permission
+            $canEditUsers = $this->userHasPermission($currentUser, 'edit user');
+            
+            if (!$canEditUsers) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => "You do not have permission to edit other users."
+                ], 403);
+            }
+        }
+
+        // Check location-based access (unless it's own profile)
+        if (!$isOwnProfile && !$currentUserIsMasterSuperAdmin && !$canBypassLocationScope) {
+            $currentUserLocationIds = $currentUser->locations->pluck('id')->toArray();
+            $targetUserLocationIds = $user->locations->pluck('id')->toArray();
+            
+            // Check if they share at least one location
+            $hasSharedLocation = !empty(array_intersect($currentUserLocationIds, $targetUserLocationIds));
+            
+            if (!$hasSharedLocation) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => "You do not have permission to edit users from different locations."
+                ], 403);
+            }
+        }
         
         return response()->json([
             'status' => 200,
@@ -223,11 +302,15 @@ class UserController extends Controller
             ]);
         }
 
+        // Check role hierarchy
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
-        $currentUserIsSuperAdmin = $currentUser->roles->where('key', 'super_admin')->count() > 0;
+        $currentUserIsSuperAdmin = $currentUser->roles->where('name', 'Super Admin')->count() > 0;
         $targetUserIsMasterSuperAdmin = $user->roles->where('name', 'Master Super Admin')->count() > 0;
-        $targetUserIsSuperAdmin = $user->roles->where('key', 'super_admin')->count() > 0;
         $isOwnProfile = $currentUser->id === $user->id;
+        
+        // Check if current user can bypass location scope
+        $hasBypassRole = $currentUser->roles->where('bypass_location_scope', true)->count() > 0;
+        $canBypassLocationScope = $currentUserIsMasterSuperAdmin || $hasBypassRole;
 
         // Prevent non-Master Super Admin users from editing Master Super Admin users
         if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
@@ -235,6 +318,22 @@ class UserController extends Controller
                 'status' => 403,
                 'message' => "You do not have permission to edit Master Super Admin users."
             ], 403);
+        }
+
+        // Check location-based access (unless it's own profile)
+        if (!$isOwnProfile && !$currentUserIsMasterSuperAdmin && !$canBypassLocationScope) {
+            $currentUserLocationIds = $currentUser->locations->pluck('id')->toArray();
+            $targetUserLocationIds = $user->locations->pluck('id')->toArray();
+            
+            // Check if they share at least one location
+            $hasSharedLocation = !empty(array_intersect($currentUserLocationIds, $targetUserLocationIds));
+            
+            if (!$hasSharedLocation) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => "You do not have permission to edit users from different locations."
+                ], 403);
+            }
         }
 
         // Check if user is trying to change their own role
@@ -248,7 +347,7 @@ class UserController extends Controller
             ], 403);
         }
 
-        // Prevent changing Master Super Admin role to something else or assigning Master Super Admin role to others
+        // Prevent changing Master Super Admin role or assigning it to others
         if ($targetUserIsMasterSuperAdmin && $request->roles && $request->roles !== 'Master Super Admin' && !$isOwnProfile) {
             return response()->json([
                 'status' => 403,
@@ -342,8 +441,13 @@ class UserController extends Controller
             ], 403);
         }
 
+        // Check role hierarchy
         $currentUserIsMasterSuperAdmin = $currentUser->roles->where('name', 'Master Super Admin')->count() > 0;
         $targetUserIsMasterSuperAdmin = $userToDelete->roles->where('name', 'Master Super Admin')->count() > 0;
+        
+        // Check if current user can bypass location scope
+        $hasBypassRole = $currentUser->roles->where('bypass_location_scope', true)->count() > 0;
+        $canBypassLocationScope = $currentUserIsMasterSuperAdmin || $hasBypassRole;
         
         // Prevent deletion of Master Super Admin by non-Master Super Admin users
         if ($targetUserIsMasterSuperAdmin && !$currentUserIsMasterSuperAdmin) {
@@ -351,6 +455,51 @@ class UserController extends Controller
                 'status' => 403,
                 'message' => "You do not have permission to delete Master Super Admin users."
             ], 403);
+        }
+
+        // Check role hierarchy access
+        if (!$currentUserIsMasterSuperAdmin) {
+            $currentUserRole = $currentUser->roles->first();
+            $targetUserRole = $userToDelete->roles->first();
+            
+            // Super Admin can delete anyone except Master Super Admin (already checked above)
+            $currentUserIsSuperAdmin = $currentUser->roles->where('name', 'Super Admin')->count() > 0;
+            
+            if (!$currentUserIsSuperAdmin) {
+                if ($currentUserRole && $targetUserRole) {
+                    $roleAccessMatrix = [
+                        'Admin' => ['Admin', 'Sales Rep', 'Cashier', 'Staff'],
+                        'Sales Rep' => ['Sales Rep'],
+                        'Cashier' => ['Cashier'], 
+                        'Staff' => ['Staff'],
+                    ];
+                    
+                    $allowedRoles = $roleAccessMatrix[$currentUserRole->name] ?? [];
+                    
+                    if (!in_array($targetUserRole->name, $allowedRoles)) {
+                        return response()->json([
+                            'status' => 403,
+                            'message' => "You do not have permission to delete users with {$targetUserRole->name} role."
+                        ], 403);
+                    }
+                }
+            }
+        }
+        
+        // Check location-based access
+        if (!$currentUserIsMasterSuperAdmin && !$canBypassLocationScope) {
+            $currentUserLocationIds = $currentUser->locations->pluck('id')->toArray();
+            $targetUserLocationIds = $userToDelete->locations->pluck('id')->toArray();
+            
+            // Check if they share at least one location
+            $hasSharedLocation = !empty(array_intersect($currentUserLocationIds, $targetUserLocationIds));
+            
+            if (!$hasSharedLocation) {
+                return response()->json([
+                    'status' => 403,
+                    'message' => "You do not have permission to delete users from different locations."
+                ], 403);
+            }
         }
 
         // Prevent deletion of the last Master Super Admin
@@ -415,6 +564,24 @@ class UserController extends Controller
         }
 
         $user->locations()->sync($validLocationIds);
+    }
+
+    /**
+     * Check if user has specific permission (works with Spatie permissions)
+     */
+    private function userHasPermission($user, $permission): bool
+    {
+        // Get direct permissions
+        $userPermissions = $user->permissions->pluck('name')->toArray();
+        
+        // Get role-based permissions
+        $rolePermissions = $user->roles->flatMap(function($role) {
+            return $role->permissions;
+        })->pluck('name')->toArray();
+        
+        $allPermissions = array_merge($userPermissions, $rolePermissions);
+        
+        return in_array($permission, $allPermissions);
     }
 
     /**

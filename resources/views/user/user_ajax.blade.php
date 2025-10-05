@@ -270,7 +270,7 @@
             $('#deleteName').text('Delete User');
         });
 
-        $(document).off('click', '.confirm_delete_btn').on('click', '.confirm_delete_btn', function() {
+        $(document).off('click', '.confirm_user_delete_btn').on('click', '.confirm_user_delete_btn', function() {
             var id = $('#deleting_id').val();
             
             // Prevent multiple clicks
@@ -309,7 +309,7 @@
                     $('#deleteModal').modal('hide');
                     
                     // Reset processing flag
-                    $('.confirm_delete_btn').data('processing', false);
+                    $('.confirm_user_delete_btn').data('processing', false);
                     
                     // Clear any existing toastr messages first
                     toastr.clear();
@@ -336,7 +336,7 @@
                 },
                 complete: function() {
                     // Reset processing flag when request completes
-                    $('.confirm_delete_btn').data('processing', false);
+                    $('.confirm_user_delete_btn').data('processing', false);
                 }
             });
         });
