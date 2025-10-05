@@ -672,6 +672,13 @@
                 serverSide: true,
                 deferRender: true, // Improve performance for large datasets
                 stateSave: true, // Save table state (pagination, search, etc.)
+                language: {
+                    processing: "Loading products...",
+                    emptyTable: "No products available",
+                    zeroRecords: "No matching products found",
+                    loadingRecords: "Loading...",
+                    error: "An error occurred while loading data"
+                },
                 ajax: {
                     url: '/products/stocks',
                     type: 'GET',
@@ -710,38 +717,68 @@
                         // Enhanced validation
                         if (!response) {
                             console.error('Response is null or undefined');
+                            if (typeof toastr !== 'undefined') {
+                                toastr.error('No response received from server', 'Error');
+                            }
                             return [];
                         }
                         
                         if (typeof response !== 'object') {
                             console.error('Response is not an object, received type:', typeof response);
-                            return [];
-                        }
-                        
-                        if (response.status !== 200) {
-                            console.error('Response status is not 200:', response.status);
-                            if (response.message) {
-                                console.error('Error message:', response.message);
+                            if (typeof toastr !== 'undefined') {
+                                toastr.error('Invalid response format received', 'Error');
                             }
                             return [];
                         }
                         
-                        if (!response.hasOwnProperty('data')) {
-                            console.error('Response missing data property. Available keys:', Object.keys(response));
-                            return [];
+                        // Check for DataTables server-side format first
+                        if (response.hasOwnProperty('data') && response.hasOwnProperty('recordsTotal') && response.hasOwnProperty('recordsFiltered')) {
+                            console.log('Server-side DataTables format detected');
+                            // For dropdowns, only update if it's the first page
+                            if (response.draw === 1 && Array.isArray(response.data)) {
+                                populateProductFilter(response.data);
+                            }
+                            return Array.isArray(response.data) ? response.data : [];
                         }
                         
-                        if (!Array.isArray(response.data)) {
-                            console.error('Response.data is not an array, type:', typeof response.data);
-                            console.error('Response.data value:', response.data);
+                        // Check for legacy format
+                        if (response.status === 200) {
+                            if (!response.hasOwnProperty('data')) {
+                                console.error('Response missing data property. Available keys:', Object.keys(response));
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error('Invalid response structure', 'Error');
+                                }
+                                return [];
+                            }
+                            
+                            if (!Array.isArray(response.data)) {
+                                console.error('Response.data is not an array, type:', typeof response.data);
+                                console.error('Response.data value:', response.data);
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error('Invalid data format in response', 'Error');
+                                }
+                                return [];
+                            }
+                            
+                            // For dropdowns, only update if it's the first page
+                            if (response.draw === 1) populateProductFilter(response.data);
+                            
+                            console.log('Returning array with', response.data.length, 'items');
+                            return response.data;
+                        } else {
+                            console.error('Response status is not 200:', response.status);
+                            if (response.message) {
+                                console.error('Error message:', response.message);
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error(response.message, 'Server Error');
+                                }
+                            } else {
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error('Server returned error status: ' + response.status, 'Error');
+                                }
+                            }
                             return [];
                         }
-                        
-                        // For dropdowns, only update if it's the first page
-                        if (response.draw === 1) populateProductFilter(response.data);
-                        
-                        console.log('Returning array with', response.data.length, 'items');
-                        return response.data;
                     },
                     error: function(xhr, status, error) {
                         console.error('DataTable AJAX error details:');
@@ -1148,13 +1185,45 @@
             console.log('Filter changed, reloading DataTable...');
             if ($.fn.DataTable.isDataTable('#productTable')) {
                 try {
-                    $('#productTable').DataTable().ajax.reload(function(json) {
-                        console.log('DataTable reloaded successfully:', json);
-                    }, false);
+                    const table = $('#productTable').DataTable();
+                    
+                    // Check if the table is still valid before attempting reload
+                    if (table && typeof table.ajax === 'object' && typeof table.ajax.reload === 'function') {
+                        table.ajax.reload(function(json) {
+                            console.log('DataTable reloaded successfully:', json);
+                            
+                            // Additional validation after reload
+                            if (!json) {
+                                console.error('Reload completed but no data received');
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.warning('No data received after reload', 'Warning');
+                                }
+                            }
+                        }, false);
+                    } else {
+                        console.error('DataTable ajax object is not available');
+                        // Try to reinitialize the DataTable
+                        fetchProductData();
+                    }
                 } catch (error) {
                     console.error('Error reloading DataTable:', error);
-                    toastr.error('Error reloading product list', 'Error');
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error('Error reloading product list. Reinitializing...', 'Error');
+                    }
+                    
+                    // Try to reinitialize the DataTable as a fallback
+                    try {
+                        fetchProductData();
+                    } catch (reinitError) {
+                        console.error('Error reinitializing DataTable:', reinitError);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('Failed to reload product list. Please refresh the page.', 'Critical Error');
+                        }
+                    }
                 }
+            } else {
+                console.log('DataTable is not initialized, initializing now...');
+                fetchProductData();
             }
         });
 
