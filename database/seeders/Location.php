@@ -13,12 +13,12 @@ class Location extends Seeder
      */
     public function run(): void
     {
-        // Use updateOrInsert to handle duplicates gracefully
-        DB::table('locations')->updateOrInsert(
-            // Search criteria - if any of these match, update instead of insert
-            ['id' => 1],
-            // Data to insert or update
-            [
+        // Check if location with ID 1 already exists
+        $existingLocation = DB::table('locations')->where('id', 1)->first();
+        
+        if (!$existingLocation) {
+            // Only insert if location doesn't exist - DO NOT update existing locations
+            DB::table('locations')->insert([
                 'id' => 1,
                 'name' => 'Main Location',
                 'location_id' => 'LOC0001',
@@ -31,9 +31,11 @@ class Location extends Seeder
                 'telephone_no' => '0672222257',
                 'created_at' => '2025-03-15 07:55:07',
                 'updated_at' => '2025-03-15 07:55:07',
-            ]
-        );
-        
-        $this->command->info('Main location processed successfully.');
+            ]);
+            
+            $this->command->info('Main location created successfully.');
+        } else {
+            $this->command->info('Location with ID 1 already exists. Skipping to preserve existing data.');
+        }
     }
 }

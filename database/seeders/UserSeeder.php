@@ -49,16 +49,9 @@ class UserSeeder extends Seeder
             $existingUser = User::where('email', $userData['email'])->first();
             
             if ($existingUser) {
-                $this->command->info("User {$userData['email']} already exists, updating...");
+                $this->command->info("User {$userData['email']} already exists, skipping to preserve existing data...");
                 $user = $existingUser;
-                $user->update([
-                    'name_title' => $userData['name_title'],
-                    'full_name' => $userData['full_name'],
-                    'user_name' => $userData['user_name'],
-                    'is_admin' => $userData['is_admin'],
-                    'password' => Hash::make($userData['password']),
-                    'updated_at' => Carbon::now(),
-                ]);
+                // Do not update existing user data in production
             } else {
                 $this->command->info("Creating new user {$userData['email']}...");
                 $user = User::create([
@@ -73,43 +66,48 @@ class UserSeeder extends Seeder
                 ]);
             }
 
-            // Check if role exists before assigning
-            $role = Role::where('name', $userData['role'])->first();
-            if ($role) {
-                // Remove existing roles and assign new one
-                $user->syncRoles([$userData['role']]);
-                $this->command->info("Assigned role '{$userData['role']}' to {$userData['email']}");
-            } else {
-                $this->command->error("Role '{$userData['role']}' not found! Please run RolesAndPermissionsSeeder first.");
-                continue;
-            }
-
-            // Attach locations via pivot table
-            if ($userData['role'] === 'Master Super Admin') {
-                // Master Super Admin gets access to all locations automatically (no need to attach)
-                // Location scope will be bypassed for Master Super Admin
-                $this->command->info("Master Super Admin bypasses location scope");
-            } elseif ($userData['role'] === 'Super Admin') {
-                // Super Admin gets access to all locations
-                if ($allLocations->isNotEmpty()) {
-                    $user->locations()->sync($allLocations->values());
-                    $this->command->info("Super Admin assigned to all locations");
+            // Only assign roles and locations to newly created users
+            if (!$existingUser) {
+                // Check if role exists before assigning
+                $role = Role::where('name', $userData['role'])->first();
+                if ($role) {
+                    // Assign role to new user
+                    $user->syncRoles([$userData['role']]);
+                    $this->command->info("Assigned role '{$userData['role']}' to new user {$userData['email']}");
                 } else {
-                    $this->command->warn("No locations found in database");
+                    $this->command->error("Role '{$userData['role']}' not found! Please run RolesAndPermissionsSeeder first.");
+                    continue;
                 }
-            } else {
-                $locationIds = [];
-                foreach ($userData['locations'] as $locName) {
-                    if (isset($location_ids[$locName])) {
-                        $locationIds[] = $location_ids[$locName];
+
+                // Attach locations via pivot table for new users only
+                if ($userData['role'] === 'Master Super Admin') {
+                    // Master Super Admin gets access to all locations automatically (no need to attach)
+                    // Location scope will be bypassed for Master Super Admin
+                    $this->command->info("Master Super Admin bypasses location scope");
+                } elseif ($userData['role'] === 'Super Admin') {
+                    // Super Admin gets access to all locations
+                    if ($allLocations->isNotEmpty()) {
+                        $user->locations()->sync($allLocations->values());
+                        $this->command->info("Super Admin assigned to all locations");
+                    } else {
+                        $this->command->warn("No locations found in database");
+                    }
+                } else {
+                    $locationIds = [];
+                    foreach ($userData['locations'] as $locName) {
+                        if (isset($location_ids[$locName])) {
+                            $locationIds[] = $location_ids[$locName];
+                        }
+                    }
+                    if (!empty($locationIds)) {
+                        $user->locations()->sync($locationIds);
+                        $this->command->info("User assigned to specific locations");
+                    } else {
+                        $this->command->warn("No matching locations found for user");
                     }
                 }
-                if (!empty($locationIds)) {
-                    $user->locations()->sync($locationIds);
-                    $this->command->info("User assigned to specific locations");
-                } else {
-                    $this->command->warn("No matching locations found for user");
-                }
+            } else {
+                $this->command->info("Existing user {$userData['email']} - preserving current roles and locations");
             }
         }
         
