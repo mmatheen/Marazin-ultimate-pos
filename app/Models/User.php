@@ -164,9 +164,9 @@ class User extends Authenticatable
     /**
      * Override the syncRoles method to sync role_name
      */
-    public function syncRoles(...$roles)
+    public function syncRoles($roles)
     {
-        $result = parent::syncRoles(...$roles);
+        $result = parent::syncRoles($roles);
         $this->syncRoleName();
         return $result;
     }
