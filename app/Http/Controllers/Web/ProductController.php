@@ -1037,11 +1037,11 @@ class ProductController extends Controller
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
                 })
-                // Filter by location if provided (only show products that exist in that location)
+                // Filter by location if provided (show ALL products assigned to that location, including 0 qty)
                 ->when($locationId, function ($query) use ($locationId) {
-                    return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                        $q->where('location_id', $locationId);
-                        // Only show products that actually exist in the selected location
+                    return $query->whereHas('locations', function ($q) use ($locationId) {
+                        $q->where('locations.id', $locationId);
+                        // Show all products assigned to the selected location (even with 0 stock)
                     });
                 });
 
@@ -1109,17 +1109,9 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $productBatches = $product->batches;
 
-                // Filter batches with locationBatches based on location filter
-                $filteredBatches = $productBatches->filter(function ($batch) use ($locationId) {
-                    if ($locationId) {
-                        // If location is specified, only include batches that have stock in that location
-                        return $batch->locationBatches->isNotEmpty() && 
-                               $batch->locationBatches->where('location_id', $locationId)->isNotEmpty();
-                    } else {
-                        // If no location specified, include all batches with any location stock
-                        return $batch->locationBatches->isNotEmpty();
-                    }
-                });
+                // When location filter is applied, we still want to show the product even if no batches exist
+                // So we don't filter batches aggressively - just filter the location data within batches
+                $filteredBatches = $productBatches;
 
                 // Determine if allow_decimal is true for this product's unit
                 $allowDecimal = $product->unit && $product->unit->allow_decimal;
@@ -1227,22 +1219,29 @@ class ProductController extends Controller
                             'max_retail_price' => $batch->max_retail_price,
                             'expiry_date' => $batch->expiry_date,
                             'total_batch_quantity' => $allowDecimal
-                                ? round($locationBatches->sum(fn($lb) => (float)$lb->qty), 2)
-                                : (int)$locationBatches->sum(fn($lb) => (int)$lb->qty),
+                                ? round($locationBatches->sum(fn($lb) => (float)($lb->qty ?? 0)), 2)
+                                : (int)$locationBatches->sum(fn($lb) => (int)($lb->qty ?? 0)),
                             'location_batches' => $locationBatches->map(function ($lb) use ($allowDecimal) {
                                 return [
                                     'batch_id' => $lb->batch_id,
                                     'location_id' => $lb->location_id,
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
-                                    'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
+                                    'quantity' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0)
                                 ];
                             })
                         ];
                     }),
-                    'locations' => $product->locations->map(fn($loc) => [
-                        'location_id' => $loc->id,
-                        'location_name' => $loc->name
-                    ]),
+                    'locations' => $locationId ? 
+                        // If location filter is applied, show the filtered location info
+                        $product->locations->where('id', $locationId)->map(fn($loc) => [
+                            'location_id' => $loc->id,
+                            'location_name' => $loc->name
+                        ]) :
+                        // If no location filter, show all locations
+                        $product->locations->map(fn($loc) => [
+                            'location_id' => $loc->id,
+                            'location_name' => $loc->name
+                        ]),
                     'has_batches' => $filteredBatches->isNotEmpty(),
                     'discounts' => $activeDiscounts,
                     'imei_numbers' => $productImeis
