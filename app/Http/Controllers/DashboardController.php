@@ -19,23 +19,36 @@ class DashboardController extends Controller
    
     public function index()
     {
-        return view('discounts.index');
+        return view('includes.dashboards.dashboard');
     }
 
     public function getDashboardData(Request $request)
     {
         $startDate = $request->query('startDate');
         $endDate = $request->query('endDate');
+        $selectedLocationId = $request->query('location_id'); // Get selected location from frontend
         
         // Get user's accessible locations
         $user = auth()->user();
         $userLocations = ($user->role === 'Super Admin' || !$user->locations || $user->locations->isEmpty()) ? null : $user->locations->pluck('id');
+        
+        // Determine which locations to filter by
+        $locationFilter = null;
+        if ($selectedLocationId) {
+            // If a specific location is selected, use only that location (if user has access)
+            if ($userLocations === null || $userLocations->contains($selectedLocationId)) {
+                $locationFilter = [$selectedLocationId];
+            }
+        } else {
+            // If "All Location" is selected, use user's accessible locations
+            $locationFilter = $userLocations ? $userLocations->toArray() : null;
+        }
     
         // Apply location filter for sales
         $salesQuery = DB::table('sales')
             ->whereBetween('sales_date', [$startDate, $endDate]);
-        if ($userLocations) {
-            $salesQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $salesQuery->whereIn('location_id', $locationFilter);
         }
         
         $totalSales = $salesQuery->sum('final_total');
@@ -44,8 +57,8 @@ class DashboardController extends Controller
         // Apply location filter for purchases
         $purchasesQuery = DB::table('purchases')
             ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($userLocations) {
-            $purchasesQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $purchasesQuery->whereIn('location_id', $locationFilter);
         }
         
         $totalPurchases = $purchasesQuery->sum('final_total');
@@ -54,8 +67,8 @@ class DashboardController extends Controller
         // Apply location filter for purchase returns
         $purchaseReturnQuery = DB::table('purchase_returns')
             ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($userLocations) {
-            $purchaseReturnQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $purchaseReturnQuery->whereIn('location_id', $locationFilter);
         }
         
         $totalPurchaseReturn = $purchaseReturnQuery->sum('return_total');
@@ -64,8 +77,8 @@ class DashboardController extends Controller
         // Apply location filter for sales returns
         $salesReturnQuery = DB::table('sales_returns')
             ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($userLocations) {
-            $salesReturnQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $salesReturnQuery->whereIn('location_id', $locationFilter);
         }
         
         $totalSalesReturn = $salesReturnQuery->sum('return_total');
@@ -74,8 +87,8 @@ class DashboardController extends Controller
         // Apply location filter for stock transfers
         $stockTransferQuery = DB::table('stock_transfers')
             ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($userLocations) {
-            $stockTransferQuery->whereIn('from_location_id', $userLocations);
+        if ($locationFilter) {
+            $stockTransferQuery->whereIn('from_location_id', $locationFilter);
         }
         
         $stockTransfer = $stockTransferQuery->sum('final_total');
@@ -89,8 +102,8 @@ class DashboardController extends Controller
         $salesDataQuery = DB::table('sales')
             ->select(DB::raw('DATE(sales_date) as date'), DB::raw('SUM(final_total) as amount'))
             ->whereBetween('sales_date', [$startDate, $endDate]);
-        if ($userLocations) {
-            $salesDataQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $salesDataQuery->whereIn('location_id', $locationFilter);
         }
         
         $salesData = $salesDataQuery->groupBy(DB::raw('DATE(sales_date)'))->get();
@@ -101,8 +114,8 @@ class DashboardController extends Controller
         $purchaseDataQuery = DB::table('purchases')
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(final_total) as amount'))
             ->whereBetween('created_at', [$startDate, $endDate]);
-        if ($userLocations) {
-            $purchaseDataQuery->whereIn('location_id', $userLocations);
+        if ($locationFilter) {
+            $purchaseDataQuery->whereIn('location_id', $locationFilter);
         }
         
         $purchaseData = $purchaseDataQuery->groupBy(DB::raw('DATE(created_at)'))->get();

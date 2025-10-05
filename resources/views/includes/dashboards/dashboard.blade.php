@@ -224,17 +224,15 @@
                     dataType: "json",
                     success: function(response) {
                         if (response.status && response.data) {
-                            let options = '';
+                            let options = '<option value="">All Location</option>';
                             response.data.forEach(function(location) {
                                 options +=
                                     `<option value="${location.id}">${location.name}</option>`;
                             });
                             $('#location_dropdown').html(options);
 
-                            // Set first location as selected by default
-                            if (response.data.length > 0) {
-                                $('#location_dropdown').val(response.data[0].id);
-                            }
+                            // Keep "All Location" selected by default (empty value)
+                            $('#location_dropdown').val('');
                         }
                     },
                     error: function(xhr, status, error) {
@@ -249,8 +247,13 @@
             // Handle location dropdown change
             $('#location_dropdown').on('change', function() {
                 const selectedLocationId = $(this).val();
-                // You can add logic here to update dashboard data based on selected location
                 console.log('Selected location ID:', selectedLocationId);
+                
+                // Get current date range and refresh dashboard data
+                const dateRange = $('#reportrange').data('daterangepicker');
+                if (dateRange) {
+                    fetchDashboardData(dateRange.startDate, dateRange.endDate, selectedLocationId);
+                }
             });
 
             let salesChart;
@@ -263,14 +266,15 @@
                 });
             }
 
-            function fetchDashboardData(start, end) {
+            function fetchDashboardData(start, end, locationId = null) {
                 $.ajax({
                     url: "/dashboard-data",
                     type: "GET",
                     dataType: "json",
                     data: {
                         startDate: start.startOf('day').format('YYYY-MM-DD HH:mm:ss'),
-                        endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                        endDate: end.endOf('day').format('YYYY-MM-DD HH:mm:ss'),
+                        location_id: locationId
                     },
                     success: function(response) {
                         $("#totalSales").text(formatCurrency(response.totalSales));
@@ -387,7 +391,10 @@
                 function cb(start, end) {
                     $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format(
                         'MMMM D, YYYY'));
-                    fetchDashboardData(start, end);
+                    
+                    // Get selected location ID
+                    const selectedLocationId = $('#location_dropdown').val();
+                    fetchDashboardData(start, end, selectedLocationId);
                 }
 
                 $('#reportrange').daterangepicker({
