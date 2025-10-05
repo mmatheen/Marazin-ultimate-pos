@@ -1171,36 +1171,52 @@ class ProductController extends Controller
                     ];
                 });
 
+                // Build locations array based on filter
+                $productLocations = $product->locations;
+                if ($locationId) {
+                    $productLocations = $productLocations->where('id', $locationId);
+                }
+                
+                $locationData = $productLocations->map(fn($loc) => [
+                    'location_id' => $loc->id,
+                    'location_name' => $loc->name
+                ])->values();
+
+                // Ensure locationData is always an array
+                if ($locationData->isEmpty()) {
+                    $locationData = collect([]);
+                }
+
                 // Build final product stock array
                 $productStocks[] = [
                     'product' => [
                         'id' => $product->id,
-                        'product_name' => $product->product_name,
-                        'sku' => $product->sku,
+                        'product_name' => $product->product_name ?? '',
+                        'sku' => $product->sku ?? '',
                         'unit_id' => $product->unit_id,
                         'unit' => $product->unit ? [
                             'id' => $product->unit->id,
-                            'name' => $product->unit->name,
-                            'short_name' => $product->unit->short_name,
+                            'name' => $product->unit->name ?? '',
+                            'short_name' => $product->unit->short_name ?? '',
                             'allow_decimal' => (bool) ($product->unit->allow_decimal ?? 0),
                         ] : null,
                         'brand_id' => $product->brand_id,
                         'main_category_id' => $product->main_category_id,
                         'sub_category_id' => $product->sub_category_id,
                         'stock_alert' => $product->stock_alert,
-                        'alert_quantity' => $product->alert_quantity,
-                        'product_image' => $product->product_image,
-                        'description' => $product->description,
-                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no,
-                        'is_for_selling' => $product->is_for_selling,
-                        'product_type' => $product->product_type,
-                        'pax' => $product->pax,
-                        'original_price' => $product->original_price,
-                        'retail_price' => $product->retail_price,
-                        'whole_sale_price' => $product->whole_sale_price,
-                        'special_price' => $product->special_price,
-                        'max_retail_price' => $product->max_retail_price,
-                        'is_active' => $product->is_active,
+                        'alert_quantity' => $product->alert_quantity ?? 0,
+                        'product_image' => $product->product_image ?? '',
+                        'description' => $product->description ?? '',
+                        'is_imei_or_serial_no' => $product->is_imei_or_serial_no ?? 0,
+                        'is_for_selling' => $product->is_for_selling ?? 1,
+                        'product_type' => $product->product_type ?? '',
+                        'pax' => $product->pax ?? 0,
+                        'original_price' => $product->original_price ?? 0,
+                        'retail_price' => $product->retail_price ?? 0,
+                        'whole_sale_price' => $product->whole_sale_price ?? 0,
+                        'special_price' => $product->special_price ?? 0,
+                        'max_retail_price' => $product->max_retail_price ?? 0,
+                        'is_active' => $product->is_active ?? 0,
                     ],
                     'total_stock' => $totalStock,
                     'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal, $locationId) {
@@ -1211,12 +1227,12 @@ class ProductController extends Controller
 
                         return [
                             'id' => $batch->id,
-                            'batch_no' => $batch->batch_no,
-                            'unit_cost' => $batch->unit_cost,
-                            'wholesale_price' => $batch->wholesale_price,
-                            'special_price' => $batch->special_price,
-                            'retail_price' => $batch->retail_price,
-                            'max_retail_price' => $batch->max_retail_price,
+                            'batch_no' => $batch->batch_no ?? '',
+                            'unit_cost' => $batch->unit_cost ?? 0,
+                            'wholesale_price' => $batch->wholesale_price ?? 0,
+                            'special_price' => $batch->special_price ?? 0,
+                            'retail_price' => $batch->retail_price ?? 0,
+                            'max_retail_price' => $batch->max_retail_price ?? 0,
                             'expiry_date' => $batch->expiry_date,
                             'total_batch_quantity' => $allowDecimal
                                 ? round($locationBatches->sum(fn($lb) => (float)($lb->qty ?? 0)), 2)
@@ -1228,20 +1244,10 @@ class ProductController extends Controller
                                     'location_name' => optional($lb->location)->name ?? 'N/A',
                                     'quantity' => $allowDecimal ? round((float)($lb->qty ?? 0), 2) : (int)($lb->qty ?? 0)
                                 ];
-                            })
+                            })->values()
                         ];
-                    }),
-                    'locations' => $locationId ? 
-                        // If location filter is applied, show the filtered location info
-                        $product->locations->where('id', $locationId)->map(fn($loc) => [
-                            'location_id' => $loc->id,
-                            'location_name' => $loc->name
-                        ]) :
-                        // If no location filter, show all locations
-                        $product->locations->map(fn($loc) => [
-                            'location_id' => $loc->id,
-                            'location_name' => $loc->name
-                        ]),
+                    })->values(),
+                    'locations' => $locationData,
                     'has_batches' => $filteredBatches->isNotEmpty(),
                     'discounts' => $activeDiscounts,
                     'imei_numbers' => $productImeis
@@ -1258,10 +1264,10 @@ class ProductController extends Controller
 
             // DataTables expects these keys: draw, recordsTotal, recordsFiltered, data
             return response()->json([
-                'draw' => intval($request->input('draw')), // DataTables draw count
+                'draw' => intval($request->input('draw', 0)), // DataTables draw count
                 'recordsTotal' => $totalCount,
                 'recordsFiltered' => $filteredCount,
-                'data' => $productStocks,
+                'data' => array_values($productStocks), // Ensure indexed array
                 'status' => 200,
                 'pagination' => [
                     'total' => $filteredCount,
@@ -1275,11 +1281,17 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             Log::error('Error fetching product stocks:', [
                 'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'request_params' => $request->all()
             ]);
             return response()->json([
+                'draw' => intval($request->input('draw', 0)),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
                 'status' => 500,
-                'message' => 'An error occurred while fetching product stocks.'
+                'message' => 'An error occurred while fetching product stocks.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

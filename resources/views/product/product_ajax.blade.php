@@ -633,14 +633,20 @@
                         };
                     },
                     dataSrc: function(response) {
-                        if (response.status === 200) {
+                        console.log('DataTable response received:', response);
+                        if (response && response.status === 200) {
                             // For dropdowns, only update if it's the first page
                             if (response.draw === 1) populateProductFilter(response.data);
                             
-                            // Return the raw data structure as-is since it contains both product and other data
-                            return response.data;
+                            // Ensure we return an array
+                            if (Array.isArray(response.data)) {
+                                return response.data;
+                            } else {
+                                console.error('Response data is not an array:', response.data);
+                                return [];
+                            }
                         } else {
-                            console.error('Error fetching products:', response.message);
+                            console.error('Invalid response or status:', response);
                             if (typeof toastr !== 'undefined') {
                                 toastr.error('Failed to load products', 'Error');
                             }
@@ -1014,8 +1020,16 @@
 
         // On filter change, reload DataTable (triggers ajax with filters)
         $('#productNameFilter, #categoryFilter, #brandFilter, #locationFilter').on('change', function() {
+            console.log('Filter changed, reloading DataTable...');
             if ($.fn.DataTable.isDataTable('#productTable')) {
-                $('#productTable').DataTable().ajax.reload();
+                try {
+                    $('#productTable').DataTable().ajax.reload(function(json) {
+                        console.log('DataTable reloaded successfully:', json);
+                    }, false);
+                } catch (error) {
+                    console.error('Error reloading DataTable:', error);
+                    toastr.error('Error reloading product list', 'Error');
+                }
             }
         });
 
