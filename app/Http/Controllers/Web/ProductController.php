@@ -1036,6 +1036,13 @@ class ProductController extends Controller
                 // Only filter by is_active for POS (when show_all parameter is not set)
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
+                })
+                // Filter by location if provided (only show products that exist in that location)
+                ->when($locationId, function ($query) use ($locationId) {
+                    return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
+                        $q->where('location_id', $locationId);
+                        // Only show products that actually exist in the selected location
+                    });
                 });
 
             // Apply DataTable global search

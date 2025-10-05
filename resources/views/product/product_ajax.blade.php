@@ -150,7 +150,7 @@
             });
         }
 
-        function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, callback) {
+        function populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, autoSelectSingle, callback) {
             populateDropdown('#edit_main_category_id', mainCategories, 'mainCategoryName');
             populateDropdown('#edit_sub_category_id', subCategories, 'subCategoryname');
             populateDropdown('#edit_brand_id', brands, 'name');
@@ -165,10 +165,31 @@
                 }, 100);
             }
             
-            // Populate location filter dropdown
-            populateDropdown('#locationFilter', locations, 'name');
+            // Populate location filter dropdown with "All Location" option
+            populateLocationFilterDropdown(locations, autoSelectSingle);
             
             if (callback) callback();
+        }
+
+        // New function to handle location filter dropdown with "All Location" option
+        function populateLocationFilterDropdown(locations, autoSelectSingle = false) {
+            const locationFilter = $('#locationFilter');
+            locationFilter.empty();
+            
+            // Add "All Location" option as default
+            locationFilter.append('<option value="">All Location</option>');
+            
+            // Add individual locations
+            locations.forEach(location => {
+                const option = $(`<option value="${location.id}">${location.name}</option>`);
+                locationFilter.append(option);
+            });
+            
+            // Auto-select single location if user has access to only one location
+            if (autoSelectSingle && locations.length === 1) {
+                locationFilter.val(locations[0].id).trigger('change');
+                console.log('Auto-selected single accessible location for filter:', locations[0].name);
+            }
         }
 
         function fetchInitialDropdowns(callback) {
@@ -183,7 +204,7 @@
                     const autoSelectSingle = response.message.auto_select_single_location;
 
                     populateInitialDropdowns(mainCategories, subCategories, brands, units, locations,
-                        callback);
+                        autoSelectSingle, callback);
                     
                     // Log auto-selection info
                     if (autoSelectSingle && locations.length === 1) {
@@ -238,7 +259,7 @@
             updateButtonsForEditMode();
 
             // Populate initial dropdowns with callback to set selected values
-            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, function() {
+            populateInitialDropdowns(mainCategories, subCategories, brands, units, locations, false, function() {
                 $('#edit_main_category_id').val(product.main_category_id).trigger('change');
 
                 setTimeout(() => {

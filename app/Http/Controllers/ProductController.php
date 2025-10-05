@@ -1023,11 +1023,11 @@ class ProductController extends Controller
                 ->when(!$request->has('show_all'), function ($query) {
                     return $query->where('is_active', true);
                 })
-                // Filter by location if provided (only show products with stock in that location)
+                // Filter by location if provided (only show products that exist in that location)
                 ->when($locationId, function ($query) use ($locationId) {
                     return $query->whereHas('batches.locationBatches', function ($q) use ($locationId) {
-                        $q->where('location_id', $locationId)
-                          ->where('qty', '>', 0);
+                        $q->where('location_id', $locationId);
+                        // Only show products that actually exist in the selected location
                     });
                 });
 
@@ -1197,10 +1197,21 @@ class ProductController extends Controller
                             })
                         ];
                     }),
-                    'locations' => $product->locations->map(fn($loc) => [
-                        'location_id' => $loc->id,
-                        'location_name' => $loc->name
-                    ]),
+                    'locations' => $locationId ? 
+                        // If location filter is applied, only show the filtered location with its quantities
+                        $filteredBatches->flatMap(function($batch) {
+                            return $batch->locationBatches->map(function($lb) {
+                                return [
+                                    'location_id' => $lb->location_id,
+                                    'location_name' => optional($lb->location)->name ?? 'N/A'
+                                ];
+                            });
+                        })->unique('location_id')->values() :
+                        // If no location filter, show all locations where this product exists
+                        $product->locations->map(fn($loc) => [
+                            'location_id' => $loc->id,
+                            'location_name' => $loc->name
+                        ]),
                     'has_batches' => $filteredBatches->isNotEmpty(),
                     'discounts' => $activeDiscounts,
                     'imei_numbers' => $productImeis
