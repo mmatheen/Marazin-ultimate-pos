@@ -11,6 +11,28 @@
         // Debug test function to check endpoint
         function testProductStocksEndpoint() {
             console.log('=== Testing /products/stocks endpoint ===');
+            
+            // First, test the diagnostic endpoint
+            $.ajax({
+                url: '/diagnostic/system-check',
+                type: 'GET',
+                success: function(response) {
+                    console.log('DIAGNOSTIC SUCCESS:', response);
+                    if (response.data) {
+                        console.log('Server environment:', {
+                            php_version: response.data.php_version,
+                            memory_limit: response.data.memory_limit,
+                            database: response.data.database,
+                            debug_mode: response.data.debug_mode
+                        });
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('DIAGNOSTIC FAILED:', {status, error, response: xhr.responseText});
+                }
+            });
+            
+            // Then test the actual products endpoint
             $.ajax({
                 url: '/products/stocks',
                 type: 'GET',
@@ -33,7 +55,18 @@
                     console.error('Status:', status);
                     console.error('Error:', error);
                     console.error('Status Code:', xhr.status);
-                    console.error('Response Text:', xhr.responseText);
+                    console.error('Response Text (first 1000 chars):', xhr.responseText.substring(0, 1000));
+                    
+                    // Detailed analysis for hosting issues
+                    if (xhr.responseText.includes('Fatal error') || xhr.responseText.includes('Parse error')) {
+                        console.error('🚨 PHP ERROR DETECTED! Check server error logs.');
+                    } else if (xhr.responseText.includes('<html>') || xhr.responseText.includes('<!DOCTYPE')) {
+                        console.error('🚨 HTML RESPONSE instead of JSON! Server configuration issue.');
+                    } else if (xhr.status === 500) {
+                        console.error('🚨 INTERNAL SERVER ERROR! Check hosting error logs.');
+                    } else if (xhr.status === 0) {
+                        console.error('🚨 NETWORK ERROR! Check hosting connectivity.');
+                    }
                 }
             });
         }
@@ -716,17 +749,39 @@
                         console.error('Error:', error);
                         console.error('Status Code:', xhr.status);
                         console.error('Response Text:', xhr.responseText);
+                        console.error('Response Headers:', xhr.getAllResponseHeaders());
                         
-                        // Try to parse JSON error
-                        try {
-                            const errorResponse = JSON.parse(xhr.responseText);
-                            console.error('Parsed error response:', errorResponse);
-                        } catch (e) {
-                            console.error('Could not parse error response as JSON');
+                        // Check if it's a JSON parsing error
+                        if (xhr.responseText) {
+                            console.error('Raw response (first 500 chars):', xhr.responseText.substring(0, 500));
+                            
+                            // Try to identify common hosting issues
+                            if (xhr.responseText.includes('Fatal error') || xhr.responseText.includes('Parse error')) {
+                                console.error('PHP ERROR DETECTED in response!');
+                                alert('PHP Error detected on server. Check server logs for details.');
+                            } else if (xhr.responseText.includes('<html>') || xhr.responseText.includes('<!DOCTYPE')) {
+                                console.error('HTML RESPONSE DETECTED instead of JSON!');
+                                alert('Server returned HTML instead of JSON. This may be a hosting configuration issue.');
+                            } else if (xhr.responseText.includes('500 Internal Server Error')) {
+                                console.error('SERVER ERROR 500 detected');
+                                alert('Internal server error. Check server configuration and logs.');
+                            } else {
+                                // Try to parse as JSON to get better error message
+                                try {
+                                    const errorResponse = JSON.parse(xhr.responseText);
+                                    console.error('Parsed error response:', errorResponse);
+                                    if (errorResponse.debug) {
+                                        console.error('Debug info:', errorResponse.debug);
+                                    }
+                                } catch (e) {
+                                    console.error('Could not parse error response as JSON');
+                                    console.error('Non-JSON response received - likely server configuration issue');
+                                }
+                            }
                         }
                         
                         if (typeof toastr !== 'undefined') {
-                            toastr.error('Failed to load product data: ' + error, 'Error');
+                            toastr.error('Failed to load product data: ' + error + ' (Status: ' + xhr.status + ')', 'Error');
                         }
                     }
                 },

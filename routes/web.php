@@ -154,6 +154,10 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::get('/products/stock-history/{id}', [ProductController::class, 'getStockHistory'])->name('productStockHistory');
         Route::get('/products/stocks', [ProductController::class, 'getAllProductStocks']);
         Route::get('/products/stocks/autocomplete', [ProductController::class, 'autocompleteStock']);
+        
+        // Diagnostic route for troubleshooting hosting issues
+        Route::get('/diagnostic/system-check', [\App\Http\Controllers\Web\DiagnosticController::class, 'checkSystem']);
+        
         // Product Store/Update
         Route::post('/product/store', [ProductController::class, 'storeOrUpdate']);
         Route::post('/product/update/{id}', [ProductController::class, 'storeOrUpdate']);

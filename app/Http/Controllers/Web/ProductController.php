@@ -1106,13 +1106,23 @@ class ProductController extends Controller
             }
 
             // Get total count before filtering
+            Log::info('Memory before total count: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
             $totalCount = Product::count();
+            Log::info('Total products count: ' . $totalCount);
 
-            // Get filtered paginated products
-            $products = $query->paginate($perPage, ['*'], 'page', $page);
+            // Get filtered paginated products with error handling
+            Log::info('Memory before pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
+            try {
+                $products = $query->paginate($perPage, ['*'], 'page', $page);
+            } catch (\Exception $e) {
+                Log::error('Error during pagination: ' . $e->getMessage());
+                throw new \Exception('Database query failed: ' . $e->getMessage());
+            }
+            Log::info('Memory after pagination: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
 
             // Get filtered count for pagination
             $filteredCount = $products->total();
+            Log::info('Filtered count: ' . $filteredCount);
 
             // Get product IDs for batch and IMEI filtering
             $productIds = $products->pluck('id');
@@ -1303,11 +1313,26 @@ class ProductController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            // Clear any output buffer that might contain PHP errors
+            if (ob_get_level()) {
+                ob_clean();
+            }
+            
             Log::error('Error fetching product stocks:', [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
-                'request_params' => $request->all()
+                'request_params' => $request->all(),
+                'memory_usage' => memory_get_usage(true) / 1024 / 1024 . 'MB',
+                'memory_peak' => memory_get_peak_usage(true) / 1024 / 1024 . 'MB',
+                'php_version' => PHP_VERSION,
+                'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'
             ]);
+            
+            // Set JSON header explicitly
+            header('Content-Type: application/json');
+            
             return response()->json([
                 'draw' => intval($request->input('draw', 0)),
                 'recordsTotal' => 0,
@@ -1315,7 +1340,11 @@ class ProductController extends Controller
                 'data' => [],
                 'status' => 500,
                 'message' => 'An error occurred while fetching product stocks.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'debug' => [
+                    'memory_usage' => memory_get_usage(true) / 1024 / 1024 . 'MB',
+                    'php_version' => PHP_VERSION
+                ]
             ], 500);
         }
     }
