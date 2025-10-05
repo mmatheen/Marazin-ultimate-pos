@@ -73,6 +73,8 @@ class UserSeeder extends Seeder
                 if ($role) {
                     // Assign role to new user
                     $user->syncRoles([$userData['role']]);
+                    // Manually sync the role_name field
+                    $user->syncRoleName();
                     $this->command->info("Assigned role '{$userData['role']}' to new user {$userData['email']}");
                 } else {
                     $this->command->error("Role '{$userData['role']}' not found! Please run RolesAndPermissionsSeeder first.");
