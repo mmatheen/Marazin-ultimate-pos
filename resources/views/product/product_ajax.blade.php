@@ -8,6 +8,39 @@
         let subCategories = [];
         const discountMap = {};
 
+        // Debug test function to check endpoint
+        function testProductStocksEndpoint() {
+            console.log('=== Testing /products/stocks endpoint ===');
+            $.ajax({
+                url: '/products/stocks',
+                type: 'GET',
+                data: {
+                    page: 1,
+                    per_page: 5, // Small test
+                    draw: 1
+                },
+                beforeSend: function(xhr) {
+                    console.log('Test request headers:', xhr);
+                },
+                success: function(response) {
+                    console.log('TEST SUCCESS! Response:', response);
+                    console.log('Response data type:', typeof response.data);
+                    console.log('Response data is array:', Array.isArray(response.data));
+                    console.log('Response data length:', response.data ? response.data.length : 'N/A');
+                },
+                error: function(xhr, status, error) {
+                    console.error('TEST ERROR! Details:');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('Status Code:', xhr.status);
+                    console.error('Response Text:', xhr.responseText);
+                }
+            });
+        }
+
+        // Run test on page load
+        setTimeout(testProductStocksEndpoint, 2000); // Wait 2 seconds for page to fully load
+
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {
@@ -612,7 +645,7 @@
                     cache: true, // Enable caching
                     data: function(d) {
                         // DataTables sends search and paging params in 'd'
-                        return {
+                        const requestData = {
                             draw: d.draw,
                             start: d.start,
                             length: d.length,
@@ -631,32 +664,69 @@
                             // Show all products (active and inactive) in product list
                             show_all: true
                         };
+                        console.log('DataTable request data:', requestData);
+                        return requestData;
+                    },
+                    beforeSend: function(xhr) {
+                        console.log('Making AJAX request to /products/stocks');
                     },
                     dataSrc: function(response) {
                         console.log('DataTable response received:', response);
-                        if (response && response.status === 200) {
-                            // For dropdowns, only update if it's the first page
-                            if (response.draw === 1) populateProductFilter(response.data);
-                            
-                            // Ensure we return an array
-                            if (Array.isArray(response.data)) {
-                                return response.data;
-                            } else {
-                                console.error('Response data is not an array:', response.data);
-                                return [];
-                            }
-                        } else {
-                            console.error('Invalid response or status:', response);
-                            if (typeof toastr !== 'undefined') {
-                                toastr.error('Failed to load products', 'Error');
+                        console.log('Response type:', typeof response);
+                        
+                        // Enhanced validation
+                        if (!response) {
+                            console.error('Response is null or undefined');
+                            return [];
+                        }
+                        
+                        if (typeof response !== 'object') {
+                            console.error('Response is not an object, received type:', typeof response);
+                            return [];
+                        }
+                        
+                        if (response.status !== 200) {
+                            console.error('Response status is not 200:', response.status);
+                            if (response.message) {
+                                console.error('Error message:', response.message);
                             }
                             return [];
                         }
+                        
+                        if (!response.hasOwnProperty('data')) {
+                            console.error('Response missing data property. Available keys:', Object.keys(response));
+                            return [];
+                        }
+                        
+                        if (!Array.isArray(response.data)) {
+                            console.error('Response.data is not an array, type:', typeof response.data);
+                            console.error('Response.data value:', response.data);
+                            return [];
+                        }
+                        
+                        // For dropdowns, only update if it's the first page
+                        if (response.draw === 1) populateProductFilter(response.data);
+                        
+                        console.log('Returning array with', response.data.length, 'items');
+                        return response.data;
                     },
                     error: function(xhr, status, error) {
-                        console.error('DataTable AJAX error:', error);
+                        console.error('DataTable AJAX error details:');
+                        console.error('Status:', status);
+                        console.error('Error:', error);
+                        console.error('Status Code:', xhr.status);
+                        console.error('Response Text:', xhr.responseText);
+                        
+                        // Try to parse JSON error
+                        try {
+                            const errorResponse = JSON.parse(xhr.responseText);
+                            console.error('Parsed error response:', errorResponse);
+                        } catch (e) {
+                            console.error('Could not parse error response as JSON');
+                        }
+                        
                         if (typeof toastr !== 'undefined') {
-                            toastr.error('Failed to load product data', 'Error');
+                            toastr.error('Failed to load product data: ' + error, 'Error');
                         }
                     }
                 },

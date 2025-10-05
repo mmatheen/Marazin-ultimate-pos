@@ -933,13 +933,29 @@ class ProductController extends Controller
     public function getAllProductStocks(Request $request)
     {
         try {
+            // Clear any output buffer to prevent non-JSON content
+            if (ob_get_level()) {
+                ob_clean();
+            }
+            
+            // Set headers to ensure JSON response
+            header('Content-Type: application/json');
+            
+            Log::info('=== getAllProductStocks method called ===');
+            Log::info('Request method: ' . $request->method());
+            Log::info('Request URL: ' . $request->fullUrl());
+            Log::info('Request parameters: ', $request->all());
+            Log::info('Memory usage at start: ' . memory_get_usage(true) / 1024 / 1024 . 'MB');
+            
             $startTime = microtime(true);
             $now = now();
 
-            // DataTable params
-            $perPage = $request->input('length', 100); // DataTable uses 'length'
-            $start = $request->input('start', 0);
+            // DataTable params with validation
+            $perPage = min((int)$request->input('length', 50), 100); // Limit max per page for hosting
+            $start = max(0, (int)$request->input('start', 0));
             $page = intval($start / $perPage) + 1;
+
+            Log::info('Pagination params:', ['page' => $page, 'perPage' => $perPage, 'start' => $start]);
 
             // DataTable search and ordering
             $search = $request->input('search.value'); // DataTables sends global search as 'search.value'
@@ -952,6 +968,14 @@ class ProductController extends Controller
             $filterCategory = $request->input('main_category_id');
             $filterBrand = $request->input('brand_id');
             $locationId = $request->input('location_id'); // Add location filter
+
+            Log::info('Filters applied:', [
+                'search' => $search,
+                'filterProductName' => $filterProductName,
+                'filterCategory' => $filterCategory,
+                'filterBrand' => $filterBrand,
+                'locationId' => $locationId
+            ]);
 
             // Apply user location scope
             $user = auth()->user();
