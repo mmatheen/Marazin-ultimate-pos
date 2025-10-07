@@ -26,15 +26,18 @@ use App\Models\User;
 use App\Models\JobTicket;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\UnifiedLedgerService;
+use App\Services\PaymentService;
 
 
 class SaleController extends Controller
 {
     protected $unifiedLedgerService;
+    protected $paymentService;
 
-    function __construct(UnifiedLedgerService $unifiedLedgerService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService, PaymentService $paymentService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
+        $this->paymentService = $paymentService;
         $this->middleware('permission:view sale', ['only' => ['listSale']]);
         $this->middleware('permission:add sale', ['only' => ['addSale']]);
         $this->middleware('permission:pos page', ['only' => ['pos']]);
@@ -1208,7 +1211,7 @@ class SaleController extends Controller
 
     private function generateReferenceNo()
     {
-        return 'SALE-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
+        return 'SALE-' . now()->format('Ymd');
     }
 
     private function handleAttachedDocument($request)

@@ -5,17 +5,93 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\Purchase;
 use App\Models\PurchaseReturn;
-use App\Services\SupplierLedgerService;
+use App\Models\Sale;
+use App\Services\UnifiedLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PaymentService
 {
-    protected $ledgerService;
+    protected $unifiedLedgerService;
 
-    public function __construct(SupplierLedgerService $ledgerService)
+    public function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
-        $this->ledgerService = $ledgerService;
+        $this->unifiedLedgerService = $unifiedLedgerService;
+    }
+
+    /**
+     * Record a sale payment
+     * 
+     * @param array $paymentData
+     * @param Sale $sale
+     * @return Payment
+     */
+    public function recordSalePayment(array $paymentData, Sale $sale): Payment
+    {
+        return DB::transaction(function () use ($paymentData, $sale) {
+            $paymentDate = isset($paymentData['payment_date']) 
+                ? Carbon::parse($paymentData['payment_date']) 
+                : now();
+
+            $payment = Payment::create([
+                'payment_date' => $paymentDate,
+                'amount' => $paymentData['amount'],
+                'payment_method' => $paymentData['payment_method'],
+                'reference_no' => $paymentData['reference_no'] ?? $sale->invoice_no,
+                'notes' => $paymentData['notes'] ?? null,
+                'payment_type' => 'sale',
+                'reference_id' => $sale->id,
+                'customer_id' => $sale->customer_id,
+                'card_number' => $paymentData['card_number'] ?? null,
+                'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
+                'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
+                'card_security_code' => $paymentData['card_security_code'] ?? null,
+                'cheque_number' => $paymentData['cheque_number'] ?? null,
+                'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                'cheque_received_date' => $paymentData['cheque_received_date'] ?? null,
+                'cheque_valid_date' => $paymentData['cheque_valid_date'] ?? null,
+                'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                'payment_status' => $paymentData['payment_status'] ?? 'completed',
+            ]);
+
+            // Record payment in ledger (skip for Walk-In customers)
+            if ($sale->customer_id != 1) {
+                $this->unifiedLedgerService->recordSalePayment($payment, $sale);
+            }
+
+            // Update sale payment status
+            $this->updateSalePaymentStatus($sale);
+
+            return $payment;
+        });
+    }
+
+    /**
+     * Update sale payment status based on total paid
+     * 
+     * @param Sale $sale
+     * @return void
+     */
+    private function updateSalePaymentStatus(Sale $sale): void
+    {
+        $totalPaid = Payment::where('reference_id', $sale->id)
+            ->where('payment_type', 'sale')
+            ->where(function($query) {
+                $query->where('payment_status', '!=', 'bounced')
+                      ->orWhereNull('payment_status');
+            })
+            ->sum('amount');
+
+        if ($sale->final_total - $totalPaid <= 0.01) {
+            $sale->payment_status = 'Paid';
+        } elseif ($totalPaid > 0) {
+            $sale->payment_status = 'Partial';
+        } else {
+            $sale->payment_status = 'Due';
+        }
+
+        $sale->save();
     }
 
     /**
@@ -63,7 +139,7 @@ class PaymentService
             ]);
 
             // Record payment in ledger
-            $this->ledgerService->recordPurchasePayment($payment, $purchase);
+            $this->unifiedLedgerService->recordPurchasePayment($payment, $purchase);
 
             // Update purchase payment status
             $this->updatePurchasePaymentStatus($purchase);
@@ -117,7 +193,7 @@ class PaymentService
             ]);
 
             // Record payment in ledger
-            $this->ledgerService->recordPurchaseReturnPayment($payment, $purchaseReturn);
+            $this->unifiedLedgerService->recordReturnPayment($payment, 'supplier');
 
             // Update purchase return payment status
             $this->updatePurchaseReturnPaymentStatus($purchaseReturn);
@@ -182,7 +258,7 @@ class PaymentService
     {
         DB::transaction(function () use ($payment) {
             // Remove ledger entries for this payment
-            $this->ledgerService->deleteLedgerEntries($payment->reference_no, $payment->supplier_id);
+            $this->unifiedLedgerService->deleteLedgerEntries($payment->reference_no, $payment->supplier_id, 'supplier');
 
             // Delete the payment
             $payment->delete();
@@ -192,13 +268,13 @@ class PaymentService
                 $purchase = Purchase::find($payment->reference_id);
                 if ($purchase) {
                     $this->updatePurchasePaymentStatus($purchase);
-                    $this->ledgerService->recalculateSupplierBalance($purchase->supplier_id);
+                    $this->unifiedLedgerService->recalculateSupplierBalance($purchase->supplier_id);
                 }
             } elseif ($payment->payment_type === 'purchase_return') {
                 $purchaseReturn = PurchaseReturn::find($payment->reference_id);
                 if ($purchaseReturn) {
                     $this->updatePurchaseReturnPaymentStatus($purchaseReturn);
-                    $this->ledgerService->recalculateSupplierBalance($purchaseReturn->supplier_id);
+                    $this->unifiedLedgerService->recalculateSupplierBalance($purchaseReturn->supplier_id);
                 }
             }
         });
@@ -221,11 +297,11 @@ class PaymentService
             $payment->update($updateData);
 
             // Recalculate ledger balance for the supplier
-            $this->ledgerService->recalculateSupplierBalance($payment->supplier_id);
+            $this->unifiedLedgerService->recalculateSupplierBalance($payment->supplier_id);
 
             // If supplier changed, recalculate old supplier balance too
             if ($oldSupplierId !== $payment->supplier_id) {
-                $this->ledgerService->recalculateSupplierBalance($oldSupplierId);
+                $this->unifiedLedgerService->recalculateSupplierBalance($oldSupplierId);
             }
 
             // Update payment status based on type

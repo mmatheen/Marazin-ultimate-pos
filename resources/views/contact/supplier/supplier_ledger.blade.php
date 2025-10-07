@@ -29,13 +29,13 @@
                                 <div class="row">
                                     <div class="col-md-3">
                                         <label for="supplier_id" class="form-label"><strong>Supplier <span class="text-danger">*</span></strong></label>
-                                        <select class="form-select" id="supplier_id" name="supplier_id" required>
+                                        <select class="form-control selectBox" id="supplier_id" name="supplier_id" required>
                                             <option value="">Select Supplier</option>
                                         </select>
                                     </div>
                                     <div class="col-md-3">
                                         <label for="location_id" class="form-label"><strong>Business Location</strong></label>
-                                        <select class="form-select" id="location_id" name="location_id">
+                                        <select class="form-control selectBox" id="location_id" name="location_id">
                                             <option value="">All Locations</option>
                                         </select>
                                     </div>

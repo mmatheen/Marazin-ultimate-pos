@@ -135,6 +135,22 @@ class ReportController extends Controller
     }
 
     /**
+     * Display account ledger page for both customers and suppliers
+     */
+    public function accountLedger()
+    {
+        return view('reports.account_ledger');
+    }
+
+    /**
+     * Display unified ledger page (backward compatibility)
+     */
+    public function unifiedLedger()
+    {
+        return $this->accountLedger();
+    }
+
+    /**
      * Fetch activity logs for DataTables via AJAX.
      */
 public function fetchActivityLog(Request $request)

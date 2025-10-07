@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\LocationTrait;
 use App\Models\Ledger;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -230,7 +231,9 @@ public function recalculateCurrentBalance()
         $data = [
             'user_id' => $this->id,
             'contact_type' => 'customer',
-            'transaction_date' => $this->created_at ?: now(),
+            'transaction_date' => $this->created_at ? 
+                Carbon::parse($this->created_at)->setTimezone('Asia/Colombo') : 
+                Carbon::now('Asia/Colombo'),
             'reference_no' => 'OPENING-' . $this->id,
             'transaction_type' => 'opening_balance',
             'debit' => $this->opening_balance > 0 ? $this->opening_balance : 0,

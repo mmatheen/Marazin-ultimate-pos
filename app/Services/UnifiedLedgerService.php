@@ -24,7 +24,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now()->startOfDay(), // Set to start of day (00:00:00)
+            'transaction_date' => Carbon::now('Asia/Colombo'), // Use current time in Asia/Colombo
             'reference_no' => 'OB-' . strtoupper($contactType) . '-' . $contactId,
             'transaction_type' => 'opening_balance',
             'amount' => $amount,
@@ -40,10 +40,10 @@ class UnifiedLedgerService
         // Generate a proper reference number for the sale
         $referenceNo = $sale->invoice_no ?: 'INV-' . $sale->id;
         
-        // Normalize sales date to start of day for consistent timing
-        $transactionDate = $sale->sales_date ? 
-            Carbon::parse($sale->sales_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $sale->created_at ? 
+            Carbon::parse($sale->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $sale->customer_id,
@@ -64,10 +64,10 @@ class UnifiedLedgerService
         // Generate a proper reference number for the purchase
         $referenceNo = $purchase->reference_no ?: 'PUR-' . $purchase->id;
         
-        // Normalize purchase date to start of day for consistent timing
-        $transactionDate = $purchase->purchase_date ? 
-            Carbon::parse($purchase->purchase_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $purchase->created_at ? 
+            Carbon::parse($purchase->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $purchase->supplier_id,
@@ -87,10 +87,10 @@ class UnifiedLedgerService
     {
         $referenceNo = $payment->reference_no ?: ($sale ? $sale->invoice_no : 'PAY-' . $payment->id);
         
-        // Normalize payment date to start of day for consistent timing
-        $transactionDate = $payment->payment_date ? 
-            Carbon::parse($payment->payment_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $payment->created_at ? 
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $payment->customer_id,
@@ -110,10 +110,10 @@ class UnifiedLedgerService
     {
         $referenceNo = $payment->reference_no ?: ($purchase ? $purchase->reference_no : 'PAY-' . $payment->id);
         
-        // Normalize payment date to start of day for consistent timing
-        $transactionDate = $payment->payment_date ? 
-            Carbon::parse($payment->payment_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $payment->created_at ? 
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $payment->supplier_id,
@@ -137,10 +137,10 @@ class UnifiedLedgerService
         // Determine transaction type based on whether it's linked to a sale
         $transactionType = $saleReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
         
-        // Normalize return date to start of day for consistent timing
-        $transactionDate = $saleReturn->return_date ? 
-            Carbon::parse($saleReturn->return_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $saleReturn->created_at ? 
+            Carbon::parse($saleReturn->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $saleReturn->customer_id,
@@ -161,10 +161,10 @@ class UnifiedLedgerService
         // Generate a proper reference number for the purchase return
         $referenceNo = $purchaseReturn->reference_no ?: 'PR-' . $purchaseReturn->id;
         
-        // Normalize return date to start of day for consistent timing
-        $transactionDate = $purchaseReturn->return_date ? 
-            Carbon::parse($purchaseReturn->return_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $purchaseReturn->created_at ? 
+            Carbon::parse($purchaseReturn->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $purchaseReturn->supplier_id,
@@ -182,10 +182,10 @@ class UnifiedLedgerService
      */
     public function recordReturnPayment($payment, $contactType)
     {
-        // Normalize payment date to start of day for consistent timing
-        $transactionDate = $payment->payment_date ? 
-            Carbon::parse($payment->payment_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $payment->created_at ? 
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
@@ -203,10 +203,10 @@ class UnifiedLedgerService
      */
     public function recordOpeningBalancePayment($payment, $contactType)
     {
-        // Normalize payment date to start of day for consistent timing
-        $transactionDate = $payment->payment_date ? 
-            Carbon::parse($payment->payment_date)->startOfDay() : 
-            Carbon::now()->startOfDay();
+        // Use the actual creation time converted to Asia/Colombo timezone
+        $transactionDate = $payment->created_at ? 
+            Carbon::parse($payment->created_at)->setTimezone('Asia/Colombo') : 
+            Carbon::now('Asia/Colombo');
         
         return Ledger::createEntry([
             'user_id' => $contactType === 'customer' ? $payment->customer_id : $payment->supplier_id,
@@ -237,7 +237,7 @@ class UnifiedLedgerService
         return Ledger::createEntry([
             'user_id' => $contactId,
             'contact_type' => $contactType,
-            'transaction_date' => Carbon::now('Asia/Colombo')->startOfDay(), // Set to start of day (00:00:00)
+            'transaction_date' => Carbon::now('Asia/Colombo'), // Use current time in Asia/Colombo
             'reference_no' => $referenceNo,
             'transaction_type' => 'opening_balance',
             'amount' => $adjustmentAmount, // Pass the actual adjustment amount (can be negative)
@@ -272,9 +272,9 @@ class UnifiedLedgerService
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Use transaction_date for display (this is the actual business date)
-            $displayDate = $ledger->transaction_date ? 
-                Carbon::parse($ledger->transaction_date)->format('d/m/Y H:i:s') : 
+            // Use created_at converted to Asia/Colombo timezone for display
+            $displayDate = $ledger->created_at ? 
+                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
             
             // Get location information based on transaction type
@@ -389,9 +389,9 @@ class UnifiedLedgerService
 
         // Transform ledger data for frontend display
         $transactions = $ledgerTransactions->map(function ($ledger) {
-            // Use transaction_date for display (this is the actual business date)
-            $displayDate = $ledger->transaction_date ? 
-                Carbon::parse($ledger->transaction_date)->format('d/m/Y H:i:s') : 
+            // Use created_at converted to Asia/Colombo timezone for display
+            $displayDate = $ledger->created_at ? 
+                Carbon::parse($ledger->created_at)->setTimezone('Asia/Colombo')->format('d/m/Y H:i:s') : 
                 'N/A';
             
             // Get location information based on transaction type
@@ -936,6 +936,121 @@ class UnifiedLedgerService
         return Ledger::where('reference_no', $referenceNo)
             ->where('user_id', $userId)
             ->where('transaction_type', $type)
+            ->delete();
+    }
+
+    /**
+     * Get supplier summary
+     * 
+     * @param int $supplierId
+     * @return array
+     */
+    public function getSupplierSummary(int $supplierId): array
+    {
+        $supplier = Supplier::find($supplierId);
+        
+        if (!$supplier) {
+            throw new \Exception("Supplier not found");
+        }
+
+        // Use the existing getSupplierLedger method to get all entries
+        $ledgerData = $this->getSupplierLedger($supplierId, null, null);
+        $ledgerEntries = collect($ledgerData['transactions']);
+        
+        $summary = [
+            'supplier' => $supplier,
+            'opening_balance' => $supplier->opening_balance ?? 0,
+            'total_purchases' => $ledgerEntries->where('transaction_type', 'purchase')->sum('debit'),
+            'total_returns' => $ledgerEntries->where('transaction_type', 'purchase_return')->sum('credit'),
+            'total_payments' => $ledgerEntries->where('transaction_type', 'payments')->sum('credit'),
+            'current_balance' => $supplier->current_balance ?? 0,
+            'total_transactions' => $ledgerEntries->count()
+        ];
+
+        return $summary;
+    }
+
+    /**
+     * Recalculate all balances for a supplier from scratch
+     * 
+     * @param int $supplierId
+     * @return void
+     */
+    public function recalculateSupplierBalance(int $supplierId): void
+    {
+        $entries = Ledger::where('user_id', $supplierId)
+            ->where('contact_type', 'supplier')
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $runningBalance = 0;
+        
+        foreach ($entries as $entry) {
+            $runningBalance += $entry->debit - $entry->credit;
+            $entry->update(['balance' => $runningBalance]);
+        }
+
+        // Update supplier's current_balance
+        $supplier = Supplier::find($supplierId);
+        if ($supplier) {
+            $supplier->update(['current_balance' => $runningBalance]);
+        }
+    }
+
+    /**
+     * Validate ledger consistency for a supplier
+     * 
+     * @param int $supplierId
+     * @return array
+     */
+    public function validateSupplierLedger(int $supplierId): array
+    {
+        $entries = Ledger::where('user_id', $supplierId)
+            ->where('contact_type', 'supplier')
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $errors = [];
+        $runningBalance = 0;
+
+        foreach ($entries as $entry) {
+            $expectedBalance = $runningBalance + $entry->debit - $entry->credit;
+            
+            if (abs($expectedBalance - $entry->balance) > 0.01) {
+                $errors[] = [
+                    'id' => $entry->id,
+                    'reference_no' => $entry->reference_no,
+                    'expected_balance' => $expectedBalance,
+                    'actual_balance' => $entry->balance,
+                    'difference' => $entry->balance - $expectedBalance
+                ];
+            }
+            
+            $runningBalance = $expectedBalance;
+        }
+
+        return [
+            'is_valid' => empty($errors),
+            'errors' => $errors,
+            'final_balance' => $runningBalance
+        ];
+    }
+
+    /**
+     * Delete ledger entries for a specific reference and contact
+     * 
+     * @param string $referenceNo
+     * @param int $contactId
+     * @param string $contactType
+     * @return void
+     */
+    public function deleteLedgerEntries(string $referenceNo, int $contactId, string $contactType): void
+    {
+        Ledger::where('reference_no', $referenceNo)
+            ->where('user_id', $contactId)
+            ->where('contact_type', $contactType)
             ->delete();
     }
 }

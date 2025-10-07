@@ -91,15 +91,8 @@ class SupplierController extends Controller
                 'opening_balance' => $request->opening_balance ?? 0,
             ]);
 
-            // Insert ledger entry for opening balance
-            if ($supplier && ($request->opening_balance ?? 0) != 0) {
-                $this->unifiedLedgerService->recordOpeningBalance(
-                    $supplier->id,
-                    'supplier',
-                    $request->opening_balance ?? 0,
-                    'Opening balance for supplier: ' . $supplier->first_name . ' ' . $supplier->last_name
-                );
-
+            // Opening balance ledger entry is automatically created by Supplier model event
+            if ($supplier) {
                 return response()->json([
                     'status' => 200,
                     'message' => "New Supplier Details Created Successfully!"

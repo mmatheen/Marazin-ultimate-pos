@@ -15,6 +15,7 @@ use App\Models\StockHistory;
 use App\Models\SaleImei;
 use App\Models\ImeiNumber;
 use App\Services\UnifiedLedgerService;
+use App\Services\PaymentService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -31,10 +32,12 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class SaleController extends Controller
 {
     protected $unifiedLedgerService;
+    protected $paymentService;
 
-    function __construct(UnifiedLedgerService $unifiedLedgerService)
+    function __construct(UnifiedLedgerService $unifiedLedgerService, PaymentService $paymentService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
+        $this->paymentService = $paymentService;
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show']]);
         $this->middleware('permission:create sale', ['only' => ['addSale', 'storeOrUpdate']]);
         $this->middleware('permission:access pos', ['only' => ['pos']]);
@@ -801,21 +804,15 @@ class SaleController extends Controller
                     ]);
                     if ($advanceAmount > 0) {
                         $paymentAmount = min($advanceAmount, $finalTotal);
-                        $payment = Payment::create([
+                        $paymentData = [
                             'payment_date' => $request->sales_date ?? Carbon::now('Asia/Colombo')->format('Y-m-d'),
                             'amount' => $paymentAmount,
                             'payment_method' => 'cash',
                             'reference_no' => $referenceNo,
                             'notes' => 'Advance payment for job ticket',
-                            'payment_type' => 'sale',
-                            'reference_id' => $sale->id,
-                            'customer_id' => $sale->customer_id,
-                        ]);
+                        ];
                         
-                        // Use unified ledger service for payment - Skip for Walk-In customers
-                        if ($request->customer_id != 1) {
-                            $this->unifiedLedgerService->recordSalePayment($payment, $sale);
-                        }
+                        $payment = $this->paymentService->recordSalePayment($paymentData, $sale);
                     }
                 }
 
@@ -830,54 +827,43 @@ class SaleController extends Controller
                             Payment::where('reference_id', $sale->id)->delete();
                         }
 
-                        // Create payments individually instead of batch insert to handle different column structures
+                        // Create payments individually using PaymentService
                         foreach ($request->payments as $paymentData) {
                             // Prepare payment data with enhanced cheque handling
-                            $paymentCreateData = [
-                                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                            $servicePaymentData = [
+                                'payment_date' => $paymentData['payment_date'],
                                 'amount' => $paymentData['amount'],
                                 'payment_method' => $paymentData['payment_method'],
                                 'reference_no' => $referenceNo,
                                 'notes' => $paymentData['notes'] ?? '',
-                                'payment_type' => 'sale',
-                                'reference_id' => $sale->id,
-                                'customer_id' => $request->customer_id,
                             ];
 
                             // Add payment method specific fields
                             if ($paymentData['payment_method'] === 'card') {
-                                $paymentCreateData = array_merge($paymentCreateData, [
+                                $servicePaymentData = array_merge($servicePaymentData, [
                                     'card_number' => $paymentData['card_number'] ?? null,
                                     'card_holder_name' => $paymentData['card_holder_name'] ?? null,
                                     'card_expiry_month' => $paymentData['card_expiry_month'] ?? null,
                                     'card_expiry_year' => $paymentData['card_expiry_year'] ?? null,
                                     'card_security_code' => $paymentData['card_security_code'] ?? null,
+                                    'payment_status' => 'completed',
                                 ]);
                             } elseif ($paymentData['payment_method'] === 'cheque') {
-                                $paymentCreateData = array_merge($paymentCreateData, [
+                                $servicePaymentData = array_merge($servicePaymentData, [
                                     'cheque_number' => $paymentData['cheque_number'] ?? null,
                                     'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                                    'cheque_received_date' => isset($paymentData['cheque_received_date']) ? 
-                                        Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                                    'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ? 
-                                        Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                                    'cheque_received_date' => $paymentData['cheque_received_date'] ?? null,
+                                    'cheque_valid_date' => $paymentData['cheque_valid_date'] ?? null,
                                     'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                                    // Enhanced cheque fields
-                                    'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
                                     'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
                                 ]);
                             } else {
                                 // For cash, bank_transfer, etc.
-                                $paymentCreateData['payment_status'] = 'completed';
+                                $servicePaymentData['payment_status'] = 'completed';
                             }
 
-                            // Create individual payment record
-                            $payment = Payment::create($paymentCreateData);
-                            
-                            // Process ledger for this payment - Skip for Walk-In customers  
-                            if ($request->customer_id != 1) {
-                                $this->unifiedLedgerService->recordSalePayment($payment, $sale);
-                            }
+                            // Create individual payment record using PaymentService
+                            $payment = $this->paymentService->recordSalePayment($servicePaymentData, $sale);
                         }
 
                         // Get the created payments for verification
@@ -1134,45 +1120,45 @@ class SaleController extends Controller
         })->afterResponse();
     }
 
-    private function updatePaymentStatus($sale)
-    {
-        // For Walk-In customers, typically payment is full and immediate - simple optimization
-        if ($sale->customer_id == 1) {
-            $sale->update([
-                'total_paid' => $sale->final_total,
-                'payment_status' => 'Paid'
-            ]);
-            return;
-        }
+    // private function updatePaymentStatus($sale)
+    // {
+    //     // For Walk-In customers, typically payment is full and immediate - simple optimization
+    //     if ($sale->customer_id == 1) {
+    //         $sale->update([
+    //             'total_paid' => $sale->final_total,
+    //             'payment_status' => 'Paid'
+    //         ]);
+    //         return;
+    //     }
 
-        // Optimized: Use single query instead of separate sum and refresh for non-Walk-In customers
-        $totalPaid = Payment::where('reference_id', $sale->id)
-            ->where('payment_type', 'sale')
-            ->where(function($query) {
-                $query->where('payment_method', '!=', 'cheque')
-                      ->orWhere(function($subQuery) {
-                          $subQuery->where('payment_method', 'cheque')
-                                   ->where('cheque_status', '!=', 'bounced');
-                      });
-            })
-            ->sum('amount');
+    //     // Optimized: Use single query instead of separate sum and refresh for non-Walk-In customers
+    //     $totalPaid = Payment::where('reference_id', $sale->id)
+    //         ->where('payment_type', 'sale')
+    //         ->where(function($query) {
+    //             $query->where('payment_method', '!=', 'cheque')
+    //                   ->orWhere(function($subQuery) {
+    //                       $subQuery->where('payment_method', 'cheque')
+    //                                ->where('cheque_status', '!=', 'bounced');
+    //                   });
+    //         })
+    //         ->sum('amount');
 
-        // Calculate payment status
-        $totalDue = max(0, $sale->final_total - $totalPaid);
+    //     // Calculate payment status
+    //     $totalDue = max(0, $sale->final_total - $totalPaid);
         
-        $paymentStatus = 'Due';
-        if ($totalDue <= 0) {
-            $paymentStatus = 'Paid';
-        } elseif ($totalPaid > 0) {
-            $paymentStatus = 'Partial';
-        }
+    //     $paymentStatus = 'Due';
+    //     if ($totalDue <= 0) {
+    //         $paymentStatus = 'Paid';
+    //     } elseif ($totalPaid > 0) {
+    //         $paymentStatus = 'Partial';
+    //     }
 
-        // Single update query
-        $sale->update([
-            'total_paid' => $totalPaid,
-            'payment_status' => $paymentStatus
-        ]);
-    }
+    //     // Single update query
+    //     $sale->update([
+    //         'total_paid' => $totalPaid,
+    //         'payment_status' => $paymentStatus
+    //     ]);
+    // }
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {
@@ -1528,7 +1514,7 @@ class SaleController extends Controller
 
     private function generateReferenceNo()
     {
-        return 'SALE-' . now()->format('YmdHis') . '-' . strtoupper(uniqid());
+        return 'SALE-' . now()->format('Ymd');
     }
 
     public function getSaleByInvoiceNo($invoiceNo)

@@ -43,7 +43,7 @@
                 @endcanany
 
                 @canany(['view supplier', 'view customer', 'view customer-group'])
-                    <li class="submenu {{ set_active(['supplier', 'customer', 'customer-ledger', 'supplier-ledger', 'customer-group', 'import-contact']) }}">
+                    <li class="submenu {{ set_active(['supplier', 'customer', 'customer-ledger', 'supplier-ledger', 'account-ledger', 'unified-ledger', 'customer-group', 'import-contact']) }}">
                         <a href="#">
                             <i class="fas fa-chalkboard-teacher"></i>
                             <span class="sidebar-text">Contacts</span>
@@ -57,12 +57,17 @@
                             @can('view customer')
                                 <li><a href="{{ route('customer') }}" class="{{ set_active(['customer']) }}">Customer</a></li>
                             @endcan
+                            
+                            @canany(['view customer', 'view supplier'])
+                                <li><a href="{{ route('account.ledger') }}" class="{{ set_active(['account-ledger', 'unified-ledger']) }}"> Account Ledger</a></li>
+                            @endcanany
+                            
                             @can('view customer')
-                                <li><a href="{{ route('customer.ledger') }}" class="{{ set_active(['customer-ledger']) }}">Customer Ledger</a></li>
+                                <!-- Customer Ledger redirects to Unified Ledger -->
                             @endcan
 
                             @can('view supplier')
-                                <li><a href="{{ route('supplier.ledger') }}" class="{{ set_active(['supplier-ledger']) }}">Supplier Ledger</a></li>
+                                <!-- Supplier Ledger redirects to Unified Ledger -->
                             @endcan
 
                             {{-- @can('view customer-group')

@@ -274,7 +274,7 @@
         $(document).on('click', '.ledger_btn', function() {
             var supplierId = $(this).val();
             // Navigate to supplier ledger page with supplier ID as parameter
-            window.location.href = '/supplier-ledger?supplier_id=' + supplierId;
+            window.location.href = '/account-ledger?supplier_id=' + supplierId;
         });
     });
 </script>

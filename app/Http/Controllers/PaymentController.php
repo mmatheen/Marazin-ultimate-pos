@@ -12,7 +12,6 @@ use App\Models\SalesReturn;
 use App\Models\PurchaseReturn;
 use App\Models\Location;
 use App\Models\BulkPaymentLog;
-use App\Services\SupplierLedgerService;
 use Illuminate\Support\Facades\Log;
 use App\Services\PaymentService;
 use App\Services\UnifiedLedgerService;
@@ -24,13 +23,11 @@ use Carbon\Carbon;
 
 class PaymentController extends Controller
 {
-    protected $ledgerService;
     protected $paymentService;
     protected $unifiedLedgerService;
 
-    function __construct(SupplierLedgerService $ledgerService, PaymentService $paymentService, UnifiedLedgerService $unifiedLedgerService)
+    function __construct(PaymentService $paymentService, UnifiedLedgerService $unifiedLedgerService)
     {
-        $this->ledgerService = $ledgerService;
         $this->paymentService = $paymentService;
         $this->unifiedLedgerService = $unifiedLedgerService;
         // Temporarily disable middleware to test data loading

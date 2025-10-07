@@ -421,7 +421,7 @@
         $(document).on('click', '.ledger_btn', function() {
             var customerId = $(this).val();
             // Navigate to customer ledger page with customer ID as parameter
-            window.location.href = '/customer-ledger?customer_id=' + customerId;
+            window.location.href = '/account-ledger?customer_id=' + customerId;
         });
 
 

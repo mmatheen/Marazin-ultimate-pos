@@ -4,18 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Supplier;
 use App\Models\Ledger;
-use App\Services\SupplierLedgerService;
+use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
 class SupplierLedgerController extends Controller
 {
-    protected $ledgerService;
+    protected $unifiedLedgerService;
 
-    public function __construct(SupplierLedgerService $ledgerService)
+    public function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
-        $this->ledgerService = $ledgerService;
+        $this->unifiedLedgerService = $unifiedLedgerService;
         $this->middleware('permission:view supplier-ledger', ['only' => ['index', 'show', 'getSupplierLedger']]);
         $this->middleware('permission:manage supplier-ledger', ['only' => ['recalculateBalance', 'validateLedger']]);
     }
@@ -50,22 +50,21 @@ class SupplierLedgerController extends Controller
             $toDate = $request->to_date ? Carbon::parse($request->to_date) : null;
             $transactionType = $request->transaction_type;
 
-            // Get ledger entries
-            $ledgerEntries = $this->ledgerService->getSupplierLedger(
+            // Get ledger entries using UnifiedLedgerService
+            $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
                 $supplierId, 
-                $fromDate, 
-                $toDate, 
-                $transactionType
+                $fromDate?->format('Y-m-d'), 
+                $toDate?->format('Y-m-d')
             );
 
             // Get supplier summary
-            $summary = $this->ledgerService->getSupplierSummary($supplierId);
+            $summary = $this->unifiedLedgerService->getSupplierSummary($supplierId);
 
             return response()->json([
                 'status' => 200,
-                'supplier' => $supplier,
-                'summary' => $summary,
-                'ledger_entries' => $ledgerEntries,
+                'supplier' => $ledgerData['supplier'],
+                'summary' => $ledgerData['summary'],
+                'transactions' => $ledgerData['transactions'],
                 'filters' => [
                     'from_date' => $fromDate?->format('Y-m-d'),
                     'to_date' => $toDate?->format('Y-m-d'),
@@ -87,7 +86,7 @@ class SupplierLedgerController extends Controller
     public function getSupplierSummary($supplierId)
     {
         try {
-            $summary = $this->ledgerService->getSupplierSummary($supplierId);
+            $summary = $this->unifiedLedgerService->getSupplierSummary($supplierId);
             
             return response()->json([
                 'status' => 200,
@@ -111,8 +110,9 @@ class SupplierLedgerController extends Controller
             $suppliers = Supplier::select('id', 'name', 'contact_number', 'email', 'current_balance')
                 ->get()
                 ->map(function ($supplier) {
-                    $supplier->ledger_balance = $this->ledgerService->getLastBalance($supplier->id);
-                    $supplier->balance_difference = $supplier->current_balance - $supplier->ledger_balance;
+                    // Use current_balance from supplier record instead of recalculating
+                    $supplier->ledger_balance = $supplier->current_balance;
+                    $supplier->balance_difference = 0; // Since we're using the same value
                     return $supplier;
                 });
 
@@ -137,11 +137,11 @@ class SupplierLedgerController extends Controller
         try {
             $supplier = Supplier::findOrFail($supplierId);
             
-            $this->ledgerService->recalculateSupplierBalance($supplierId);
-            
-            $newBalance = $this->ledgerService->getLastBalance($supplierId);
-            
-            return response()->json([
+            $this->unifiedLedgerService->recalculateSupplierBalance($supplierId);
+
+            // Get updated supplier to get new balance
+            $supplier = Supplier::find($supplierId);
+            $newBalance = $supplier ? $supplier->current_balance : 0;            return response()->json([
                 'status' => 200,
                 'message' => 'Supplier balance recalculated successfully',
                 'supplier' => $supplier->name,
@@ -164,7 +164,7 @@ class SupplierLedgerController extends Controller
         try {
             $supplier = Supplier::findOrFail($supplierId);
             
-            $validation = $this->ledgerService->validateSupplierLedger($supplierId);
+            $validation = $this->unifiedLedgerService->validateSupplierLedger($supplierId);
             
             return response()->json([
                 'status' => 200,
@@ -212,8 +212,13 @@ class SupplierLedgerController extends Controller
 
             $openingBalance = $openingBalanceEntry ? $openingBalanceEntry->balance : 0;
 
-            // Get transactions for the period
-            $transactions = $this->ledgerService->getSupplierLedger($supplierId, $fromDate, $toDate);
+            // Get transactions for the period using UnifiedLedgerService
+            $ledgerData = $this->unifiedLedgerService->getSupplierLedger(
+                $supplierId, 
+                $fromDate->format('Y-m-d'), 
+                $toDate->format('Y-m-d')
+            );
+            $transactions = collect($ledgerData['transactions']);
 
             // Calculate totals
             $totalDebits = $transactions->sum('debit');
@@ -257,7 +262,7 @@ class SupplierLedgerController extends Controller
             $totalErrors = 0;
 
             foreach ($suppliers as $supplier) {
-                $validation = $this->ledgerService->validateSupplierLedger($supplier->id);
+                $validation = $this->unifiedLedgerService->validateSupplierLedger($supplier->id);
                 
                 $results[] = [
                     'supplier_id' => $supplier->id,
@@ -299,9 +304,12 @@ class SupplierLedgerController extends Controller
             $results = [];
 
             foreach ($suppliers as $supplier) {
-                $oldBalance = $this->ledgerService->getLastBalance($supplier->id);
-                $this->ledgerService->recalculateSupplierBalance($supplier->id);
-                $newBalance = $this->ledgerService->getLastBalance($supplier->id);
+                $oldBalance = $supplier->current_balance;
+                $this->unifiedLedgerService->recalculateSupplierBalance($supplier->id);
+                
+                // Refresh supplier to get updated balance
+                $supplier->refresh();
+                $newBalance = $supplier->current_balance;
 
                 $results[] = [
                     'supplier_id' => $supplier->id,

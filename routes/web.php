@@ -12,15 +12,11 @@ use App\Http\Controllers\{
     UserController,
     BrandController,
     ContactController,
-    // ProductController,
     ProfileController,
-    // CustomerController,
     LocationController,
     PurchaseController,
     SupplierController,
-    SupplierLedgerController,
     WarrantyController,
-    VariationController,
     DashboardController,
     PrintLabelController,
     SubCategoryController,
@@ -30,6 +26,7 @@ use App\Http\Controllers\{
     StockTransferController,
     AuthenticationController,
     PurchaseReturnController,
+    VariationController,
     VariationTitleController,
     SellingPriceGroupController,
     ExpenseSubCategoryController,
@@ -47,14 +44,11 @@ use App\Http\Controllers\{
     SettingController
 };
 use App\Http\Controllers\Web\{
-    VehicleController,
     SalesRepController,
     RouteController,
     RouteCityController,
-    VehicleLocationController,
     CityController,
     SalesRepTargetController,
-    VehicleTrackingController,
     ProductController,
     CustomerController
 };
@@ -261,17 +255,6 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::post('/supplier-store', [SupplierController::class, 'store']);
         Route::post('/supplier-update/{id}', [SupplierController::class, 'update']);
         Route::delete('/supplier-delete/{id}', [SupplierController::class, 'destroy']);
-
-        // -------------------- SupplierLedgerController Routes --------------------
-        Route::get('/supplier-ledger', [SupplierLedgerController::class, 'index'])->name('supplier.ledger');
-        Route::get('/supplier-ledger/{supplierId}', [SupplierLedgerController::class, 'getSupplierLedger']);
-        Route::get('/supplier-summary/{supplierId}', [SupplierLedgerController::class, 'getSupplierSummary']);
-        Route::get('/suppliers-with-balances', [SupplierLedgerController::class, 'getAllSuppliersWithBalances']);
-        Route::post('/supplier-recalculate-balance/{supplierId}', [SupplierLedgerController::class, 'recalculateBalance']);
-        Route::get('/supplier-validate-ledger/{supplierId}', [SupplierLedgerController::class, 'validateLedger']);
-        Route::get('/supplier-ledger-statement/{supplierId}', [SupplierLedgerController::class, 'getLedgerStatement']);
-        Route::get('/validate-all-ledgers', [SupplierLedgerController::class, 'validateAllLedgers']);
-        Route::post('/recalculate-all-balances', [SupplierLedgerController::class, 'recalculateAllBalances']);
 
         // -------------------- CustomerController Routes --------------------
         Route::get('/customer', [CustomerController::class, 'customer'])->name('customer');
@@ -491,13 +474,27 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         Route::delete('/bulk-payment/{id}', [PaymentController::class, 'deleteBulkPayment'])->name('bulk.payment.delete');
         Route::get('/bulk-payment-logs', [PaymentController::class, 'getBulkPaymentLogs'])->name('bulk.payment.logs');
         
-        // Customer Ledger Routes
-        Route::get('/customer-ledger', [PaymentController::class, 'customerLedger'])->name('customer.ledger');
+        // Customer Ledger Routes (Redirected to Account Ledger)
+        Route::get('/customer-ledger', function() {
+            $customerId = request('customer_id');
+            $url = route('account.ledger');
+            if ($customerId) {
+                $url .= '?customer_id=' . $customerId;
+            }
+            return redirect($url);
+        })->name('customer.ledger');
         Route::get('/customer-ledger-data', [PaymentController::class, 'getCustomerLedger'])->name('customer.ledger.data');
         Route::post('/apply-customer-advance', [PaymentController::class, 'applyCustomerAdvance'])->name('customer.apply.advance');
 
-        // Supplier Ledger Routes
-        Route::get('/supplier-ledger', [PaymentController::class, 'supplierLedger'])->name('supplier.ledger');
+        // Supplier Ledger Routes (Redirected to Account Ledger)
+        Route::get('/supplier-ledger', function() {
+            $supplierId = request('supplier_id');
+            $url = route('account.ledger');
+            if ($supplierId) {
+                $url .= '?supplier_id=' . $supplierId;
+            }
+            return redirect($url);
+        })->name('supplier.ledger');
         Route::get('/supplier-ledger-data', [PaymentController::class, 'getSupplierLedger'])->name('supplier.getSupplierLedgerData');
         Route::post('/apply-supplier-advance', [PaymentController::class, 'applySupplierAdvance'])->name('supplier.applySupplierAdvance');
         Route::get('/supplier-details', [PaymentController::class, 'getSupplierDetails'])->name('supplier.getSupplierDetails');
@@ -517,6 +514,9 @@ Route::middleware(['auth', 'check.session'])->group(function () {
 
         // -------------------- ReportController Routes --------------------
         Route::get('/stock-report', [ReportController::class, 'stockHistory'])->name('stock.report');
+        Route::get('/account-ledger', [ReportController::class, 'accountLedger'])->name('account.ledger');
+        // Keep old unified-ledger route for backward compatibility
+        Route::get('/unified-ledger', [ReportController::class, 'accountLedger'])->name('unified.ledger');
         Route::get('/activity-log', [ReportController::class, 'activityLogPage'])->name('activity-log.activityLogPage');
         Route::post('/activity-log/fetch', [ReportController::class, 'fetchActivityLog'])->name('activity-log.fetch');
         
