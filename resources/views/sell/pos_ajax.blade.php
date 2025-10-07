@@ -33,6 +33,7 @@
         let isEditing = false;
         let currentEditingSaleId = null; // Track the sale ID being edited
         let isSalesRep = false; // Track if current user is a sales rep
+        let salesRepCustomersFiltered = false; // Track if sales rep customer filtering has been applied
 
         const posProduct = document.getElementById('posProduct');
         const billingBody = document.getElementById('billing-body');
@@ -43,8 +44,14 @@
         const subcategoryBackBtn = document.getElementById('subcategoryBackBtn');
 
         // ---- INIT ----
+        // Early restoration of sales rep display from storage (before API calls)
+        restoreSalesRepDisplayFromStorage();
+        
         // Check if user is sales rep and handle vehicle/route selection
         checkSalesRepStatus();
+        
+        // Protect sales rep customer filtering from being overridden
+        protectSalesRepCustomerFiltering();
         fetchAllLocations();
         $('#locationSelect').on('change', handleLocationChange);
         fetchCategories();
@@ -456,6 +463,152 @@
         }
 
         // ---- SALES REP FUNCTIONS ----
+        function restoreSalesRepDisplayFromStorage() {
+            // Early restoration to prevent display flicker on page refresh
+            const storedSelection = getSalesRepSelection();
+            if (storedSelection && storedSelection.vehicle && storedSelection.route) {
+                console.log('Restoring sales rep display from storage on page load:', storedSelection);
+                
+                // Set flag to indicate we have a valid stored selection
+                window.hasStoredSalesRepSelection = true;
+                
+                // Use setTimeout to ensure DOM elements are available
+                setTimeout(() => {
+                    updateSalesRepDisplay(storedSelection);
+                    
+                    // Also apply customer filtering immediately
+                    setTimeout(() => {
+                        filterCustomersByRoute(storedSelection);
+                        
+                        // Validate customers after filtering with longer delay and only once
+                        setTimeout(() => {
+                            if (!window.validationPerformed) {
+                                window.validationPerformed = true;
+                                validateCustomerRouteMatch();
+                            }
+                        }, 2000); // Increased delay to ensure filtering completes
+                    }, 300);
+                }, 100);
+                
+                // Store the selection again to ensure it's fresh in both storages
+                storeSalesRepSelection(storedSelection);
+            } else {
+                window.hasStoredSalesRepSelection = false;
+                console.log('No valid stored selection found for early restoration');
+            }
+        }
+        
+        function getSalesRepSelection() {
+            try {
+                // First check sessionStorage (current session)
+                let storedData = sessionStorage.getItem('salesRepSelection');
+                let parsedData = storedData ? JSON.parse(storedData) : null;
+                
+                // If not found in sessionStorage, check localStorage (persistent across refreshes)
+                if (!parsedData) {
+                    storedData = localStorage.getItem('salesRepSelection');
+                    parsedData = storedData ? JSON.parse(storedData) : null;
+                    
+                    // If found in localStorage, also store in sessionStorage for current session
+                    if (parsedData) {
+                        sessionStorage.setItem('salesRepSelection', JSON.stringify(parsedData));
+                        console.log('Restored sales rep selection from localStorage to sessionStorage');
+                    }
+                }
+                
+                return parsedData;
+            } catch (e) {
+                console.warn('Error parsing sales rep selection from storage:', e);
+                return null;
+            }
+        }
+
+        function hasSalesRepSelection() {
+            const selection = getSalesRepSelection();
+            const isValid = selection && 
+                           selection.vehicle && 
+                           selection.route && 
+                           selection.vehicle.id && 
+                           selection.route.id;
+            return isValid;
+        }
+
+        function protectSalesRepCustomerFiltering() {
+            let debounceTimer = null;
+            let lastFilterTime = 0;
+            const FILTER_COOLDOWN = 3000; // 3 seconds cooldown between filters
+            
+            // Monitor when new options are added to the customer dropdown
+            const observer = new MutationObserver(function(mutations) {
+                // Prevent too frequent filtering
+                const now = Date.now();
+                if (now - lastFilterTime < FILTER_COOLDOWN) {
+                    console.log('Customer filtering on cooldown, skipping...');
+                    return;
+                }
+                
+                // Debounce to prevent rapid repeated calls
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                }
+                
+                debounceTimer = setTimeout(() => {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' && isSalesRep && !filteringInProgress) {
+                            const customerSelect = $('#customer-id');
+                            const options = customerSelect.find('option');
+                            
+                            // Only process if we have meaningful changes
+                            if (options.length <= 1) return;
+                            
+                            // Check if this is an unwanted change (e.g., Walk-in Customer present for sales reps)
+                            const hasWalkIn = options.filter(function() {
+                                return $(this).text().toLowerCase().includes('walk-in');
+                            }).length > 0;
+                            
+                            // Check if we have customers from wrong route
+                            const selection = getSalesRepSelection();
+                            let hasWrongRouteCustomers = false;
+                            
+                            if (selection && selection.route && selection.route.name) {
+                                const selectedRouteName = selection.route.name.toLowerCase();
+                                
+                                // Check if customers from other routes are present
+                                options.each(function() {
+                                    const optionText = $(this).text().toLowerCase();
+                                    if (optionText !== 'please select' && 
+                                        !optionText.includes('walk-in') &&
+                                        !optionText.includes(selectedRouteName) &&
+                                        (optionText.includes('kalmunai') || optionText.includes('retailer'))) {
+                                        hasWrongRouteCustomers = true;
+                                        return false; // Break out of each loop
+                                    }
+                                });
+                            }
+                            
+                            // Only trigger if there's actually an issue
+                            if ((salesRepCustomersFiltered && (hasWalkIn || hasWrongRouteCustomers)) ||
+                                (!salesRepCustomersFiltered && selection && (hasWalkIn || hasWrongRouteCustomers))) {
+                                
+                                console.log('Customer filtering needed - applying route-based filter');
+                                lastFilterTime = Date.now(); // Update last filter time
+                                
+                                if (selection) {
+                                    filterCustomersByRoute(selection);
+                                }
+                            }
+                        }
+                    });
+                }, 500); // 500ms debounce
+            });
+            
+            const customerDropdown = document.getElementById('customer-id');
+            if (customerDropdown) {
+                observer.observe(customerDropdown, { childList: true, subtree: true });
+                console.log('Customer filtering protection activated');
+            }
+        }
+        
         function checkSalesRepStatus() {
             console.log('Checking sales rep status...');
             
@@ -531,27 +684,111 @@
                 console.log('Found existing sales rep selection, validating...');
                 // Validate existing selection against current assignments
                 const selection = getSalesRepSelection();
-                const validAssignment = assignments.find(a => 
-                    a.sub_location.id === selection.vehicle.id && 
-                    a.route.id === selection.route.id
-                );
+                
+                // Check if we already restored the display early
+                if (window.hasStoredSalesRepSelection) {
+                    console.log('Display already restored early, just validating and updating if needed');
+                }
+                
+                // More robust validation - check if selection has required properties
+                let validAssignment = null;
+                if (selection && selection.vehicle && selection.route && 
+                    selection.vehicle.id && selection.route.id) {
+                    
+                    // First try exact match
+                    validAssignment = assignments.find(a => 
+                        a.sub_location && a.route &&
+                        a.sub_location.id === selection.vehicle.id && 
+                        a.route.id === selection.route.id
+                    );
+                    
+                    // If no exact match, try to find by vehicle ID only (in case route data differs)
+                    if (!validAssignment) {
+                        validAssignment = assignments.find(a => 
+                            a.sub_location && a.sub_location.id === selection.vehicle.id
+                        );
+                    }
+                }
                 
                 if (validAssignment) {
                     console.log('Valid assignment found, updating display');
-                    // Update selection with current assignment data
-                    selection.canSell = validAssignment.can_sell;
-                    storeSalesRepSelection(selection);
+                    // Update selection with current assignment data but preserve existing route selection
+                    const updatedSelection = {
+                        ...selection,  // Preserve existing selection
+                        canSell: validAssignment.can_sell || selection.canSell || true
+                    };
+                    storeSalesRepSelection(updatedSelection);
                     
-                    updateSalesRepDisplay(selection);
-                    restrictLocationAccess(selection);
-                } else {
-                    console.log('Invalid assignment, clearing and showing modal');
-                    // Invalid selection, clear and show modal
-                    clearSalesRepSelection();
-                    if (typeof showSalesRepModal === 'function') {
-                        showSalesRepModal();
+                    // Only update display if not already restored early
+                    if (!window.hasStoredSalesRepSelection) {
+                        updateSalesRepDisplay(updatedSelection);
                     } else {
-                        console.error('showSalesRepModal function not found');
+                        // Just ensure the display has the correct data
+                        console.log('Display already restored, ensuring correct data is shown');
+                        setTimeout(() => updateSalesRepDisplay(updatedSelection), 100);
+                    }
+                    
+                    restrictLocationAccess(updatedSelection);
+                    // Apply customer filtering after a short delay
+                    setTimeout(() => {
+                        filterCustomersByRoute(updatedSelection);
+                    }, 1000); // Increased delay to ensure all other operations complete
+                } else {
+                    console.log('No exact assignment match found, but selection exists - attempting to preserve selection');
+                    // Instead of immediately clearing, try to use the existing selection
+                    // This handles cases where the backend data structure might have changed slightly
+                    if (selection && selection.vehicle && selection.route) {
+                        console.log('Preserving existing selection despite validation failure');
+                        // Set a default canSell value if not present
+                        if (typeof selection.canSell === 'undefined') {
+                            selection.canSell = true; // Default to allow sales
+                        }
+                        
+                        // Check if the vehicle at least exists in assignments (more lenient check)
+                        const vehicleExists = assignments.some(a => 
+                            a.sub_location && a.sub_location.id === selection.vehicle.id
+                        );
+                        
+                        if (vehicleExists) {
+                            console.log('Vehicle found in assignments, preserving selection');
+                            // Try to update display with existing selection
+                            try {
+                                // Only update display if not already restored early
+                                if (!window.hasStoredSalesRepSelection) {
+                                    updateSalesRepDisplay(selection);
+                                } else {
+                                    console.log('Display already restored early, just ensuring customer filtering');
+                                }
+                                
+                                restrictLocationAccess(selection);
+                                // Apply customer filtering after a short delay
+                                setTimeout(() => {
+                                    filterCustomersByRoute(selection);
+                                }, 1000); // Increased delay
+                                console.log('Successfully preserved and applied existing selection');
+                            } catch (error) {
+                                console.error('Error applying preserved selection:', error);
+                                // Only clear and show modal if there's an actual error
+                                clearSalesRepSelection();
+                                if (typeof showSalesRepModal === 'function') {
+                                    showSalesRepModal();
+                                }
+                            }
+                        } else {
+                            console.log('Vehicle not found in current assignments, showing modal');
+                            clearSalesRepSelection();
+                            if (typeof showSalesRepModal === 'function') {
+                                showSalesRepModal();
+                            }
+                        }
+                    } else {
+                        console.log('Selection is invalid or incomplete, showing modal');
+                        clearSalesRepSelection();
+                        if (typeof showSalesRepModal === 'function') {
+                            showSalesRepModal();
+                        } else {
+                            console.error('showSalesRepModal function not found');
+                        }
                     }
                 }
             }
@@ -567,10 +804,11 @@
             window.addEventListener('salesRepSelectionConfirmed', function(event) {
                 console.log('Sales rep selection confirmed event received:', event.detail);
                 const selection = event.detail;
+                salesRepCustomersFiltered = false; // Reset flag for new selection
                 updateSalesRepDisplay(selection);
                 restrictLocationAccess(selection);
                 
-                // Reset customer to Walk-In Customer when selection changes
+                // Reset customer to first available when selection changes
                 resetToWalkingCustomer();
             });
 
@@ -602,6 +840,28 @@
                     }
                 }, 1000);
             }
+            
+            // Add page visibility change listener to restore display when returning to tab
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && isSalesRep) {
+                    const selection = getSalesRepSelection();
+                    if (selection && selection.vehicle && selection.route) {
+                        console.log('Page became visible, ensuring sales rep display is correct');
+                        setTimeout(() => {
+                            updateSalesRepDisplay(selection);
+                        }, 200);
+                    }
+                }
+            });
+            
+            // Add beforeunload listener to ensure selection is saved
+            window.addEventListener('beforeunload', function() {
+                const selection = getSalesRepSelection();
+                if (selection && isSalesRep) {
+                    // Re-save to ensure persistence
+                    storeSalesRepSelection(selection);
+                }
+            });
         }
 
         function updateSalesRepDisplay(selection) {
@@ -614,32 +874,62 @@
             const salesAccessText = document.getElementById('salesAccessText');
 
             if (!salesRepDisplay) {
-                console.error('Sales rep display element not found');
+                console.error('Sales rep display element not found, retrying...');
+                // Retry after DOM elements are fully loaded
+                setTimeout(() => updateSalesRepDisplay(selection), 500);
                 return;
             }
 
-            selectedVehicleDisplay.textContent = `${selection.vehicle.name} (${selection.vehicle.vehicle_number})`;
-            selectedRouteDisplay.textContent = selection.route.name;
+            if (!selectedVehicleDisplay || !selectedRouteDisplay) {
+                console.error('Sales rep display child elements not found, retrying...');
+                setTimeout(() => updateSalesRepDisplay(selection), 500);
+                return;
+            }
+
+            // Update display text with proper fallbacks
+            selectedVehicleDisplay.textContent = selection.vehicle && selection.vehicle.name ? 
+                `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})` : 'Unknown Vehicle';
+            selectedRouteDisplay.textContent = selection.route && selection.route.name ? 
+                selection.route.name : 'Unknown Route';
             
-            if (selection.canSell) {
-                salesAccessBadge.className = 'badge bg-success text-white p-2';
-                salesAccessText.textContent = 'Sales Allowed';
-            } else {
-                salesAccessBadge.className = 'badge bg-warning text-dark p-2';
-                salesAccessText.textContent = 'View Only';
+            if (salesAccessBadge && salesAccessText) {
+                if (selection.canSell) {
+                    salesAccessBadge.className = 'badge bg-success text-white p-2';
+                    salesAccessText.textContent = 'Sales Allowed';
+                } else {
+                    salesAccessBadge.className = 'badge bg-warning text-dark p-2';
+                    salesAccessText.textContent = 'View Only';
+                }
             }
 
             // Show the display with proper flex styling
             salesRepDisplay.style.display = 'flex';
             salesRepDisplay.classList.add('d-flex');
+            salesRepDisplay.classList.remove('d-none');
             
-            console.log('Sales rep display updated and made visible');
+            console.log('Sales rep display updated and made visible with data:', {
+                vehicle: selection.vehicle?.name,
+                route: selection.route?.name,
+                canSell: selection.canSell
+            });
             
-            // Filter customers based on route cities
-            filterCustomersByRoute(selection);
+            // Store the selection to localStorage for better persistence across page refreshes
+            try {
+                localStorage.setItem('salesRepSelection', JSON.stringify(selection));
+                console.log('Sales rep selection stored in localStorage for persistence');
+            } catch (e) {
+                console.warn('Failed to store selection in localStorage:', e);
+            }
+            
+            // Filter customers based on route cities with a small delay to ensure DOM is ready
+            setTimeout(() => {
+                filterCustomersByRoute(selection);
+            }, 500);
         }
 
         function restrictLocationAccess(selection) {
+            console.log('Restricting location access to vehicle:', selection.vehicle);
+            
             // Override the fetchAllLocations to only include assigned vehicle
             const originalFetchLocations = window.fetchAllLocations;
             
@@ -651,40 +941,86 @@
                 };
                 populateLocationDropdown(mockResponse.data);
                 
-                // Auto-select the vehicle in the dropdown
-                setTimeout(() => {
+                // Auto-select the vehicle in the dropdown with multiple retries
+                const selectVehicle = () => {
                     const locationSelect = document.getElementById('locationSelect');
                     if (locationSelect) {
                         locationSelect.value = selection.vehicle.id;
                         $(locationSelect).trigger('change');
+                        console.log('Vehicle auto-selected:', selection.vehicle.id);
+                    } else {
+                        // Retry if dropdown not ready
+                        setTimeout(selectVehicle, 200);
                     }
-                }, 100);
+                };
+                
+                setTimeout(selectVehicle, 100);
             };
 
             // Re-fetch locations with restriction
             window.fetchAllLocations();
+            
+            // Also set the location immediately if dropdown already exists
+            setTimeout(() => {
+                const locationSelect = document.getElementById('locationSelect');
+                if (locationSelect && !locationSelect.value) {
+                    locationSelect.value = selection.vehicle.id;
+                    $(locationSelect).trigger('change');
+                    console.log('Vehicle set directly on existing dropdown');
+                }
+            }, 300);
         }
 
+        let filteringInProgress = false;
+        
         function filterCustomersByRoute(selection) {
-            if (!selection.route || !selection.route.cities || selection.route.cities.length === 0) {
-                console.log('No cities found for selected route');
+            if (filteringInProgress) {
+                console.log('Filtering already in progress, skipping...');
+                return;
+            }
+            
+            if (!selection || !selection.route) {
+                console.log('No valid selection or route provided for filtering');
+                return;
+            }
+            
+            filteringInProgress = true;
+            console.log('Filtering customers for route:', selection.route.name, 'with cities:', selection.route.cities);
+            
+            if (!selection.route.cities || selection.route.cities.length === 0) {
+                console.log('No cities found for selected route, trying fallback filtering');
+                // Fallback: try to filter by route name pattern
+                fallbackRouteFiltering(selection);
+                filteringInProgress = false;
                 return;
             }
 
-            // Get the route cities
-            const routeCities = selection.route.cities.map(city => city.name.toLowerCase());
-            console.log('Filtering customers for cities:', routeCities);
+            // Get the route cities (IDs instead of names)
+            const routeCityIds = selection.route.cities.map(city => city.id);
+            console.log('Route city IDs:', routeCityIds);
 
-            // Get customer dropdown
+            // Get customer dropdown with retry logic
             const customerSelect = $('#customer-id');
             if (!customerSelect.length) {
-                console.log('Customer dropdown not found');
+                console.log('Customer dropdown not found, retrying in 200ms...');
+                filteringInProgress = false;
+                setTimeout(() => filterCustomersByRoute(selection), 200);
+                return;
+            }
+
+            // Check if dropdown is properly initialized (has options)
+            const existingOptions = customerSelect.find('option');
+            if (existingOptions.length === 0) {
+                console.log('Customer dropdown not initialized yet, retrying in 200ms...');
+                filteringInProgress = false;
+                setTimeout(() => filterCustomersByRoute(selection), 200);
                 return;
             }
 
             // Store original options if not already stored
             if (!window.originalCustomerOptions) {
                 window.originalCustomerOptions = customerSelect.html();
+                console.log('Stored original customer options for backup');
             }
 
             // Filter customers based on city
@@ -696,37 +1032,100 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    cities: routeCities
+                    city_ids: routeCityIds
                 })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.status) {
-                    populateFilteredCustomers(data.customers);
+                console.log('Filter customers response:', data);
+                if (data.status && data.customers) {
+                    populateFilteredCustomers(data.customers, selection.route.name);
+                    salesRepCustomersFiltered = true; // Mark that filtering has been applied
+                    console.log('Customer filtering completed successfully for route:', selection.route.name);
                 } else {
-                    console.error('Failed to filter customers:', data.message);
-                    // Fallback to show all customers
-                    restoreOriginalCustomers();
+                    console.error('Failed to filter customers:', data.message || 'Unknown error');
+                    // Fallback to route name filtering
+                    fallbackRouteFiltering(selection);
                 }
+                filteringInProgress = false; // Reset flag
             })
             .catch(error => {
                 console.error('Error filtering customers:', error);
-                // Fallback to show all customers
-                restoreOriginalCustomers();
+                // Fallback to route name filtering
+                fallbackRouteFiltering(selection);
+                filteringInProgress = false; // Reset flag
             });
         }
+        
+        function fallbackRouteFiltering(selection) {
+            console.log('Using fallback route name filtering for:', selection.route.name);
+            const customerSelect = $('#customer-id');
+            const routeName = selection.route.name.toLowerCase();
+            
+            // Get all options and filter by route name
+            const filteredOptions = [];
+            
+            if (window.originalCustomerOptions) {
+                const tempDiv = $('<div>').html(window.originalCustomerOptions);
+                tempDiv.find('option').each(function() {
+                    const optionText = $(this).text().toLowerCase();
+                    const optionValue = $(this).val();
+                    
+                    // Always include "Please select" option
+                    if (optionValue === '' || optionText.includes('please select')) {
+                        filteredOptions.push($(this)[0].outerHTML);
+                    }
+                    // Include options that match the route name
+                    else if (optionText.includes(routeName) || 
+                            (routeName.includes('sainthasmaruthu') && optionText.includes('sainthasmaruthu')) ||
+                            (routeName.includes('kalmunai') && optionText.includes('kalmunai'))) {
+                        filteredOptions.push($(this)[0].outerHTML);
+                    }
+                });
+                
+                if (filteredOptions.length > 1) { // More than just "Please select"
+                    customerSelect.html(filteredOptions.join(''));
+                    console.log('Fallback filtering applied, found', filteredOptions.length - 1, 'customers for route');
+                } else {
+                    console.log('No customers found in fallback filtering, keeping original options');
+                }
+            }
+            
+            salesRepCustomersFiltered = true;
+        }
 
-        function populateFilteredCustomers(customers) {
+        function populateFilteredCustomers(customers, routeName = '') {
             const customerSelect = $('#customer-id');
             
-            // Clear existing options except Walk-In Customer
+            // Validate customers parameter
+            if (!customers || !Array.isArray(customers)) {
+                console.error('populateFilteredCustomers: customers parameter is not a valid array:', customers);
+                restoreOriginalCustomers();
+                return;
+            }
+            
+            console.log(`Populating ${customers.length} filtered customers for route: ${routeName}`);
+            
+            // Clear existing options
             customerSelect.empty();
             
-            // Add Walk-In Customer (always available)
-            const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
-            walkInOption.data('due', 0);
-            walkInOption.data('credit_limit', 0);
-            customerSelect.append(walkInOption);
+            // Add "Please select" option first
+            customerSelect.append('<option value="">Please Select</option>');
+            
+            // Don't add Walk-In Customer for sales reps
+            if (!isSalesRep) {
+                const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
+                walkInOption.data('due', 0);
+                walkInOption.data('credit_limit', 0);
+                customerSelect.append(walkInOption);
+            }
+            
+            // Sort customers alphabetically by name
+            customers.sort((a, b) => {
+                const nameA = [a.prefix, a.first_name, a.last_name].filter(Boolean).join(' ').toLowerCase();
+                const nameB = [b.prefix, b.first_name, b.last_name].filter(Boolean).join(' ').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
             
             // Separate customers with and without cities for better organization
             const customersWithCity = customers.filter(c => c.city_name && c.city_name !== 'No City');
@@ -766,13 +1165,25 @@
             // Refresh Select2 and trigger change event to update due/credit display
             customerSelect.trigger('change');
             
-            // Auto-select Walk-in customer and update displays
+            // Auto-select first customer and update displays
             setTimeout(() => {
-                customerSelect.val('1').trigger('change');
+                if (isSalesRep) {
+                    // For sales reps, select the first available customer after "Please Select"
+                    const options = customerSelect.find('option');
+                    if (options.length > 1) { // More than just "Please Select"
+                        const firstCustomerOption = options.eq(1); // Get second option (first customer)
+                        customerSelect.val(firstCustomerOption.val()).trigger('change');
+                        console.log('Auto-selected first customer for sales rep:', firstCustomerOption.text());
+                    }
+                } else {
+                    // For non-sales reps, select Walk-in customer
+                    customerSelect.val('1').trigger('change');
+                }
             }, 100);
             
+            
             // Show info message with breakdown
-            if (typeof toastr !== 'undefined') {
+            if (typeof toastr !== 'undefined' && routeName) {
                 const withCityCount = customersWithCity.length;
                 const withoutCityCount = customersWithoutCity.length;
                 const totalCount = customers.length;
@@ -782,8 +1193,48 @@
                     message += ` (${withCityCount} with city, ${withoutCityCount} without city)`;
                 }
                 
-                toastr.info(message, 'Customer Filter Applied');
             }
+        }
+        
+        function validateCustomerRouteMatch() {
+            // Function to validate that displayed customers match the selected route
+            const selection = getSalesRepSelection();
+            if (!selection || !selection.route || !isSalesRep) return;
+            
+            // Prevent validation during active filtering
+            if (filteringInProgress) {
+                console.log('Filtering in progress, skipping validation');
+                return;
+            }
+            
+            const customerSelect = $('#customer-id');
+            const options = customerSelect.find('option');
+            const routeName = selection.route.name.toLowerCase();
+            
+            let correctCustomers = 0;
+            let wrongRouteCustomers = 0;
+            
+            options.each(function() {
+                const optionText = $(this).text().toLowerCase();
+                const optionValue = $(this).val();
+                
+                // Skip "Please Select" option
+                if (!optionValue || optionText.includes('please select')) return;
+                
+                if (optionText.includes(routeName) || 
+                    (routeName.includes('sainthasmaruthu') && optionText.includes('sainthasmaruthu')) ||
+                    (routeName.includes('kalmunai') && optionText.includes('kalmunai'))) {
+                    correctCustomers++;
+                } else if (!optionText.includes('walk-in')) {
+                    wrongRouteCustomers++;
+                }
+            });
+            
+            console.log(`Customer validation for route ${selection.route.name}: ${correctCustomers} correct, ${wrongRouteCustomers} wrong route`);
+            
+            if (wrongRouteCustomers > 0 && !salesRepCustomersFiltered) {
+                setTimeout(() => filterCustomersByRoute(selection), 500);
+            } 
         }
 
         function restoreOriginalCustomers() {
@@ -830,8 +1281,6 @@
                 if (changeSalesRepBtn) {
                     changeSalesRepBtn.style.display = 'none';
                 }
-                
-                console.log('Sales rep display hidden for non-sales rep user');
             }, 100);
         }
 
@@ -863,9 +1312,17 @@
             return true;
         }
 
-        // ---- Sales Rep Session Management (defined in modal component) ----
+        // ---- Sales Rep Session Management ----
         function storeSalesRepSelection(selection) {
-            sessionStorage.setItem('salesRepSelection', JSON.stringify(selection));
+            try {
+                const selectionJson = JSON.stringify(selection);
+                // Store in both sessionStorage (for current session) and localStorage (for persistence)
+                sessionStorage.setItem('salesRepSelection', selectionJson);
+                localStorage.setItem('salesRepSelection', selectionJson);
+                console.log('Sales rep selection stored in both session and local storage');
+            } catch (e) {
+                console.error('Failed to store sales rep selection:', e);
+            }
         }
 
         // ---- Loader helpers ----
@@ -5155,13 +5612,24 @@
 
         function resetToWalkingCustomer() {
             const customerSelect = $('#customer-id');
-            const walkingCustomer = customerSelect.find('option').filter(function() {
-                return $(this).text().startsWith('Walk-in');
-            });
+            
+            if (isSalesRep) {
+                // For sales reps, select the first available customer (not Walk-in)
+                const firstCustomer = customerSelect.find('option:first');
+                if (firstCustomer.length > 0) {
+                    customerSelect.val(firstCustomer.val());
+                    customerSelect.trigger('change');
+                }
+            } else {
+                // For non-sales reps, reset to Walk-in Customer
+                const walkingCustomer = customerSelect.find('option').filter(function() {
+                    return $(this).text().startsWith('Walk-in');
+                });
 
-            if (walkingCustomer.length > 0) {
-                customerSelect.val(walkingCustomer.val());
-                customerSelect.trigger('change');
+                if (walkingCustomer.length > 0) {
+                    customerSelect.val(walkingCustomer.val());
+                    customerSelect.trigger('change');
+                }
             }
         }
 

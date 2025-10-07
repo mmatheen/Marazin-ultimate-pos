@@ -1923,7 +1923,7 @@ class SaleController extends Controller
     {
         try {
             $sale = Sale::findOrFail($id);
-            $customer = Customer::findOrFail($sale->customer_id);
+            $customer = Customer::withoutLocationScope()->findOrFail($sale->customer_id);
             $products = SalesProduct::where('sale_id', $sale->id)->get();
             $payments = Payment::where('reference_id', $sale->id)->where('payment_type', 'sale')->get();
             $totalDiscount = array_reduce($products->toArray(), function ($carry, $product) {

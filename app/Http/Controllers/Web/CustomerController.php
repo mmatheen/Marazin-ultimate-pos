@@ -43,8 +43,16 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    // Use normal query with location scope - it will handle sales rep filtering automatically
-    $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+    // Start with bypassing location scope, but apply sales rep filtering if needed
+    $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+    
+    // Apply sales rep route filtering if user is a sales rep
+    $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
+        ->where('status', 'active')
+        ->first();
+    if ($salesRep) {
+        $query = $this->applySalesRepFilter($query, $user);
+    }
 
     $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
         return [
@@ -182,7 +190,7 @@ class CustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with(['city'])->find($id);
+        $customer = Customer::withoutLocationScope()->with(['city'])->find($id);
         return $customer ? response()->json(['status' => 200, 'customer' => $customer])
             : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
@@ -214,7 +222,7 @@ class CustomerController extends Controller
             ]);
         }
 
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
@@ -265,7 +273,7 @@ class CustomerController extends Controller
 
     public function destroy(int $id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
@@ -340,7 +348,7 @@ class CustomerController extends Controller
 
         $routeCityIds = $route->cities->pluck('id')->toArray();
 
-        $query = Customer::with(['city']);
+        $query = Customer::withoutLocationScope()->with(['city']);
 
         if (!empty($routeCityIds)) {
             $query->where(function ($q) use ($routeCityIds) {
@@ -382,12 +390,33 @@ class CustomerController extends Controller
             ]);
         }
 
-        $customers = Customer::with(['city'])
-            ->where(function ($query) use ($cityIds) {
-                $query->whereIn('city_id', $cityIds)
-                      ->orWhereNull('city_id');
-            })
-            ->orderBy('first_name')
+        $user = auth()->user();
+        
+        $customers = Customer::withoutLocationScope()->with(['city']);
+        
+        // Check if user is a sales rep
+        $isSalesRep = false;
+        if ($user) {
+            $salesRep = \App\Models\SalesRep::where('user_id', $user->id)
+                ->where('status', 'active')
+                ->first();
+            $isSalesRep = (bool) $salesRep;
+        }
+        
+        $customers = $customers->where(function ($query) use ($cityIds, $isSalesRep) {
+            $query->whereIn('city_id', $cityIds);
+            
+            // Only include customers without city assignment for non-sales rep users
+            if (!$isSalesRep) {
+                $query->orWhereNull('city_id');
+            }
+        });
+            
+        // For filterByCities, don't apply additional sales rep filtering
+        // The frontend route selection already determines which city IDs to send
+        // So we trust the city_ids provided and don't further restrict by sales rep's default route
+
+        $customers = $customers->orderBy('first_name')
             ->get()
             ->map(function ($customer) {
                 return [

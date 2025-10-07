@@ -299,8 +299,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 canSell: selectedRoute.can_sell
             };
             
-            // Store selection in session storage with consistent key
-            sessionStorage.setItem('salesRepSelection', JSON.stringify(selection));
+            // Store selection in both session and local storage for persistence
+            try {
+                const selectionJson = JSON.stringify(selection);
+                sessionStorage.setItem('salesRepSelection', selectionJson);
+                localStorage.setItem('salesRepSelection', selectionJson);
+                console.log('Sales rep selection stored in both session and local storage');
+            } catch (e) {
+                console.error('Failed to store sales rep selection:', e);
+            }
             
             // Dispatch custom event
             window.dispatchEvent(new CustomEvent('salesRepSelectionConfirmed', {
@@ -339,13 +346,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to get current selection
     window.getSalesRepSelection = function() {
-        const stored = sessionStorage.getItem('salesRepSelection');
-        return stored ? JSON.parse(stored) : null;
+        try {
+            // First check sessionStorage (current session)
+            let stored = sessionStorage.getItem('salesRepSelection');
+            let parsed = stored ? JSON.parse(stored) : null;
+            
+            // If not found in sessionStorage, check localStorage (persistent across refreshes)
+            if (!parsed) {
+                stored = localStorage.getItem('salesRepSelection');
+                parsed = stored ? JSON.parse(stored) : null;
+                
+                // If found in localStorage, also store in sessionStorage for current session
+                if (parsed) {
+                    sessionStorage.setItem('salesRepSelection', JSON.stringify(parsed));
+                    console.log('Restored sales rep selection from localStorage to sessionStorage');
+                }
+            }
+            
+            return parsed;
+        } catch (e) {
+            console.warn('Error parsing sales rep selection from storage:', e);
+            return null;
+        }
     };
 
     // Function to clear selection
     window.clearSalesRepSelection = function() {
         sessionStorage.removeItem('salesRepSelection');
+        localStorage.removeItem('salesRepSelection');
+        console.log('Sales rep selection cleared from both session and local storage');
     };
 });
 </script>

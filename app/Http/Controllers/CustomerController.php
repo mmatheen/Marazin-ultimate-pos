@@ -43,8 +43,13 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    // Use normal query with location scope - it will handle sales rep filtering automatically
-    $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+    // Start with bypassing location scope, but apply sales rep filtering if needed
+    $query = Customer::withoutLocationScope()->with(['sales', 'salesReturns', 'payments', 'city']);
+    
+    // Apply sales rep route filtering if user is a sales rep
+    if ($user->isSalesRep()) {
+        $query = $this->applySalesRepFilter($query, $user);
+    }
 
     $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
         return [
@@ -332,7 +337,7 @@ class CustomerController extends Controller
 
     public function show(int $id)
     {
-        $customer = Customer::with(['city'])->find($id);
+        $customer = Customer::withoutLocationScope()->with(['city'])->find($id);
         return $customer ? response()->json(['status' => 200, 'customer' => $customer])
             : response()->json(['status' => 404, 'message' => "No Such Customer Found!"]);
     }
@@ -364,7 +369,7 @@ class CustomerController extends Controller
             ]);
         }
 
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
@@ -467,7 +472,7 @@ class CustomerController extends Controller
 
     public function destroy(int $id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::withoutLocationScope()->find($id);
         if ($customer) {
             try {
                 DB::beginTransaction();
@@ -542,7 +547,7 @@ class CustomerController extends Controller
 
         $routeCityIds = $route->cities->pluck('id')->toArray();
 
-        $query = Customer::with(['city']);
+        $query = Customer::withoutLocationScope()->with(['city']);
 
         if (!empty($routeCityIds)) {
             $query->where(function ($q) use ($routeCityIds) {
@@ -587,7 +592,7 @@ class CustomerController extends Controller
         // Convert city names to lowercase for case-insensitive comparison
         $cityNames = array_map('strtolower', $cities);
 
-        $customers = Customer::with(['city'])
+        $customers = Customer::withoutLocationScope()->with(['city'])
             ->where(function ($query) use ($cityNames) {
                 // Include customers from the specified cities
                 $query->whereHas('city', function ($cityQuery) use ($cityNames) {
