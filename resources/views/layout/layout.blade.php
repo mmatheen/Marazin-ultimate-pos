@@ -240,6 +240,11 @@
                 input.setAttribute("autocomplete", "off");
             });
         });
+
+        // Disable all console.log in production
+        if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+            console.log = function() {};
+        }
     </script>
     <script>
         // Global utility function to format currency

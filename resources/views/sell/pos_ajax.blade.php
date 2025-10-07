@@ -5975,11 +5975,11 @@
 </script>
 
 <script>
-    /**
-     * Prevents multiple clicks on a button during async operations.
-     * @param {HTMLElement} button - The button element to protect.
-     * @param {Function} callback - The function to execute once.
-     */
+    // Disable all console.log in production
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        console.log = function() {};
+    }
+    
     function preventDoubleClick(button, callback) {
         if (button.dataset.isProcessing === "true") return;
         button.dataset.isProcessing = "true";

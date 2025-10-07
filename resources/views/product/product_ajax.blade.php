@@ -8,72 +8,6 @@
         let subCategories = [];
         const discountMap = {};
 
-        // Debug test function to check endpoint
-        function testProductStocksEndpoint() {
-            console.log('=== Testing /products/stocks endpoint ===');
-            
-            // First, test the diagnostic endpoint
-            $.ajax({
-                url: '/diagnostic/system-check',
-                type: 'GET',
-                success: function(response) {
-                    console.log('DIAGNOSTIC SUCCESS:', response);
-                    if (response.data) {
-                        console.log('Server environment:', {
-                            php_version: response.data.php_version,
-                            memory_limit: response.data.memory_limit,
-                            database: response.data.database,
-                            debug_mode: response.data.debug_mode
-                        });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('DIAGNOSTIC FAILED:', {status, error, response: xhr.responseText});
-                }
-            });
-            
-            // Then test the actual products endpoint
-            $.ajax({
-                url: '/products/stocks',
-                type: 'GET',
-                data: {
-                    page: 1,
-                    per_page: 5, // Small test
-                    draw: 1
-                },
-                beforeSend: function(xhr) {
-                    console.log('Test request headers:', xhr);
-                },
-                success: function(response) {
-                    console.log('TEST SUCCESS! Response:', response);
-                    console.log('Response data type:', typeof response.data);
-                    console.log('Response data is array:', Array.isArray(response.data));
-                    console.log('Response data length:', response.data ? response.data.length : 'N/A');
-                },
-                error: function(xhr, status, error) {
-                    console.error('TEST ERROR! Details:');
-                    console.error('Status:', status);
-                    console.error('Error:', error);
-                    console.error('Status Code:', xhr.status);
-                    console.error('Response Text (first 1000 chars):', xhr.responseText.substring(0, 1000));
-                    
-                    // Detailed analysis for hosting issues
-                    if (xhr.responseText.includes('Fatal error') || xhr.responseText.includes('Parse error')) {
-                        console.error('🚨 PHP ERROR DETECTED! Check server error logs.');
-                    } else if (xhr.responseText.includes('<html>') || xhr.responseText.includes('<!DOCTYPE')) {
-                        console.error('🚨 HTML RESPONSE instead of JSON! Server configuration issue.');
-                    } else if (xhr.status === 500) {
-                        console.error('🚨 INTERNAL SERVER ERROR! Check hosting error logs.');
-                    } else if (xhr.status === 0) {
-                        console.error('🚨 NETWORK ERROR! Check hosting connectivity.');
-                    }
-                }
-            });
-        }
-
-        // Run test on page load
-        setTimeout(testProductStocksEndpoint, 2000); // Wait 2 seconds for page to fully load
-
         // Validation options
         var addAndUpdateValidationOptions = {
             rules: {
@@ -89,9 +23,6 @@
                 main_category_id: {
                     required: true
                 },
-                // sub_category_id: {
-                //     required: true
-                // },
                 'locations[]': {
                     required: true
                 },
@@ -122,9 +53,6 @@
                 main_category_id: {
                     required: "Main Category is required"
                 },
-                // sub_category_id: {
-                //     required: "Sub Category is required"
-                // },
                 'locations[]': {
                     required: "Business Location is required"
                 },
@@ -253,7 +181,7 @@
             
             // Auto-select single location if user has access to only one location
             if (autoSelectSingle && locations.length === 1) {
-                locationFilter.val(locations[0].id).trigger('change');
+                locationFilter.val(locations[0].id);
                 console.log('Auto-selected single accessible location for filter:', locations[0].name);
             }
         }
@@ -608,11 +536,6 @@
                     `<option value="${brand}">${brandMap[brand]}</option>`);
             });
             
-            // Optionally filter locations based on current page data - but keep all for better UX
-            // locations.forEach(locationId => {
-            //     if (locationMap[locationId]) locationFilter.append(
-            //         `<option value="${locationId}">${locationMap[locationId]}</option>`);
-            // });
         }
 
         function buildActionsDropdown(row) {
