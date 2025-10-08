@@ -251,16 +251,23 @@ class ProductController extends Controller
             ];
             $outTypes = [
                 StockHistory::STOCK_TYPE_SALE,
-                StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
-                StockHistory::STOCK_TYPE_PURCHASE_REVERSAL,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
 
-            // Calculate totals
+            // Calculate totals - handle adjustments separately based on their sign
             $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
             $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
+            
+            // Handle adjustments: positive adjustments are IN, negative adjustments are OUT
+            $adjustmentTotal = $stockTypeSums[StockHistory::STOCK_TYPE_ADJUSTMENT] ?? 0;
+            if ($adjustmentTotal > 0) {
+                $quantitiesIn += $adjustmentTotal;
+            } else {
+                $quantitiesOut += abs($adjustmentTotal);
+            }
+            
             $currentStock = $quantitiesIn - $quantitiesOut;
 
             $responseData = [
