@@ -52,82 +52,103 @@ class ProductController extends Controller
                 });
         }
 
-        // Fetch product with all necessary relationships
-        $productQuery = Product::with([
-            'locationBatches' => function ($query) use ($locationId) {
-                if ($locationId) {
-                    $query->where('location_id', $locationId);
+        try {
+            // Fetch product with all necessary relationships
+            $productQuery = Product::with([
+                'locationBatches' => function ($query) use ($locationId) {
+                    if ($locationId) {
+                        $query->where('location_id', $locationId);
+                    }
+                    $query->with('batch');
+                },
+                'locationBatches.stockHistories' => function ($query) {
+                    $query->with([
+                        'locationBatch.batch.purchaseProducts.purchase.supplier',
+                        'locationBatch.batch.salesProducts.sale.customer',
+                        'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
+                        'locationBatch.batch.saleReturns.salesReturn.customer',
+                        'locationBatch.batch.stockAdjustments.stockAdjustment',
+                        'locationBatch.batch.stockTransfers.stockTransfer',
+                    ]);
                 }
-                $query->with('batch');
-            },
-            'locationBatches.stockHistories' => function ($query) {
-                $query->with([
-                    'locationBatch.batch.purchaseProducts.purchase.supplier',
-                    'locationBatch.batch.salesProducts.sale.customer',
-                    'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
-                    'locationBatch.batch.saleReturns.salesReturn.customer',
-                    'locationBatch.batch.stockAdjustments.stockAdjustment',
-                    'locationBatch.batch.stockTransfers.stockTransfer',
-                ]);
+            ]);
+
+            $product = $productQuery->findOrFail($productId);
+
+            // Flatten all stock histories across location batches
+            $stockHistories = $product->locationBatches->flatMap(function ($locBatch) {
+                return $locBatch->stockHistories;
+            });
+
+            // Log for debugging
+            Log::info('API Stock History Debug', [
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'location_batches_count' => $product->locationBatches->count(),
+                'stock_histories_count' => $stockHistories->count()
+            ]);
+
+            if ($stockHistories->isEmpty()) {
+                return response()->json([
+                    'error' => 'No stock history found for this product' . ($locationId ? ' in the selected location' : ''),
+                    'product' => $product,
+                    'stock_histories' => [],
+                    'stock_type_sums' => [],
+                    'current_stock' => 0,
+                ], 200); // Return 200 instead of 404 for better UX
             }
-        ]);
 
-        $product = $productQuery->findOrFail($productId);
+            // Group by stock_type and sum quantities
+            $stockTypeSums = $stockHistories->groupBy('stock_type')->map(function ($group) {
+                return $group->sum('quantity');
+            });
 
-        // Flatten all stock histories across location batches
-        $stockHistories = $product->locationBatches->flatMap(function ($locBatch) {
-            return $locBatch->stockHistories;
-        });
+            // Define types for In and Out
+            $inTypes = [
+                StockHistory::STOCK_TYPE_OPENING,
+                StockHistory::STOCK_TYPE_PURCHASE,
+                StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
+                StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+                StockHistory::STOCK_TYPE_TRANSFER_IN,
+            ];
 
-        if ($stockHistories->isEmpty()) {
-            if (request()->ajax()) {
-                return response()->json(['error' => 'No stock history found for this product'], 404);
-            }
-            return redirect()->back()->withErrors('No stock history found for this product.');
-        }
+            $outTypes = [
+                StockHistory::STOCK_TYPE_SALE,
+                StockHistory::STOCK_TYPE_ADJUSTMENT,
+                StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+                StockHistory::STOCK_TYPE_TRANSFER_OUT,
+            ];
 
-        // Group by stock_type and sum quantities
-        $stockTypeSums = $stockHistories->groupBy('stock_type')->map(function ($group) {
-            return $group->sum('quantity');
-        });
+            // Calculate totals
+            $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
+            $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
+            $currentStock = $quantitiesIn - $quantitiesOut;
 
-        // Define types for In and Out
-        $inTypes = [
-            StockHistory::STOCK_TYPE_OPENING,
-            StockHistory::STOCK_TYPE_PURCHASE,
-            StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
-            StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
-            StockHistory::STOCK_TYPE_TRANSFER_IN,
-        ];
+            $responseData = [
+                'product' => $product,
+                'stock_histories' => $stockHistories,
+                'stock_type_sums' => $stockTypeSums,
+                'current_stock' => round($currentStock, 2),
+            ];
 
-        $outTypes = [
-            StockHistory::STOCK_TYPE_SALE,
-            StockHistory::STOCK_TYPE_ADJUSTMENT,
-            StockHistory::STOCK_TYPE_PURCHASE_RETURN,
-            StockHistory::STOCK_TYPE_TRANSFER_OUT,
-        ];
-
-        // Calculate totals
-        $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
-        $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
-        $currentStock = $quantitiesIn - $quantitiesOut;
-
-        $responseData = [
-            'product' => $product,
-            'stock_histories' => $stockHistories,
-            'stock_type_sums' => $stockTypeSums,
-            'current_stock' => round($currentStock, 2),
-        ];
-
-        if (request()->ajax()) {
+            // API always returns JSON
             return response()->json($responseData);
+            
+        } catch (\Exception $e) {
+            Log::error('Error in API getStockHistory: ' . $e->getMessage(), [
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Error loading stock history: ' . $e->getMessage(),
+                'product' => null,
+                'stock_histories' => [],
+                'stock_type_sums' => [],
+                'current_stock' => 0,
+            ], 500);
         }
-
-        // For initial page load (non-AJAX)
-        $products = Product::where('id', $productId)->get(); // Only load the current product initially
-        $locations = Location::all();
-
-        return view('product.product_stock_history', compact('products', 'locations'))->with($responseData);
     }
 
 

@@ -185,7 +185,16 @@
             });
 
             function fetchStockHistory(productId) {
+                if (!productId) {
+                    console.log('No product ID provided');
+                    return;
+                }
+                
                 const locationId = $('#businessLocation').val();
+                console.log('Fetching stock history for product:', productId, 'location:', locationId);
+
+                // Show loading state
+                $('#stock-history-body').html('<tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading stock history...</td></tr>');
 
                 $.ajax({
                     url: "/products/stock-history/" + productId,
@@ -193,7 +202,9 @@
                     data: {
                         location_id: locationId
                     },
+                    dataType: "json",
                     success: function(response) {
+                        console.log('Stock history response:', response);
                         updateStockHistoryView(response);
                         if (!initialLoad) {
                             window.scrollTo({
@@ -203,46 +214,82 @@
                         }
                         initialLoad = false;
                     },
-                    error: function(xhr) {
-                        console.error(xhr.responseText);
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching stock history:', error);
+                        console.error('Status:', status);
+                        console.error('Response:', xhr.responseText);
+                        
+                        // Show user-friendly error message
+                        let errorMessage = 'Error loading stock history. Please try again.';
+                        if (xhr.status === 404) {
+                            errorMessage = 'No stock history found for this product' + (locationId ? ' in the selected location' : '') + '.';
+                        } else if (xhr.status === 500) {
+                            errorMessage = 'Server error. Please contact support if the problem persists.';
+                        }
+                        
+                        $('#stock-history-body').html(
+                            '<tr><td colspan="6" class="text-center text-muted">' + errorMessage + '</td></tr>'
+                        );
                     }
                 });
             }
 
             function updateStockHistoryView(data) {
+                console.log('Updating stock history view with data:', data);
+                
+                // Handle error cases
+                if (data.error) {
+                    $('#stock-history-body').html(
+                        '<tr><td colspan="6" class="text-center text-muted">' + data.error + '</td></tr>'
+                    );
+                    return;
+                }
+                
+                // Ensure we have valid data structure
+                if (!data.product) {
+                    $('#stock-history-body').html(
+                        '<tr><td colspan="6" class="text-center text-muted">Invalid product data received.</td></tr>'
+                    );
+                    return;
+                }
+
                 $('#product-name').text(data.product.product_name);
                 $('#product-sku').text(data.product.product_name + ' (' + data.product.sku + ')');
 
+                // Safely handle stock_type_sums with default values
+                const stockSums = data.stock_type_sums || {};
+                
                 // Update Quantities In
-                $('#total-purchase').text(data.stock_type_sums['purchase'] ? data.stock_type_sums['purchase'] +
-                    ' Pcs' : '0.00 Pcs');
-                $('#opening-stock').text(data.stock_type_sums['opening_stock'] ? data.stock_type_sums[
-                    'opening_stock'] + ' Pcs' : '0.00 Pcs');
-                $('#total-sell-return').text(data.stock_type_sums['sales_return_with_bill'] ? data.stock_type_sums[
-                    'sales_return_with_bill'] + ' Pcs' : '0.00 Pcs');
-                $('#stock-transfers-in').text(data.stock_type_sums['transfer_in'] ? data.stock_type_sums[
-                    'transfer_in'] + ' Pcs' : '0.00 Pcs');
+                $('#total-purchase').text((stockSums['purchase'] || 0) + ' Pcs');
+                $('#opening-stock').text((stockSums['opening_stock'] || 0) + ' Pcs');
+                $('#total-sell-return').text((stockSums['sales_return_with_bill'] || 0) + ' Pcs');
+                $('#stock-transfers-in').text((stockSums['transfer_in'] || 0) + ' Pcs');
 
                 // Update Quantities Out
-                $('#total-sold').text(data.stock_type_sums['sale'] ? data.stock_type_sums['sale'] + ' Pcs' :
-                    '0.00 Pcs');
-                $('#total-stock-adjustment').text(data.stock_type_sums['adjustment'] ? data.stock_type_sums[
-                    'adjustment'] + ' Pcs' : '0.00 Pcs');
-                $('#total-purchase-return').text(data.stock_type_sums['purchase_return'] ? data.stock_type_sums[
-                    'purchase_return'] + ' Pcs' : '0.00 Pcs');
-                $('#stock-transfers-out').text(data.stock_type_sums['transfer_out'] ? data.stock_type_sums[
-                    'transfer_out'] + ' Pcs' : '0.00 Pcs');
+                $('#total-sold').text((stockSums['sale'] || 0) + ' Pcs');
+                $('#total-stock-adjustment').text((stockSums['adjustment'] || 0) + ' Pcs');
+                $('#total-purchase-return').text((stockSums['purchase_return'] || 0) + ' Pcs');
+                $('#stock-transfers-out').text((stockSums['transfer_out'] || 0) + ' Pcs');
 
                 // Update Current Stock
-                $('#current-stock').text(data.current_stock + ' Pcs');
+                $('#current-stock').text((data.current_stock || 0) + ' Pcs');
 
                 // Clear existing data
                 stockTable.clear();
+                
+                // Handle empty stock histories
+                if (!data.stock_histories || data.stock_histories.length === 0) {
+                    $('#stock-history-body').html(
+                        '<tr><td colspan="6" class="text-center text-muted">No stock movements found for this product' + 
+                        ($('#businessLocation').val() ? ' in the selected location' : '') + '.</td></tr>'
+                    );
+                    return;
+                }
+
                 let runningStock = 0;
 
                 // Sort histories by date ascending
-                const sortedHistories = [...data.stock_histories].sort((a, b) => new Date(a.created_at) - new Date(b
-                    .created_at));
+                const sortedHistories = [...data.stock_histories].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
                 if (sortedHistories.length > 0) {
                     sortedHistories.forEach(function(history) {
