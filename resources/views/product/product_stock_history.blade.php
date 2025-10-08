@@ -34,6 +34,15 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title" id="product-sku">{{ $product->product_name }} ({{ $product->sku }})</h5>
+                
+                <!-- Location Filter Status Indicator -->
+                <div id="location-filter-status" style="display: none;" class="alert alert-info mb-3">
+                    <i class="fas fa-filter"></i> <strong>Location Filter Active:</strong> <span id="filter-location-name"></span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="clear-location-filter-btn">
+                        <i class="fas fa-times"></i> Clear Filter
+                    </button>
+                </div>
+                
                 <div class="row">
                     <div class="col-md-4">
                         <h6>Quantities In</h6>
@@ -166,6 +175,9 @@
             var productId = getProductIdFromUrl(); // Get product ID from URL
             var initialLoad = true;
 
+            // Initialize location filter status
+            updateLocationFilterStatus();
+
             // Load stock history on page load
             if (productId) {
                 fetchStockHistory(productId);
@@ -181,8 +193,30 @@
             // Also trigger when location changes
             $('#businessLocation').change(function() {
                 const productId = $('#product').val();
+                updateLocationFilterStatus();
                 fetchStockHistory(productId);
             });
+
+            // Clear location filter button click handler
+            $('#clear-location-filter-btn').click(function() {
+                clearLocationFilter();
+            });
+
+            function updateLocationFilterStatus() {
+                const locationId = $('#businessLocation').val();
+                const locationName = $('#businessLocation option:selected').text();
+                
+                if (locationId) {
+                    $('#filter-location-name').text(locationName);
+                    $('#location-filter-status').show();
+                } else {
+                    $('#location-filter-status').hide();
+                }
+            }
+
+            function clearLocationFilter() {
+                $('#businessLocation').val('').trigger('change');
+            }
 
             function fetchStockHistory(productId) {
                 if (!productId) {
@@ -191,7 +225,8 @@
                 }
                 
                 const locationId = $('#businessLocation').val();
-                console.log('Fetching stock history for product:', productId, 'location:', locationId);
+                const locationName = $('#businessLocation option:selected').text();
+                console.log('Fetching stock history for product:', productId, 'location:', locationId, 'location name:', locationName);
 
                 // Show loading state
                 $('#stock-history-body').html('<tr><td colspan="6" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading stock history...</td></tr>');
@@ -205,6 +240,8 @@
                     dataType: "json",
                     success: function(response) {
                         console.log('Stock history response:', response);
+                        console.log('Location filter applied:', locationId ? 'Yes (ID: ' + locationId + ')' : 'No (All locations)');
+                        console.log('Stock histories count:', response.stock_histories ? response.stock_histories.length : 0);
                         updateStockHistoryView(response);
                         if (!initialLoad) {
                             window.scrollTo({
@@ -253,8 +290,13 @@
                     return;
                 }
 
+                // Update product information and add location filter indicator
+                const locationId = $('#businessLocation').val();
+                const locationName = $('#businessLocation option:selected').text();
+                const productTitle = data.product.product_name + (locationId ? ' - Filtered by: ' + locationName : ' - All Locations');
+                
                 $('#product-name').text(data.product.product_name);
-                $('#product-sku').text(data.product.product_name + ' (' + data.product.sku + ')');
+                $('#product-sku').text(productTitle + ' (' + data.product.sku + ')');
 
                 // Safely handle stock_type_sums with default values
                 const stockSums = data.stock_type_sums || {};
@@ -279,9 +321,17 @@
                 
                 // Handle empty stock histories
                 if (!data.stock_histories || data.stock_histories.length === 0) {
+                    const locationId = $('#businessLocation').val();
+                    const locationName = $('#businessLocation option:selected').text();
+                    let message = 'No stock movements found for this product';
+                    
+                    if (locationId) {
+                        message += ' in location: <strong>' + locationName + '</strong>';
+                        message += '<br><small class="text-muted">Try selecting "All Locations" to see all stock movements for this product.</small>';
+                    }
+                    
                     $('#stock-history-body').html(
-                        '<tr><td colspan="6" class="text-center text-muted">No stock movements found for this product' + 
-                        ($('#businessLocation').val() ? ' in the selected location' : '') + '.</td></tr>'
+                        '<tr><td colspan="6" class="text-center text-muted">' + message + '</td></tr>'
                     );
                     return;
                 }
@@ -296,12 +346,13 @@
                         if ([
                                 'purchase', 'opening_stock',
                                 'sales_return_with_bill', 'sales_return_without_bill',
-                                'transfer_in'
+                                'sale_reversal', 'transfer_in'
                             ].includes(history.stock_type)) {
                             runningStock += parseFloat(history.quantity);
                         } else if ([
                                 'sale', 'adjustment',
-                                'purchase_return', 'transfer_out'
+                                'purchase_return', 'purchase_reversal', 'purchase_return_reversal',
+                                'transfer_out'
                             ].includes(history.stock_type)) {
                             runningStock -= Math.abs(history.quantity);
                         }
@@ -322,16 +373,37 @@
             }
 
             function getReferenceNo(history) {
+                // Try to find the most relevant transaction for this stock history
                 if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
-                    return history.location_batch.batch.purchase_products[0]?.purchase?.reference_no || 'N/A';
+                    const matchedPurchase = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.purchase_products,
+                        'purchase'
+                    );
+                    return matchedPurchase?.purchase?.reference_no || 'N/A';
                 } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
-                    return history.location_batch.batch.sales_products[0]?.sale?.invoice_no || 'N/A';
+                    const matchedSale = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sales_products,
+                        'sale'
+                    );
+                    return matchedSale?.sale?.invoice_no || 'N/A';
                 } else if (history.stock_type === 'purchase_return' && history.location_batch?.batch
                     ?.purchase_returns?.length) {
-                    return history.location_batch.batch.purchase_returns[0]?.purchase_return?.reference_no || 'N/A';
+                    const matchedReturn = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.purchase_returns,
+                        'purchase_return'
+                    );
+                    return matchedReturn?.purchase_return?.reference_no || 'N/A';
                 } else if (history.stock_type === 'sale_return' && history.location_batch?.batch?.sale_returns
                     ?.length) {
-                    return history.location_batch.batch.sale_returns[0]?.sales_return?.reference_no || 'N/A';
+                    const matchedReturn = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sale_returns,
+                        'sale_return'
+                    );
+                    return matchedReturn?.sales_return?.reference_no || 'N/A';
                 } else if (history.stock_type === 'adjustment' && history.location_batch?.batch?.stock_adjustments
                     ?.length) {
                     return history.location_batch.batch.stock_adjustments[0]?.stock_adjustment?.reference_no ||
@@ -343,20 +415,74 @@
                 }
             }
 
+            function findBestMatchingTransaction(stockHistory, transactions, transactionType) {
+                if (!transactions || transactions.length === 0) return null;
+                if (transactions.length === 1) return transactions[0];
+
+                // Try to match based on quantity and timing
+                const historyDate = new Date(stockHistory.created_at);
+                const historyQuantity = Math.abs(stockHistory.quantity);
+                
+                // Find transactions with matching quantity
+                const quantityMatches = transactions.filter(transaction => {
+                    return Math.abs(transaction.quantity) === historyQuantity;
+                });
+
+                if (quantityMatches.length === 1) {
+                    return quantityMatches[0];
+                }
+
+                // If multiple quantity matches or no quantity matches, find closest by time
+                let bestMatch = transactions[0];
+                let smallestTimeDiff = Math.abs(new Date(bestMatch.created_at || bestMatch.updated_at) - historyDate);
+
+                for (let i = 1; i < transactions.length; i++) {
+                    const transactionDate = new Date(transactions[i].created_at || transactions[i].updated_at);
+                    const timeDiff = Math.abs(transactionDate - historyDate);
+                    
+                    if (timeDiff < smallestTimeDiff) {
+                        smallestTimeDiff = timeDiff;
+                        bestMatch = transactions[i];
+                    }
+                }
+
+                return bestMatch;
+            }
+
             function getCustomerSupplierInfo(history) {
                 if (history.stock_type === 'purchase' && history.location_batch?.batch?.purchase_products?.length) {
-                    const supplier = history.location_batch.batch.purchase_products[0]?.purchase?.supplier;
+                    const matchedPurchase = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.purchase_products,
+                        'purchase'
+                    );
+                    const supplier = matchedPurchase?.purchase?.supplier;
                     return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
                 } else if (history.stock_type === 'sale' && history.location_batch?.batch?.sales_products?.length) {
-                    const customer = history.location_batch.batch.sales_products[0]?.sale?.customer;
+                    const matchedSale = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sales_products,
+                        'sale'
+                    );
+                    const customer = matchedSale?.sale?.customer;
                     return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
                 } else if (history.stock_type === 'purchase_return' && history.location_batch?.batch
                     ?.purchase_returns?.length) {
-                    const supplier = history.location_batch.batch.purchase_returns[0]?.purchase_return?.supplier;
+                    const matchedReturn = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.purchase_returns,
+                        'purchase_return'
+                    );
+                    const supplier = matchedReturn?.purchase_return?.supplier;
                     return supplier ? (supplier.first_name + ' ' + supplier.last_name) : 'N/A';
                 } else if (history.stock_type === 'sale_return' && history.location_batch?.batch?.sale_returns
                     ?.length) {
-                    const customer = history.location_batch.batch.sale_returns[0]?.sales_return?.customer;
+                    const matchedReturn = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sale_returns,
+                        'sale_return'
+                    );
+                    const customer = matchedReturn?.sales_return?.customer;
                     return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
                 } else {
                     return 'N/A';

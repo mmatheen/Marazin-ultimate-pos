@@ -109,6 +109,7 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_PURCHASE,
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+                StockHistory::STOCK_TYPE_SALE_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_IN,
             ];
 
@@ -116,6 +117,8 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_SALE,
                 StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+                StockHistory::STOCK_TYPE_PURCHASE_REVERSAL,
+                StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
 

@@ -203,8 +203,24 @@ class ProductController extends Controller
                 'product_id' => $productId,
                 'location_id' => $locationId,
                 'location_batches_count' => $product->locationBatches->count(),
-                'stock_histories_count' => $stockHistories->count()
+                'stock_histories_count' => $stockHistories->count(),
+                'request_params' => request()->all()
             ]);
+
+            // Additional debug: Log location batch details when filtering
+            if ($locationId) {
+                Log::info('Location Filtering Debug', [
+                    'filtered_location_id' => $locationId,
+                    'location_batches' => $product->locationBatches->map(function($lb) {
+                        return [
+                            'id' => $lb->id,
+                            'location_id' => $lb->location_id,
+                            'location_name' => $lb->location->name ?? 'Unknown',
+                            'stock_histories_count' => $lb->stockHistories->count()
+                        ];
+                    })->toArray()
+                ]);
+            }
 
             if ($stockHistories->isEmpty()) {
                 if (request()->ajax()) {
@@ -230,12 +246,15 @@ class ProductController extends Controller
                 StockHistory::STOCK_TYPE_PURCHASE,
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITH_BILL,
                 StockHistory::STOCK_TYPE_SALE_RETURN_WITHOUT_BILL,
+                StockHistory::STOCK_TYPE_SALE_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_IN,
             ];
             $outTypes = [
                 StockHistory::STOCK_TYPE_SALE,
                 StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
+                StockHistory::STOCK_TYPE_PURCHASE_REVERSAL,
+                StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
 
