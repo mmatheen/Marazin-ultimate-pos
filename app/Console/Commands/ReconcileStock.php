@@ -131,82 +131,132 @@ class ReconcileStock extends Command
         try {
             DB::beginTransaction();
             
-            $this->info('🔍 Finding products with negative calculated stock...');
+            $this->info('🔍 Finding products with stock discrepancies...');
             
-            // Find all products with negative calculated stock
-            $productsWithIssues = DB::select("
-                SELECT 
-                    p.id as product_id,
-                    p.product_name,
-                    p.sku,
-                    SUM(lb.qty) as total_actual_stock,
-                    (
-                        SELECT COALESCE(
-                            SUM(CASE 
-                                WHEN sh.stock_type IN ('opening_stock', 'purchase', 'sales_return_with_bill', 'sales_return_without_bill', 'sale_reversal', 'transfer_in', 'adjustment') 
-                                THEN sh.quantity 
-                                ELSE 0 
-                            END) - 
-                            SUM(CASE 
-                                WHEN sh.stock_type IN ('sale', 'purchase_return', 'purchase_return_reversal', 'transfer_out') 
-                                THEN ABS(sh.quantity) 
-                                ELSE 0 
-                            END), 0)
-                        FROM stock_histories sh2
-                        JOIN location_batches lb2 ON sh2.loc_batch_id = lb2.id
-                        JOIN batches b2 ON lb2.batch_id = b2.id
-                        WHERE b2.product_id = p.id
-                    ) as calculated_stock
+            // Get all products first
+            $products = DB::select("
+                SELECT DISTINCT p.id, p.product_name, p.sku
                 FROM products p
                 JOIN batches b ON p.id = b.product_id
                 JOIN location_batches lb ON b.id = lb.batch_id
-                GROUP BY p.id, p.product_name, p.sku
-                HAVING total_actual_stock > 0 AND calculated_stock < 0
+                WHERE lb.qty > 0
                 ORDER BY p.id
             ");
             
-            if (empty($productsWithIssues)) {
+            if (empty($products)) {
+                $this->info('✅ No products found with location batches!');
+                DB::rollBack();
+                return 0;
+            }
+            
+            $this->info('Checking ' . count($products) . ' products for stock discrepancies...');
+            $this->newLine();
+            
+            $totalAdjustments = 0;
+            $fixedProducts = 0;
+            $productsNeedingFix = [];
+            
+            $progressBar = $this->output->createProgressBar(count($products));
+            $progressBar->start();
+            
+            // Check each product for discrepancies
+            foreach ($products as $product) {
+                // Get actual stock from location_batches
+                $actualStockResult = DB::select("
+                    SELECT SUM(lb.qty) as total_actual_stock
+                    FROM location_batches lb
+                    JOIN batches b ON lb.batch_id = b.id
+                    WHERE b.product_id = ?
+                ", [$product->id]);
+                
+                $actualStock = $actualStockResult[0]->total_actual_stock ?? 0;
+                
+                // Get calculated stock from stock_histories
+                $calculatedStockResult = DB::select("
+                    SELECT 
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN sh.stock_type IN ('opening_stock', 'purchase', 'sales_return_with_bill', 'sales_return_without_bill', 'sale_reversal', 'transfer_in', 'adjustment') 
+                                THEN sh.quantity 
+                                ELSE 0 
+                            END
+                        ), 0) as total_in,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN sh.stock_type IN ('sale', 'purchase_return', 'purchase_return_reversal', 'transfer_out') 
+                                THEN ABS(sh.quantity) 
+                                ELSE 0 
+                            END
+                        ), 0) as total_out
+                    FROM stock_histories sh
+                    JOIN location_batches lb ON sh.loc_batch_id = lb.id
+                    JOIN batches b ON lb.batch_id = b.id
+                    WHERE b.product_id = ?
+                ", [$product->id]);
+                
+                $totalIn = $calculatedStockResult[0]->total_in ?? 0;
+                $totalOut = $calculatedStockResult[0]->total_out ?? 0;
+                $calculatedStock = $totalIn - $totalOut;
+                
+                // Check if there's a discrepancy and calculated stock is negative
+                if ($actualStock > 0 && $calculatedStock < 0) {
+                    $discrepancy = $actualStock - $calculatedStock;
+                    $productsNeedingFix[] = [
+                        'id' => $product->id,
+                        'name' => $product->product_name,
+                        'sku' => $product->sku,
+                        'actual' => $actualStock,
+                        'calculated' => $calculatedStock,
+                        'discrepancy' => $discrepancy
+                    ];
+                }
+                
+                $progressBar->advance();
+            }
+            
+            $progressBar->finish();
+            $this->newLine(2);
+            
+            if (empty($productsNeedingFix)) {
                 $this->info('✅ No products found with negative stock issues!');
                 DB::rollBack();
                 return 0;
             }
             
-            $this->info('Found ' . count($productsWithIssues) . ' products with stock discrepancies:');
+            $this->info('Found ' . count($productsNeedingFix) . ' products with negative stock issues:');
             $this->newLine();
             
-            $totalAdjustments = 0;
-            $fixedProducts = 0;
-            
-            $progressBar = $this->output->createProgressBar(count($productsWithIssues));
-            $progressBar->start();
-            
-            foreach ($productsWithIssues as $product) {
-                $discrepancy = $product->total_actual_stock - $product->calculated_stock;
+            // Process each product that needs fixing
+            foreach ($productsNeedingFix as $productData) {
+                $this->line("Fixing: {$productData['name']} (ID: {$productData['id']})");
+                $this->line("  Actual: {$productData['actual']}, Calculated: {$productData['calculated']}, Need: +{$productData['discrepancy']}");
                 
                 // Get location batches for this product with their individual discrepancies
                 $locationBatches = DB::select("
                     SELECT 
                         lb.id as loc_batch_id,
-                        lb.location_id,
                         lb.qty as actual_qty,
-                        b.batch_no,
-                        COALESCE(SUM(CASE 
-                            WHEN sh.stock_type IN ('opening_stock', 'purchase', 'sales_return_with_bill', 'sales_return_without_bill', 'sale_reversal', 'transfer_in', 'adjustment') 
-                            THEN sh.quantity 
-                            ELSE 0 
-                        END), 0) as total_in,
-                        COALESCE(SUM(CASE 
-                            WHEN sh.stock_type IN ('sale', 'purchase_return', 'purchase_return_reversal', 'transfer_out') 
-                            THEN ABS(sh.quantity) 
-                            ELSE 0 
-                        END), 0) as total_out
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN sh.stock_type IN ('opening_stock', 'purchase', 'sales_return_with_bill', 'sales_return_without_bill', 'sale_reversal', 'transfer_in', 'adjustment') 
+                                THEN sh.quantity 
+                                ELSE 0 
+                            END
+                        ), 0) as total_in,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN sh.stock_type IN ('sale', 'purchase_return', 'purchase_return_reversal', 'transfer_out') 
+                                THEN ABS(sh.quantity) 
+                                ELSE 0 
+                            END
+                        ), 0) as total_out
                     FROM location_batches lb
                     JOIN batches b ON lb.batch_id = b.id
                     LEFT JOIN stock_histories sh ON sh.loc_batch_id = lb.id
                     WHERE b.product_id = ?
-                    GROUP BY lb.id, lb.location_id, lb.qty, b.batch_no
+                    GROUP BY lb.id, lb.qty
                     ORDER BY lb.id
-                ", [$product->product_id]);
+                ", [$productData['id']]);
                 
                 $productAdjustments = 0;
                 
@@ -215,25 +265,36 @@ class ReconcileStock extends Command
                     $batchActual = floatval($batch->actual_qty);
                     $batchDiscrepancy = $batchActual - $batchCalculated;
                     
-                    if ($batchDiscrepancy != 0) {
-                        // Create adjustment entry
-                        StockHistory::create([
-                            'loc_batch_id' => $batch->loc_batch_id,
-                            'quantity' => $batchDiscrepancy,
-                            'stock_type' => StockHistory::STOCK_TYPE_ADJUSTMENT,
-                        ]);
+                    if (abs($batchDiscrepancy) > 0.001) {
+                        // Check if adjustment already exists
+                        $existingAdjustments = DB::select("
+                            SELECT COUNT(*) as count
+                            FROM stock_histories
+                            WHERE loc_batch_id = ? AND stock_type = 'adjustment'
+                        ", [$batch->loc_batch_id]);
                         
-                        $productAdjustments += $batchDiscrepancy;
+                        if ($existingAdjustments[0]->count == 0) {
+                            // Create adjustment entry
+                            DB::insert("
+                                INSERT INTO stock_histories (loc_batch_id, quantity, stock_type, created_at, updated_at)
+                                VALUES (?, ?, 'adjustment', NOW(), NOW())
+                            ", [$batch->loc_batch_id, $batchDiscrepancy]);
+                            
+                            $this->line("    ✅ Added adjustment: {$batchDiscrepancy} for loc_batch_id {$batch->loc_batch_id}");
+                            $productAdjustments += $batchDiscrepancy;
+                        } else {
+                            $this->line("    ⚠️  Adjustment already exists for loc_batch_id {$batch->loc_batch_id}");
+                        }
                     }
                 }
                 
-                $totalAdjustments += $productAdjustments;
-                $fixedProducts++;
-                $progressBar->advance();
+                if ($productAdjustments > 0) {
+                    $totalAdjustments += $productAdjustments;
+                    $fixedProducts++;
+                }
+                
+                $this->newLine();
             }
-            
-            $progressBar->finish();
-            $this->newLine(2);
             
             DB::commit();
             
