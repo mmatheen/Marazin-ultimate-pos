@@ -13,10 +13,10 @@ use App\Models\Purchase;
 use App\Models\SubCategory;
 use App\Models\MainCategory;
 use App\Models\StockHistory;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Models\LocationBatch;
 use App\Imports\importProduct;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ExportProductTemplate;
@@ -73,7 +73,7 @@ class ProductController extends Controller
         }
 
         try {
-            // Simplified query to ensure adjustment entries are loaded
+            // Fetch product with all necessary relationships
             $productQuery = Product::with([
                 'locationBatches' => function ($query) use ($locationId) {
                     if ($locationId) {
@@ -82,7 +82,14 @@ class ProductController extends Controller
                     $query->with('batch');
                 },
                 'locationBatches.stockHistories' => function ($query) {
-                    $query->orderBy('created_at', 'asc');
+                    $query->with([
+                        'locationBatch.batch.purchaseProducts.purchase.supplier',
+                        'locationBatch.batch.salesProducts.sale.customer',
+                        'locationBatch.batch.purchaseReturns.purchaseReturn.supplier',
+                        'locationBatch.batch.saleReturns.salesReturn.customer',
+                        'locationBatch.batch.stockAdjustments.stockAdjustment',
+                        'locationBatch.batch.stockTransfers.stockTransfer',
+                    ]);
                 }
             ]);
 
@@ -131,24 +138,16 @@ class ProductController extends Controller
 
             $outTypes = [
                 StockHistory::STOCK_TYPE_SALE,
+                StockHistory::STOCK_TYPE_ADJUSTMENT,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN,
                 StockHistory::STOCK_TYPE_PURCHASE_REVERSAL,
                 StockHistory::STOCK_TYPE_PURCHASE_RETURN_REVERSAL,
                 StockHistory::STOCK_TYPE_TRANSFER_OUT,
             ];
 
-            // Calculate totals - handle adjustments separately based on their sign
+            // Calculate totals
             $quantitiesIn = $stockTypeSums->filter(fn($val, $key) => in_array($key, $inTypes))->sum();
             $quantitiesOut = $stockTypeSums->filter(fn($val, $key) => in_array($key, $outTypes))->sum(fn($val) => abs($val));
-            
-            // Handle adjustments: positive adjustments are IN, negative adjustments are OUT
-            $adjustmentTotal = $stockTypeSums[StockHistory::STOCK_TYPE_ADJUSTMENT] ?? 0;
-            if ($adjustmentTotal > 0) {
-                $quantitiesIn += $adjustmentTotal;
-            } else {
-                $quantitiesOut += abs($adjustmentTotal);
-            }
-            
             $currentStock = $quantitiesIn - $quantitiesOut;
 
             $responseData = [
