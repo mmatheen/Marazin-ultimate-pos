@@ -1232,20 +1232,33 @@ class ProductController extends Controller
                         ];
                     }),
                     'locations' => $locationId ? 
-                        // If location filter is applied, only show the filtered location with its quantities
+                        // If location filter is applied, show the filtered location data
                         $filteredBatches->flatMap(function($batch) {
                             return $batch->locationBatches->map(function($lb) {
                                 return [
                                     'location_id' => $lb->location_id,
-                                    'location_name' => optional($lb->location)->name ?? 'N/A'
+                                    'location_name' => optional($lb->location)->name ?? 'N/A',
+                                    'quantity' => $lb->qty
                                 ];
                             });
-                        })->unique('location_id')->values() :
-                        // If no location filter, show all locations where this product exists
-                        $product->locations->map(fn($loc) => [
-                            'location_id' => $loc->id,
-                            'location_name' => $loc->name
-                        ]),
+                        })->unique('location_id')->values()->toArray() :
+                        // If no location filter, show all locations where this product exists  
+                        $filteredBatches->flatMap(function($batch) {
+                            return $batch->locationBatches->map(function($lb) {
+                                return [
+                                    'location_id' => $lb->location_id,
+                                    'location_name' => optional($lb->location)->name ?? 'N/A',
+                                    'quantity' => $lb->qty
+                                ];
+                            });
+                        })->groupBy('location_id')->map(function($locBatches, $locId) {
+                            $firstLoc = $locBatches->first();
+                            return [
+                                'location_id' => $locId,
+                                'location_name' => $firstLoc['location_name'],
+                                'quantity' => $locBatches->sum('quantity')
+                            ];
+                        })->values()->toArray(),
                     'has_batches' => $filteredBatches->isNotEmpty(),
                     'discounts' => $activeDiscounts,
                     'imei_numbers' => $productImeis
