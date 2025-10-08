@@ -171,7 +171,13 @@
                     }
                 }, 10); // Very short delay to allow DOM render
             });
-            var stockTable = $('#stockTable').DataTable();
+            var stockTable = $('#stockTable').DataTable({
+                "order": [], // Disable initial ordering to maintain chronological order
+                "columnDefs": [
+                    { "orderable": false, "targets": [0, 1, 2, 4, 5] }, // Disable sorting on most columns except date
+                    { "type": "date", "targets": 3 } // Set date column type
+                ]
+            });
             var productId = getProductIdFromUrl(); // Get product ID from URL
             var initialLoad = true;
 
@@ -309,12 +315,35 @@
 
                 // Update Quantities Out
                 $('#total-sold').text((stockSums['sale'] || 0) + ' Pcs');
-                $('#total-stock-adjustment').text((stockSums['adjustment'] || 0) + ' Pcs');
+                // Handle adjustments: show the raw value (can be positive or negative)
+                const adjustmentValue = stockSums['adjustment'] || 0;
+                $('#total-stock-adjustment').text(adjustmentValue + ' Pcs');
                 $('#total-purchase-return').text((stockSums['purchase_return'] || 0) + ' Pcs');
                 $('#stock-transfers-out').text((stockSums['transfer_out'] || 0) + ' Pcs');
 
-                // Update Current Stock
-                $('#current-stock').text((data.current_stock || 0) + ' Pcs');
+                // Update Current Stock with warning for negative values
+                const currentStockValue = data.current_stock || 0;
+                let stockDisplay = currentStockValue + ' Pcs';
+                
+                if (currentStockValue < 0) {
+                    stockDisplay = `<span class="text-danger"><strong>${currentStockValue} Pcs</strong> <i class="fas fa-exclamation-triangle"></i></span>`;
+                    // Add warning message
+                    if (!$('#negative-stock-warning').length) {
+                        $('#current-stock').parent().after(`
+                            <tr id="negative-stock-warning">
+                                <td colspan="2" class="text-danger small">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    <strong>Warning:</strong> This product has negative stock (oversold)
+                                </td>
+                            </tr>
+                        `);
+                    }
+                } else {
+                    // Remove warning message if stock is positive
+                    $('#negative-stock-warning').remove();
+                }
+                
+                $('#current-stock').html(stockDisplay);
 
                 // Clear existing data
                 stockTable.clear();
@@ -338,37 +367,104 @@
 
                 let runningStock = 0;
 
-                // Sort histories by date ascending
+                // Sort histories by date ascending to ensure proper chronological order
                 const sortedHistories = [...data.stock_histories].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
+                // Debug: Show first few transactions to verify sorting
+                console.log('First 5 transactions in chronological order:', 
+                    sortedHistories.slice(0, 5).map(h => ({
+                        type: h.stock_type,
+                        quantity: h.quantity,
+                        date: h.created_at
+                    }))
+                );
+
                 if (sortedHistories.length > 0) {
-                    sortedHistories.forEach(function(history) {
+                    // Collect all rows first, then add them all at once
+                    const tableRows = [];
+                    
+                    sortedHistories.forEach(function(history, index) {
+                        // Handle each stock type correctly with proper quantity handling
+                        const quantity = parseFloat(history.quantity);
+                        
+                        // Calculate running stock based on transaction type
                         if ([
                                 'purchase', 'opening_stock',
                                 'sales_return_with_bill', 'sales_return_without_bill',
                                 'sale_reversal', 'transfer_in'
                             ].includes(history.stock_type)) {
-                            runningStock += parseFloat(history.quantity);
+                            // These types increase stock
+                            runningStock += Math.abs(quantity);
+                        } else if (history.stock_type === 'adjustment') {
+                            // Adjustments can be positive (increase) or negative (decrease)
+                            runningStock += quantity; // Use the actual signed value
                         } else if ([
-                                'sale', 'adjustment',
+                                'sale',
                                 'purchase_return', 'purchase_reversal', 'purchase_return_reversal',
                                 'transfer_out'
                             ].includes(history.stock_type)) {
-                            runningStock -= Math.abs(history.quantity);
+                            // These types decrease stock
+                            runningStock -= Math.abs(quantity);
+                        } else {
+                            // Unknown stock type - log for debugging
+                            console.warn('Unknown stock type:', history.stock_type, 'with quantity:', quantity);
                         }
 
                         var referenceNo = getReferenceNo(history);
                         var customerSupplierInfo = getCustomerSupplierInfo(history);
+                        
+                        // Format running stock with warning color for negative values
+                        let runningStockDisplay = runningStock.toFixed(2);
+                        if (runningStock < 0) {
+                            runningStockDisplay = `<span class="text-danger font-weight-bold">${runningStock.toFixed(2)}</span>`;
+                        }
 
-                        stockTable.row.add([
+                        // Add row to collection instead of directly to table
+                        tableRows.push([
                             history.stock_type.replace('_', ' ').toUpperCase(),
                             history.quantity > 0 ? '+' + history.quantity : history.quantity,
-                            runningStock.toFixed(2),
+                            runningStockDisplay,
                             new Date(history.created_at).toLocaleString(),
                             referenceNo,
                             customerSupplierInfo
-                        ]).draw();
+                        ]);
+                        
+                        // Debug: Log first few to verify chronological order
+                        if (index < 3) {
+                            console.log(`${index + 1}. ${new Date(history.created_at).toLocaleDateString()} ${history.stock_type}: ${quantity} → Running: ${runningStock.toFixed(2)}`);
+                        }
                     });
+                    
+                    // Add all rows at once to preserve order
+                    stockTable.rows.add(tableRows).draw();
+                    
+                    // Final validation and detailed logging
+                    const backendCurrentStock = parseFloat(data.current_stock || 0);
+                    
+                    if (runningStock < 0) {
+                        console.warn('⚠️ NEGATIVE STOCK DETECTED!');
+                        console.log('This product has been oversold in this location.');
+                        console.log('Running Stock:', runningStock);
+                        console.log('This means more items were sold than were available.');
+                    }
+                    
+                    console.log('=== STOCK CALCULATION SUMMARY ===');
+                    console.log('Frontend calculated running stock:', runningStock);
+                    console.log('Backend reported current stock:', backendCurrentStock);
+                    console.log('Total transactions processed:', sortedHistories.length);
+                    
+                    if (Math.abs(runningStock - backendCurrentStock) > 0.01) {
+                        console.error('❌ CALCULATION MISMATCH DETECTED!', {
+                            frontend_calculated: runningStock,
+                            backend_reported: backendCurrentStock,
+                            difference_frontend_backend: runningStock - backendCurrentStock
+                        });
+                    } else {
+                        console.log('✅ Frontend and backend calculations match');
+                        if (runningStock < 0) {
+                            console.log('✅ Negative stock calculation is mathematically correct');
+                        }
+                    }
                 }
             }
 
@@ -404,6 +500,14 @@
                         'sale_return'
                     );
                     return matchedReturn?.sales_return?.reference_no || 'N/A';
+                } else if (history.stock_type === 'sale_reversal' && history.location_batch?.batch?.sales_products?.length) {
+                    // Sale reversals should reference the original sale that was reversed
+                    const matchedSale = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sales_products,
+                        'sale'
+                    );
+                    return matchedSale?.sale?.invoice_no || 'N/A';
                 } else if (history.stock_type === 'adjustment' && history.location_batch?.batch?.stock_adjustments
                     ?.length) {
                     return history.location_batch.batch.stock_adjustments[0]?.stock_adjustment?.reference_no ||
@@ -483,6 +587,15 @@
                         'sale_return'
                     );
                     const customer = matchedReturn?.sales_return?.customer;
+                    return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
+                } else if (history.stock_type === 'sale_reversal' && history.location_batch?.batch?.sales_products?.length) {
+                    // Sale reversals should show the customer from the original sale that was reversed
+                    const matchedSale = findBestMatchingTransaction(
+                        history, 
+                        history.location_batch.batch.sales_products,
+                        'sale'
+                    );
+                    const customer = matchedSale?.sale?.customer;
                     return customer ? (customer.first_name + ' ' + customer.last_name) : 'N/A';
                 } else {
                     return 'N/A';
