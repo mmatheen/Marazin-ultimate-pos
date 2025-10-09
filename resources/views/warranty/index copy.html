@@ -1,229 +1,319 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Unified Ledger</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dot Matrix Bill (9.5in × 5.5in)</title>
 <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th { background-color: #f2f2f2; text-align: center; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    td.debit { color: red; }
-    td.credit { color: green; }
-    td.text-left { text-align: left; }
+  /* Page size and print margins for 9.5 x 5.5 inches.
+     We reserve 0.5in left & right for tractor feed holes (non-printable area). */
+  @page {
+    size: 9.5in 5.5in;         /* width height */
+    margin: 0.25in 0.5in;      /* top/bottom 0.25in, left/right 0.5in (holes) */
+  }
+
+  /* Ensure body uses full printable area */
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: "Courier New", Courier, monospace; /* dot-matrix friendly */
+    font-size: 11px; /* adjust to taste (9-12 typical) */
+    color: #000;
+    background: #fff;
+  }
+
+  /* Page container sized to the page */
+  .page {
+    width: calc(9.5in - 1in);   /* total width minus left+right hole area */
+    height: calc(5.5in - 0.5in);/* top+bottom margins removed */
+    box-sizing: border-box;
+    padding: 6px 8px;           /* inner padding */
+    position: relative;
+  }
+
+  /* Visual guide for hole areas (only visible on screen, not print) */
+  @media screen {
+    body { background: #f2f2f2; padding: 24px; }
+    .hole-guides {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+      pointer-events: none;
+    }
+    .hole-left, .hole-right {
+      position: absolute;
+      top: 0;
+      width: 0.5in;             /* hole width area */
+      height: 100%;
+      border-left: 1px dashed #bbb;
+      border-right: 1px dashed #bbb;
+      opacity: 0.6;
+    }
+    .hole-left { left: -0.5in; }
+    .hole-right { right: -0.5in; border-left: none; border-right: 1px dashed #bbb; }
+  }
+
+  /* Print-specific adjustments */
+  @media print {
+    body { background: #fff; margin: 0; }
+    .hole-guides { display: none; }
+    /* Try to force exact 100% scale, but user may need to set scale in dialog */
+    @page { /* keep same as above */ }
+    .no-print { display: none !important; }
+  }
+
+  /* Header */
+  header {
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .company {
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .company small { display:block; font-weight:normal; font-size:10px; }
+
+  /* Bill meta */
+  .meta {
+    text-align: right;
+    font-size: 11px;
+  }
+  .meta div { margin-bottom: 2px; }
+
+  /* Items table */
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+  table.items th, table.items td {
+    padding: 4px 6px;
+    border-bottom: 1px dotted #000; /* dot-matrix style */
+    text-align: left;
+    vertical-align: top;
+  }
+  table.items th {
+    font-weight: bold;
+    font-size: 11px;
+  }
+  table.items .qty, table.items .unit, table.items .amount {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* Totals block */
+  .totals {
+    margin-top: 6px;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .totals table {
+    border-collapse: collapse;
+    font-size: 11px;
+    width: 46%;
+  }
+  .totals td {
+    padding: 4px 6px;
+    border-bottom: 1px dotted #000;
+  }
+  .right { text-align: right; }
+
+  /* Footer */
+  footer {
+    margin-top: 12px;
+    font-size: 10px;
+  }
+
+  /* Signature area */
+  .sign {
+    margin-top: 12px;
+    display:flex;
+    justify-content: space-between;
+  }
+  .sign .line {
+    width: 40%;
+    border-top: 1px solid #000;
+    text-align: center;
+    padding-top: 6px;
+    font-size: 10px;
+  }
+
+  /* Buttons (screen only) */
+  .controls {
+    margin: 12px 0;
+  }
+  .btn {
+    display:inline-block;
+    padding:8px 12px;
+    border-radius:4px;
+    border:1px solid #333;
+    background:#fff;
+    cursor:pointer;
+    text-decoration:none;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  /* Avoid page breaks inside the main bill when printing */
+  .page, table.items, .totals, header, footer {
+    page-break-inside: avoid;
+  }
+
 </style>
 </head>
 <body>
 
-<h2>Unified Ledger</h2>
+<!-- Screen-only controls -->
+<div class="controls no-print">
+  <button class="btn" onclick="window.print()">Print this bill</button>
+  <button class="btn" onclick="downloadAsText()">Download text copy</button>
+  <small style="margin-left:8px;color:#666;">Tip: In Print dialog set Scale = 100%, disable headers & footers.</small>
+</div>
 
-<label for="contactFilter">Filter by Contact:</label>
-<select id="contactFilter">
-    <option value="all">All</option>
-    <option value="Customer A">Customer A</option>
-    <option value="Customer B">Customer B</option>
-    <option value="Supplier X">Supplier X</option>
-    <option value="Supplier Y">Supplier Y</option>
-    <option value="Supplier Z">Supplier Z</option>
-</select>
+<!-- Visual hole guides (screen only) -->
+<div class="hole-guides no-print" aria-hidden="true">
+  <div class="hole-left"></div>
+  <div class="hole-right"></div>
+</div>
 
-<table id="dataTable">
+<!-- Printable page -->
+<article class="page" role="document" aria-label="Bill">
+
+  <!-- Header -->
+  <header>
+    <div class="company">
+      ACME STORES
+      <small>123 Market St, Colombo • Tel: +94 11 234 5678</small>
+    </div>
+    <div class="meta">
+      <div><strong>Tax Invoice</strong></div>
+      <div>Invoice #: <strong>INV-2025-0012</strong></div>
+      <div>Date: <strong>2025-10-09</strong></div>
+      <div>Cashier: <strong>Kasun</strong></div>
+    </div>
+  </header>
+
+  <!-- Billing / Customer area -->
+  <section style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;">
+    <div>
+      <div><strong>BILL TO:</strong></div>
+      <div>Mr. R. Perera</div>
+      <div>12 Lake Road, Colombo</div>
+      <div>GSTIN: 9876543210</div>
+    </div>
+    <div style="text-align:right;">
+      <div><strong>Terms:</strong> Cash</div>
+      <div><strong>Due:</strong> On Receipt</div>
+    </div>
+  </section>
+
+  <!-- Items -->
+  <table class="items" role="table" aria-label="Items">
     <thead>
-        <tr>
-            <th>Date & Time</th>
-            <th>Ref No</th>
-            <th>Type</th>
-            <th>Debit (−)</th>
-            <th>Credit (+)</th>
-            <th>Running Balance</th>
-            <th>Contact</th>
-            <th>Notes</th>
-        </tr>
+      <tr>
+        <th style="width:56%;">Description</th>
+        <th style="width:12%;" class="qty">Qty</th>
+        <th style="width:16%;" class="unit">Unit</th>
+        <th style="width:16%;" class="amount">Amount</th>
+      </tr>
     </thead>
     <tbody>
-        <!-- Customer A -->
-        <tr data-contact="Customer A">
-            <td class="text-left">2025-09-21 09:00</td>
-            <td class="text-left">CUSTA-OPEN</td>
-            <td class="text-left">Opening Balance</td>
-            <td class="debit">5,000.00</td>
-            <td></td>
-            <td>5,000.00</td>
-            <td class="text-left">Customer A</td>
-            <td class="text-left">Customer owes opening balance</td>
-        </tr>
-        <tr data-contact="Customer A">
-            <td class="text-left">2025-09-21 10:00</td>
-            <td class="text-left">CUSTA-SALE1</td>
-            <td class="text-left">Sale</td>
-            <td class="debit">9,000.00</td>
-            <td></td>
-            <td>14,000.00</td>
-            <td class="text-left">Customer A</td>
-            <td class="text-left">Sale invoice #CUSTA-SALE1</td>
-        </tr>
-        <tr data-contact="Customer A">
-            <td class="text-left">2025-09-21 11:00</td>
-            <td class="text-left">CUSTA-PAY1</td>
-            <td class="text-left">Sale Payment</td>
-            <td></td>
-            <td class="credit">3,000.00</td>
-            <td>11,000.00</td>
-            <td class="text-left">Customer A</td>
-            <td class="text-left">Payment received</td>
-        </tr>
-        <tr data-contact="Customer A">
-            <td class="text-left">2025-09-21 12:00</td>
-            <td class="text-left">CUSTA-RET1</td>
-            <td class="text-left">Return Payment</td>
-            <td class="debit">4,200.00</td>
-            <td></td>
-            <td>15,200.00</td>
-            <td class="text-left">Customer A</td>
-            <td class="text-left">Paid back to customer for return</td>
-        </tr>
-
-        <!-- Customer B -->
-        <tr data-contact="Customer B">
-            <td class="text-left">2025-09-21 13:00</td>
-            <td class="text-left">CUSTB-OPEN</td>
-            <td class="text-left">Opening Balance</td>
-            <td class="debit">2,000.00</td>
-            <td></td>
-            <td>2,000.00</td>
-            <td class="text-left">Customer B</td>
-            <td class="text-left">Opening balance</td>
-        </tr>
-        <tr data-contact="Customer B">
-            <td class="text-left">2025-09-21 13:15</td>
-            <td class="text-left">CUSTB-SALE1</td>
-            <td class="text-left">Sale</td>
-            <td class="debit">5,000.00</td>
-            <td></td>
-            <td>7,000.00</td>
-            <td class="text-left">Customer B</td>
-            <td class="text-left">Sale invoice #CUSTB-SALE1</td>
-        </tr>
-
-        <!-- Supplier X -->
-        <tr data-contact="Supplier X">
-            <td class="text-left">2025-09-21 09:15</td>
-            <td class="text-left">SUPX-OPEN</td>
-            <td class="text-left">Opening Balance</td>
-            <td></td>
-            <td class="credit">3,000.00</td>
-            <td>3,000.00</td>
-            <td class="text-left">Supplier X</td>
-            <td class="text-left">Opening balance supplier X</td>
-        </tr>
-        <tr data-contact="Supplier X">
-            <td class="text-left">2025-09-21 10:15</td>
-            <td class="text-left">SUPX-PUR1</td>
-            <td class="text-left">Purchase</td>
-            <td></td>
-            <td class="credit">8,000.00</td>
-            <td>11,000.00</td>
-            <td class="text-left">Supplier X</td>
-            <td class="text-left">Purchase invoice #SUPX-PUR1</td>
-        </tr>
-        <tr data-contact="Supplier X">
-            <td class="text-left">2025-09-21 11:15</td>
-            <td class="text-left">SUPX-PAY1</td>
-            <td class="debit">5,000.00</td>
-            <td></td>
-            <td>6,000.00</td>
-            <td class="text-left">Supplier X</td>
-            <td class="text-left">Payment to supplier</td>
-        </tr>
-        <tr data-contact="Supplier X">
-            <td class="text-left">2025-09-21 12:15</td>
-            <td class="text-left">SUPX-PR1</td>
-            <td class="debit">2,000.00</td>
-            <td></td>
-            <td>4,000.00</td>
-            <td class="text-left">Supplier X</td>
-            <td class="text-left">Returned goods to supplier</td>
-        </tr>
-        <tr data-contact="Supplier X">
-            <td class="text-left">2025-09-21 13:30</td>
-            <td class="text-left">SUPX-RP1</td>
-            <td></td>
-            <td class="credit">1,500.00</td>
-            <td>5,500.00</td>
-            <td class="text-left">Supplier X</td>
-            <td class="text-left">Refund from supplier</td>
-        </tr>
-
-        <!-- Supplier Y -->
-        <tr data-contact="Supplier Y">
-            <td class="text-left">2025-09-21 14:00</td>
-            <td class="text-left">SUPY-OPEN</td>
-            <td class="text-left">Opening Balance</td>
-            <td></td>
-            <td class="credit">1,000.00</td>
-            <td>1,000.00</td>
-            <td class="text-left">Supplier Y</td>
-            <td class="text-left">Opening balance supplier Y</td>
-        </tr>
-        <tr data-contact="Supplier Y">
-            <td class="text-left">2025-09-21 14:15</td>
-            <td class="text-left">SUPY-PUR1</td>
-            <td class="text-left">Purchase</td>
-            <td></td>
-            <td class="credit">4,000.00</td>
-            <td>5,000.00</td>
-            <td class="text-left">Supplier Y</td>
-            <td class="text-left">Purchase invoice #SUPY-PUR1</td>
-        </tr>
-        <tr data-contact="Supplier Y">
-            <td class="text-left">2025-09-21 14:45</td>
-            <td class="text-left">SUPY-PAY1</td>
-            <td class="debit">2,000.00</td>
-            <td></td>
-            <td>3,000.00</td>
-            <td class="text-left">Supplier Y</td>
-            <td class="text-left">Payment to supplier</td>
-        </tr>
-
-        <!-- Supplier Z -->
-        <tr data-contact="Supplier Z">
-            <td class="text-left">2025-09-21 15:00</td>
-            <td class="text-left">SUPZ-OPEN</td>
-            <td class="text-left">Opening Balance</td>
-            <td></td>
-            <td class="credit">0.00</td>
-            <td>0.00</td>
-            <td class="text-left">Supplier Z</td>
-            <td class="text-left">Opening balance</td>
-        </tr>
-        <tr data-contact="Supplier Z">
-            <td class="text-left">2025-09-21 15:15</td>
-            <td class="text-left">SUPZ-PUR1</td>
-            <td class="text-left">Purchase</td>
-            <td></td>
-            <td class="credit">2,500.00</td>
-            <td>2,500.00</td>
-            <td class="text-left">Supplier Z</td>
-            <td class="text-left">Purchase invoice #SUPZ-PUR1</td>
-        </tr>
+      <!-- sample rows -->
+      <tr>
+        <td>Widget A - Model X (blue) - 1 year warranty</td>
+        <td class="qty">2</td>
+        <td class="unit">1,200.00</td>
+        <td class="amount">2,400.00</td>
+      </tr>
+      <tr>
+        <td>Service charge (installation)</td>
+        <td class="qty">1</td>
+        <td class="unit">300.00</td>
+        <td class="amount">300.00</td>
+      </tr>
+      <tr>
+        <td>Spare part - Ribbon</td>
+        <td class="qty">1</td>
+        <td class="unit">150.00</td>
+        <td class="amount">150.00</td>
+      </tr>
+      <!-- filler rows to show layout -->
+      <tr>
+        <td>Discount (loyalty)</td>
+        <td class="qty">1</td>
+        <td class="unit">-50.00</td>
+        <td class="amount">-50.00</td>
+      </tr>
     </tbody>
-</table>
+  </table>
+
+  <!-- Totals -->
+  <div class="totals" aria-hidden="false">
+    <table role="presentation">
+      <tbody>
+        <tr>
+          <td>Subtotal</td>
+          <td class="right">2,800.00</td>
+        </tr>
+        <tr>
+          <td>VAT 8%</td>
+          <td class="right">224.00</td>
+        </tr>
+        <tr>
+          <td><strong>Total</strong></td>
+          <td class="right"><strong>3,024.00</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Notes & footer -->
+  <footer>
+    <div><strong>Notes:</strong> Goods once sold will not be taken back. Please check goods at the time of delivery.</div>
+
+    <div class="sign">
+      <div class="line">Received By</div>
+      <div class="line">Authorised Signature</div>
+    </div>
+
+    <div style="margin-top:8px;font-size:10px;">
+      <div>Thank you for your purchase!</div>
+    </div>
+  </footer>
+
+</article>
 
 <script>
-document.getElementById('contactFilter').addEventListener('change', function() {
-    var selected = this.value;
-    var rows = document.querySelectorAll('#dataTable tbody tr');
-    rows.forEach(function(row) {
-        if (selected === 'all' || row.getAttribute('data-contact') === selected) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-});
+  /* Download a plain-text copy (simple utility) */
+  function downloadAsText() {
+    const lines = [];
+    lines.push("ACME STORES");
+    lines.push("123 Market St, Colombo | Tel: +94 11 234 5678");
+    lines.push("Invoice #: INV-2025-0012  Date: 2025-10-09");
+    lines.push("");
+    lines.push("Items:");
+    lines.push("  1) Widget A - Model X  x2   2,400.00");
+    lines.push("  2) Service charge           300.00");
+    lines.push("  3) Ribbon                   150.00");
+    lines.push("");
+    lines.push("Subtotal: 2,800.00");
+    lines.push("VAT 8%:   224.00");
+    lines.push("Total:    3,024.00");
+    const blob = new Blob([lines.join("\\n")], {type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bill_INV-2025-0012.txt';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 </script>
-
 </body>
 </html>

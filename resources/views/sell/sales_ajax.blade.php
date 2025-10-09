@@ -500,50 +500,24 @@
 
         // DataTable initialization completed above - no additional code needed
 
-        // Test API endpoint function - Simple test first
-        window.testSalesAPI = function() {
-            console.log('Testing basic sales endpoint...');
-            $.ajax({
-                url: '/api/sales',
-                type: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                    'Accept': 'application/json'
-                },
-                success: function(response) {
-                    console.log('Basic API Test Success:', response);
-                    
-                    // Now test paginated endpoint
-                    console.log('Testing paginated endpoint...');
-                    $.ajax({
-                        url: '/api/sales/paginated',
-                        type: 'GET',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
-                            'Accept': 'application/json'
-                        },
-                        data: {
-                            draw: 1,
-                            start: 0,
-                            length: 10
-                        },
-                        success: function(paginatedResponse) {
-                            console.log('Paginated API Test Success:', paginatedResponse);
-                            alert('Both APIs are working! Check console for details.');
-                        },
-                        error: function(xhr, error, code) {
-                            console.error('Paginated API Test Error:', xhr.responseText);
-                            alert('Paginated API Error: ' + xhr.status + ' - ' + error);
-                        }
-                    });
-                },
-                error: function(xhr, error, code) {
-                    console.error('Basic API Test Error:', xhr.responseText);
-                    alert('Basic API Error: ' + xhr.status + ' - ' + error + '. Check browser console for details.');
+        // Initialize modal event handlers
+        $(document).on('click', '[data-bs-dismiss="modal"]', function() {
+            const modalId = $(this).closest('.modal').attr('id');
+            if (modalId) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById(modalId));
+                if (modal) {
+                    modal.hide();
+                } else {
+                    $('#' + modalId).modal('hide');
                 }
-            });
-        };
+            }
+        });
 
+        // Ensure modal backdrop and scroll issues are handled
+        $(document).on('hidden.bs.modal', '.modal', function() {
+            $('body').removeClass('modal-open');
+            $('.modal-backdrop').remove();
+        });
 
         // Show the modal when the button is clicked
         $('#bulkPaymentBtn').click(function() {
@@ -854,7 +828,7 @@
                             // Only show customers who have due amounts
                             if (currentDue > 0) {
                                 var lastName = customer.last_name ? customer.last_name : '';
-                                var fullName = customer.first_name + (lastName ? ' ' + lastName : '');
+                                var fullName = (customer.first_name || '') + (lastName ? ' ' + lastName : '');
                                 var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
                                 if (openingBalance > 0) {
                                     displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
@@ -1246,8 +1220,7 @@
                         // Populate modal fields
                         $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
                             .invoice_no);
-                        $('#customerDetails').text(customer.first_name + ' ' + customer
-                            .last_name);
+                        $('#customerDetails').text((customer?.first_name || 'N/A') + ' ' + (customer?.last_name || ''));
                         $('#locationDetails').text(location.name);
                         $('#salesDetails').text('Date: ' + saleDetails.sales_date +
                             ', Status: ' + saleDetails.status);
@@ -1301,7 +1274,9 @@
                         amountDetailsTableBody.append('<tr><td>Due Amount</td><td>' +
                             saleDetails.total_due + '</td></tr>');
 
-                        $('#saleDetailsModal').modal('show');
+                        // Show modal using Bootstrap 5 API
+                        const saleModal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+                        saleModal.show();
                     } else {
                         console.error('Sales details data is not in the expected format.');
                     }
@@ -1327,8 +1302,8 @@
                         // Populate payment modal fields
                         $('#paymentModalLabel').text('Add Payment - Invoice No: ' +
                             saleDetails.invoice_no);
-                        $('#paymentCustomerDetail').text(customer.first_name + ' ' +
-                            customer.last_name);
+                        $('#paymentCustomerDetail').text((customer?.first_name || 'N/A') + ' ' +
+                            (customer?.last_name || ''));
                         $('#paymentLocationDetails').text(location.name);
                         $('#totalAmount').text(saleDetails.final_total);
                         $('#totalPaidAmount').text(saleDetails.total_paid);
@@ -1386,8 +1361,7 @@
                         // Populate view payments modal fields
                         $('#viewPaymentModalLabel').text('View Payments ( Reference No: ' +
                             saleDetails.invoice_no + ' )');
-                        $('#viewCustomerDetail').text(customer.first_name + ' ' + customer
-                            .last_name);
+                        $('#viewCustomerDetail').text((customer?.first_name || 'N/A') + ' ' + (customer?.last_name || ''));
                         $('#viewBusinessDetail').text(saleDetails.location.name);
                         $('#viewReferenceNo').text(saleDetails.invoice_no);
                         $('#viewDate').text(saleDetails.sales_date);
@@ -1684,12 +1658,12 @@
                         const option = $('<option></option>')
                             .val(customer.id)
                             .text(
-                                `${customer.first_name} ${customer.last_name} (ID: ${customer.id})`
+                                `${customer.first_name || 'N/A'} ${customer.last_name || ''} (ID: ${customer.id})`
                             )
                             .data('details', customer);
                         // Check if the customer is the "Walking Customer" and set it as selected
-                        if (customer.first_name === "Walking" && customer.last_name ===
-                            "Customer") {
+                        if ((customer.first_name === "Walking" || customer.first_name === null) && 
+                            (customer.last_name === "Customer" || customer.last_name === null)) {
                             option.attr('selected', 'selected');
                         }
                         customerSelect.append(option);
@@ -1712,7 +1686,7 @@
             const customerDetails = selectedOption.data('details');
 
             if (customerDetails) {
-                $('#customer-name').text(`${customerDetails.first_name} ${customerDetails.last_name}`);
+                $('#customer-name').text(`${customerDetails.first_name || 'N/A'} ${customerDetails.last_name || ''}`);
                 $('#customer-phone').text(customerDetails.mobile_no);
             }
         });

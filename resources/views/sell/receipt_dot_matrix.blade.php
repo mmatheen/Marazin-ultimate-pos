@@ -11,50 +11,62 @@
             box-sizing: border-box;
         }
 
-        @media print {
-            body {
-                margin: 0;
-                padding: 0;
-                background: white !important;
-            }
-            .invoice-page {
-                margin: 0;
-                box-shadow: none;
-                page-break-after: avoid;
-                page-break-inside: avoid;
-                background: white !important;
-            }
-            @page {
-                margin: 0;
-                size: A4;
-                background: white;
-            }
-            /* Hide any browser print headers/footers */
-            html {
-                background: white;
-            }
+        /* =========================
+       PRINT SETTINGS
+       ========================= */
+    @media print {
+        @page {
+            size: 8.0in 5.5in; /* Actual printable width of dot matrix paper */
+            margin: 0in;       /* Remove extra white borders */
         }
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: white;
-            padding: 0;
+        html, body {
+            width: 8.0in;
+            height: 5.5in;
+            background: white !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
             margin: 0;
-            width: 100%;
+            padding: 0;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            line-height: 1.3;
         }
 
         .invoice-page {
-            width: 100%;
-            max-width: 8.5in;
-            height: auto;
-            min-height: 11in;
-            background-color: white;
-            padding: 0.2in 0;
-            position: relative;
-            margin: 0;
+            width: 8.0in;
+            margin: 0.2 auto;
+            padding: 0.5in 0.5in 0.05in 0.5in;
+            background: white !important;
+            box-shadow: none;
+            page-break-inside: avoid;
         }
 
-        /* Clean design without perforation lines */
+        /* Avoid page cutting */
+        .invoice-page, .items-table, .summary-section {
+            page-break-after: avoid;
+        }
+    }
+
+    /* =========================
+       SCREEN + PRINT COMMON STYLES
+       ========================= */
+    body {
+        font-family: 'Roboto Mono', monospace;
+        background-color: white;
+        width: 100%;
+        padding: 0;
+        margin: 0;
+    }
+
+    .invoice-page {
+        max-width: 8.0in;
+        margin: 0 auto;
+        background-color: white;
+        position: relative;
+        padding: 0.2in 0.2in 0.05in 0.2in;
+    }
+
         .perforation-top,
         .perforation-bottom {
             display: none;
@@ -71,15 +83,18 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 0.25in;
-            padding: 0 0.05in;
+            margin-bottom: 0.1in;
+            margin-top: 0.1in;
+            padding: 0;
         }
 
         .company-info {
             flex: 1;
+            padding-right: 0.1in;
         }
 
         .company-logo {
+            font-family: 'Roboto Mono', monospace;
             font-size: 26px;
             font-weight: bold;
             letter-spacing: 1.5px;
@@ -88,25 +103,28 @@
         }
 
         .company-address {
-            font-size: 9px;
-            line-height: 1.35;
+            font-size: 11px;
+            line-height: 1.35;  
         }
 
         .customer-box {
-            border: 2px solid #333;
-            padding: 6px 12px;
-            width: 3.8in;
+            margin: 0.1in 0 0 0;
+            border: 2px dashed #333;
+            padding: 4px 8px;
+            width: 3.5in; /* Reduced width */
             background-color: white;
+            border-radius: 10px;
+
         }
 
         .customer-line {
             display: flex;
-            font-size: 9.5px;
+            font-size: 11px;
             margin: 2.5px 0;
         }
 
         .customer-line label {
-            width: 0.85in;
+            width: 0.8in; /* Reduced width */
         }
 
         .customer-line span {
@@ -132,17 +150,15 @@
 
         .invoice-title {
             text-align: center;
-            font-size: 30px;
+            font-size: 20px;
             font-weight: bold;
-            letter-spacing: 7px;
-            margin: 0.2in 0 0.25in 0;
-            padding: 0 0.1in;
+            margin: 0;
         }
 
         .items-table {
-            width: calc(100% - 0.1in);
+            width: 100%;
             border-collapse: collapse;
-            margin: 0 0.05in 0.2in 0.05in;
+            margin: 0 0 0.2in 0;
         }
 
         .items-table thead {
@@ -150,15 +166,15 @@
         }
 
         .items-table th {
-            padding: 6px 8px;
-            font-size: 12.5px;
+            padding: 6px 4px; /* Reduced padding */
+            font-size: 12px; /* Reduced font size */
             font-weight: bold;
             border-bottom: 1px solid #666;
         }
 
         .items-table th:first-child {
             text-align: center;
-            width: 0.4in;
+            width: 0.3in; /* Reduced width */
         }
 
         .items-table th:nth-child(2) {
@@ -171,12 +187,12 @@
         .items-table th:nth-child(6),
         .items-table th:nth-child(7) {
             text-align: right;
-            width: 0.95in;
+            width: 0.8in; /* Reduced width */
         }
 
         .items-table td {
-            padding: 5px 8px;
-            font-size: 12px;
+            padding: 4px; /* Reduced padding */
+            font-size: 10px; /* Reduced font size */
         }
 
         .items-table tbody tr {
@@ -185,7 +201,7 @@
 
         .items-table td:first-child {
             text-align: center;
-            width: 0.4in;
+            width: 0.3in;
         }
 
         .items-table td:nth-child(2) {
@@ -198,16 +214,16 @@
         .items-table td:nth-child(6),
         .items-table td:nth-child(7) {
             text-align: right;
-            width: 0.95in;
+            width: 0.8in;
         }
 
         .summary-section {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.18in;
+            gap: 0.1in; /* Reduced gap */
             margin-top: 0.22in;
-            font-size: 9.5px;
-            padding: 0 0.05in;
+            font-size: 11px; /* Reduced font size */
+            padding: 0;
         }
 
         .summary-column {
@@ -218,19 +234,19 @@
         .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 3px 0;
-            line-height: 1.4;
+            padding: 2px 0; /* Reduced padding */
+            line-height: 1.3;
         }
 
         .summary-row.bold {
             font-weight: bold;
-            font-size: 10.5px;
+            font-size: 10px;
             margin-top: 3px;
         }
 
         .summary-row.total {
             font-weight: bold;
-            font-size: 11.5px;
+            font-size: 11px;
             margin-top: 8px;
             padding-top: 8px;
             border-top: 1.5px solid #666;
@@ -239,7 +255,7 @@
         .footer-line {
             border-top: 1px solid #666;
             margin-top: 0.28in;
-            padding: 0.12in 0.05in 0 0.05in;
+            padding: 0.12in 0 0 0;
             display: flex;
             justify-content: space-between;
             font-size: 9px;
@@ -249,7 +265,6 @@
             text-align: center;
             font-size: 8.5px;
             margin-top: 0.1in;
-            padding: 0 0.05in;
         }
     </style>
 </head>
@@ -257,7 +272,7 @@
     <div class="invoice-page">
         <div class="perforation-top"></div>
         
-        <div class="reg-no">Reg No: {{ $sale->invoice_no }}</div>
+        {{-- <div class="reg-no">Reg No: {{ $sale->invoice_no }}</div> --}}
         
         <div class="header-section">
             <div class="company-info">
@@ -296,7 +311,7 @@
         </div>
 
         @if($sale->total_due <= 0)
-            <div class="delivered-badge">Delivered</div>
+            {{-- <div class="delivered-badge">Delivered</div> --}}
         @endif
 
         <div class="invoice-title">INVOICE</div>
@@ -328,7 +343,7 @@
                     @endphp
                     <tr>
                         <td>{{ $index++ }}</td>
-                        <td>{{ substr($firstProduct->product->product_name, 0, 45) }}@if($firstProduct->product->product_variation ?? false) ({{ substr($firstProduct->product->product_variation, 0, 10) }})@endif</td>
+                        <td>{{ substr($firstProduct->product->product_name, 0, 35) }}@if($firstProduct->product->product_variation ?? false) ({{ substr($firstProduct->product->product_variation, 0, 8) }})@endif</td>
                         <td>{{ number_format($totalQuantity, 0) }}</td>
                         <td>{{ number_format($unitPrice, 2) }}</td>
                         <td>{{ number_format($productDiscount, 2) }}</td>
@@ -419,6 +434,10 @@
             </div>
         </div>
 
+        <div style="text-align: center; font-size: 11px; font-weight: bold;">
+            Payment: @if($payments && $payments->count() > 0){{ strtoupper($payments->first()->payment_method) }}@else CASH @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
+        </div>
+
         <div class="footer-line">
             <div>Prepared By: {{ strtoupper($user->user_name ?? $user->name ?? 'CASHIER') }}</div>
             <div>Checked By:</div>
@@ -427,7 +446,6 @@
 
         <div class="software-info">
             Software by Marazin Pvt.Ltd | 
-            Payment: @if($payments && $payments->count() > 0){{ strtoupper($payments->first()->payment_method) }}@else CASH @endif | 
             Thank you for your business!
         </div>
 
