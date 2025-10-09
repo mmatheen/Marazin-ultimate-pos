@@ -9,10 +9,6 @@
         canDeleteProduct: @json(auth()->user()->can('delete product'))
     };
 
-    // Get walk-in customer ID dynamically (handles production vs local differences)
-    const WALK_IN_CUSTOMER_ID = @json(\App\Helpers\CustomerHelper::getWalkInCustomerId());
-    console.log('Walk-in customer ID configured as:', WALK_IN_CUSTOMER_ID);
-
     // Global function to clean up modal backdrops and body styles
     window.cleanupModalBackdrop = function() {
         // Remove all modal backdrops
@@ -119,8 +115,8 @@
          */
         function getCurrentCustomer() {
             const customerId = $('#customer-id').val();
-            if (!customerId || customerId == WALK_IN_CUSTOMER_ID) {
-                return { id: WALK_IN_CUSTOMER_ID, customer_type: 'retailer' }; // Default walk-in customer as retailer
+            if (!customerId || customerId === '1') {
+                return { id: 1, customer_type: 'retailer' }; // Default walk-in customer as retailer
             }
 
             // Get customer data from the select option
@@ -1118,7 +1114,7 @@
             
             // Don't add Walk-In Customer for sales reps
             if (!isSalesRep) {
-                const walkInOption = $(`<option value="${WALK_IN_CUSTOMER_ID}" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>`);
+                const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
                 walkInOption.data('due', 0);
                 walkInOption.data('credit_limit', 0);
                 customerSelect.append(walkInOption);
@@ -1249,7 +1245,7 @@
                 
                 // Auto-select Walk-in customer and update displays
                 setTimeout(() => {
-                    customerSelect.val(WALK_IN_CUSTOMER_ID).trigger('change');
+                    customerSelect.val('1').trigger('change');
                 }, 100);
             }
         }
@@ -4493,29 +4489,6 @@
                     return null;
                 }
 
-                // Validate customer selection
-                if (!customerId || customerId === '') {
-                    if (isSalesRep) {
-                        toastr.error('Please select a customer from your assigned route.');
-                    } else {
-                        toastr.error('Please select a customer. Default Walk-in Customer should be available.');
-                    }
-                    return null;
-                }
-
-                // Additional validation for customer ID
-                if (customerId === '55' || customerId === 55) {
-                    toastr.error('Invalid customer selection. Please refresh the page and try again.');
-                    console.error('Customer ID 55 detected - this is an invalid selection');
-                    return null;
-                }
-
-                // For sales reps, ensure they cannot select walk-in customer
-                if (isSalesRep && (customerId == WALK_IN_CUSTOMER_ID)) {
-                    toastr.error('Sales representatives cannot use Walk-in Customer. Please select a customer from your assigned route.');
-                    return null;
-                }
-
                 // Get discount values
                 const discountType = $('#discount-type').val() || 'fixed';
                 const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
@@ -4686,7 +4659,7 @@
                 }
 
                 // Validate walk-in customer cheque payment restriction
-                if (saleData.customer_id == WALK_IN_CUSTOMER_ID && saleData.payments) {
+                if (saleData.customer_id == 1 && saleData.payments) {
                     for (let payment of saleData.payments) {
                         if (payment.payment_method === 'cheque') {
                             toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
@@ -4970,7 +4943,7 @@
                         .trim());
 
                     // Default to full payment if empty or invalid
-                    const isWalkInCustomer = customerId == WALK_IN_CUSTOMER_ID;
+                    const isWalkInCustomer = customerId == 1;
 
                     if (isNaN(amountGiven) || amountGiven <= 0) {
                         amountGiven = totalAmount;
@@ -5086,9 +5059,9 @@
             });
 
             $('#chequeButton').on('click', function() {
-                // Check if customer is walk-in customer
+                // Check if customer is walk-in customer (ID = 1)
                 const customerId = $('#customer-id').val();
-                if (customerId == WALK_IN_CUSTOMER_ID) {
+                if (customerId == 1) {
                     toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
                     return; // Prevent opening the modal
                 }
@@ -5156,9 +5129,9 @@
                         return;
                     }
                     
-                    // Check if customer is walk-in customer
+                    // Check if customer is walk-in customer (ID = 1)
                     const customerId = $('#customer-id').val();
-                    if (customerId == WALK_IN_CUSTOMER_ID) {
+                    if (customerId == 1) {
                         toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
                         enableButton(button);
                         return;
@@ -5216,7 +5189,7 @@
                     }
                     
                     const customerId = $('#customer-id').val();
-                    if (customerId == WALK_IN_CUSTOMER_ID) {
+                    if (customerId == 1) {
                         toastr.error(
                             'Credit sale is not allowed for Walking Customer. Please choose another customer.'
                         );
@@ -5641,41 +5614,21 @@
             const customerSelect = $('#customer-id');
             
             if (isSalesRep) {
-                // For sales reps, don't auto-select any customer
-                // They should manually select from their filtered route-based customers
-                customerSelect.val('');
-                customerSelect.trigger('change');
-                
-                // Show a helpful message if no route is selected yet
-                const selection = getSalesRepSelection();
-                if (!selection || !selection.route) {
-                    // Don't auto-select anything - sales rep must choose route first
-                    console.log('Sales rep must select route before choosing customers');
+                // For sales reps, select the first available customer (not Walk-in)
+                const firstCustomer = customerSelect.find('option:first');
+                if (firstCustomer.length > 0) {
+                    customerSelect.val(firstCustomer.val());
+                    customerSelect.trigger('change');
                 }
             } else {
-                // For non-sales reps, reset to Walk-in Customer (use dynamic ID)
-                const walkInCustomer = customerSelect.find(`option[value="${WALK_IN_CUSTOMER_ID}"]`);
-                
-                if (walkInCustomer.length > 0) {
-                    customerSelect.val(WALK_IN_CUSTOMER_ID);
-                    customerSelect.trigger('change');
-                    console.log(`Reset to Walk-in Customer (ID: ${WALK_IN_CUSTOMER_ID}) for non-sales rep user`);
-                } else {
-                    // Fallback: look for walk-in by text
-                    const walkingCustomerByText = customerSelect.find('option').filter(function() {
-                        return $(this).text().toLowerCase().includes('walk-in');
-                    });
+                // For non-sales reps, reset to Walk-in Customer
+                const walkingCustomer = customerSelect.find('option').filter(function() {
+                    return $(this).text().startsWith('Walk-in');
+                });
 
-                    if (walkingCustomerByText.length > 0) {
-                        customerSelect.val(walkingCustomerByText.val());
-                        customerSelect.trigger('change');
-                        console.log('Reset to Walk-in Customer found by text');
-                    } else {
-                        // Clear selection if walk-in customer not found
-                        customerSelect.val('');
-                        customerSelect.trigger('change');
-                        console.warn('Walk-in customer not found in dropdown');
-                    }
+                if (walkingCustomer.length > 0) {
+                    customerSelect.val(walkingCustomer.val());
+                    customerSelect.trigger('change');
                 }
             }
         }

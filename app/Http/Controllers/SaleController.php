@@ -16,7 +16,6 @@ use App\Models\SaleImei;
 use App\Models\ImeiNumber;
 use App\Services\UnifiedLedgerService;
 use App\Services\PaymentService;
-use App\Helpers\CustomerHelper;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +64,7 @@ class SaleController extends Controller
     private function validateCreditLimit($customer, $finalTotal, $payments, $saleStatus)
     {
         // Skip validation for walk-in customers
-        if (CustomerHelper::isWalkInCustomer($customer->id)) {
+        if ($customer->id == 1) {
             return true;
         }
 
@@ -624,8 +623,8 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
-        // Optimized Walk-In Customer validation
-        if (CustomerHelper::isWalkInCustomer($request->customer_id)) {
+        // Optimized Walk-In Customer validation (customer_id == 1)
+        if ($request->customer_id == 1) {
             // Quick cheque payment check without heavy iteration
             if (!empty($request->payments)) {
                 $hasCheque = collect($request->payments)->contains('payment_method', 'cheque');
@@ -656,7 +655,7 @@ class SaleController extends Controller
 
         try {
             // Pre-validation: Skip expensive credit limit check for Walk-In Customer
-            if (!CustomerHelper::isWalkInCustomer($request->customer_id)) {
+            if ($request->customer_id != 1) {
                 // Only do credit limit validation for non Walk-In customers
                 $customer = Customer::findOrFail($request->customer_id);
                 $subtotal = array_reduce($request->products, fn($carry, $p) => $carry + $p['subtotal'], 0);
