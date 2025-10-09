@@ -15,6 +15,8 @@ class WalkInCustomerSeeder extends Seeder
     public function run(): void
     {
         // Check if walk-in customer already exists
+
+        
         $existingCustomer = DB::table('customers')->where('mobile_no', '0111111111')->first();
         
         if (!$existingCustomer) {
