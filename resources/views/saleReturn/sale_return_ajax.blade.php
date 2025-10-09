@@ -924,9 +924,14 @@
                 // Get saleReturnId from button click or from modal if inside modal
                 var saleReturnId = $(this).data('id') || $('#saleDetailsModal').attr('data-sale-return-id');
                 fetch(`/sale-return/print/${saleReturnId}`)
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
-                        if (data.invoice_html) {
+                        if (data.success && data.invoice_html) {
                             const iframe = document.createElement('iframe');
                             iframe.style.position = 'fixed';
                             iframe.style.width = '0';
@@ -945,12 +950,12 @@
                                 };
                             };
                         } else {
-                            // alert('Failed to fetch the receipt. Please try again.');
+                            alert(data.error || 'Failed to fetch the receipt. Please try again.');
                         }
                     })
                     .catch(error => {
                         console.error('Error fetching the receipt:', error);
-                        // alert('An error occurred while fetching the receipt. Please try again.');
+                        alert('An error occurred while fetching the receipt. Please try again.');
                     });
             });
 

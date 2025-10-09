@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Services\UnifiedLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use App\Models\LocationBatch;
 use App\Models\StockHistory;
@@ -373,59 +374,80 @@ class SaleReturnController extends Controller
      */
     public function printReturnReceipt($id)
     {
-        // Eager-load all necessary relationships
-        $saleReturn = SalesReturn::with([
-            'sale' => function ($query) {
-                $query->with(['customer', 'location']);
-            },
-            'returnProducts.product',
-            'payments'
-        ])->findOrFail($id);
+        try {
+            // Eager-load all necessary relationships
+            $saleReturn = SalesReturn::with([
+                'sale' => function ($query) {
+                    $query->with(['customer', 'location']);
+                },
+                'returnProducts.product',
+                'payments'
+            ])->findOrFail($id);
 
-        // Extract related models with null checks
-        $customer = $saleReturn->sale && $saleReturn->sale->customer
-            ? $saleReturn->sale->customer
-            : ($saleReturn->customer ?? null);
+            // Extract related models with null checks
+            $customer = $saleReturn->sale && $saleReturn->sale->customer
+                ? $saleReturn->sale->customer
+                : ($saleReturn->customer ?? null);
 
-        // Fetch the user associated with the sale return
-        $user = $saleReturn->user_id ? User::find($saleReturn->user_id) : null;
+            // Fetch the user associated with the sale return
+            $user = $saleReturn->user_id ? User::find($saleReturn->user_id) : null;
 
-        // Fetch the first location associated with the user, or fallback to sale location
-        if ($user && method_exists($user, 'locations')) {
-            $userLocations = $user->locations();
-            $location = $userLocations instanceof \Illuminate\Database\Eloquent\Relations\Relation
-                ? $userLocations->first()
-                : (is_callable([$userLocations, 'first']) ? $userLocations->first() : null);
-        } else {
-            $location = $saleReturn->sale && $saleReturn->sale->location
-                ? $saleReturn->sale->location
-                : null;
+            // Fetch the first location associated with the user, or fallback to sale location
+            if ($user && method_exists($user, 'locations')) {
+                $userLocations = $user->locations();
+                $location = $userLocations instanceof \Illuminate\Database\Eloquent\Relations\Relation
+                    ? $userLocations->first()
+                    : (is_callable([$userLocations, 'first']) ? $userLocations->first() : null);
+            } else {
+                $location = $saleReturn->sale && $saleReturn->sale->location
+                    ? $saleReturn->sale->location
+                    : null;
+            }
+
+            // Handle payments safely
+            $payments = collect($saleReturn->payments ?? []);
+
+            $amount_given = null;
+            $balance_amount = null;
+
+            if ($payments->isNotEmpty()) {
+                $totalPaid = $payments->sum('amount');
+                $amount_given = $totalPaid;
+                $balance_amount = $totalPaid - $saleReturn->return_total;
+            }
+
+            // Render the Blade view to HTML
+            $html = view('saleReturn.sale_return_receipt', compact(
+                'saleReturn',
+                'location',
+                'customer',
+                'amount_given',
+                'balance_amount',
+                'payments',
+                'user'
+            ))->render();
+
+            // Return JSON response for AJAX
+            return response()->json([
+                'success' => true,
+                'invoice_html' => $html
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Sale return not found.'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error generating sale return receipt: ' . $e->getMessage(), [
+                'sale_return_id' => $id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Unable to generate receipt. Please try again later.'
+            ], 500);
         }
-
-        // Handle payments safely
-        $payments = collect($saleReturn->payments ?? []);
-
-        $amount_given = null;
-        $balance_amount = null;
-
-        if ($payments->isNotEmpty()) {
-            $totalPaid = $payments->sum('amount');
-            $amount_given = $totalPaid;
-            $balance_amount = $totalPaid - $saleReturn->return_total;
-        }
-
-        // Render the Blade view to HTML
-        $html = view('saleReturn.sale_return_receipt', compact(
-            'saleReturn',
-            'location',
-            'customer',
-            'amount_given',
-            'balance_amount',
-            'payments',
-            'user'
-        ))->render();
-
-        // Return JSON response for AJAX
-        return response()->json(['invoice_html' => $html]);
     }
 }

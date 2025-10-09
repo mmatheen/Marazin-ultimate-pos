@@ -93,12 +93,17 @@
 
 <body class="billBody" style="font-family: Arial, sans-serif; font-size: 12px; padding: 8px; text-transform: uppercase;">
     <div id="printArea">
-        <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
-            <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" />
-        </div>
+        @if (file_exists(public_path('assets/img/arb-fashion.png')))
+            <div class="logo-container" style="margin-top: 8px; margin-bottom: 8px;">
+                {{-- <img src="{{ asset('assets/img/arb-fashion.png') }}" alt="ARB Distribution Logo" class="logo" /> --}}
+            </div>
+        @endif
 
         <div class="billAddress" style="font-size: 12px; color: #000; margin-bottom: 12px;">
             @if ($location)
+                <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 4px;">
+                    {{ $location->name }}
+                </div>
                 @if ($location->address)
                     <div>{{ $location->address }}</div>
                 @endif
@@ -119,8 +124,12 @@
                 <tbody>
                     <tr>
                         <td>
-                            <div style="font-size: 12px; color: #000; margin-bottom: 4px;">{{ $customer->first_name }}
-                                {{ $customer->last_name }}</div>
+                            @if($customer)
+                                <div style="font-size: 12px; color: #000; margin-bottom: 4px;">{{ $customer->first_name }}
+                                    {{ $customer->last_name }}</div>
+                            @else
+                                <div style="font-size: 12px; color: #000; margin-bottom: 4px;">Walk-in Customer</div>
+                            @endif
                             <div style="font-size: 10px; color: #000;">
                                 [{{ date('d-m-Y', strtotime($saleReturn->return_date)) }}]
                                 {{ \Carbon\Carbon::now('Asia/Colombo')->format('h:i A') }}
