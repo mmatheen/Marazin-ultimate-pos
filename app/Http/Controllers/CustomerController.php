@@ -8,6 +8,7 @@ use App\Models\City;
 use App\Models\CustomerGroup;
 use App\Models\SalesRep;
 use App\Services\UnifiedLedgerService;
+use App\Helpers\CustomerHelper;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -84,8 +85,9 @@ class CustomerController extends Controller
 
     private function applySalesRepFilter($query, $user)
     {
-        // Always exclude walk-in customer for sales reps
-        $query->where('id', '!=', 1);
+        // Always exclude walk-in customer for sales reps (use dynamic ID)
+        $walkInCustomerId = CustomerHelper::getWalkInCustomerId();
+        $query->where('id', '!=', $walkInCustomerId);
         
         $salesRep = SalesRep::where('user_id', $user->id)
             ->where('status', 'active')

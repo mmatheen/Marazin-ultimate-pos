@@ -14,7 +14,7 @@ class WalkInCustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ensure walk-in customer always has ID 1 for system consistency
+        // Always ensure walk-in customer is at ID 1 for system consistency
         $existingCustomer = DB::table('customers')->where('id', 1)->first();
         
         if (!$existingCustomer) {
@@ -24,8 +24,8 @@ class WalkInCustomerSeeder extends Seeder
                 'prefix' => 'Mr.',
                 'first_name' => 'Walk-in',
                 'last_name' => 'Customer',
-                'mobile_no' => '0111111111',  // Placeholder number
-                'email' => '',
+                'mobile_no' => '0000000000',  // Standard mobile number for walk-in
+                'email' => 'walking customer@gmail.com',
                 'address' => 'N/A',
                 'opening_balance' => 0.00,
                 'current_balance' => 0.00,
@@ -39,39 +39,66 @@ class WalkInCustomerSeeder extends Seeder
             
             $this->command->info('Walk-in customer created successfully with ID 1.');
         } else {
-            // Check if existing customer with ID 1 is the walk-in customer
-            if ($existingCustomer->mobile_no === '0111111111' && 
-                $existingCustomer->first_name === 'Walk-in') {
+            // Check if existing customer with ID 1 is already a walk-in customer
+            if (stripos($existingCustomer->first_name, 'walk') !== false || 
+                $existingCustomer->mobile_no === '0000000000') {
                 $this->command->info('Walk-in customer already exists with ID 1.');
-            } else {
-                // ID 1 is taken by a different customer - this is a problem
-                $this->command->warn('WARNING: Customer ID 1 is occupied by a different customer. Walk-in customer should have ID 1.');
                 
-                // Check if walk-in customer exists with different ID
-                $walkInCustomer = DB::table('customers')->where('mobile_no', '0111111111')->first();
-                if ($walkInCustomer) {
-                    $this->command->warn("Walk-in customer found with ID {$walkInCustomer->id}. This may cause POS system issues.");
+                // Update to ensure consistent data
+                DB::table('customers')->where('id', 1)->update([
+                    'prefix' => 'Mr.',
+                    'first_name' => 'Walk-in',
+                    'last_name' => 'Customer',
+                    'mobile_no' => '0000000000',
+                    'email' => 'walking customer@gmail.com',
+                    'customer_type' => 'retailer',
+                    'updated_at' => now(),
+                ]);
+                
+                $this->command->info('Walk-in customer data standardized.');
+            } else {
+                // ID 1 is taken by a different customer
+                $this->command->warn('WARNING: Customer ID 1 is occupied by a different customer.');
+                $this->command->warn("Current ID 1: {$existingCustomer->first_name} {$existingCustomer->last_name}");
+                
+                // Check for other walk-in customers
+                $walkInCustomers = DB::table('customers')
+                    ->where(function($query) {
+                        $query->whereIn('mobile_no', ['0111111111', '0000000000'])
+                              ->orWhere('first_name', 'LIKE', '%walk%')
+                              ->orWhere('email', 'LIKE', '%walking%');
+                    })
+                    ->get();
+                
+                if ($walkInCustomers->count() > 0) {
+                    foreach ($walkInCustomers as $customer) {
+                        $this->command->warn("Found walk-in customer at ID {$customer->id}: {$customer->first_name} {$customer->last_name}");
+                    }
+                    $this->command->info('System will use ID 1 as walk-in customer regardless.');
                 } else {
-                    // Create walk-in customer with next available ID (not ideal but functional)
-                    DB::table('customers')->insert([
-                        'prefix' => 'Mr.',
-                        'first_name' => 'Walk-in',
-                        'last_name' => 'Customer',
-                        'mobile_no' => '0111111111',
-                        'email' => '',
-                        'address' => 'N/A',
-                        'opening_balance' => 0.00,
-                        'current_balance' => 0.00,
-                        'location_id' => null,
-                        'city_id' => null,
-                        'credit_limit' => 0.00,
-                        'customer_type' => 'retailer',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                    $this->command->warn('Walk-in customer created with auto-generated ID (not ID 1).');
+                    $this->command->error('No walk-in customers found in database!');
                 }
             }
+        }
+        
+        // Clean up duplicate walk-in customers (optional)
+        $duplicateWalkIns = DB::table('customers')
+            ->where('id', '!=', 1)
+            ->where(function($query) {
+                $query->where('mobile_no', '0111111111')
+                      ->orWhere(function($q) {
+                          $q->where('first_name', 'Walk-in')
+                            ->where('last_name', 'Customer');
+                      });
+            })
+            ->get();
+            
+        if ($duplicateWalkIns->count() > 0) {
+            $this->command->warn("Found {$duplicateWalkIns->count()} duplicate walk-in customer(s):");
+            foreach ($duplicateWalkIns as $dup) {
+                $this->command->warn("  ID {$dup->id}: {$dup->first_name} {$dup->last_name} ({$dup->mobile_no})");
+            }
+            $this->command->info('Consider cleaning up duplicates if they have no transaction history.');
         }
     }
 }
