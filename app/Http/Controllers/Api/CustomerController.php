@@ -46,8 +46,13 @@ class CustomerController extends Controller
         return response()->json(['status' => 401, 'message' => 'Unauthorized'], 401);
     }
 
-    // Use normal query with location scope - it will handle sales rep filtering automatically
+    // Start with base query
     $query = Customer::with(['sales', 'salesReturns', 'payments', 'city']);
+    
+    // Apply sales rep route filtering if user is a sales rep
+    if ($user->isSalesRep()) {
+        $query = $this->applySalesRepFilter($query, $user);
+    }
 
     $customers = $query->orderBy('first_name')->get()->map(function ($customer) {
         return [
@@ -84,6 +89,9 @@ class CustomerController extends Controller
      */
     private function applySalesRepFilter($query, $user)
     {
+        // Always exclude walk-in customer for sales reps
+        $query->where('id', '!=', 1);
+        
         // Get all **active** SalesRep assignments for this user
         $salesRepAssignments = SalesRep::where('user_id', $user->id)
             ->where('status', 'active') // SalesRep assignment is active
@@ -103,8 +111,9 @@ class CustomerController extends Controller
         if (!empty($cityIds)) {
             $query->whereIn('city_id', $cityIds);
         } else {
-            // No cities assigned → only show walk-in customers (city_id = null)
-            $query->whereNull('city_id');
+            // If sales rep has no cities assigned, show no customers
+            // This prevents access until proper route assignment
+            $query->whereNull('id'); // This will return no results
         }
 
         return $query;

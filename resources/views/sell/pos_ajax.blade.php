@@ -4489,6 +4489,29 @@
                     return null;
                 }
 
+                // Validate customer selection
+                if (!customerId || customerId === '') {
+                    if (isSalesRep) {
+                        toastr.error('Please select a customer from your assigned route.');
+                    } else {
+                        toastr.error('Please select a customer. Default Walk-in Customer should be available.');
+                    }
+                    return null;
+                }
+
+                // Additional validation for customer ID
+                if (customerId === '55' || customerId === 55) {
+                    toastr.error('Invalid customer selection. Please refresh the page and try again.');
+                    console.error('Customer ID 55 detected - this is an invalid selection');
+                    return null;
+                }
+
+                // For sales reps, ensure they cannot select walk-in customer
+                if (isSalesRep && (customerId === '1' || customerId === 1)) {
+                    toastr.error('Sales representatives cannot use Walk-in Customer. Please select a customer from your assigned route.');
+                    return null;
+                }
+
                 // Get discount values
                 const discountType = $('#discount-type').val() || 'fixed';
                 const discountAmount = parseFormattedAmount($('#global-discount').val()) || 0;
@@ -5614,21 +5637,41 @@
             const customerSelect = $('#customer-id');
             
             if (isSalesRep) {
-                // For sales reps, select the first available customer (not Walk-in)
-                const firstCustomer = customerSelect.find('option:first');
-                if (firstCustomer.length > 0) {
-                    customerSelect.val(firstCustomer.val());
-                    customerSelect.trigger('change');
+                // For sales reps, don't auto-select any customer
+                // They should manually select from their filtered route-based customers
+                customerSelect.val('');
+                customerSelect.trigger('change');
+                
+                // Show a helpful message if no route is selected yet
+                const selection = getSalesRepSelection();
+                if (!selection || !selection.route) {
+                    // Don't auto-select anything - sales rep must choose route first
+                    console.log('Sales rep must select route before choosing customers');
                 }
             } else {
-                // For non-sales reps, reset to Walk-in Customer
-                const walkingCustomer = customerSelect.find('option').filter(function() {
-                    return $(this).text().startsWith('Walk-in');
-                });
-
-                if (walkingCustomer.length > 0) {
-                    customerSelect.val(walkingCustomer.val());
+                // For non-sales reps, reset to Walk-in Customer (ID 1)
+                const walkInCustomer = customerSelect.find('option[value="1"]');
+                
+                if (walkInCustomer.length > 0) {
+                    customerSelect.val('1');
                     customerSelect.trigger('change');
+                    console.log('Reset to Walk-in Customer for non-sales rep user');
+                } else {
+                    // Fallback: look for walk-in by text
+                    const walkingCustomerByText = customerSelect.find('option').filter(function() {
+                        return $(this).text().toLowerCase().includes('walk-in');
+                    });
+
+                    if (walkingCustomerByText.length > 0) {
+                        customerSelect.val(walkingCustomerByText.val());
+                        customerSelect.trigger('change');
+                        console.log('Reset to Walk-in Customer found by text');
+                    } else {
+                        // Clear selection if walk-in customer not found
+                        customerSelect.val('');
+                        customerSelect.trigger('change');
+                        console.warn('Walk-in customer not found in dropdown');
+                    }
                 }
             }
         }
