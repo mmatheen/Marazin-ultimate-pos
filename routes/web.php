@@ -291,6 +291,13 @@ Route::middleware(['auth', 'check.session'])->group(function () {
         // Routes for fixing payment calculation issues
         Route::post('/purchases/recalculate-total/{id}', [PurchaseController::class, 'recalculatePurchaseTotal']);
         Route::post('/purchases/recalculate-all-totals', [PurchaseController::class, 'recalculateAllPurchaseTotals']);
+        
+        // IMEI Management Routes for Purchases
+        Route::get('/purchases/{id}/imei-products', [PurchaseController::class, 'getPurchaseImeiProducts']);
+        Route::post('/purchases/add-imei', [PurchaseController::class, 'addImeiToPurchaseProduct']);
+        Route::post('/purchases/remove-imei', [PurchaseController::class, 'removeImeiFromPurchaseProduct']);
+        Route::post('/purchases/update-imei', [PurchaseController::class, 'updateImeiForPurchaseProduct']);
+        Route::post('/purchases/bulk-add-imei', [PurchaseController::class, 'bulkAddImeiToPurchaseProduct']);
 
         // -------------------- PurchaseReturnController Routes --------------------
         Route::get('/purchase-return', [PurchaseReturnController::class, 'purchaseReturn'])->name('purchase-return');

@@ -815,26 +815,8 @@
             productTableRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = parseInt($(row).find('.purchase-quantity').val()) || 0;
-                
-                // Extract product name from the second column (more robust extraction)
-                const productNameCell = $(row).find('td:eq(1)');
-                let productName = '';
-                
-                // Try to get product name from data attribute first
-                if ($(row).data('product-name')) {
-                    productName = $(row).data('product-name');
-                } else {
-                    // Extract from cell text, handling various formats
-                    const cellText = productNameCell.text().trim();
-                    // Remove any leading/trailing whitespace and extract the main product name
-                    // Split by common separators and take the main part
-                    productName = cellText.split(' - ')[0].split(' (')[0].trim();
-                    if (!productName) {
-                        productName = cellText; // fallback to full text
-                    }
-                }
-                
-                console.log(`Product ${index + 1}: Name="${productName}", ID=${productId}, Cell Text="${productNameCell.text().trim()}"`);
+                const productNameCell = $(row).find('td:eq(1)').text();
+                const productName = productNameCell.split(' ')[0] || productNameCell; // Get product name
                 
                 // Check if product has IMEI enabled
                 const isImeiEnabled = $(row).data('imei-enabled') == 1 || $(row).data('imei-enabled') === true;
@@ -877,89 +859,181 @@
         }
 
         function showImeiModal() {
-            console.log('=== Show SELECT2-Based IMEI Modal Debug ===');
-            console.log('Total IMEI products:', pendingImeiProducts.length);
-            console.log('IMEI products:', pendingImeiProducts);
+            console.log('=== NEW Select2 IMEI Modal ===');
+            console.log('Pending IMEI products:', pendingImeiProducts);
             
             if (pendingImeiProducts.length === 0) {
                 console.log('✅ No IMEI products, proceeding with purchase');
-                isProcessingImei = false;
-                isProgrammaticModalClose = false;
                 processPurchase();
                 return;
             }
-
-            // Show Select2-based modal
-            console.log('🎯 Showing SELECT2-based IMEI modal');
             
-            // Set modal title
-            $('#purchaseImeiModalLabel').text(`Enter IMEI Numbers - Select Product First`);
+            // Initialize Select2 dropdown with all IMEI products
+            const productSelector = $('#purchaseImeiProductSelector');
+            productSelector.empty();
             
-            // Clear previous data
-            $('#purchaseImeiTable tbody').empty();
-            $('#purchaseImeiInput').val('');
+            // Add options for each IMEI product
+            pendingImeiProducts.forEach(product => {
+                const option = new Option(
+                    `${product.productName} (Qty: ${product.quantity})`, 
+                    product.productId, 
+                    false, 
+                    false // Don't select by default - let user choose
+                );
+                productSelector.append(option);
+            });
+            
+            // The selectBox class will be automatically initialized by layout.blade.php
+            // No need to manually initialize Select2 since it's handled globally
+            
+            // Just trigger a refresh to ensure Select2 is applied
+            setTimeout(() => {
+                if (typeof $.fn.select2 !== 'undefined' && productSelector.hasClass('selectBox')) {
+                    // Destroy and recreate to ensure proper initialization with options
+                    productSelector.select2('destroy');
+                    productSelector.select2({
+                        placeholder: 'Select products to enter IMEI numbers for...',
+                        allowClear: true,
+                        dropdownParent: $('#purchaseImeiModal')
+                    });
+                }
+            }, 100);
+            
+            // Clear previous sections
+            $('#purchaseImeiSections').empty();
+            $('#purchaseImeiSummary').html('<small>Select products above to start entering IMEI numbers.</small>');
+            
+            // Clear any previous errors
             $('#purchaseImeiError').addClass('d-none');
             
-            // Show the product selection section
-            $('#purchaseImeiProductSelection').show();
-            $('#purchaseImeiEntrySection').hide();
+            // Show the modal
+            isProcessingImei = true;
+            $('#purchaseImeiModal').modal('show');
             
-            // Initialize Select2 dropdown with products
-            initializeProductSelect2();
+            console.log('✅ Select2 IMEI modal displayed');
+        }
+
+        function createImeiSectionForProduct(productId) {
+            const product = pendingImeiProducts.find(p => p.productId == productId);
+            if (!product) return;
             
-            updateSelect2ImeiCount();
+            console.log('Creating IMEI section for:', product.productName);
             
-            console.log('📱 About to show Select2-based modal #purchaseImeiModal');
+            const sectionHtml = `
+                <div class="card mb-3" id="imeiSection_${productId}">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="fas fa-mobile-alt"></i> ${product.productName}
+                            <small class="text-muted">(Quantity: ${product.quantity})</small>
+                            <span class="badge badge-info float-right" id="imeiCount_${productId}">0/${product.quantity}</span>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Bulk IMEI Entry</label>
+                            <textarea class="form-control bulk-imei-input" id="bulkImei_${productId}" rows="3" 
+                                      placeholder="Enter IMEI numbers, one per line"></textarea>
+                            <button type="button" class="btn btn-sm btn-info mt-2 bulk-fill-btn" data-product-id="${productId}">
+                                <i class="fas fa-magic"></i> Auto Fill
+                            </button>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm imei-table" id="imeiTable_${productId}">
+                                <thead>
+                                    <tr>
+                                        <th width="10%">#</th>
+                                        <th width="70%">IMEI Number</th>
+                                        <th width="20%">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- IMEI rows will be added here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <button type="button" class="btn btn-sm btn-outline-primary add-imei-row-btn" data-product-id="${productId}">
+                            <i class="fas fa-plus"></i> Add IMEI Row
+                        </button>
+                    </div>
+                </div>
+            `;
             
-            // Check if modal exists
-            if ($('#purchaseImeiModal').length === 0) {
-                console.error('❌ MODAL NOT FOUND: #purchaseImeiModal');
-                alert('IMEI modal not found in DOM. Please check the HTML.');
+            $('#purchaseImeiSections').append(sectionHtml);
+            
+            // Add initial IMEI rows based on quantity
+            for (let i = 0; i < product.quantity; i++) {
+                addImeiRowToProduct(productId, i + 1);
+            }
+            
+            updateImeiSummary();
+        }
+
+        function addImeiRowToProduct(productId, index) {
+            const row = `
+                <tr>
+                    <td>${index}</td>
+                    <td>
+                        <input type="text" class="form-control imei-input" 
+                               data-product-id="${productId}"
+                               placeholder="Enter IMEI number" />
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-danger remove-imei-row" data-product-id="${productId}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            $(`#imeiTable_${productId} tbody`).append(row);
+            updateImeiCount(productId);
+        }
+
+        function updateImeiCount(productId) {
+            const product = pendingImeiProducts.find(p => p.productId == productId);
+            if (!product) return;
+            
+            const filledInputs = $(`#imeiTable_${productId} .imei-input`).filter(function() {
+                return $(this).val().trim() !== '';
+            }).length;
+            
+            const totalInputs = $(`#imeiTable_${productId} .imei-input`).length;
+            
+            $(`#imeiCount_${productId}`).text(`${filledInputs}/${totalInputs}`);
+            updateImeiSummary();
+        }
+
+        function updateImeiSummary() {
+            const selectedProducts = $('#purchaseImeiProductSelector').val() || [];
+            if (selectedProducts.length === 0) {
+                $('#purchaseImeiSummary').html('<small>Select products above to start entering IMEI numbers.</small>');
                 return;
             }
             
-            $('#purchaseImeiModal').modal('show');
-            console.log('📱 Select2-based modal show command executed');
-        }
-
-        function initializeProductSelect2() {
-            // Clear existing options
-            $('#purchaseImeiProductSelect').empty();
+            let totalRequired = 0;
+            let totalFilled = 0;
             
-            // Add default option
-            $('#purchaseImeiProductSelect').append('<option value="">Select products to enter IMEI...</option>');
-            
-            console.log('=== Initializing Select2 with products ===');
-            
-            // Add product options
-            pendingImeiProducts.forEach(product => {
-                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
-                const status = currentImeiCount === product.quantity ? '✓ Complete' : `${currentImeiCount}/${product.quantity}`;
-                const optionText = `${product.productName} (Qty: ${product.quantity}) - ${status}`;
-                
-                console.log(`Adding option: ${optionText} with value ${product.productId}`);
-                
-                $('#purchaseImeiProductSelect').append(
-                    `<option value="${product.productId}" data-quantity="${product.quantity}">
-                        ${optionText}
-                    </option>`
-                );
+            selectedProducts.forEach(productId => {
+                const product = pendingImeiProducts.find(p => p.productId == productId);
+                if (product) {
+                    const filledInputs = $(`#imeiTable_${productId} .imei-input`).filter(function() {
+                        return $(this).val().trim() !== '';
+                    }).length;
+                    const totalInputs = $(`#imeiTable_${productId} .imei-input`).length;
+                    
+                    totalRequired += totalInputs;
+                    totalFilled += filledInputs;
+                }
             });
             
-            // Initialize or reinitialize Select2
-            if ($('#purchaseImeiProductSelect').hasClass('select2-hidden-accessible')) {
-                $('#purchaseImeiProductSelect').select2('destroy');
-            }
-            
-            $('#purchaseImeiProductSelect').select2({
-                placeholder: 'Select products to enter IMEI...',
-                allowClear: true,
-                multiple: true,
-                width: '100%',
-                dropdownParent: $('#purchaseImeiModal')
-            });
-            
-            console.log('✅ Select2 initialized with', pendingImeiProducts.length, 'products');
+            const summaryHtml = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><strong>Selected Products:</strong> ${selectedProducts.length}</span>
+                    <span><strong>IMEI Progress:</strong> ${totalFilled}/${totalRequired} filled</span>
+                </div>
+            `;
+            $('#purchaseImeiSummary').html(summaryHtml);
         }
 
         function addPurchaseImeiRow(index, productId) {
@@ -978,147 +1052,13 @@
             $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`).after(row);
         }
 
-        function updateSelect2ImeiCount() {
-            const totalProducts = pendingImeiProducts.length;
-            let completedProducts = 0;
-            let totalRequired = 0;
-            let totalEntered = 0;
+        function updatePurchaseImeiCount() {
+            const totalInputs = $('#purchaseImeiTable tbody tr').length;
+            const filledInputs = $('#purchaseImeiTable tbody input.purchase-imei-input').filter(function() {
+                return $(this).val().trim() !== '';
+            }).length;
             
-            pendingImeiProducts.forEach(product => {
-                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
-                totalRequired += product.quantity;
-                totalEntered += currentImeiCount;
-                
-                if (currentImeiCount === product.quantity) {
-                    completedProducts++;
-                }
-            });
-            
-            $('#purchaseImeiCountDisplay').text(`Products: ${completedProducts}/${totalProducts} complete | Total IMEI: ${totalEntered}/${totalRequired}`);
-        }
-
-        function loadImeiEntrySectionForProducts(selectedProductIds) {
-            if (!selectedProductIds || selectedProductIds.length === 0) {
-                $('#purchaseImeiEntrySection').hide();
-                return;
-            }
-            
-            console.log('Loading IMEI entry for products:', selectedProductIds);
-            
-            // Show the entry section
-            $('#purchaseImeiEntrySection').show();
-            
-            // Clear previous data
-            $('#purchaseImeiTable tbody').empty();
-            $('#purchaseImeiInput').val('');
-            $('#purchaseImeiError').addClass('d-none');
-            
-            selectedProductIds.forEach(productId => {
-                const product = pendingImeiProducts.find(p => p.productId == productId);
-                if (!product) return;
-                
-                // Add product header row
-                const headerRow = `
-                    <tr class="table-primary" data-product-header="${productId}">
-                        <td colspan="3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${product.productName}</strong> 
-                                    <span class="badge badge-info ml-2">Max Qty: ${product.quantity}</span>
-                                    <span class="badge badge-success ml-1" id="progress-${productId}">0/${product.quantity} entered</span>
-                                </div>
-                                <div>
-                                    <button type="button" class="btn btn-sm btn-primary add-product-row" data-product-id="${productId}">
-                                        <i class="fas fa-plus"></i> Add Row
-                                    </button>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                $('#purchaseImeiTable tbody').append(headerRow);
-                
-                // Load existing IMEI data if any
-                const existingImeis = purchaseImeiData[productId] || [];
-                
-                // Start with minimum rows (2 or existing count, whichever is higher)
-                const initialRowCount = Math.max(2, existingImeis.length);
-                const maxRowsToShow = Math.min(initialRowCount, product.quantity);
-                
-                // Add initial IMEI input rows for this product
-                for (let i = 0; i < maxRowsToShow; i++) {
-                    const existingValue = existingImeis[i] || '';
-                    addImeiRowForProduct(productId, product.productName, product.quantity, existingValue);
-                }
-                
-                // Update add button visibility for this product
-                updateAddButtonVisibility(productId);
-            });
-            
-            updateSelect2ImeiCount();
-            updateProductProgress();
-        }
-
-        // Helper function to add a single IMEI row for a product
-        function addImeiRowForProduct(productId, productName, maxQuantity, value = '') {
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
-            const rowIndex = currentRows.length;
-            
-            const row = `
-                <tr data-product-id="${productId}" data-imei-index="${rowIndex}">
-                    <td>${rowIndex + 1}</td>
-                    <td>
-                        <input type="text" 
-                               class="form-control form-control-sm purchase-imei-input" 
-                               placeholder="Enter IMEI for ${productName}" 
-                               data-product-id="${productId}" 
-                               value="${value}" />
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-product-imei-row" data-product-id="${productId}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            // Insert after the last row of this product
-            const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
-            if (lastRow.length > 0) {
-                lastRow.after(row);
-            } else {
-                // If no rows exist, insert after the header
-                const headerRow = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"]`);
-                headerRow.after(row);
-            }
-            
-            // Re-number rows for this product
-            renumberProductRows(productId);
-        }
-
-        // Helper function to renumber rows for a specific product
-        function renumberProductRows(productId) {
-            const productRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
-            productRows.each(function(index) {
-                $(this).find('td:first').text(index + 1);
-                $(this).attr('data-imei-index', index);
-            });
-        }
-
-        function updateProductProgress() {
-            // Update progress for each visible product
-            $('#purchaseImeiTable tbody tr[data-product-header]').each(function() {
-                const productId = $(this).data('product-header');
-                const productInputs = $(`#purchaseImeiTable tbody input[data-product-id="${productId}"]`);
-                const filledInputs = productInputs.filter(function() {
-                    return $(this).val().trim() !== '';
-                });
-                
-                const product = pendingImeiProducts.find(p => p.productId == productId);
-                if (product) {
-                    $(`#progress-${productId}`).text(`${filledInputs.length}/${product.quantity} entered`);
-                }
-            });
+            $('#purchaseImeiCountDisplay').text(`${filledInputs}/${totalInputs} filled`);
         }
 
         function updateUnifiedPurchaseImeiCount() {
@@ -1217,244 +1157,109 @@
             });
         }
 
-        // IMEI Modal Event Handlers - Select2 Based
+        // NEW Select2 IMEI Modal Event Handlers
         
-        // Select2 product selection change
-        $(document).on('change', '#purchaseImeiProductSelect', function() {
-            const selectedProductIds = $(this).val() || [];
-            console.log('Selected products for IMEI entry:', selectedProductIds);
-            loadImeiEntrySectionForProducts(selectedProductIds);
-        });
-        
-        // IMEI input change to update progress
-        $(document).on('input', '.purchase-imei-input', function() {
-            updateProductProgress();
-            updateSelect2ImeiCount();
-        });
-        
-        // Add more IMEI rows for specific product
-        $(document).on('click', '.add-imei-row', function() {
-            const productId = $(this).data('product-id');
-            const product = pendingImeiProducts.find(p => p.productId == productId);
-            if (!product) {
-                console.error(`Product not found: ${productId}`);
-                return;
-            }
+        // Handle Select2 product selection changes
+        $(document).on('change', '#purchaseImeiProductSelector', function() {
+            const selectedProducts = $(this).val() || [];
+            console.log('Selected products for IMEI:', selectedProducts);
             
-            // Check current rows for this product (excluding header rows)
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
-            const currentRowCount = currentRows.length;
+            // Clear existing sections
+            $('#purchaseImeiSections').empty();
             
-            console.log(`Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`);
-            
-            // Check if we've reached the quantity limit
-            if (currentRowCount >= product.quantity) {
-                toastr.warning(`Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`, 'Quantity Limit Reached');
-                console.warn(`Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`);
-                return;
-            }
-            
-            const newIndex = currentRowCount;
-            const newRow = `
-                <tr data-product-id="${productId}" data-imei-index="${newIndex}">
-                    <td>${newIndex + 1}</td>
-                    <td>
-                        <input type="text" 
-                               class="form-control purchase-imei-input" 
-                               placeholder="Enter IMEI for ${product.productName}" 
-                               data-product-id="${productId}" />
-                    </td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-success add-imei-row" data-product-id="${productId}" ${currentRowCount + 1 >= product.quantity ? 'style="display:none;"' : ''}>
-                            <i class="fas fa-plus"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger ml-1 remove-imei-row">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-            
-            // Insert after the last row of this product
-            const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
-            lastRow.after(newRow);
-            
-            // Update progress and manage add button visibility
-            updateProductProgress();
-            updateAddButtonVisibility(productId);
-            
-            console.log(`✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`);
-        });
-        
-        // Function to update add button visibility based on quantity limits
-        function updateAddButtonVisibility(productId) {
-            const product = pendingImeiProducts.find(p => p.productId == productId);
-            if (!product) return;
-            
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
-            const currentRowCount = currentRows.length;
-            
-            // Hide/show the main "Add Row" button in the header
-            const headerAddButton = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"] .add-product-row`);
-            
-            if (currentRowCount >= product.quantity) {
-                headerAddButton.hide();
-                console.log(`🚫 Hiding add button for ${product.productName} (${currentRowCount}/${product.quantity})`);
-            } else {
-                headerAddButton.show();
-                console.log(`✅ Showing add button for ${product.productName} (${currentRowCount}/${product.quantity})`);
-            }
-        }
-        
-        // Remove IMEI row
-        $(document).on('click', '.remove-imei-row', function() {
-            const row = $(this).closest('tr');
-            const productId = row.data('product-id');
-            const product = pendingImeiProducts.find(p => p.productId == productId);
-            
-            if (product) {
-                console.log(`🗑️ Removing IMEI row for ${product.productName}`);
-            }
-            
-            row.remove();
-            
-            // Re-number the rows for this product
-            const productRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
-            productRows.each(function(index) {
-                $(this).find('td:first').text(index + 1);
-                $(this).attr('data-imei-index', index);
+            // Create sections for selected products
+            selectedProducts.forEach(productId => {
+                createImeiSectionForProduct(productId);
             });
             
-            updateProductProgress();
-            updateSelect2ImeiCount();
-            
-            // Update add button visibility after removal
-            if (productId) {
-                updateAddButtonVisibility(productId);
-            }
-        });
-
-        // New Add Row button in product header
-        $(document).on('click', '.add-product-row', function() {
-            const productId = $(this).data('product-id');
-            const product = pendingImeiProducts.find(p => p.productId == productId);
-            if (!product) {
-                console.error(`Product not found: ${productId}`);
-                return;
-            }
-            
-            // Check current rows for this product
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
-            const currentRowCount = currentRows.length;
-            
-            console.log(`Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`);
-            
-            // Check if we've reached the quantity limit
-            if (currentRowCount >= product.quantity) {
-                toastr.warning(`Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`, 'Quantity Limit Reached');
-                console.warn(`Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`);
-                return;
-            }
-            
-            // Add a new row for this product
-            addImeiRowForProduct(productId, product.productName, product.quantity);
-            
-            // Update progress and button visibility
-            updateProductProgress();
-            updateAddButtonVisibility(productId);
-            
-            console.log(`✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`);
+            updateImeiSummary();
         });
         
-        // New Remove Row button for individual rows
-        $(document).on('click', '.remove-product-imei-row', function() {
-            const row = $(this).closest('tr');
-            const productId = row.data('product-id');
-            const product = pendingImeiProducts.find(p => p.productId == productId);
-            
-            // Check minimum rows (at least 1 row should remain)
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
-            if (currentRows.length <= 1) {
-                toastr.warning('At least one row must remain for IMEI entry', 'Cannot Remove');
-                return;
-            }
-            
-            if (product) {
-                console.log(`🗑️ Removing IMEI row for ${product.productName}`);
-            }
-            
-            row.remove();
-            
-            // Re-number the rows for this product
-            renumberProductRows(productId);
-            
-            updateProductProgress();
-            updateSelect2ImeiCount();
-            
-            // Update add button visibility after removal
-            if (productId) {
-                updateAddButtonVisibility(productId);
-            }
+        // Handle adding IMEI rows
+        $(document).on('click', '.add-imei-row-btn', function() {
+            const productId = $(this).data('product-id');
+            const currentRowCount = $(`#imeiTable_${productId} tbody tr`).length;
+            addImeiRowToProduct(productId, currentRowCount + 1);
         });
-
-        // // Complete Purchase button - check if all required IMEI data is collected
-        // $(document).on('click', '#purchaseCompleteImeiButton', function() {
-        //     console.log('=== Completing Purchase with IMEI Data ===');
+        
+        // Handle removing IMEI rows
+        $(document).on('click', '.remove-imei-row', function() {
+            const productId = $(this).data('product-id');
+            $(this).closest('tr').remove();
             
-        //     // Check if all required IMEI products have been handled
-        //     let allComplete = true;
-        //     let missingProducts = [];
+            // Re-number the rows
+            $(`#imeiTable_${productId} tbody tr`).each(function(index) {
+                $(this).find('td:first').text(index + 1);
+            });
             
-        //     pendingImeiProducts.forEach(product => {
-        //         const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
-        //         if (currentImeiCount === 0) {
-        //             allComplete = false;
-        //             missingProducts.push(product.productName);
-        //         }
-        //     });
+            updateImeiCount(productId);
+        });
+        
+        // Handle IMEI input changes
+        $(document).on('input', '.imei-input', function() {
+            const productId = $(this).data('product-id');
+            updateImeiCount(productId);
+        });
+        
+        // Handle bulk IMEI fill
+        $(document).on('click', '.bulk-fill-btn', function() {
+            const productId = $(this).data('product-id');
+            const bulkText = $(`#bulkImei_${productId}`).val().trim();
             
-        //     // Automatically proceed without confirmation - set empty arrays for missing products
-        //     if (!allComplete && missingProducts.length > 0) {
-        //         pendingImeiProducts.forEach(product => {
-        //             if (!purchaseImeiData[product.productId]) {
-        //                 purchaseImeiData[product.productId] = [];
-        //             }
-        //         });
-        //     }
+            if (!bulkText) return;
             
-        //     console.log('✅ All IMEI data processed successfully:', purchaseImeiData);
+            const imeiNumbers = bulkText.split('\n').filter(line => line.trim() !== '');
+            const imeiInputs = $(`#imeiTable_${productId} .imei-input`);
             
-        //     // Set flag to indicate this is a programmatic close
-        //     isProgrammaticModalClose = true;
-        //     isProcessingImei = false;
+            // Fill existing inputs first
+            imeiInputs.each(function(index) {
+                if (index < imeiNumbers.length) {
+                    $(this).val(imeiNumbers[index].trim());
+                }
+            });
             
-        //     // Close modal and proceed with purchase
-        //     $('#purchaseImeiModal').modal('hide');
+            // Add new rows if needed
+            if (imeiNumbers.length > imeiInputs.length) {
+                const additionalRows = imeiNumbers.length - imeiInputs.length;
+                for (let i = 0; i < additionalRows; i++) {
+                    const newIndex = imeiInputs.length + i + 1;
+                    addImeiRowToProduct(productId, newIndex);
+                    
+                    // Fill the new input
+                    $(`#imeiTable_${productId} .imei-input:last`).val(imeiNumbers[imeiInputs.length + i].trim());
+                }
+            }
             
-        //     // Proceed with purchase after modal is hidden
-        //     setTimeout(() => {
-        //         console.log('🚀 Proceeding with purchase...');
-        //         processPurchase();
-        //     }, 300);
-        // });
-
-        // IMEI Modal Event Handlers
-        $(document).on('click', '#purchaseSaveImeiButton', function() {
-            console.log('=== Saving SELECT2-based IMEI Data ===');
+            // Clear the bulk input
+            $(`#bulkImei_${productId}`).val('');
+            updateImeiCount(productId);
+        });
+        
+        // Handle Save Selected button
+        $(document).on('click', '#purchaseSaveSelectedImeiButton', function() {
+            console.log('=== Saving Selected IMEI Data ===');
+            
+            const selectedProducts = $('#purchaseImeiProductSelector').val() || [];
             
             // Clear any previous errors
             $('#purchaseImeiError').addClass('d-none');
             let hasError = false;
             let allImeiNumbers = [];
             
-            // Collect IMEI data for each product in the current selection
-            const selectedProductIds = $('#purchaseImeiProductSelect').val() || [];
-            selectedProductIds.forEach(productId => {
-                const productImeiInputs = $(`#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${productId}"]`);
-                const productImeiNumbers = [];
+            // Set empty arrays for all products first
+            pendingImeiProducts.forEach(product => {
+                purchaseImeiData[product.productId] = [];
+            });
+            
+            // Collect IMEI data for selected products only
+            selectedProducts.forEach(productId => {
                 const product = pendingImeiProducts.find(p => p.productId == productId);
+                if (!product) return;
                 
-                console.log(`Collecting IMEI for product ${product.productName} (ID: ${productId})`);
+                const productImeiInputs = $(`#imeiTable_${productId} .imei-input`);
+                const productImeiNumbers = [];
+                
+                console.log(`Collecting IMEI for ${product.productName} (ID: ${productId})`);
                 
                 productImeiInputs.each(function() {
                     const imeiValue = $(this).val().trim();
@@ -1483,7 +1288,7 @@
                 
                 // Store IMEI data for this product
                 if (!hasError) {
-                    purchaseImeiData[product.productId] = productImeiNumbers;
+                    purchaseImeiData[productId] = productImeiNumbers;
                     console.log(`✅ Saved ${productImeiNumbers.length} IMEI numbers for ${product.productName}:`, productImeiNumbers);
                 }
             });
@@ -1493,7 +1298,7 @@
                 return;
             }
             
-            console.log('✅ All IMEI data collected successfully:', purchaseImeiData);
+            console.log('✅ Selected IMEI data collected successfully:', purchaseImeiData);
             
             // Set flag to indicate this is a programmatic close
             isProgrammaticModalClose = true;
@@ -1504,12 +1309,13 @@
             
             // Proceed with purchase after modal is hidden
             setTimeout(() => {
-                console.log('� Proceeding with purchase...');
+                console.log('🚀 Proceeding with purchase...');
                 processPurchase();
             }, 300);
         });
-
-        $(document).on('click', '#purchaseSkipImeiButton', function() {
+        
+        // Handle Skip All button
+        $(document).on('click', '#purchaseSkipAllImeiButton', function() {
             console.log('⏭️ Skipping IMEI entry for all products');
             
             // Set empty arrays for all pending products
@@ -1528,136 +1334,59 @@
             
             // Proceed with purchase after modal is hidden
             setTimeout(() => {
-                console.log('� Proceeding with purchase...');
+                console.log('🚀 Proceeding with purchase...');
                 processPurchase();
             }, 300);
         });
+                return;
+     }
+            
+        
+        $(document).on('click', '#purchaseAddImeiRow', function() {
+            const currentRowCount = $('#purchaseImeiTable tbody tr').length;
+            addPurchaseImeiRow(currentRowCount + 1);
+            updatePurchaseImeiCount();
+        });
+
+        $(document).on('click', '.remove-purchase-imei-row', function() {
+            $(this).closest('tr').remove();
+            // Re-number the rows
+            $('#purchaseImeiTable tbody tr').each(function(index) {
+                $(this).find('td:first').text(index + 1);
+            });
+            updatePurchaseImeiCount();
+        });
 
         $(document).on('click', '#purchaseAutoFillImeis', function() {
-            console.log('🔧 Auto Fill IMEI button clicked');
-            
             const textareaValue = $('#purchaseImeiInput').val().trim();
             if (!textareaValue) {
                 toastr.warning('Please enter IMEI numbers in the textarea first', 'Warning');
                 return;
             }
             
-            // Get currently selected products
-            const selectedProductIds = $('#purchaseImeiProductSelect').val() || [];
-            console.log('Selected product IDs:', selectedProductIds);
-            
-            if (selectedProductIds.length === 0) {
-                toastr.warning('Please select products first before auto-filling IMEI numbers', 'Warning');
-                return;
-            }
-            
             const imeiLines = textareaValue.split('\n').map(line => line.trim()).filter(line => line);
-            console.log('IMEI lines to auto-fill:', imeiLines);
+            const currentRows = $('#purchaseImeiTable tbody tr');
             
-            if (imeiLines.length === 0) {
-                toastr.warning('No valid IMEI numbers found in the textarea', 'Warning');
-                return;
-            }
-            
-            let imeiIndex = 0;
-            let totalFilled = 0;
-            
-            // Distribute IMEI numbers across selected products
-            selectedProductIds.forEach(productId => {
-                const product = pendingImeiProducts.find(p => p.productId == productId);
-                if (!product) {
-                    console.error(`Product not found: ${productId}`);
-                    return;
+            // Fill existing rows first
+            currentRows.each(function(index) {
+                if (index < imeiLines.length) {
+                    $(this).find('input.purchase-imei-input').val(imeiLines[index]);
                 }
-                
-                console.log(`Auto-filling for product: ${product.productName} (ID: ${productId})`);
-                
-                // Get existing rows for this product (excluding header rows)
-                const productRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
-                console.log(`Found ${productRows.length} existing rows for product ${productId}`);
-                
-                // Fill existing rows first
-                productRows.each(function(index) {
-                    if (imeiIndex < imeiLines.length) {
-                        const input = $(this).find('input.purchase-imei-input');
-                        if (input.length > 0) {
-                            input.val(imeiLines[imeiIndex]);
-                            imeiIndex++;
-                            totalFilled++;
-                            console.log(`✅ Filled row ${index + 1} for ${product.productName}: ${imeiLines[imeiIndex - 1]}`);
-                        }
-                    }
-                });
-                
-                // Add new rows if we have more IMEIs and haven't reached the product quantity limit
-                let currentRowCount = productRows.length;
-                while (imeiIndex < imeiLines.length && currentRowCount < product.quantity) {
-                    // Add a new row for this product
-                    const newRowIndex = currentRowCount;
-                    const isLastRow = currentRowCount + 1 >= product.quantity;
-                    
-                    const newRow = `
-                        <tr data-product-id="${productId}" data-imei-index="${newRowIndex}">
-                            <td>${newRowIndex + 1}</td>
-                            <td>
-                                <input type="text" 
-                                       class="form-control purchase-imei-input" 
-                                       placeholder="Enter IMEI for ${product.productName}" 
-                                       data-product-id="${productId}" 
-                                       value="${imeiLines[imeiIndex]}" />
-                            </td>
-                            <td>
-                                <button type="button" class="btn btn-sm btn-success add-imei-row" data-product-id="${productId}" ${isLastRow ? 'style="display:none;"' : ''}>
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger ml-1 remove-imei-row">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                    
-                    // Insert after the last row of this product
-                    const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
-                    if (lastRow.length > 0) {
-                        lastRow.after(newRow);
-                    } else {
-                        // If no rows exist for this product, add after the header
-                        const headerRow = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"]`);
-                        if (headerRow.length > 0) {
-                            headerRow.after(newRow);
-                        } else {
-                            console.error(`No header row found for product ${productId}`);
-                            continue;
-                        }
-                    }
-                    
-                    currentRowCount++;
-                    imeiIndex++;
-                    totalFilled++;
-                    console.log(`➕ Added new row for ${product.productName}: ${imeiLines[imeiIndex - 1]} (${currentRowCount}/${product.quantity})`);
-                }
-                
-                // Update add button visibility for this product after auto-fill
-                updateAddButtonVisibility(productId);
             });
             
-            // Update progress counters
-            updateProductProgress();
-            updateSelect2ImeiCount();
-            
-            console.log(`Auto-fill completed: ${totalFilled} IMEI numbers filled`);
-            
-            if (totalFilled > 0) {
-                toastr.success(`Auto-filled ${totalFilled} IMEI numbers across ${selectedProductIds.length} products`, 'Success');
-                
-                // Clear the textarea after successful auto-fill
-                $('#purchaseImeiInput').val('');
+            // Add new rows if we have more IMEIs than rows
+            for (let i = currentRows.length; i < imeiLines.length; i++) {
+                addPurchaseImeiRow(i + 1);
+                $('#purchaseImeiTable tbody tr:last input.purchase-imei-input').val(imeiLines[i]);
             }
             
-            if (imeiIndex < imeiLines.length) {
-                toastr.info(`${imeiLines.length - imeiIndex} IMEI numbers remaining. Select more products or ensure sufficient row capacity.`, 'Info');
-            }
+            updatePurchaseImeiCount();
+            toastr.success(`Auto-filled ${Math.min(imeiLines.length, currentRows.length + (imeiLines.length - currentRows.length))} IMEI numbers`, 'Success');
+        });
+
+        $(document).on('input', '.purchase-imei-input', function() {
+            updatePurchaseImeiCount();
+            $(this).removeClass('is-invalid');
         });
 
         // Handle modal close events
@@ -2708,10 +2437,10 @@
             });
         });
 
-        function deletePayment(paymentId) {
-            // Implement the delete payment functionality here
-            console.log('Delete payment:', paymentId);
-        }
+            function deletePayment(paymentId) {
+                // Implement the delete payment functionality here
+                console.log('Delete payment:', paymentId);
+            }
 
         // IMEI Management Functions
         let currentPurchaseId = null;
@@ -2751,12 +2480,6 @@
         window.openAddImeiModal = function(purchaseProductId, productName, missingCount) {
             currentSelectedProduct = currentImeiProducts.find(p => p.purchase_product_id === purchaseProductId);
             
-            // Check if there are actually missing IMEI numbers
-            if (missingCount <= 0) {
-                toastr.info(`${productName} already has all required IMEI numbers`);
-                return;
-            }
-            
             $('#addImeiModalLabel').text(`Add IMEI Numbers - ${productName}`);
             $('#addImeiProductInfo').text(`Missing: ${missingCount} IMEI numbers`);
             $('#addImeiPurchaseProductId').val(purchaseProductId);
@@ -2786,35 +2509,23 @@
             imeiTableBody.empty();
             
             if (product.existing_imeis.length === 0) {
-                imeiTableBody.append('<tr><td colspan="4" class="text-center">No IMEI numbers found</td></tr>');
+                imeiTableBody.append('<tr><td colspan="3" class="text-center">No IMEI numbers found</td></tr>');
             } else {
                 product.existing_imeis.forEach(function(imei, index) {
                     const statusBadge = imei.status === 'available' ? 
                         '<span class="badge bg-success">Available</span>' : 
                         '<span class="badge bg-warning">Sold</span>';
                     
-                    // Make IMEI editable only if status is 'available'
-                    const imeiField = imei.status === 'available' ? 
-                        `<input type="text" class="form-control form-control-sm editable-imei" value="${imei.imei_number}" data-imei-id="${imei.id}" />` :
-                        `<span class="text-muted">${imei.imei_number}</span>`;
-                    
                     const deleteBtn = imei.status === 'available' ? 
-                        `<button class="btn btn-sm btn-danger me-1" onclick="removeImei(${imei.id})"><i class="fas fa-trash"></i></button>` :
+                        `<button class="btn btn-sm btn-danger" onclick="removeImei(${imei.id})"><i class="fas fa-trash"></i></button>` :
                         '<span class="text-muted">Cannot delete</span>';
-                    
-                    const editBtn = imei.status === 'available' ? 
-                        `<button class="btn btn-sm btn-warning" onclick="updateImei(${imei.id}, this)"><i class="fas fa-edit"></i></button>` :
-                        '';
                     
                     const row = `
                         <tr data-imei-id="${imei.id}">
                             <td>${index + 1}</td>
-                            <td>${imeiField}</td>
+                            <td>${imei.imei_number}</td>
                             <td>${statusBadge}</td>
-                            <td>
-                                ${deleteBtn}
-                                ${editBtn}
-                            </td>
+                            <td>${deleteBtn}</td>
                         </tr>
                     `;
                     imeiTableBody.append(row);
@@ -2830,99 +2541,25 @@
                     url: '/purchases/remove-imei',
                     method: 'POST',
                     data: {
-                        imei_ids: [imeiId], // Send as array as expected by backend
+                        imei_ids: [imeiId],
                         _token: $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
                         if (response.status === 200) {
                             toastr.success('IMEI number removed successfully');
-                            // Remove the row from the table
                             $(`tr[data-imei-id="${imeiId}"]`).remove();
-                            // Refresh the main modal after a short delay
-                            setTimeout(() => {
-                                openImeiManagementModal(currentPurchaseId);
-                            }, 500);
+                            // Refresh the main modal
+                            openImeiManagementModal(currentPurchaseId);
                         } else {
-                            toastr.error(response.message || 'Failed to remove IMEI number');
+                            toastr.error('Failed to remove IMEI number');
                         }
                     },
                     error: function(xhr) {
-                        let errorMessage = 'Failed to remove IMEI number';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        console.error('Error removing IMEI:', xhr);
-                        toastr.error(errorMessage);
+                        toastr.error('Error removing IMEI number');
+                        console.error('Error:', xhr.responseJSON);
                     }
                 });
             }
-        };
-
-        window.updateImei = function(imeiId, buttonElement) {
-            const row = $(buttonElement).closest('tr');
-            const imeiInput = row.find('.editable-imei');
-            const newImeiValue = imeiInput.val().trim();
-            
-            if (!newImeiValue) {
-                toastr.warning('IMEI number cannot be empty');
-                return;
-            }
-            
-            // Basic IMEI validation (10-17 digits)
-            if (!/^\d{10,17}$/.test(newImeiValue)) {
-                toastr.warning('IMEI must be 10-17 digits');
-                return;
-            }
-            
-            // Show Bootstrap confirmation modal
-            $('#confirmUpdateImeiText').text(`Update IMEI number to: ${newImeiValue}?`);
-            $('#confirmUpdateImeiModal').modal('show');
-            
-            // Store the update data for use when confirmed
-            window.pendingImeiUpdate = {
-                imeiId: imeiId,
-                newImeiValue: newImeiValue
-            };
-        };
-        
-        // Function to actually perform the IMEI update
-        window.performImeiUpdate = function() {
-            if (!window.pendingImeiUpdate) return;
-            
-            const { imeiId, newImeiValue } = window.pendingImeiUpdate;
-            
-            $.ajax({
-                url: '/purchases/update-imei',
-                method: 'POST',
-                data: {
-                    imei_id: imeiId,
-                    imei_number: newImeiValue,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function(response) {
-                    if (response.status === 200) {
-                        toastr.success('IMEI number updated successfully');
-                        $('#confirmUpdateImeiModal').modal('hide');
-                        // Refresh the view modal
-                        $('#viewImeiModal').modal('hide');
-                        // Refresh the main modal
-                        openImeiManagementModal(currentPurchaseId);
-                    } else {
-                        toastr.error(response.message || 'Failed to update IMEI number');
-                    }
-                },
-                error: function(xhr) {
-                    let errorMessage = 'Failed to update IMEI number';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    console.error('Error updating IMEI:', xhr);
-                    toastr.error(errorMessage);
-                }
-            });
-            
-            // Clear pending update
-            window.pendingImeiUpdate = null;
         };
 
         function populateImeiManagementModal(purchase, imeiProducts) {
@@ -2951,21 +2588,14 @@
                     `Missing ${product.missing_imei_count} IMEI numbers` : 
                     'All IMEI numbers added';
 
-                // Show Add IMEI button only if there are missing IMEI numbers
-                const addImeiButton = product.missing_imei_count > 0 ? 
-                    `<button type="button" class="btn btn-sm btn-primary" onclick="openAddImeiModal(${product.purchase_product_id}, '${product.product_name}', ${product.missing_imei_count})">
-                        <i class="fas fa-plus"></i> Add IMEI
-                    </button>` : 
-                    `<span class="btn btn-sm btn-success disabled">
-                        <i class="fas fa-check"></i> Complete
-                    </span>`;
-
                 const productCard = `
                     <div class="card mb-3" data-product-id="${product.product_id}">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">${product.product_name}</h6>
                             <div class="btn-group">
-                                ${addImeiButton}
+                                <button type="button" class="btn btn-sm btn-primary" onclick="openAddImeiModal(${product.purchase_product_id}, '${product.product_name}', ${product.missing_imei_count})">
+                                    <i class="fas fa-plus"></i> Add IMEI
+                                </button>
                                 <button type="button" class="btn btn-sm btn-info" onclick="viewExistingImeis(${product.purchase_product_id}, '${product.product_name}')">
                                     <i class="fas fa-list"></i> View All
                                 </button>
@@ -3127,6 +2757,182 @@
     });
 </script>
 
+<!-- IMEI Management Modal -->
+<div class="modal fade" id="imeiManagementModal" tabindex="-1" aria-labelledby="imeiManagementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imeiManagementModalLabel">Manage IMEI Numbers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div id="imeiPurchaseInfo" class="alert alert-info"></div>
+                </div>
+                <div id="imeiProductList">
+                    <!-- Products with IMEI will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<!-- Add IMEI Modal -->
+<div class="modal fade" id="addImeiModal" tabindex="-1" aria-labelledby="addImeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addImeiModalLabel">Add IMEI Numbers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div id="addImeiProductInfo" class="alert alert-info"></div>
+                </div>
+                
+                <input type="hidden" id="addImeiPurchaseProductId">
+                
+                <div class="mb-3">
+                    <label for="imeiInputMethod" class="form-label">Input Method</label>
+                    <select class="form-select" id="imeiInputMethod">
+                        <option value="individual">Individual Entry</option>
+                        <option value="bulk">Bulk Entry</option>
+                    </select>
+                </div>
 
+                <!-- Individual IMEI Entry -->
+                <div id="individualImeiContainer">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Enter IMEI Numbers Individually</h6>
+                        <button type="button" class="btn btn-sm btn-primary" id="addMoreImeiRows">
+                            <i class="fas fa-plus"></i> Add Row
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="individualImeiTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>IMEI Number</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- IMEI input rows will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Bulk IMEI Entry -->
+                <div id="bulkImeiContainer" style="display: none;">
+                    <h6>Bulk IMEI Entry</h6>
+                    <div class="mb-3">
+                        <label for="bulkImeiSeparator" class="form-label">Separator</label>
+                        <select class="form-select" id="bulkImeiSeparator">
+                            <option value="newline">New Line</option>
+                            <option value="comma">Comma (,)</option>
+                            <option value="semicolon">Semicolon (;)</option>
+                            <option value="tab">Tab</option>
+                            <option value="space">Space</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bulkImeiText" class="form-label">IMEI Numbers</label>
+                        <textarea class="form-control" id="bulkImeiText" rows="8" placeholder="Enter IMEI numbers separated by the selected separator..."></textarea>
+                        <div class="form-text">Enter multiple IMEI numbers separated by the selected separator.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveImeiNumbers">
+                    <i class="fas fa-save"></i> Save IMEI Numbers
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Existing IMEI Modal -->
+<div class="modal fade" id="viewImeiModal" tabindex="-1" aria-labelledby="viewImeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewImeiModalLabel">View IMEI Numbers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="existingImeiTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>IMEI Number</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Existing IMEI numbers will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Purchase Time IMEI Entry Modal -->
+<div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="purchaseImeiModalLabel">Enter IMEI Numbers for Purchase</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Select Products:</strong> Choose which products you want to enter IMEI numbers for.
+                </div>
+                
+                <div class="mb-4">
+                    <label for="purchaseImeiProductSelector" class="form-label">
+                        <strong>Select Products for IMEI Entry:</strong>
+                    </label>
+                    <select class="form-control selectBox" id="purchaseImeiProductSelector" multiple="multiple" style="width: 100%;">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                    <div class="form-text">Select one or more products to enter IMEI numbers. You can skip products that don't need IMEI.</div>
+                </div>
+                
+                <div class="alert alert-danger d-none" id="purchaseImeiError"></div>
+                
+                <!-- Dynamic IMEI entry sections will be added here -->
+                <div id="purchaseImeiSections">
+                    <!-- Product IMEI sections will be dynamically created here -->
+                </div>
+                
+                <div class="mt-3 text-muted" id="purchaseImeiSummary">
+                    <small>Select products above to start entering IMEI numbers.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-warning" id="purchaseSkipAllImeiButton">
+                    <i class="fas fa-skip-forward"></i> Skip All Products
+                </button>
+                <button type="button" class="btn btn-primary" id="purchaseSaveSelectedImeiButton">
+                    <i class="fas fa-save"></i> Save Selected & Continue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 

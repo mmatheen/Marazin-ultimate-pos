@@ -706,4 +706,350 @@ class PurchaseController extends Controller
 
         return view('purchase.add_purchase', ['purchase' => $purchase]);
     }
+
+    /**
+     * Get IMEI-enabled products from a specific purchase
+     */
+    public function getPurchaseImeiProducts($purchaseId)
+    {
+        try {
+            $purchase = Purchase::with([
+                'purchaseProducts' => function($query) {
+                    $query->whereHas('product', function($q) {
+                        $q->where('is_imei_or_serial_no', 1);
+                    });
+                },
+                'purchaseProducts.product',
+                'purchaseProducts.batch',
+                'location'
+            ])->find($purchaseId);
+
+            if (!$purchase) {
+                return response()->json(['message' => 'Purchase not found.'], 404);
+            }
+
+            $imeiProducts = [];
+            
+            foreach ($purchase->purchaseProducts as $purchaseProduct) {
+                if ($purchaseProduct->product->is_imei_or_serial_no) {
+                    // Count existing IMEI numbers for this batch
+                    $existingImeiCount = ImeiNumber::where([
+                        'product_id' => $purchaseProduct->product_id,
+                        'batch_id' => $purchaseProduct->batch_id,
+                        'location_id' => $purchase->location_id
+                    ])->count();
+
+                    // Get existing IMEI numbers
+                    $existingImeis = ImeiNumber::where([
+                        'product_id' => $purchaseProduct->product_id,
+                        'batch_id' => $purchaseProduct->batch_id,
+                        'location_id' => $purchase->location_id
+                    ])->get();
+
+                    $imeiProducts[] = [
+                        'purchase_product_id' => $purchaseProduct->id,
+                        'product_id' => $purchaseProduct->product_id,
+                        'product_name' => $purchaseProduct->product->product_name,
+                        'batch_id' => $purchaseProduct->batch_id,
+                        'batch_no' => $purchaseProduct->batch->batch_no,
+                        'quantity_purchased' => $purchaseProduct->quantity,
+                        'existing_imei_count' => $existingImeiCount,
+                        'missing_imei_count' => max(0, $purchaseProduct->quantity - $existingImeiCount),
+                        'existing_imeis' => $existingImeis->map(function($imei) {
+                            return [
+                                'id' => $imei->id,
+                                'imei_number' => $imei->imei_number,
+                                'status' => $imei->status
+                            ];
+                        }),
+                        'location_id' => $purchase->location_id,
+                        'unit_cost' => $purchaseProduct->unit_cost,
+                        'retail_price' => $purchaseProduct->retail_price
+                    ];
+                }
+            }
+
+            return response()->json([
+                'status' => 200,
+                'purchase' => [
+                    'id' => $purchase->id,
+                    'reference_no' => $purchase->reference_no,
+                    'purchase_date' => $purchase->purchase_date,
+                    'supplier' => $purchase->supplier,
+                    'location' => $purchase->location
+                ],
+                'imei_products' => $imeiProducts
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching purchase IMEI products: ' . $e->getMessage());
+            return response()->json(['message' => 'Error fetching IMEI products.'], 500);
+        }
+    }
+
+    /**
+     * Add IMEI numbers to a specific purchase product
+     */
+    public function addImeiToPurchaseProduct(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'purchase_product_id' => 'required|integer|exists:purchase_products,id',
+            'imei_numbers' => 'required|array|min:1',
+            'imei_numbers.*' => 'required|string|regex:/^\d{10,17}$/|unique:imei_numbers,imei_number'
+        ], [
+            'imei_numbers.*.regex' => 'Each IMEI number must be 10-17 digits.',
+            'imei_numbers.*.unique' => 'IMEI number :input already exists in the system.'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $purchaseProduct = \App\Models\PurchaseProduct::with(['product', 'purchase'])->find($request->purchase_product_id);
+                
+                if (!$purchaseProduct) {
+                    throw new \Exception('Purchase product not found.');
+                }
+
+                if (!$purchaseProduct->product->is_imei_or_serial_no) {
+                    throw new \Exception('This product is not configured for IMEI/Serial numbers.');
+                }
+
+                // Check current IMEI count
+                $currentImeiCount = ImeiNumber::where([
+                    'product_id' => $purchaseProduct->product_id,
+                    'batch_id' => $purchaseProduct->batch_id,
+                    'location_id' => $purchaseProduct->purchase->location_id
+                ])->count();
+
+                $newImeiCount = count($request->imei_numbers);
+                $totalAfterAddition = $currentImeiCount + $newImeiCount;
+
+                if ($totalAfterAddition > $purchaseProduct->quantity) {
+                    throw new \Exception("Cannot add {$newImeiCount} IMEI numbers. Maximum allowed: " . ($purchaseProduct->quantity - $currentImeiCount));
+                }
+
+                // Add IMEI numbers
+                foreach ($request->imei_numbers as $imeiNumber) {
+                    ImeiNumber::create([
+                        'imei_number' => trim($imeiNumber),
+                        'product_id' => $purchaseProduct->product_id,
+                        'location_id' => $purchaseProduct->purchase->location_id,
+                        'batch_id' => $purchaseProduct->batch_id,
+                        'status' => 'available'
+                    ]);
+                }
+
+                Log::info('Added IMEI numbers to purchase product', [
+                    'purchase_product_id' => $request->purchase_product_id,
+                    'imei_count' => $newImeiCount,
+                    'total_imei_count' => $totalAfterAddition
+                ]);
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI numbers added successfully!',
+                'added_count' => count($request->imei_numbers)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error adding IMEI numbers: ' . $e->getMessage());
+            return response()->json(['status' => 500, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Remove IMEI numbers from a purchase product
+     */
+    public function removeImeiFromPurchaseProduct(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'imei_ids' => 'required|array|min:1',
+            'imei_ids.*' => 'required|integer|exists:imei_numbers,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                // Verify all IMEI numbers are available (not sold)
+                $imeiNumbers = ImeiNumber::whereIn('id', $request->imei_ids)->get();
+                
+                $unavailableImeis = $imeiNumbers->where('status', '!=', 'available');
+                if ($unavailableImeis->count() > 0) {
+                    $unavailableList = $unavailableImeis->pluck('imei_number')->join(', ');
+                    throw new \Exception("Cannot remove IMEI numbers that are not available: {$unavailableList}");
+                }
+
+                // Delete IMEI numbers
+                ImeiNumber::whereIn('id', $request->imei_ids)->delete();
+
+                Log::info('Removed IMEI numbers from purchase', [
+                    'imei_ids' => $request->imei_ids,
+                    'count' => count($request->imei_ids)
+                ]);
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI numbers removed successfully!',
+                'removed_count' => count($request->imei_ids)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error removing IMEI numbers: ' . $e->getMessage());
+            return response()->json(['status' => 500, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Update IMEI number for purchase product
+     */
+    public function updateImeiForPurchaseProduct(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'imei_id' => 'required|integer|exists:imei_numbers,id',
+            'imei_number' => 'required|string|regex:/^\d{10,17}$/|unique:imei_numbers,imei_number'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            DB::transaction(function () use ($request) {
+                $imeiRecord = ImeiNumber::findOrFail($request->imei_id);
+                
+                // Check if IMEI is available for editing
+                if ($imeiRecord->status !== 'available') {
+                    throw new \Exception("Cannot update IMEI number. Only available IMEI numbers can be edited.");
+                }
+
+                $oldImeiNumber = $imeiRecord->imei_number;
+                
+                // Update the IMEI number
+                $imeiRecord->update([
+                    'imei_number' => $request->imei_number
+                ]);
+
+                Log::info('Updated IMEI number', [
+                    'imei_id' => $request->imei_id,
+                    'old_imei' => $oldImeiNumber,
+                    'new_imei' => $request->imei_number,
+                    'batch_id' => $imeiRecord->batch_id,
+                    'location_id' => $imeiRecord->location_id
+                ]);
+            });
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'IMEI number updated successfully!'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating IMEI number: ' . $e->getMessage());
+            
+            // Check if it's a duplicate IMEI error
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                return response()->json(['status' => 400, 'message' => 'This IMEI number already exists in the system.']);
+            }
+            
+            return response()->json(['status' => 500, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Bulk add IMEI numbers from text input
+     */
+    public function bulkAddImeiToPurchaseProduct(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'purchase_product_id' => 'required|integer|exists:purchase_products,id',
+            'imei_text' => 'required|string',
+            'separator' => 'nullable|string|in:newline,comma,space'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            // Parse IMEI numbers from text
+            $separator = $request->separator ?? 'newline';
+            $imeiText = trim($request->imei_text);
+            
+            $imeiNumbers = [];
+            switch ($separator) {
+                case 'comma':
+                    $imeiNumbers = explode(',', $imeiText);
+                    break;
+                case 'space':
+                    $imeiNumbers = explode(' ', $imeiText);
+                    break;
+                default: // newline
+                    $imeiNumbers = explode("\n", $imeiText);
+                    break;
+            }
+
+            // Clean and validate IMEI numbers
+            $cleanedImeis = [];
+            $errors = [];
+            
+            foreach ($imeiNumbers as $index => $imei) {
+                $cleanedImei = trim($imei);
+                if (empty($cleanedImei)) continue;
+                
+                // Validate IMEI format
+                if (!preg_match('/^\d{10,17}$/', $cleanedImei)) {
+                    $errors[] = "Line " . ($index + 1) . ": Invalid IMEI format '{$cleanedImei}' (must be 10-17 digits)";
+                    continue;
+                }
+                
+                // Check for duplicates in the system
+                if (ImeiNumber::where('imei_number', $cleanedImei)->exists()) {
+                    $errors[] = "Line " . ($index + 1) . ": IMEI '{$cleanedImei}' already exists in the system";
+                    continue;
+                }
+                
+                // Check for duplicates within the input
+                if (in_array($cleanedImei, $cleanedImeis)) {
+                    $errors[] = "Line " . ($index + 1) . ": Duplicate IMEI '{$cleanedImei}' found in input";
+                    continue;
+                }
+                
+                $cleanedImeis[] = $cleanedImei;
+            }
+
+            if (!empty($errors)) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Validation errors found',
+                    'errors' => $errors,
+                    'valid_count' => count($cleanedImeis),
+                    'error_count' => count($errors)
+                ]);
+            }
+
+            if (empty($cleanedImeis)) {
+                return response()->json(['status' => 400, 'message' => 'No valid IMEI numbers found in the input.']);
+            }
+
+            // Add the valid IMEI numbers
+            $addRequest = new Request([
+                'purchase_product_id' => $request->purchase_product_id,
+                'imei_numbers' => $cleanedImeis
+            ]);
+
+            return $this->addImeiToPurchaseProduct($addRequest);
+
+        } catch (\Exception $e) {
+            Log::error('Error in bulk add IMEI: ' . $e->getMessage());
+            return response()->json(['status' => 500, 'message' => 'Error processing bulk IMEI addition.']);
+        }
+    }
 }

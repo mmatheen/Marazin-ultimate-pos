@@ -683,7 +683,7 @@
         @include('category.sub_category.sub_category_modal')
         @include('category.sub_category.sub_category_ajax')
 
-        <!-- Purchase IMEI Entry Modal -->
+        {{-- <!-- Purchase IMEI Entry Modal -->
         <div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
@@ -723,7 +723,83 @@
                     </div>
                 </div>
             </div>
+        </div> --}}
+
+        <!-- Purchase Time IMEI Entry Modal -->
+<div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="purchaseImeiModalLabel">Enter IMEI Numbers for Purchase</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Product Selection Section -->
+                <div id="purchaseImeiProductSelection" class="mb-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Select products to enter IMEI numbers.</strong>
+                        You can work on multiple products at once or one at a time.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="purchaseImeiProductSelect" class="form-label">
+                            <i class="fas fa-mobile-alt"></i> Select Products for IMEI Entry
+                        </label>
+                        <select class="form-select" id="purchaseImeiProductSelect" multiple>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <div class="form-text">Select one or more products to enter their IMEI numbers</div>
+                    </div>
+                    
+                    <div class="alert alert-secondary">
+                        <span id="purchaseImeiCountDisplay">0/0 complete</span>
+                    </div>
+                </div>
+                
+                <!-- IMEI Entry Section (hidden initially) -->
+                <div id="purchaseImeiEntrySection" style="display: none;">
+                    <div class="alert alert-danger d-none" id="purchaseImeiError"></div>
+                    
+                    <div class="mb-3">
+                        <label for="purchaseImeiInput" class="form-label">Bulk IMEI Entry</label>
+                        <textarea class="form-control" id="purchaseImeiInput" rows="4" placeholder="Enter IMEI numbers, one per line (optional - you can also use the table below)"></textarea>
+                        <div class="form-text">You can paste multiple IMEI numbers here, then click "Auto Fill" to populate the table below.</div>
+                        <button type="button" class="btn btn-sm btn-info mt-2" id="purchaseAutoFillImeis">
+                            <i class="fas fa-magic"></i> Auto Fill from Text Above
+                        </button>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Individual IMEI Entry</h6>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="purchaseImeiTable">
+                            <thead>
+                                <tr>
+                                    <th width="10%">#</th>
+                                    <th width="70%">IMEI Number</th>
+                                    <th width="20%">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- IMEI input rows will be added dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="purchaseSkipImeiButton">
+                    <i class="fas fa-forward"></i> Skip IMEI & Complete Purchase
+                </button>
+                <button type="button" class="btn btn-primary" id="purchaseSaveImeiButton">
+                    <i class="fas fa-check-circle"></i> Save IMEI & Complete Purchase
+                </button>
+            </div>
         </div>
+    </div>
+</div>
 
         <script>
             $(document).ready(function() {

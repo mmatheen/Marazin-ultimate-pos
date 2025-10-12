@@ -845,73 +845,225 @@
     </div>
 
     <script>
-        // Toggle payment fields based on selected payment method
-$('#bulkPaymentModal #paymentMethod').change(function() {
-    togglePaymentFields('bulkPaymentModal');
-});
-
-// Toggle payment fields based on selected payment method for individual payments
-$('#paymentMethod').change(function() {
-    togglePaymentFields('paymentModal');
-});
-      function togglePaymentFields(modalId) {
-    const paymentMethod = $(`#${modalId} #paymentMethod`).val();
-    if (paymentMethod === 'card') {
-        $(`#${modalId} #creditCardFields`).removeClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    } else if (paymentMethod === 'cheque') {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).removeClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    } else if (paymentMethod === 'bank_transfer') {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).removeClass('d-none');
-    } else {
-        $(`#${modalId} #creditCardFields`).addClass('d-none');
-        $(`#${modalId} #chequeFields`).addClass('d-none');
-        $(`#${modalId} #bankTransferFields`).addClass('d-none');
-    }
-}
-
-        document.addEventListener("DOMContentLoaded", function() {
-            const cardNumberInput = document.getElementById("cardNumber");
-            const expiryMonthInput = document.getElementById("expiryMonth");
-            const expiryYearInput = document.getElementById("expiryYear");
-            const securityCodeInput = document.getElementById("securityCode");
-            const chequeNumberInput = document.getElementById("chequeNumber");
-
-            // Format card number (max 16 digits, spaced every 4)
-            cardNumberInput.addEventListener("input", function(e) {
-                let value = this.value.replace(/\D/g, "").substring(0, 16);
-                value = value.replace(/(\d{4})/g, "$1 ").trim();
-                this.value = value;
+            // Toggle payment fields based on selected payment method
+            $('#bulkPaymentModal #paymentMethod').change(function() {
+                togglePaymentFields('bulkPaymentModal');
             });
 
-            // Validate expiry month (only 1-12 allowed)
-            expiryMonthInput.addEventListener("input", function() {
-                let value = this.value.replace(/\D/g, "").substring(0, 2);
-                let month = parseInt(value);
-                if (month < 1 || month > 12) {
-                    alert("Invalid month! Please enter a value between 1 and 12.");
-                    this.value = "";
+            // Toggle payment fields based on selected payment method for individual payments
+            $('#paymentMethod').change(function() {
+                togglePaymentFields('paymentModal');
+            });
+                function togglePaymentFields(modalId) {
+                const paymentMethod = $(`#${modalId} #paymentMethod`).val();
+                if (paymentMethod === 'card') {
+                    $(`#${modalId} #creditCardFields`).removeClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                } else if (paymentMethod === 'cheque') {
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).removeClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
+                } else if (paymentMethod === 'bank_transfer') {
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).removeClass('d-none');
                 } else {
-                    this.value = value;
+                    $(`#${modalId} #creditCardFields`).addClass('d-none');
+                    $(`#${modalId} #chequeFields`).addClass('d-none');
+                    $(`#${modalId} #bankTransferFields`).addClass('d-none');
                 }
-            });
+            }
 
-            // Validate security code (3 digits only)
-            securityCodeInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 3);
-            });
+                    document.addEventListener("DOMContentLoaded", function() {
+                        const cardNumberInput = document.getElementById("cardNumber");
+                        const expiryMonthInput = document.getElementById("expiryMonth");
+                        const expiryYearInput = document.getElementById("expiryYear");
+                        const securityCodeInput = document.getElementById("securityCode");
+                        const chequeNumberInput = document.getElementById("chequeNumber");
 
-            // Validate cheque number (max 12 digits)
-            chequeNumberInput.addEventListener("input", function() {
-                this.value = this.value.replace(/\D/g, "").substring(0, 12);
-            });
-        });
+                        // Format card number (max 16 digits, spaced every 4)
+                        cardNumberInput.addEventListener("input", function(e) {
+                            let value = this.value.replace(/\D/g, "").substring(0, 16);
+                            value = value.replace(/(\d{4})/g, "$1 ").trim();
+                            this.value = value;
+                        });
+
+                        // Validate expiry month (only 1-12 allowed)
+                        expiryMonthInput.addEventListener("input", function() {
+                            let value = this.value.replace(/\D/g, "").substring(0, 2);
+                            let month = parseInt(value);
+                            if (month < 1 || month > 12) {
+                                alert("Invalid month! Please enter a value between 1 and 12.");
+                                this.value = "";
+                            } else {
+                                this.value = value;
+                            }
+                        });
+
+                        // Validate security code (3 digits only)
+                        securityCodeInput.addEventListener("input", function() {
+                            this.value = this.value.replace(/\D/g, "").substring(0, 3);
+                        });
+
+                        // Validate cheque number (max 12 digits)
+                        chequeNumberInput.addEventListener("input", function() {
+                            this.value = this.value.replace(/\D/g, "").substring(0, 12);
+                        });
+                    });
     </script>
+
+    <!-- IMEI Management Modal -->
+        <div class="modal fade" id="imeiManagementModal" tabindex="-1" aria-labelledby="imeiManagementModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="imeiManagementModalLabel">Manage IMEI Numbers</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div id="imeiPurchaseInfo" class="alert alert-info"></div>
+                        </div>
+                        <div id="imeiProductList">
+                            <!-- Products with IMEI will be populated here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add IMEI Modal -->
+        <div class="modal fade" id="addImeiModal" tabindex="-1" aria-labelledby="addImeiModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addImeiModalLabel">Add IMEI Numbers</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div id="addImeiProductInfo" class="alert alert-info"></div>
+                        </div>
+                        
+                        <input type="hidden" id="addImeiPurchaseProductId">
+                        
+                        <div class="mb-3">
+                            <label for="imeiInputMethod" class="form-label">Input Method</label>
+                            <select class="form-select" id="imeiInputMethod">
+                                <option value="individual">Individual Entry</option>
+                                <option value="bulk">Bulk Entry</option>
+                            </select>
+                        </div>
+
+                        <!-- Individual IMEI Entry -->
+                        <div id="individualImeiContainer">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6>Enter IMEI Numbers Individually</h6>
+                                <button type="button" class="btn btn-sm btn-primary" id="addMoreImeiRows">
+                                    <i class="fas fa-plus"></i> Add Row
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm" id="individualImeiTable">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>IMEI Number</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- IMEI input rows will be added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Bulk IMEI Entry -->
+                        <div id="bulkImeiContainer" style="display: none;">
+                            <h6>Bulk IMEI Entry</h6>
+                            <div class="mb-3">
+                                <label for="bulkImeiSeparator" class="form-label">Separator</label>
+                                <select class="form-select" id="bulkImeiSeparator">
+                                    <option value="newline">New Line</option>
+                                    <option value="comma">Comma (,)</option>
+                                    <option value="semicolon">Semicolon (;)</option>
+                                    <option value="tab">Tab</option>
+                                    <option value="space">Space</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bulkImeiText" class="form-label">IMEI Numbers</label>
+                                <textarea class="form-control" id="bulkImeiText" rows="8" placeholder="Enter IMEI numbers separated by the selected separator..."></textarea>
+                                <div class="form-text">Enter multiple IMEI numbers separated by the selected separator.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveImeiNumbers">
+                            <i class="fas fa-save"></i> Save IMEI Numbers
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View Existing IMEI Modal -->
+        <div class="modal fade" id="viewImeiModal" tabindex="-1" aria-labelledby="viewImeiModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="viewImeiModalLabel">View IMEI Numbers</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="existingImeiTable">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>IMEI Number</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Existing IMEI numbers will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirm Update Modal -->
+        <div class="modal fade" id="confirmUpdateImeiModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                <h6 class="modal-title mb-0">Confirm Update</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center py-3">
+                <i class="fas fa-edit text-primary mb-2" style="font-size: 1.2rem;"></i>
+                <p id="confirmUpdateImeiText" class="mb-0">Update IMEI number?</p>
+                </div>
+                <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="performImeiUpdate()">Update</button>
+                </div>
+            </div>
+            </div>
+        </div>
 
     @include('purchase.purchase_ajax')
 @endsection
