@@ -10,6 +10,7 @@ use App\Models\SubCategory;
 use App\Models\MainCategory;
 use App\Models\StockHistory;
 use App\Models\LocationBatch;
+use App\Models\ImeiNumber;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -47,6 +48,12 @@ class importProduct implements ToCollection, WithHeadingRow
     public function collection(Collection $rows)
     {
         Log::info("Starting import with " . count($rows) . " rows");
+        
+        // Debug: Log the first row to see column headers
+        if (count($rows) > 0) {
+            $firstRow = $rows->first();
+            Log::info("Excel column headers found: " . json_encode($firstRow->keys()->toArray()));
+        }
         
         // First pass: Validate all rows without inserting anything
         $this->validateAllRows($rows);
@@ -158,6 +165,9 @@ class importProduct implements ToCollection, WithHeadingRow
      */
     private function cleanRowData(array &$rowArray)
     {
+        // Map Excel column headers to expected field names
+        $this->mapExcelHeaders($rowArray);
+        
         // Clean numeric fields - convert empty strings or whitespace to null
         $numericFields = [
             'stock_alert_quantity', 
@@ -196,7 +206,8 @@ class importProduct implements ToCollection, WithHeadingRow
             'sub_category_name',
             'product_image_name',
             'description',
-            'batch_no'
+            'batch_no',
+            'imei_serial_no'
         ];
 
         foreach ($stringFields as $field) {
@@ -206,6 +217,64 @@ class importProduct implements ToCollection, WithHeadingRow
                     $rowArray[$field] = null;
                 }
             }
+        }
+    }
+
+    /**
+     * Map Excel column headers to expected field names
+     */
+    private function mapExcelHeaders(array &$rowArray)
+    {
+        // Debug: Log all available keys
+        Log::info("Available row keys: " . json_encode(array_keys($rowArray)));
+        
+        // Special handling for your Excel structure where "is_imeiserial_no" contains IMEI numbers
+        if (isset($rowArray['is_imeiserial_no']) && !empty($rowArray['is_imeiserial_no'])) {
+            // This column contains IMEI numbers, not 0/1 values
+            // Set the IMEI flag to 1 and move the IMEI data to description if description is empty
+            $imeiData = $rowArray['is_imeiserial_no'];
+            
+            // Set the flag to 1 since this product has IMEI numbers
+            $rowArray['is_imei_or_serial_no'] = 1;
+            
+            // If description is empty, use the IMEI data as description
+            // If description is not empty, append IMEI data to it
+            if (empty($rowArray['description'])) {
+                $rowArray['description'] = $imeiData;
+            } else {
+                // If description already has data, we'll prefer it and log the IMEI data
+                Log::info("Description exists, IMEI data from is_imeiserial_no: " . $imeiData);
+            }
+            
+            Log::info("Mapped IMEI product - Flag: 1, IMEI data: " . substr($imeiData, 0, 100));
+        } else {
+            // No IMEI data found, set flag to 0
+            $rowArray['is_imei_or_serial_no'] = 0;
+        }
+        
+        // Handle other standard mappings
+        $headerMapping = [
+            // Other field mappings
+            'is_for_selling' => 'is_for_selling',
+            'product_type' => 'product_type',
+            'pax' => 'pax'
+        ];
+
+        // Apply header mapping
+        foreach ($headerMapping as $excelHeader => $expectedField) {
+            if (isset($rowArray[$excelHeader])) {
+                $rowArray[$expectedField] = $rowArray[$excelHeader];
+                if ($excelHeader !== $expectedField) {
+                    unset($rowArray[$excelHeader]);
+                }
+            }
+        }
+        
+        // Log the final mapped values for debugging
+        Log::info("Final is_imei_or_serial_no value: " . ($rowArray['is_imei_or_serial_no'] ?? 'not set'));
+        
+        if (isset($rowArray['description'])) {
+            Log::info("Description value: " . substr($rowArray['description'], 0, 100)); // Log first 100 chars
         }
     }
 
@@ -233,6 +302,47 @@ class importProduct implements ToCollection, WithHeadingRow
                 $rowArray['expiry_date'] = $convertedDate;
             }
 
+            // Validate IMEI numbers if provided - Check if is_imei_or_serial_no is 1 and extract from description
+            $imeiFieldValue = null;
+            $isImeiProduct = false;
+            
+            // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
+            if (isset($rowArray['is_imei_or_serial_no'])) {
+                $imeiFlag = trim($rowArray['is_imei_or_serial_no']);
+                $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
+                Log::info("Row {$excelRowNumber}: is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
+            }
+            
+            // For IMEI products, extract IMEI numbers from description
+            if ($isImeiProduct && !empty($rowArray['description'])) {
+                $imeiFieldValue = $rowArray['description'];
+                Log::info("Row {$excelRowNumber}: Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
+            }
+            
+            if (!empty($imeiFieldValue)) {
+                $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
+                $imeiList = array_map('trim', $imeiList);
+                $imeiList = array_filter($imeiList);
+                
+                Log::info("Row {$excelRowNumber}: Found " . count($imeiList) . " IMEI numbers to validate");
+
+                foreach ($imeiList as $imei) {
+                    // Check IMEI format (must be 10-17 digits for flexibility as mentioned in requirements)
+                    if (!preg_match('/^\d{10,17}$/', $imei)) {
+                        $this->validationErrors[] = "Row {$excelRowNumber}: Invalid IMEI format '{$imei}'. IMEI must be 10-17 digits.";
+                        Log::warning("Row {$excelRowNumber}: Invalid IMEI format '{$imei}' (length: " . strlen($imei) . ")");
+                    } else {
+                        // Check for duplicate IMEI
+                        if (ImeiNumber::isDuplicate($imei)) {
+                            $this->validationErrors[] = "Row {$excelRowNumber}: IMEI '{$imei}' already exists in the database.";
+                            Log::warning("Row {$excelRowNumber}: Duplicate IMEI '{$imei}'");
+                        } else {
+                            Log::info("Row {$excelRowNumber}: Valid IMEI '{$imei}'");
+                        }
+                    }
+                }
+            }
+
             $validator = Validator::make($rowArray, [
                 'sku' => [
                     'nullable',
@@ -258,6 +368,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'is_for_selling' => 'nullable|integer|in:0,1',
                 'product_type' => 'nullable|integer',
                 'pax' => 'nullable|numeric|min:0',
+                'imei_serial_no' => 'nullable|string',
             ], [
                 'sku.unique' => 'The SKU "' . ($rowArray['sku'] ?? 'N/A') . '" already exists. Please provide a unique SKU.',
                 'sku.regex' => 'The SKU must contain only letters, numbers, and hyphens.',
@@ -278,6 +389,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'is_for_selling.in' => 'Is for selling field must be 0 or 1.',
                 'product_type.integer' => 'Product type must be a valid integer.',
                 'pax.numeric' => 'Pax must be a valid number.',
+                'imei_serial_no.string' => 'IMEI/Serial number must be a valid string.',
             ]);
 
             if ($validator->fails()) {
@@ -384,7 +496,7 @@ class importProduct implements ToCollection, WithHeadingRow
                 'alert_quantity' => $row['stock_alert_quantity'] ?? null,
                 'product_image' => $row['product_image_name'] ?? null,
                 'description' => $row['description'] ?? null,
-                'is_imei_or_serial_no' => $row['is_imeiserial_no'] ?? null,
+                'is_imei_or_serial_no' => $row['is_imei_or_serial_no'] ?? 0,
                 'is_for_selling' => $row['is_for_selling'] ?? null,
                 'product_type' => $row['product_type'] ?? null,
                 'pax' => $row['pax'] ?? null,
@@ -407,8 +519,51 @@ class importProduct implements ToCollection, WithHeadingRow
                 'updated_at' => now(),
             ]);
 
-            // Handle Batch, LocationBatch, StockHistory if quantity is provided
-            if (!empty($row['qty']) && $row['qty'] > 0) {
+            // Handle Batch, LocationBatch, StockHistory - Check IMEI first to determine quantity
+            $actualQty = $row['qty'] ?? 0;
+            $imeiCount = 0;
+            
+            // Check for IMEI - use enhanced detection logic
+            $imeiFieldValue = null;
+            $isImeiProduct = false;
+            
+            // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
+            if (isset($row['is_imei_or_serial_no'])) {
+                $imeiFlag = trim($row['is_imei_or_serial_no']);
+                $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
+                Log::info("Row {$excelRowNumber}: Batch processing - is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
+            }
+            
+            // For IMEI products, extract IMEI numbers from description
+            if ($isImeiProduct && !empty($row['description'])) {
+                $imeiFieldValue = $row['description'];
+                Log::info("Row {$excelRowNumber}: Batch processing - Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
+            }
+            
+            // If IMEI numbers are provided, count them to determine actual quantity
+            if (!empty($imeiFieldValue)) {
+                $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
+                $imeiList = array_map('trim', $imeiList);
+                $imeiList = array_filter($imeiList); // Remove empty entries
+                $imeiCount = count($imeiList);
+                
+                Log::info("Row {$excelRowNumber}: Found {$imeiCount} IMEI numbers for batch processing");
+                
+                // If qty is 0 or not provided, use IMEI count as quantity
+                if (empty($actualQty) || $actualQty == 0) {
+                    $actualQty = $imeiCount;
+                    Log::info("Auto-setting quantity to {$actualQty} based on IMEI count for row {$excelRowNumber}");
+                }
+                
+                // Validate that IMEI count matches quantity if both are provided
+                if (!empty($row['qty']) && $row['qty'] > 0 && $imeiCount != $row['qty']) {
+                    Log::warning("IMEI count ({$imeiCount}) doesn't match quantity ({$row['qty']}) for row {$excelRowNumber}. Using IMEI count as actual quantity.");
+                    $actualQty = $imeiCount;
+                }
+            }
+
+            // Create batch if we have quantity > 0 (either from qty field or IMEI count)
+            if ($actualQty > 0) {
                 $formattedExpiryDate = !empty($row['expiry_date']) ? $row['expiry_date'] : null;
 
                 // Generate batch number if not provided
@@ -421,7 +576,7 @@ class importProduct implements ToCollection, WithHeadingRow
                         'product_id' => $productId,
                     ],
                     [
-                        'qty' => $row['qty'],
+                        'qty' => $actualQty,
                         'unit_cost' => $row['original_price'],
                         'retail_price' => $row['retail_price'],
                         'wholesale_price' => $row['whole_sale_price'],
@@ -438,7 +593,7 @@ class importProduct implements ToCollection, WithHeadingRow
                         'location_id' => $authLocationId,
                     ],
                     [
-                        'qty' => $row['qty'],
+                        'qty' => $actualQty,
                     ]
                 );
 
@@ -449,7 +604,7 @@ class importProduct implements ToCollection, WithHeadingRow
                         'stock_type' => StockHistory::STOCK_TYPE_OPENING,
                     ],
                     [
-                        'quantity' => $row['qty'],
+                        'quantity' => $actualQty,
                     ]
                 );
 
@@ -457,9 +612,96 @@ class importProduct implements ToCollection, WithHeadingRow
                 DB::table('location_product')
                     ->where('location_id', $authLocationId)
                     ->where('product_id', $productId)
-                    ->update(['qty' => $row['qty']]);
+                    ->update(['qty' => $actualQty]);
+                    
+                Log::info("Created batch with quantity {$actualQty} for product {$productId} in row {$excelRowNumber}");
             }
 
+            // Handle IMEI/Serial Numbers - Use same enhanced detection logic
+            $imeiFieldValue = null;
+            $isImeiProduct = false;
+            
+            // Check if is_imei_or_serial_no is set to 1 (should be set by mapExcelHeaders)
+            if (isset($row['is_imei_or_serial_no'])) {
+                $imeiFlag = trim($row['is_imei_or_serial_no']);
+                $isImeiProduct = ($imeiFlag == '1' || $imeiFlag == 1 || strtolower($imeiFlag) == 'true');
+                Log::info("Row {$excelRowNumber}: IMEI creation - is_imei_or_serial_no = '{$imeiFlag}', isImeiProduct = " . ($isImeiProduct ? 'true' : 'false'));
+            }
+            
+            // For IMEI products, extract IMEI numbers from description
+            if ($isImeiProduct && !empty($row['description'])) {
+                $imeiFieldValue = $row['description'];
+                Log::info("Row {$excelRowNumber}: IMEI creation - Extracting IMEI from description: " . substr($imeiFieldValue, 0, 100));
+            }
+            
+            if (!empty($imeiFieldValue)) {
+                Log::info("Row {$excelRowNumber}: Processing IMEI creation with value: " . substr($imeiFieldValue, 0, 100));
+                
+                // Ensure we have a batch for IMEI products (should be created above)
+                if (!isset($batch)) {
+                    // This should not happen with the new logic, but adding as fallback
+                    $formattedExpiryDate = !empty($row['expiry_date']) ? $row['expiry_date'] : null;
+                    $batchNo = $row['batch_no'] ?? Batch::generateNextBatchNo();
+
+                    $batch = Batch::updateOrCreate(
+                        [
+                            'batch_no' => $batchNo,
+                            'product_id' => $productId,
+                        ],
+                        [
+                            'qty' => $imeiCount,
+                            'unit_cost' => $row['original_price'],
+                            'retail_price' => $row['retail_price'],
+                            'wholesale_price' => $row['whole_sale_price'],
+                            'special_price' => $row['special_price'] ?? 0,
+                            'max_retail_price' => $row['max_retail_price'] ?? 0,
+                            'expiry_date' => $formattedExpiryDate,
+                        ]
+                    );
+                    
+                    Log::info("Created fallback batch for IMEI product {$productId} in row {$excelRowNumber}");
+                }
+
+                // Split IMEIs by comma or slash and process each one
+                $imeiList = preg_split('/[\/,]+/', $imeiFieldValue);
+                $imeiList = array_map('trim', $imeiList);
+                $imeiList = array_filter($imeiList); // Remove empty entries
+
+                $validImeiCount = 0;
+                foreach ($imeiList as $imei) {
+                    // Check if IMEI is 10-17 digits (as per requirements)
+                    if (preg_match('/^\d{10,17}$/', $imei)) {
+                        // Check if IMEI already exists using the model method
+                        if (!ImeiNumber::isDuplicate($imei)) {
+                            try {
+                                // Insert valid IMEI using the ImeiNumber model
+                                $imeiRecord = ImeiNumber::create([
+                                    'product_id' => $productId,
+                                    'location_id' => $authLocationId,
+                                    'batch_id' => $batch->id,
+                                    'imei_number' => $imei,
+                                    'status' => 'available'
+                                ]);
+                                $validImeiCount++;
+                                Log::info("Created IMEI record: {$imei} for product {$productId} in batch {$batch->id}");
+                            } catch (\Exception $e) {
+                                Log::error("Failed to create IMEI '{$imei}' for product {$productId} in row {$excelRowNumber}: " . $e->getMessage());
+                            }
+                        } else {
+                            Log::warning("IMEI '{$imei}' already exists in database for Row {$excelRowNumber}");
+                        }
+                    } else {
+                        Log::warning("Invalid IMEI format '{$imei}' in Row {$excelRowNumber}. IMEI must be 10-17 digits. Current length: " . strlen($imei));
+                    }
+                }
+
+                // Update product to mark it as IMEI product if IMEIs were successfully added
+                if ($validImeiCount > 0) {
+                    $product->is_imei_or_serial_no = 1;
+                    $product->save();
+                    Log::info("Updated product {$productId} as IMEI product with {$validImeiCount} valid IMEI numbers");
+                }
+            }
             // Store data for later use - only after successful product creation
             $this->data[] = array_merge($row, [
                 'excel_row' => $excelRowNumber,
