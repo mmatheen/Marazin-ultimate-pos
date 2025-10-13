@@ -2293,9 +2293,10 @@
 
     function loadUserLocations() {
         $.ajax({
-            url: '/api/initial-product-details',
+            url: '/initial-product-details',
             method: 'GET',
             success: function(response) {
+                console.log('Location loading response:', response);
                 if (response.status === 200 && response.message.locations) {
                     let locationSelect = $('#import_location');
                     locationSelect.empty();
@@ -2310,11 +2311,53 @@
                     if (response.message.auto_select_single_location && response.message.locations.length === 1) {
                         locationSelect.val(response.message.locations[0].id);
                     }
+                    
+                    console.log('Successfully loaded', response.message.locations.length, 'locations for import');
+                } else {
+                    console.error('Invalid response structure:', response);
+                    toastr.error('Invalid response when loading locations.', 'Error');
                 }
             },
             error: function(xhr) {
-                console.error('Error loading locations:', xhr.responseJSON);
-                toastr.error('Failed to load locations. Please refresh the page.', 'Error');
+                console.error('Error loading locations:', xhr);
+                console.error('Status:', xhr.status);
+                console.error('Response:', xhr.responseText);
+                
+                let errorMsg = 'Failed to load locations. Please refresh the page.';
+                if (xhr.status === 404) {
+                    errorMsg = 'Location service not found. Please contact support.';
+                } else if (xhr.status === 403) {
+                    errorMsg = 'Access denied. Please check your permissions.';
+                } else if (xhr.status === 500) {
+                    errorMsg = 'Server error while loading locations. Please try again.';
+                }
+                
+                toastr.error(errorMsg, 'Error');
+                
+                // Fallback: try to load using the alternative location endpoint
+                $.ajax({
+                    url: '/location-get-all',
+                    method: 'GET',
+                    success: function(fallbackResponse) {
+                        console.log('Fallback location response:', fallbackResponse);
+                        if (fallbackResponse.status === 200 && fallbackResponse.message) {
+                            let locationSelect = $('#import_location');
+                            locationSelect.empty();
+                            locationSelect.append('<option value="">Choose Location to Import Products...</option>');
+                            
+                            fallbackResponse.message.forEach(function(location) {
+                                locationSelect.append(`<option value="${location.id}">${location.name}</option>`);
+                            });
+                            
+                            toastr.success('Locations loaded successfully using fallback method.', 'Success');
+                            console.log('Fallback: Successfully loaded', fallbackResponse.message.length, 'locations');
+                        }
+                    },
+                    error: function(fallbackXhr) {
+                        console.error('Fallback also failed:', fallbackXhr);
+                        toastr.error('Both primary and fallback location loading failed. Please contact support.', 'Critical Error');
+                    }
+                });
             }
         });
     }
