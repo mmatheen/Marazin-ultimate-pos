@@ -801,41 +801,41 @@
     </div>
 </div>
 
-        <script>
-            $(document).ready(function() {
+    <script>
+        $(document).ready(function() {
 
 
-                // Prevent form submission on Enter keypress in the product search input
-                $('#productSearchInput').on('keydown', function(e) {
-                    if (e.key === 'Enter' || e.keyCode === 13) {
-                        e.preventDefault(); // Prevent the default action of the Enter key
-                    }
-                });
-
-                $('#payment-method').on('change', function() {
-                    togglePaymentFields();
-                });
-
-                function togglePaymentFields() {
-                    const paymentMethod = $('#payment-method').val();
-                    if (paymentMethod === 'card') {
-                        $('#creditCardFields').removeClass('d-none');
-                        $('#chequeFields').addClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
-                    } else if (paymentMethod === 'cheque') {
-                        $('#creditCardFields').addClass('d-none');
-                        $('#chequeFields').removeClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
-                    } else if (paymentMethod === 'bank_transfer') {
-                        $('#creditCardFields').addClass('d-none');
-                        $('#chequeFields').addClass('d-none');
-                        $('#bankTransferFields').removeClass('d-none');
-                    } else {
-                        $('#creditCardFields').addClass('d-none');
-                        $('#chequeFields').addClass('d-none');
-                        $('#bankTransferFields').addClass('d-none');
-                    }
+            // Prevent form submission on Enter keypress in the product search input
+            $('#productSearchInput').on('keydown', function(e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    e.preventDefault(); // Prevent the default action of the Enter key
                 }
             });
-        </script>
-    @endsection
+
+            $('#payment-method').on('change', function() {
+                togglePaymentFields();
+            });
+
+            function togglePaymentFields() {
+                const paymentMethod = $('#payment-method').val();
+                if (paymentMethod === 'card') {
+                    $('#creditCardFields').removeClass('d-none');
+                    $('#chequeFields').addClass('d-none');
+                    $('#bankTransferFields').addClass('d-none');
+                } else if (paymentMethod === 'cheque') {
+                    $('#creditCardFields').addClass('d-none');
+                    $('#chequeFields').removeClass('d-none');
+                    $('#bankTransferFields').addClass('d-none');
+                } else if (paymentMethod === 'bank_transfer') {
+                    $('#creditCardFields').addClass('d-none');
+                    $('#chequeFields').addClass('d-none');
+                    $('#bankTransferFields').removeClass('d-none');
+                } else {
+                    $('#creditCardFields').addClass('d-none');
+                    $('#chequeFields').addClass('d-none');
+                    $('#bankTransferFields').addClass('d-none');
+                }
+            }
+        });
+    </script>
+@endsection

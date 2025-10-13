@@ -1,4 +1,9 @@
 @extends('layout.layout')
+
+@section('head')
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+@endsection
+
 @section('content')
     <div class="content container-fluid">
         <div class="row">
@@ -32,80 +37,79 @@
                             <div class="row">
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
-                                        <label>Bussiness Location <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="location">
-                                            <option value="" disabled selected>All</option>
+                                        <label>Business Location</label>
+                                        <select class="form-control select" id="locationFilter" name="location">
+                                            <option value="">All</option>
+                                            @foreach($locations as $location)
+                                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
-                                        <label>Customer <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="customer">
-                                            <option value="" disabled selected>All</option>
+                                        <label>Customer</label>
+                                        <select class="form-control select" id="customerFilter" name="customer">
+                                            <option value="">All</option>
+                                            @foreach($customers as $customer)
+                                                <option value="{{ $customer->id }}">{{ trim($customer->first_name . ' ' . $customer->last_name) }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms">
-                                        <label>Payment Status<span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="payment_status">
-                                            <option value="" disabled selected>All</option>
-                                            <option value="Paid">Paid</option>
-                                            <option value="Due">Due</option>
-                                            <option value="Partial">Partial</option>
-                                            <option value="Overdue">Overdue</option>
+                                        <label>Payment Status</label>
+                                        <select class="form-control select" id="paymentStatusFilter" name="payment_status">
+                                            <option value="">All</option>
+                                            <option value="paid">Paid</option>
+                                            <option value="due">Due</option>
+                                            <option value="partial">Partial</option>
+                                            <option value="overdue">Overdue</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-6">
                                     <div class="form-group local-forms calendar-icon">
-                                        <label>Date Range<span class="login-danger"></span></label>
-                                        <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY"
-                                            name="date_range">
+                                        <label>Date Range</label>
+                                        <input class="form-control" type="text" placeholder="Select date range" id="dateRangeFilter" name="date_range">
                                     </div>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
-                                        <label>User<span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="user">
-                                            <option value="" disabled selected>All</option>
+                                        <label>User</label>
+                                        <select class="form-control select" id="userFilter" name="user">
+                                            <option value="">All</option>
+                                            @foreach($users as $user)
+                                                <option value="{{ $user->id }}">{{ $user->full_name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
-                                        <label>Shipping Status <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="shipping_status">
-                                            <option value="" disabled selected>All</option>
-                                            <option value="Order">Order</option>
-                                            <option value="Packed">Packed</option>
-                                            <option value="Shipped">Shipped</option>
-                                            <option value="Delivered">Delivered</option>
-                                            <option value="Cancelled">Cancelled</option>
+                                        <label>Shipping Status</label>
+                                        <select class="form-control select" id="shippingStatusFilter" name="shipping_status">
+                                            <option value="">All</option>
+                                            <option value="order">Order</option>
+                                            <option value="packed">Packed</option>
+                                            <option value="shipped">Shipped</option>
+                                            <option value="delivered">Delivered</option>
+                                            <option value="cancelled">Cancelled</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-3 col-md-4">
                                     <div class="form-group local-forms">
-                                        <label>Payment Method <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="payment_method">
-                                            <option value="" disabled selected>All</option>
-                                            <option value="Advance">Advance</option>
-                                            <option value="Cash">Cash</option>
-                                            <option value="Card">Card</option>
-                                            <option value="Cheque">Cheque</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-lg-3 col-md-4">
-                                    <div class="form-group local-forms">
-                                        <label>Sources <span class="login-danger">*</span></label>
-                                        <select class="form-control select" name="sources">
-                                            <option value="" disabled selected>All</option>
-                                            <option value="Woocommerce">Woocommerce</option>
+                                        <label>Payment Method</label>
+                                        <select class="form-control select" id="paymentMethodFilter" name="payment_method">
+                                            <option value="">All</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="card">Card</option>
+                                            <option value="cheque">Cheque</option>
+                                            <option value="bank_transfer">Bank Transfer</option>
                                         </select>
                                     </div>
                                 </div>
@@ -859,6 +863,8 @@
             }
         </script>
 
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 
         @include('sell.sales_ajax')
     @endsection

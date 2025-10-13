@@ -48,14 +48,18 @@
                     // Add custom filters
                     if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter').val();
                     if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter').val();
-                    if ($('#statusFilter').val()) requestData.status = $('#statusFilter').val();
-                    if ($('#startDateFilter').val()) requestData.start_date = $('#startDateFilter').val();
-                    if ($('#endDateFilter').val()) requestData.end_date = $('#endDateFilter').val();
-                    
+                    if ($('#userFilter').val()) requestData.user_id = $('#userFilter').val();
+                    if ($('#paymentStatusFilter').val()) requestData.payment_status = $('#paymentStatusFilter').val();
+                    if ($('#paymentMethodFilter').val()) requestData.payment_method = $('#paymentMethodFilter').val();
+                    if ($('#dateRangeFilter').val()) {
+                        var dateRange = $('#dateRangeFilter').val().split(' - ');
+                        if (dateRange.length === 2) {
+                            requestData.start_date = dateRange[0];
+                            requestData.end_date = dateRange[1];
+                        }
+                    }
                     
                     return requestData;
-                    
-                    return d;
                 },
                 // Simple DataTable server-side response handler
                 dataSrc: function(json) {
@@ -448,8 +452,11 @@
         });
 
         // Add filter change handlers to refresh table
-        $('#customerFilter, #locationFilter, #statusFilter, #startDateFilter, #endDateFilter').on('change', function() {
-            table.ajax.reload();
+        $('#customerFilter, #locationFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter, #dateRangeFilter').on('change', function() {
+            console.log('Filter changed:', $(this).attr('id'), 'to:', $(this).val());
+            if ($.fn.DataTable.isDataTable('#salesTable')) {
+                $('#salesTable').DataTable().ajax.reload();
+            }
         });
 
         // Global function to refresh sales data (can be called from payment success callbacks)
@@ -1730,6 +1737,12 @@
 
         // Function to initialize autocomplete functionality
         function initAutocomplete() {
+            // Check if the product search input element exists (only for add sale pages)
+            if ($('#productSearchInput').length === 0) {
+                console.log('Product search input not found - skipping autocomplete initialization');
+                return;
+            }
+
             if (typeof $.ui === 'undefined' || typeof $.ui.autocomplete === 'undefined') {
                 console.error('jQuery UI Autocomplete is not loaded.');
                 return;
@@ -2326,6 +2339,38 @@
 
     });
 
+    // Add filter functionality
+    // Initialize date range picker
+    $('#dateRangeFilter').daterangepicker({
+        autoUpdateInput: false,
+        locale: {
+            cancelLabel: 'Clear',
+            format: 'YYYY-MM-DD'
+        }
+    });
+
+    $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
+        $(this).val(picker.startDate.format('YYYY-MM-DD') + ' - ' + picker.endDate.format('YYYY-MM-DD'));
+    });
+
+    $('#dateRangeFilter').on('cancel.daterangepicker', function(ev, picker) {
+        $(this).val('');
+    });
+
+    // Filter change events
+    $('#locationFilter, #customerFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter').change(function() {
+        if ($.fn.DataTable.isDataTable('#salesTable')) {
+            $('#salesTable').DataTable().ajax.reload();
+        }
+    });
+
+    // Date range filter change
+    $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
+        if ($.fn.DataTable.isDataTable('#salesTable')) {
+            $('#salesTable').DataTable().ajax.reload();
+        }
+    });
+
     // Function to toggle payment method fields in bulk payment modal
     function togglePaymentFields(modalId) {
         const modal = modalId || 'bulkPaymentModal';
@@ -2344,5 +2389,36 @@
         } else if (paymentMethod === 'bank_transfer') {
             $(`#${modal} #bankTransferFields`).show();
         }
+    }
+
+    // Initialize date range picker
+    if ($('#dateRangeFilter').length) {
+        $('#dateRangeFilter').daterangepicker({
+            autoUpdateInput: false,
+            locale: {
+                cancelLabel: 'Clear',
+                format: 'YYYY-MM-DD'
+            },
+            ranges: {
+                'Today': [moment(), moment()],
+                'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+                'This Month': [moment().startOf('month'), moment().endOf('month')],
+                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+            }
+        });
+
+        $('#dateRangeFilter').on('apply.daterangepicker', function(ev, picker) {
+            $(this).val(picker.startDate.format('YYYY-MM-DD') + ' - ' + picker.endDate.format('YYYY-MM-DD'));
+            // Trigger change event to reload table
+            $(this).trigger('change');
+        });
+
+        $('#dateRangeFilter').on('cancel.daterangepicker', function(ev, picker) {
+            $(this).val('');
+            // Trigger change event to reload table
+            $(this).trigger('change');
+        });
     }
 </script>

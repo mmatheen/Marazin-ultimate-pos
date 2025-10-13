@@ -1397,46 +1397,6 @@
             }
         });
 
-        // // Complete Purchase button - check if all required IMEI data is collected
-        // $(document).on('click', '#purchaseCompleteImeiButton', function() {
-        //     console.log('=== Completing Purchase with IMEI Data ===');
-            
-        //     // Check if all required IMEI products have been handled
-        //     let allComplete = true;
-        //     let missingProducts = [];
-            
-        //     pendingImeiProducts.forEach(product => {
-        //         const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
-        //         if (currentImeiCount === 0) {
-        //             allComplete = false;
-        //             missingProducts.push(product.productName);
-        //         }
-        //     });
-            
-        //     // Automatically proceed without confirmation - set empty arrays for missing products
-        //     if (!allComplete && missingProducts.length > 0) {
-        //         pendingImeiProducts.forEach(product => {
-        //             if (!purchaseImeiData[product.productId]) {
-        //                 purchaseImeiData[product.productId] = [];
-        //             }
-        //         });
-        //     }
-            
-        //     console.log('✅ All IMEI data processed successfully:', purchaseImeiData);
-            
-        //     // Set flag to indicate this is a programmatic close
-        //     isProgrammaticModalClose = true;
-        //     isProcessingImei = false;
-            
-        //     // Close modal and proceed with purchase
-        //     $('#purchaseImeiModal').modal('hide');
-            
-        //     // Proceed with purchase after modal is hidden
-        //     setTimeout(() => {
-        //         console.log('🚀 Proceeding with purchase...');
-        //         processPurchase();
-        //     }, 300);
-        // });
 
         // IMEI Modal Event Handlers
         $(document).on('click', '#purchaseSaveImeiButton', function() {

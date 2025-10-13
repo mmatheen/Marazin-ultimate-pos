@@ -148,7 +148,12 @@ class SaleController extends Controller
 
     public function listSale()
     {
-        return view('sell.sale');
+        // Get filter data for dropdowns
+        $locations = \App\Models\Location::select('id', 'name')->get();
+        $customers = \App\Models\Customer::select('id', 'first_name', 'last_name')->get();
+        $users = \App\Models\User::select('id', 'full_name')->get();
+        
+        return view('sell.sale', compact('locations', 'customers', 'users'));
     }
 
     public function addSale()
@@ -271,16 +276,52 @@ class SaleController extends Controller
                 });
             }
 
-            // 5. Get total count for pagination
+            // 5. Apply custom filters
+            // Location filter
+            if ($request->has('location_id') && !empty($request->location_id)) {
+                $query->where('location_id', $request->location_id);
+            }
+
+            // Customer filter
+            if ($request->has('customer_id') && !empty($request->customer_id)) {
+                $query->where('customer_id', $request->customer_id);
+            }
+
+            // User filter
+            if ($request->has('user_id') && !empty($request->user_id)) {
+                $query->where('user_id', $request->user_id);
+            }
+
+            // Payment status filter
+            if ($request->has('payment_status') && !empty($request->payment_status)) {
+                $query->where('payment_status', $request->payment_status);
+            }
+
+            // Payment method filter
+            if ($request->has('payment_method') && !empty($request->payment_method)) {
+                $query->whereHas('payments', function ($paymentQ) use ($request) {
+                    $paymentQ->where('payment_method', $request->payment_method);
+                });
+            }
+
+            // Date range filter
+            if ($request->has('start_date') && !empty($request->start_date)) {
+                $query->whereDate('sales_date', '>=', $request->start_date);
+            }
+            if ($request->has('end_date') && !empty($request->end_date)) {
+                $query->whereDate('sales_date', '<=', $request->end_date);
+            }
+
+            // 6. Get total count for pagination (after filters)
             $totalCount = $query->count();
             
-            // 6. Get the actual sales data with pagination
+            // 7. Get the actual sales data with pagination
             $sales = $query->orderBy('created_at', 'desc')  // Newest first
                           ->skip($start)                      // Skip records for pagination
                           ->take($perPage)                    // Take only what we need
                           ->get();
             
-            // 7. Format the data for DataTable
+            // 8. Format the data for DataTable
             $salesData = [];
             foreach ($sales as $sale) {
                 // Build customer name from first_name + last_name
@@ -338,7 +379,7 @@ class SaleController extends Controller
                 ];
             }
 
-            // 8. Return the data in DataTable format
+            // 9. Return the data in DataTable format
             return response()->json([
                 'draw' => $draw,
                 'recordsTotal' => $totalCount,
