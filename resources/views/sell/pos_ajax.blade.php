@@ -332,7 +332,7 @@
                     if (pricingResult.hasError || pricingResult.price <= 0) {
                         console.warn(
                             `Invalid price calculated for product ${productData.product_name}: ${pricingResult.price}`
-                            );
+                        );
                         return;
                     }
 
@@ -341,7 +341,7 @@
 
                     console.log(
                         `Updated ${productData.product_name}: Price ₹${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`
-                        );
+                    );
                 } catch (error) {
                     console.error('Error updating billing row pricing:', error);
                 }
@@ -404,7 +404,7 @@
 
                 console.log(
                     `Updated discounts - Fixed: ₹${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`
-                    );
+                );
             } else {
                 console.warn('MRP not found, unable to calculate discount');
             }
@@ -595,7 +595,7 @@
                                     if (optionText !== 'please select' &&
                                         !optionText.includes('walk-in') &&
                                         !optionText.includes(
-                                        selectedRouteName) &&
+                                            selectedRouteName) &&
                                         (optionText.includes('kalmunai') ||
                                             optionText.includes('retailer'))) {
                                         hasWrongRouteCustomers = true;
@@ -612,7 +612,7 @@
 
                                 console.log(
                                     'Customer filtering needed - applying route-based filter'
-                                    );
+                                );
                                 lastFilterTime = Date.now(); // Update last filter time
 
                                 if (selection) {
@@ -771,7 +771,7 @@
                 } else {
                     console.log(
                         'No exact assignment match found, but selection exists - attempting to preserve selection'
-                        );
+                    );
                     // Instead of immediately clearing, try to use the existing selection
                     // This handles cases where the backend data structure might have changed slightly
                     if (selection && selection.vehicle && selection.route) {
@@ -1142,7 +1142,7 @@
             // Validate customers parameter
             if (!customers || !Array.isArray(customers)) {
                 console.error('populateFilteredCustomers: customers parameter is not a valid array:',
-                customers);
+                    customers);
                 restoreOriginalCustomers();
                 return;
             }
@@ -1159,7 +1159,7 @@
             if (!isSalesRep) {
                 const walkInOption = $(
                     '<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>'
-                    );
+                );
                 walkInOption.data('due', 0);
                 walkInOption.data('credit_limit', 0);
                 customerSelect.append(walkInOption);
@@ -1190,7 +1190,7 @@
                     `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
                 const option = $(
                     `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
-                    );
+                );
                 option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
@@ -1213,7 +1213,7 @@
                     `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
                 const option = $(
                     `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
-                    );
+                );
                 option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
@@ -1290,7 +1290,7 @@
 
             console.log(
                 `Customer validation for route ${selection.route.name}: ${correctCustomers} correct, ${wrongRouteCustomers} wrong route`
-                );
+            );
 
             if (wrongRouteCustomers > 0 && !salesRepCustomersFiltered) {
                 setTimeout(() => filterCustomersByRoute(selection), 500);
@@ -1354,7 +1354,7 @@
             const selection = getSalesRepSelection();
             if (!selection) {
                 toastr.error('Please select your vehicle and route before making a sale.',
-                'Selection Required');
+                    'Selection Required');
                 return false;
             }
 
@@ -1630,7 +1630,7 @@
             if (reset) showLoader();
             fetch(
                     `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`
-                    )
+                )
                 .then(res => res.json())
                 .then(data => {
                     hideLoader();
@@ -1921,7 +1921,7 @@
                         const firstItem = menu.element.find("li:first-child");
 
                         if (firstItem.length > 0 && !firstItem.text().includes(
-                            "No results")) {
+                                "No results")) {
                             // Properly set the active item using jQuery UI's method
                             menu.element.find(".ui-state-focus").removeClass(
                                 "ui-state-focus");
@@ -1945,7 +1945,7 @@
                 } else {
                     li.append(
                         `<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`
-                        );
+                    );
                 }
                 return li.appendTo(ul);
             };
@@ -2054,7 +2054,8 @@
 
                 if (!stockEntry) {
                     fetch(
-                            `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
+                            `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`
+                        )
                         .then(res => res.json())
                         .then(data => {
                             if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
@@ -2226,12 +2227,50 @@
 
                 if (existingRows.length > 0) {
                     console.log('Found existing rows for product, showing modal for additional selection');
-                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType);
+                    // For existing rows, don't specify a batch to show all available IMEIs
+                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType, null);
                     return;
                 }
 
-                console.log('No existing rows, showing fresh IMEI modal');
-                showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType);
+                // Get the available batches for this location to determine default batch
+                let batchesArray = normalizeBatches(stockEntry);
+                batchesArray = batchesArray.filter(batch =>
+                    Array.isArray(batch.location_batches) &&
+                    batch.location_batches.some(lb =>
+                        String(lb.location_id) == String(selectedLocationId) &&
+                        parseFloat(lb.quantity) > 0
+                    )
+                );
+
+                if (batchesArray.length === 0) {
+                    toastr.error('No batches with available quantity found in this location for IMEI product',
+                        'Error');
+                    return;
+                }
+
+                // Sort batches by id descending (latest batch first)
+                batchesArray = batchesArray.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+                // Check if there are multiple batches with different prices
+                const uniquePrices = [];
+                for (const batch of batchesArray) {
+                    const priceResult = getCustomerTypePrice(batch, product, currentCustomer.customer_type);
+                    if (!priceResult.hasError) {
+                        uniquePrices.push(priceResult.price);
+                    }
+                }
+                const distinctPrices = [...new Set(uniquePrices)];
+
+                if (distinctPrices.length <= 1) {
+                    // Single price - use latest batch and show its IMEIs
+                    const selectedBatch = batchesArray[0];
+                    console.log('Single price for IMEI product, using latest batch:', selectedBatch.id);
+                    showImeiSelectionModal(product, stockEntry, [], searchTerm, matchType, selectedBatch.id);
+                } else {
+                    // Multiple prices - user needs to select batch first, then IMEIs
+                    console.log('Multiple prices for IMEI product, showing batch selection first');
+                    showBatchPriceSelectionModal(product, stockEntry, batchesArray, currentCustomer);
+                }
                 return;
             }
 
@@ -2454,24 +2493,41 @@
                         max_retail_price: batchMrp
                     };
 
-                    // Add product to billing with quantity 1
-                    addProductToBillingBody(
-                        productWithBatchPrices,
-                        stockEntry,
-                        customerPrice,
-                        selectedBatch.id,
-                        qty,
-                        currentCustomer.customer_type,
-                        1, // Quantity is 1 when selecting from modal
-                        [],
-                        null,
-                        null,
-                        selectedBatch
-                    );
+                    // Check if this is an IMEI product
+                    if (product.is_imei_or_serial_no === 1) {
+                        console.log('IMEI product batch selected, opening IMEI modal for batch:', selectedBatch
+                            .id);
+                        // Close batch modal first
+                        if (isModalOpen) {
+                            modal.hide();
+                            isModalOpen = false;
+                        }
 
-                    if (isModalOpen) {
-                        modal.hide();
-                        isModalOpen = false;
+                        // Show IMEI selection modal for the selected batch
+                        setTimeout(() => {
+                            showImeiSelectionModal(product, stockEntry, [], '', 'BATCH_SELECTED',
+                                selectedBatch.id);
+                        }, 300);
+                    } else {
+                        // Add non-IMEI product to billing with quantity 1
+                        addProductToBillingBody(
+                            productWithBatchPrices,
+                            stockEntry,
+                            customerPrice,
+                            selectedBatch.id,
+                            qty,
+                            currentCustomer.customer_type,
+                            1, // Quantity is 1 when selecting from modal
+                            [],
+                            null,
+                            null,
+                            selectedBatch
+                        );
+
+                        if (isModalOpen) {
+                            modal.hide();
+                            isModalOpen = false;
+                        }
                     }
                 }
             }
@@ -2526,11 +2582,13 @@
         let currentImeiProduct = null;
         let currentImeiStockEntry = null;
 
-        function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', matchType = '') {
+        function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', matchType = '',
+            selectedBatchId = null) {
             currentImeiProduct = product;
             currentImeiStockEntry = stockEntry;
 
-            console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType);
+            console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType,
+                'Selected batch ID:', selectedBatchId);
             console.log('Is editing:', isEditing, 'Current sale ID:', currentEditingSaleId);
 
             // Force refresh stock data for IMEI products to get latest status
@@ -2557,30 +2615,35 @@
                                     console.log('Updated global stockData for product:', product.id);
                                 }
                                 // Use the updated stock entry
-                                continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType);
+                                continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType,
+                                    selectedBatchId);
                             } else {
                                 console.log('Product not found in updated data, using original');
-                                continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                                continueWithImeiModal(product, stockEntry, searchTerm, matchType,
+                                    selectedBatchId);
                             }
                         } else {
                             console.log('No updated data received, using original');
-                            continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                            continueWithImeiModal(product, stockEntry, searchTerm, matchType,
+                                selectedBatchId);
                         }
                     })
                     .catch(error => {
                         console.error('Error refreshing stock data:', error);
-                        continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                        continueWithImeiModal(product, stockEntry, searchTerm, matchType, selectedBatchId);
                     });
             } else {
-                continueWithImeiModal(product, stockEntry, searchTerm, matchType);
+                continueWithImeiModal(product, stockEntry, searchTerm, matchType, selectedBatchId);
             }
         }
 
-        function continueWithImeiModal(product, stockEntry, searchTerm = '', matchType = '') {
+        function continueWithImeiModal(product, stockEntry, searchTerm = '', matchType = '', selectedBatchId =
+            null) {
             console.log('=== CONTINUE WITH IMEI MODAL ===');
             console.log('Product:', product);
             console.log('StockEntry:', stockEntry);
             console.log('StockEntry IMEI Numbers:', stockEntry.imei_numbers);
+            console.log('Selected Batch ID:', selectedBatchId);
 
             // Collect already selected IMEIs in billing
             selectedImeisInBilling = [];
@@ -2603,15 +2666,57 @@
             const processImeiData = (allRelevantImeis) => {
                 console.log('ProcessImeiData called with:', allRelevantImeis);
 
+                // *** BATCH-SPECIFIC FILTERING FOR IMEI PRODUCTS ***
+                let filteredImeis = allRelevantImeis;
+
+                // If selectedBatchId is provided, filter IMEIs to only show those belonging to that batch
+                if (selectedBatchId && selectedBatchId !== "all") {
+                    console.log('Filtering IMEIs for specific batch ID:', selectedBatchId);
+                    filteredImeis = allRelevantImeis.filter(imei => {
+                        // Check if IMEI belongs to the selected batch
+                        const belongsToBatch = String(imei.batch_id) === String(selectedBatchId);
+                        console.log(
+                            `IMEI ${imei.imei_number} batch_id: ${imei.batch_id}, selected batch: ${selectedBatchId}, belongs: ${belongsToBatch}`
+                        );
+                        return belongsToBatch;
+                    });
+
+                    console.log(
+                        `Filtered ${allRelevantImeis.length} IMEIs to ${filteredImeis.length} for batch ${selectedBatchId}`
+                    );
+
+                    if (filteredImeis.length === 0) {
+                        toastr.warning(
+                            `No IMEIs found for the selected batch. Showing all available IMEIs for this product.`
+                        );
+                        filteredImeis = allRelevantImeis;
+                    }
+                } else if (selectedBatchId === "all") {
+                    console.log('Batch "all" selected, showing all available IMEIs');
+                    // Keep all IMEIs when "all" is selected
+                } else {
+                    console.log('No specific batch selected, showing all available IMEIs');
+                }
+
+                console.log('Final filtered IMEIs for modal:', filteredImeis);
+
                 // Ensure batches is always an array using helper function
                 const batchesArray = normalizeBatches(stockEntry);
 
-                const selectedBatch = batchesArray.find(b =>
-                    b.location_batches && b.location_batches.some(lb => lb.location_id ==
-                        selectedLocationId)
-                );
-                const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
-                let missingImeiCount = Math.max(0, batchQty - allRelevantImeis.length);
+                // Find the batch for quantity calculation
+                let selectedBatch = null;
+                if (selectedBatchId && selectedBatchId !== "all") {
+                    selectedBatch = batchesArray.find(b => String(b.id) === String(selectedBatchId));
+                } else {
+                    // Use the first available batch or find one with location batches
+                    selectedBatch = batchesArray.find(b =>
+                        b.location_batches && b.location_batches.some(lb => lb.location_id ==
+                            selectedLocationId)
+                    );
+                }
+
+                const batchQty = selectedBatch ? selectedBatch.total_batch_quantity || 0 : 0;
+                let missingImeiCount = Math.max(0, batchQty - filteredImeis.length);
 
                 const tbody = document.getElementById('imei-table-body');
                 if (!tbody) {
@@ -2621,8 +2726,8 @@
                 tbody.innerHTML = '';
                 const imeiRows = [];
 
-                // Populate all relevant IMEIs
-                allRelevantImeis.forEach((imei, index) => {
+                // Populate filtered IMEIs only
+                filteredImeis.forEach((imei, index) => {
                     const isChecked = selectedImeisInBilling.includes(imei.imei_number);
 
                     // Check if this IMEI matches the search term (for auto-selection)
@@ -2632,6 +2737,7 @@
                     const row = document.createElement('tr');
                     row.dataset.imei = imei.imei_number;
                     row.dataset.imeiId = imei.id; // <-- Store primary key for edit
+                    row.dataset.batchId = imei.batch_id; // Store batch ID for reference
 
                     // Add special styling for searched IMEI
                     if (isSearchedImei) {
@@ -2639,10 +2745,16 @@
                         row.style.border = '2px solid #17a2b8';
                     }
 
+                    // Add batch information to the display
+                    const batchInfo = selectedBatchId && selectedBatchId !== "all" ?
+                        ` (Batch: ${imei.batch_id})` :
+                        (filteredImeis.length < allRelevantImeis.length ?
+                            ` (Batch: ${imei.batch_id})` : '');
+
                     row.innerHTML = `
                 <td>${index + 1}</td>
                 <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked || isSearchedImei ? 'checked' : ''} data-status="${imei.status}" /></td>
-                <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}</td>
+                <td class="imei-display">${imei.imei_number}${isSearchedImei ? ' 🔍' : ''}${batchInfo}</td>
                 <td><span class="badge ${imei.status === 'available' ? 'bg-success' : 'bg-danger'}">${imei.status}</span></td>
                 <td>
                     ${(typeof userPermissions !== 'undefined' && userPermissions.canEditProduct) ? `<button class="btn btn-sm btn-warning edit-imei-btn">Edit</button>` : ''}
@@ -2660,7 +2772,7 @@
                     imeiRows.push(row);
                 });
 
-                // Add initial manual IMEI row
+                // Add initial manual IMEI row if needed
                 if (missingImeiCount > 0) {
                     addNewImeiRow(missingImeiCount, tbody, imeiRows);
                 }
@@ -2671,6 +2783,17 @@
                     toastr.error("IMEI modal not found");
                     return;
                 }
+
+                // Update modal title to indicate batch filtering if applicable
+                const modalTitle = modalElement.querySelector('.modal-title');
+                if (modalTitle) {
+                    let titleText = `Select IMEI for ${product.product_name}`;
+                    if (selectedBatchId && selectedBatchId !== "all") {
+                        titleText += ` (Batch: ${selectedBatchId})`;
+                    }
+                    modalTitle.textContent = titleText;
+                }
+
                 const modal = new bootstrap.Modal(modalElement);
 
                 // Add event listener for modal cleanup
@@ -2719,7 +2842,7 @@
                                         // Create IMEI object that matches the format from autocomplete
                                         currentSaleImeis.push({
                                             id: sp
-                                            .id, // Use sale product ID as placeholder
+                                                .id, // Use sale product ID as placeholder
                                             imei_number: imeiNumber,
                                             location_id: sp.location_id,
                                             batch_id: sp.batch_id,
@@ -2898,22 +3021,39 @@
                     document.body.style.overflow = '';
                     document.body.style.paddingRight = '';
                 }
-                const batchId = selectedBatch ? selectedBatch.id : "all";
 
-                // Get customer-type-based price
-                const currentCustomer = getCurrentCustomer();
-                const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer
-                    .customer_type);
+                // Check if we have stored batch information from the product modal
+                let batchId, price, currentCustomer;
 
-                if (priceResult.hasError) {
-                    toastr.error(
-                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
-                        'Pricing Error');
-                    return;
+                if (window.modalSelectedBatch) {
+                    // Use the stored batch information from the product modal
+                    batchId = window.modalSelectedBatch.batchId;
+                    price = window.modalSelectedBatch.price;
+                    currentCustomer = getCurrentCustomer();
+
+                    console.log('Using stored batch information from product modal:', window
+                        .modalSelectedBatch);
+
+                    // Clear the stored information
+                    delete window.modalSelectedBatch;
+                } else {
+                    // Use the default logic
+                    batchId = selectedBatch ? selectedBatch.id : "all";
+                    currentCustomer = getCurrentCustomer();
+                    const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer
+                        .customer_type);
+
+                    if (priceResult.hasError) {
+                        toastr.error(
+                            `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                            'Pricing Error');
+                        return;
+                    }
+                    price = priceResult.price;
                 }
 
-                const price = priceResult.price;
-                const imeiLocationId = selectedBatch?.location_batches[0]?.location_id ?? 1;
+                const imeiLocationId = selectedBatch?.location_batches?.[0]?.location_id ??
+                    selectedLocationId;
 
                 if (newImeis.length > 0) {
                     fetch('/save-or-update-imei', {
@@ -2926,7 +3066,8 @@
                             body: JSON.stringify({
                                 product_id: product.id,
                                 batches: [{
-                                    batch_id: batchId,
+                                    batch_id: batchId === "all" ? (selectedBatch?.id ||
+                                        1) : batchId,
                                     location_id: imeiLocationId,
                                     qty: newImeis.length
                                 }],
@@ -2999,10 +3140,49 @@
                 return;
             }
 
-            imeis.forEach(imei => {
+            // *** FIX: Create separate billing row for each IMEI ***
+            // Each IMEI = One row with quantity = 1 (no grouping by batch)
+            console.log('Adding separate billing rows for each IMEI:', imeis);
+
+            imeis.forEach(imeiNumber => {
+                // Find the IMEI object in stockEntry to get its batch_id
+                const imeiObj = stockEntry.imei_numbers?.find(imei => imei.imei_number === imeiNumber);
+                const imeiBatchId = imeiObj ? imeiObj.batch_id : batchId;
+
+                console.log(
+                    `Creating individual billing row for IMEI: ${imeiNumber}, Batch: ${imeiBatchId}`
+                );
+
+                // Find the appropriate batch for pricing
+                const batchForPricing = batchesArray.find(b => b.id === parseInt(imeiBatchId)) ||
+                    batchesArray.find(b => b.id === parseInt(batchId)) ||
+                    batchesArray[0]; // Fallback to first batch
+
+                // Get customer-type-based price for this specific batch
+                const batchPriceResult = getCustomerTypePrice(batchForPricing, product, currentCustomer
+                    .customer_type);
+
+                let finalPrice;
+                if (batchPriceResult.hasError) {
+                    console.warn(`Price error for batch ${imeiBatchId}, using stored price`);
+                    finalPrice = price; // Use the price passed from the modal
+                } else {
+                    finalPrice = batchPriceResult.price;
+                }
+
+                // Add individual billing row for this single IMEI with quantity = 1
                 addProductToBillingBody(
-                    product, stockEntry, priceResult.price, batchId, 1, currentCustomer
-                    .customer_type, 1, [imei]
+                    product,
+                    stockEntry,
+                    finalPrice,
+                    imeiBatchId,
+                    1, // batchQuantity = 1 for individual IMEI
+                    currentCustomer.customer_type,
+                    1, // saleQuantity = 1 for individual IMEI
+                    [imeiNumber], // Array with single IMEI
+                    null, // discountType
+                    null, // discountAmount  
+                    batchForPricing // selectedBatch
                 );
             });
 
@@ -3161,6 +3341,10 @@
                 basePrice * (1 - discountAmount / 100) :
                 basePrice - discountAmount;
 
+            // Store product and stock entry for IMEI handling
+            currentImeiProduct = product;
+            currentImeiStockEntry = stockEntry;
+
             // Get current customer for default selection
             const currentCustomer = getCurrentCustomer();
             console.log('Current customer in modal:', currentCustomer);
@@ -3242,7 +3426,7 @@
                 // Build batch options with all available prices
                 batchOptions = locationBatches.map((batch, idx) => {
                     let priceDisplay =
-                    `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
+                        `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
 
                     if (batch.wholesale_price > 0) {
                         priceDisplay +=
@@ -3483,7 +3667,9 @@
                 initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/,
                     '') : parseInt(saleQuantity, 10);
             } else if (imeis.length > 0) {
-                initialQuantityValue = imeis.length;
+                // *** FIX: For IMEI products, each row should always have quantity = 1 ***
+                // Since we now create separate rows for each IMEI, each row gets exactly 1 IMEI
+                initialQuantityValue = 1;
             } else if (allowDecimal) {
                 // For decimal units, use the available stock as default if less than 1, else 1
                 let availableQty = parseFloat(adjustedBatchQuantity);
@@ -3575,7 +3761,6 @@
             <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;">
             ${product.product_name}
             <span class="badge bg-info ms-1">MRP: ${product.max_retail_price}</span>
-            ${product.is_imei_or_serial_no === 1 ? '<span class="badge bg-warning ms-1">IMEI Product</span>' : ''}
             </div>
             <div class="d-flex flex-wrap align-items-center mt-1" style="gap: 10px;">
             <span class="text-muted product-sku" style="font-size: 0.95em; word-break: break-all;">
@@ -3630,7 +3815,8 @@
             // Handle IMEI display and input restrictions
             if (imeis.length > 0) {
                 if (qtyDisplayCell) {
-                    qtyDisplayCell.textContent = `${imeis.length} of ${adjustedBatchQuantity} ${unitName}`;
+                    // *** FIX: Each IMEI row shows "1 of 1" since it represents a single IMEI ***
+                    qtyDisplayCell.textContent = `1 ${unitName} (IMEI: ${imeis[0]})`;
                 }
                 if (quantityInput) quantityInput.readOnly = true;
                 if (plusBtn) plusBtn.disabled = true;
@@ -3704,16 +3890,6 @@
             const allowDecimal = product.unit && (product.unit.allow_decimal === true || product.unit
                 .allow_decimal === 1);
 
-            // // Set input attributes for decimal support
-            // if (allowDecimal) {
-            //     quantityInput.setAttribute('step', 'any');
-            //     quantityInput.setAttribute('pattern', '[0-9]+([.][0-9]{1,4})?');
-            //     quantityInput.setAttribute('inputmode', 'decimal');
-            // } else {
-            //     quantityInput.setAttribute('step', '1');
-            //     quantityInput.setAttribute('pattern', '[0-9]*');
-            //     quantityInput.setAttribute('inputmode', 'numeric');
-            // }
 
             // Handle discount inputs and price editability
             if (fixedDiscountInput) {
@@ -3759,32 +3935,6 @@
             // Initial price editability check
             updatePriceEditability(row);
 
-            // quantityInput.addEventListener('blur', () => {
-            //     let value = quantityInput.value;
-            //     let quantityValue = parseFloat(value);
-
-            //     if (isNaN(quantityValue)) {
-            //         quantityValue = allowDecimal ? 0.01 : 1;
-            //     } else {
-            //         // Clamp min value
-            //         if (allowDecimal && quantityValue < 0.01) quantityValue = 0.01;
-            //         if (!allowDecimal && quantityValue < 1) quantityValue = 1;
-
-            //         // Clamp max value
-            //         const maxQuantity = parseFloat(priceInput.getAttribute('data-quantity'));
-            //         if (quantityValue > maxQuantity && product.stock_alert !== 0) {
-            //             showQuantityLimitError(maxQuantity);
-            //             quantityValue = maxQuantity;
-            //         }
-            //     }
-
-            //     quantityInput.value = allowDecimal ?
-            //         quantityValue.toFixed(4).replace(/\.?0+$/, '') :
-            //         quantityValue;
-            //     quantityInput.classList.remove('is-invalid');
-
-            //     updateTotals();
-            // });
 
 
             quantityInput.addEventListener('input', () => {
@@ -3913,16 +4063,19 @@
             if (showImeiBtn) {
                 showImeiBtn.addEventListener('click', function() {
                     const imeiDataCell = row.querySelector('.imei-data');
+                    const batchIdCell = row.querySelector('.batch-id');
                     const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
                         Boolean) : [];
+                    const batchId = batchIdCell ? batchIdCell.textContent.trim() : null;
+
                     if (imeis.length === 0) {
                         toastr.warning("No IMEIs found for this product.");
                         return;
                     }
-                    // Re-populate IMEI modal with current IMEIs
+                    // Re-populate IMEI modal with current IMEIs and batch context
                     showImeiSelectionModal(product, stockEntry, imeis.map(imei => ({
                         imei_number: imei
-                    })));
+                    })), '', 'EDIT', batchId !== "all" ? batchId : null);
                 });
             }
 
@@ -3952,6 +4105,41 @@
                 return;
             }
 
+            // Get the product info from the modal context
+            const modalProduct = currentImeiProduct || selectedRow?.dataset?.product ? JSON.parse(
+                selectedRow.dataset.product) : null;
+
+            // Check if this is an IMEI product
+            const isImeiProduct = modalProduct && modalProduct.is_imei_or_serial_no === 1;
+
+            if (isImeiProduct) {
+                console.log('IMEI product detected in saveProductChanges, opening IMEI modal for batch:',
+                    batchId);
+
+                // Close the product modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
+                modal.hide();
+
+                // Store the selected batch and pricing information for later use
+                window.modalSelectedBatch = {
+                    batchId: batchId,
+                    price: price,
+                    priceType: selectedPriceType,
+                    batchQuantity: batchQuantity,
+                    mrpPrice: parseFloat(selectedBatch.getAttribute('data-max-retail-price')) || 0
+                };
+
+                // Open IMEI selection modal for the selected batch
+                setTimeout(() => {
+                    const batchIdForImei = batchId === 'all' ? null : batchId;
+                    showImeiSelectionModal(modalProduct, currentImeiStockEntry, [], '',
+                        'MODAL_SAVE_CHANGES', batchIdForImei);
+                }, 300);
+
+                return; // Don't proceed with normal product update
+            }
+
+            // Handle non-IMEI products normally
             if (selectedRow) {
                 const quantityInput = selectedRow.querySelector('.quantity-input');
                 const priceInput = selectedRow.querySelector('.price-input');
@@ -4827,10 +5015,10 @@
                             if (stockData[stockIndex].imei_numbers) {
                                 stockData[stockIndex].imei_numbers.forEach(imei => {
                                     if (soldProduct.soldImeis.includes(imei
-                                        .imei_number)) {
+                                            .imei_number)) {
                                         console.log(
                                             `Marking IMEI ${imei.imei_number} as sold`
-                                            );
+                                        );
                                         imei.status = 'sold';
                                     }
                                 });
@@ -4843,7 +5031,7 @@
 
                             console.log(
                                 `Updated stock for product ${soldProduct.productId}: ${stockData[stockIndex].total_stock} available`
-                                );
+                            );
                         }
                     });
 
@@ -4867,7 +5055,7 @@
                         if (payment.payment_method === 'cheque') {
                             toastr.error(
                                 'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
-                                );
+                            );
                             onComplete();
                             return;
                         }
@@ -4981,9 +5169,9 @@
                                                 'Content-Type': 'application/json',
                                                 'X-CSRF-TOKEN': $(
                                                     'meta[name="csrf-token"]'
-                                                    ).attr(
+                                                ).attr(
                                                     'content'
-                                                    )
+                                                )
                                             }
                                         }).catch(error => {
                                             console.warn(
@@ -5009,7 +5197,7 @@
                                         .then(function() {
                                             console.log(
                                                 'Customer data refreshed after successful sale'
-                                                );
+                                            );
 
                                             // Restore customer selection if needed
                                             if (currentCustomerId &&
@@ -5018,7 +5206,7 @@
                                                     $('#customer-id')
                                                         .val(
                                                             currentCustomerId
-                                                            );
+                                                        );
                                                     $('#customer-id')
                                                         .trigger(
                                                             'change');
@@ -5161,7 +5349,7 @@
                     if (!validateAllQuantities()) {
                         toastr.error(
                             'Please fix the invalid quantities (red borders) before processing the payment.'
-                            );
+                        );
                         enableButton(button);
                         return;
                     }
@@ -5276,7 +5464,7 @@
                     if (!validateAllQuantities()) {
                         toastr.error(
                             'Please fix the invalid quantities (red borders) before processing the payment.'
-                            );
+                        );
                         enableButton(button);
                         return;
                     }
@@ -5305,7 +5493,7 @@
                 if (customerId == 1) {
                     toastr.error(
                         'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
-                        );
+                    );
                     return; // Prevent opening the modal
                 }
                 $('#chequeModal').modal('show');
@@ -5369,7 +5557,7 @@
                     if (!validateAllQuantities()) {
                         toastr.error(
                             'Please fix the invalid quantities (red borders) before processing the payment.'
-                            );
+                        );
                         enableButton(button);
                         return;
                     }
@@ -5379,7 +5567,7 @@
                     if (customerId == 1) {
                         toastr.error(
                             'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
-                            );
+                        );
                         enableButton(button);
                         return;
                     }
@@ -5432,7 +5620,7 @@
                     if (!validateAllQuantities()) {
                         toastr.error(
                             'Please fix the invalid quantities (red borders) before processing the payment.'
-                            );
+                        );
                         enableButton(button);
                         return;
                     }
@@ -5597,7 +5785,7 @@
                 if (!validateAllQuantities()) {
                     toastr.error(
                         'Please fix the invalid quantities (red borders) before processing the payment.'
-                        );
+                    );
                     return;
                 }
 
