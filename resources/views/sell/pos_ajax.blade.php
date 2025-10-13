@@ -14,12 +14,12 @@
         // Remove all modal backdrops
         const backdrops = document.querySelectorAll('.modal-backdrop');
         backdrops.forEach(backdrop => backdrop.remove());
-        
+
         // Reset body styles
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
-        
+
         console.log('Modal backdrop cleanup completed');
     };
 
@@ -46,10 +46,10 @@
         // ---- INIT ----
         // Early restoration of sales rep display from storage (before API calls)
         restoreSalesRepDisplayFromStorage();
-        
+
         // Check if user is sales rep and handle vehicle/route selection
         checkSalesRepStatus();
-        
+
         // Protect sales rep customer filtering from being overridden
         protectSalesRepCustomerFiltering();
         fetchAllLocations();
@@ -64,17 +64,17 @@
             if (productSearchInput) {
                 productSearchInput.focus();
                 productSearchInput.select(); // Also select any existing text
-                
+
                 // Add a subtle visual feedback for auto-focus
                 productSearchInput.style.transition = 'all 0.3s ease';
                 productSearchInput.style.boxShadow = '0 0 10px rgba(0, 123, 255, 0.3)';
                 productSearchInput.style.borderColor = '#007bff';
-                
+
                 setTimeout(() => {
                     productSearchInput.style.boxShadow = '';
                     productSearchInput.style.borderColor = '';
                 }, 2000); // Remove highlight after 2 seconds
-                
+
                 console.log('Product search input auto-focused for quick searching');
             }
         }, 500); // Small delay to ensure all elements are loaded
@@ -97,14 +97,14 @@
             // Update pricing for existing products in billing table
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
-            
+
             if (existingRows.length > 0) {
                 const currentCustomer = getCurrentCustomer();
                 console.log('Customer changed to:', currentCustomer);
-                
+
                 // Update all existing billing rows with new customer pricing
                 updateAllBillingRowsPricing(currentCustomer.customer_type);
-                
+
                 // toastr.success('Product prices and discounts updated based on new customer type!');
             }
         });
@@ -116,25 +116,28 @@
         function getCurrentCustomer() {
             const customerId = $('#customer-id').val();
             if (!customerId || customerId === '1') {
-                return { id: 1, customer_type: 'retailer' }; // Default walk-in customer as retailer
+                return {
+                    id: 1,
+                    customer_type: 'retailer'
+                }; // Default walk-in customer as retailer
             }
 
             // Get customer data from the select option
             const customerOption = $('#customer-id option:selected');
-            
+
             // First try to get customer type from data attribute (most reliable)
             let customerType = customerOption.attr('data-customer-type');
-            
+
             if (customerType) {
                 console.log('Customer type found in data attribute:', customerType);
             } else {
                 // Fallback: Extract from dropdown text
                 const customerText = customerOption.text();
                 console.log('Customer dropdown text:', customerText);
-                
+
                 // Extract customer type from the option text format: "Name - Type (Mobile)"
                 customerType = 'retailer'; // Default fallback
-                
+
                 if (customerText.toLowerCase().includes('- wholesaler')) {
                     customerType = 'wholesaler';
                 } else if (customerText.toLowerCase().includes('- retailer')) {
@@ -142,7 +145,7 @@
                 } else {
                     // Last resort: make AJAX call to get customer data
                     console.warn('Customer type not found, fetching from server...');
-                    
+
                     $.ajax({
                         url: `/customer-get-by-id/${customerId}`,
                         method: 'GET',
@@ -164,7 +167,7 @@
                 id: parseInt(customerId),
                 customer_type: customerType
             };
-            
+
             console.log('Final getCurrentCustomer result:', result);
             return result;
         }
@@ -173,8 +176,9 @@
          * Determine the correct price based on customer type and batch pricing
          */
         function getCustomerTypePrice(batch, product, customerType) {
-            console.log('Determining price for customer type:', customerType, 'Batch:', batch, 'Product:', product);
-            
+            console.log('Determining price for customer type:', customerType, 'Batch:', batch, 'Product:',
+                product);
+
             let selectedPrice = 0;
             let priceSource = '';
 
@@ -240,7 +244,8 @@
 
             // Validate price is not zero
             if (selectedPrice <= 0) {
-                console.error('No valid price found for product:', product.product_name, 'customer type:', customerType);
+                console.error('No valid price found for product:', product.product_name, 'customer type:',
+                    customerType);
                 logPricingError(product, customerType, batch);
                 return {
                     price: 0,
@@ -291,7 +296,7 @@
         function updateAllBillingRowsPricing(newCustomerType) {
             const billingBody = document.getElementById('billing-body');
             const existingRows = billingBody ? billingBody.querySelectorAll('tr') : [];
-            
+
             if (existingRows.length === 0) {
                 console.log('No existing billing rows to update');
                 return;
@@ -304,7 +309,7 @@
                     // Extract product data from row attributes
                     const productId = row.getAttribute('data-product-id');
                     const batchId = row.getAttribute('data-batch-id');
-                    
+
                     if (!productId) {
                         console.warn('Product ID not found in billing row, skipping update');
                         return;
@@ -313,7 +318,7 @@
                     // Get product data from row or fetch from available data
                     const productData = getProductDataById(productId);
                     const batchData = batchId ? getBatchDataById(batchId) : null;
-                    
+
                     if (!productData) {
                         console.warn(`Product data not found for ID: ${productId}, skipping update`);
                         return;
@@ -321,18 +326,22 @@
 
                     // Calculate new price based on customer type
                     const pricingResult = getCustomerTypePrice(batchData, productData, newCustomerType);
-                    
+
                     console.log(`Pricing result for ${productData.product_name}:`, pricingResult);
-                    
+
                     if (pricingResult.hasError || pricingResult.price <= 0) {
-                        console.warn(`Invalid price calculated for product ${productData.product_name}: ${pricingResult.price}`);
+                        console.warn(
+                            `Invalid price calculated for product ${productData.product_name}: ${pricingResult.price}`
+                            );
                         return;
                     }
 
                     // Update the price and discount in the billing row
                     updateBillingRowPrice(row, pricingResult.price, pricingResult.source);
-                    
-                    console.log(`Updated ${productData.product_name}: Price ₹${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`);
+
+                    console.log(
+                        `Updated ${productData.product_name}: Price ₹${pricingResult.price} (${pricingResult.source}) with auto-calculated discount`
+                        );
                 } catch (error) {
                     console.error('Error updating billing row pricing:', error);
                 }
@@ -340,7 +349,7 @@
 
             // Recalculate total after all price updates
             updateTotals();
-            
+
             console.log('All billing rows updated successfully');
         }
 
@@ -352,17 +361,17 @@
             const priceInput = row.querySelector('.price-input.unit-price');
             const quantityInput = row.querySelector('.quantity-input');
             const totalCell = row.querySelector('.total-price');
-            
+
             // Find discount fields
             const fixedDiscountInput = row.querySelector('.fixed_discount');
             const percentDiscountInput = row.querySelector('.percent_discount');
-            
+
             // Get MRP from price input data attribute or calculate it
             let mrp = 0;
             if (priceInput) {
                 mrp = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
             }
-            
+
             // If MRP not found, try to get it from product data
             if (mrp === 0) {
                 const productId = row.getAttribute('data-product-id');
@@ -371,7 +380,7 @@
                     mrp = parseFloat(productData.max_retail_price);
                 }
             }
-            
+
             if (priceInput) {
                 // Update the input value and data attribute
                 priceInput.value = parseFloat(newPrice).toFixed(2);
@@ -382,18 +391,20 @@
             if (mrp > 0) {
                 const newFixedDiscount = mrp - newPrice;
                 const newPercentDiscount = (newFixedDiscount / mrp) * 100;
-                
+
                 // Update fixed discount field
                 if (fixedDiscountInput) {
                     fixedDiscountInput.value = newFixedDiscount.toFixed(2);
                 }
-                
+
                 // Update percentage discount field
                 if (percentDiscountInput) {
                     percentDiscountInput.value = newPercentDiscount.toFixed(2);
                 }
-                
-                console.log(`Updated discounts - Fixed: ₹${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`);
+
+                console.log(
+                    `Updated discounts - Fixed: ₹${newFixedDiscount.toFixed(2)}, Percentage: ${newPercentDiscount.toFixed(2)}%`
+                    );
             } else {
                 console.warn('MRP not found, unable to calculate discount');
             }
@@ -403,7 +414,7 @@
                 const quantity = parseFloat(quantityInput.value || 1);
                 const newTotal = (newPrice * quantity).toFixed(2);
                 totalCell.textContent = formatAmountWithSeparators(newTotal);
-                
+
                 // Update data attribute if exists
                 totalCell.setAttribute('data-total', newTotal);
             }
@@ -418,22 +429,23 @@
          */
         function getProductDataById(productId) {
             if (!productId) return null;
-            
+
             // Try to find product in allProducts array first with null checks
             let product = null;
-            
+
             if (allProducts && Array.isArray(allProducts)) {
                 product = allProducts.find(p => p && p.id && p.id == productId);
             }
-            
+
             if (!product && stockData && Array.isArray(stockData)) {
                 // Try to find in stockData if available
-                const stockEntry = stockData.find(s => s && s.product && s.product.id && s.product.id == productId);
+                const stockEntry = stockData.find(s => s && s.product && s.product.id && s.product.id ==
+                    productId);
                 if (stockEntry && stockEntry.product) {
                     product = stockEntry.product;
                 }
             }
-            
+
             return product;
         }
 
@@ -442,7 +454,7 @@
          */
         function getBatchDataById(batchId) {
             if (!batchId) return null;
-            
+
             // Search through all products' batches
             for (const product of allProducts) {
                 if (product.batches && Array.isArray(product.batches)) {
@@ -450,7 +462,7 @@
                     if (batch) return batch;
                 }
             }
-            
+
             // Search through stockData
             for (const stockEntry of stockData) {
                 if (stockEntry.batches && Array.isArray(stockEntry.batches)) {
@@ -458,7 +470,7 @@
                     if (batch) return batch;
                 }
             }
-            
+
             return null;
         }
 
@@ -468,18 +480,18 @@
             const storedSelection = getSalesRepSelection();
             if (storedSelection && storedSelection.vehicle && storedSelection.route) {
                 console.log('Restoring sales rep display from storage on page load:', storedSelection);
-                
+
                 // Set flag to indicate we have a valid stored selection
                 window.hasStoredSalesRepSelection = true;
-                
+
                 // Use setTimeout to ensure DOM elements are available
                 setTimeout(() => {
                     updateSalesRepDisplay(storedSelection);
-                    
+
                     // Also apply customer filtering immediately
                     setTimeout(() => {
                         filterCustomersByRoute(storedSelection);
-                        
+
                         // Validate customers after filtering with longer delay and only once
                         setTimeout(() => {
                             if (!window.validationPerformed) {
@@ -489,7 +501,7 @@
                         }, 2000); // Increased delay to ensure filtering completes
                     }, 300);
                 }, 100);
-                
+
                 // Store the selection again to ensure it's fresh in both storages
                 storeSalesRepSelection(storedSelection);
             } else {
@@ -497,25 +509,25 @@
                 console.log('No valid stored selection found for early restoration');
             }
         }
-        
+
         function getSalesRepSelection() {
             try {
                 // First check sessionStorage (current session)
                 let storedData = sessionStorage.getItem('salesRepSelection');
                 let parsedData = storedData ? JSON.parse(storedData) : null;
-                
+
                 // If not found in sessionStorage, check localStorage (persistent across refreshes)
                 if (!parsedData) {
                     storedData = localStorage.getItem('salesRepSelection');
                     parsedData = storedData ? JSON.parse(storedData) : null;
-                    
+
                     // If found in localStorage, also store in sessionStorage for current session
                     if (parsedData) {
                         sessionStorage.setItem('salesRepSelection', JSON.stringify(parsedData));
                         console.log('Restored sales rep selection from localStorage to sessionStorage');
                     }
                 }
-                
+
                 return parsedData;
             } catch (e) {
                 console.warn('Error parsing sales rep selection from storage:', e);
@@ -525,11 +537,11 @@
 
         function hasSalesRepSelection() {
             const selection = getSalesRepSelection();
-            const isValid = selection && 
-                           selection.vehicle && 
-                           selection.route && 
-                           selection.vehicle.id && 
-                           selection.route.id;
+            const isValid = selection &&
+                selection.vehicle &&
+                selection.route &&
+                selection.vehicle.id &&
+                selection.route.id;
             return isValid;
         }
 
@@ -537,7 +549,7 @@
             let debounceTimer = null;
             let lastFilterTime = 0;
             const FILTER_COOLDOWN = 3000; // 3 seconds cooldown between filters
-            
+
             // Monitor when new options are added to the customer dropdown
             const observer = new MutationObserver(function(mutations) {
                 // Prevent too frequent filtering
@@ -546,53 +558,63 @@
                     console.log('Customer filtering on cooldown, skipping...');
                     return;
                 }
-                
+
                 // Debounce to prevent rapid repeated calls
                 if (debounceTimer) {
                     clearTimeout(debounceTimer);
                 }
-                
+
                 debounceTimer = setTimeout(() => {
                     mutations.forEach(function(mutation) {
-                        if (mutation.type === 'childList' && isSalesRep && !filteringInProgress) {
+                        if (mutation.type === 'childList' && isSalesRep && !
+                            filteringInProgress) {
                             const customerSelect = $('#customer-id');
                             const options = customerSelect.find('option');
-                            
+
                             // Only process if we have meaningful changes
                             if (options.length <= 1) return;
-                            
+
                             // Check if this is an unwanted change (e.g., Walk-in Customer present for sales reps)
                             const hasWalkIn = options.filter(function() {
-                                return $(this).text().toLowerCase().includes('walk-in');
+                                return $(this).text().toLowerCase().includes(
+                                    'walk-in');
                             }).length > 0;
-                            
+
                             // Check if we have customers from wrong route
                             const selection = getSalesRepSelection();
                             let hasWrongRouteCustomers = false;
-                            
+
                             if (selection && selection.route && selection.route.name) {
-                                const selectedRouteName = selection.route.name.toLowerCase();
-                                
+                                const selectedRouteName = selection.route.name
+                                    .toLowerCase();
+
                                 // Check if customers from other routes are present
                                 options.each(function() {
-                                    const optionText = $(this).text().toLowerCase();
-                                    if (optionText !== 'please select' && 
+                                    const optionText = $(this).text()
+                                        .toLowerCase();
+                                    if (optionText !== 'please select' &&
                                         !optionText.includes('walk-in') &&
-                                        !optionText.includes(selectedRouteName) &&
-                                        (optionText.includes('kalmunai') || optionText.includes('retailer'))) {
+                                        !optionText.includes(
+                                        selectedRouteName) &&
+                                        (optionText.includes('kalmunai') ||
+                                            optionText.includes('retailer'))) {
                                         hasWrongRouteCustomers = true;
                                         return false; // Break out of each loop
                                     }
                                 });
                             }
-                            
+
                             // Only trigger if there's actually an issue
-                            if ((salesRepCustomersFiltered && (hasWalkIn || hasWrongRouteCustomers)) ||
-                                (!salesRepCustomersFiltered && selection && (hasWalkIn || hasWrongRouteCustomers))) {
-                                
-                                console.log('Customer filtering needed - applying route-based filter');
+                            if ((salesRepCustomersFiltered && (hasWalkIn ||
+                                    hasWrongRouteCustomers)) ||
+                                (!salesRepCustomersFiltered && selection && (
+                                    hasWalkIn || hasWrongRouteCustomers))) {
+
+                                console.log(
+                                    'Customer filtering needed - applying route-based filter'
+                                    );
                                 lastFilterTime = Date.now(); // Update last filter time
-                                
+
                                 if (selection) {
                                     filterCustomersByRoute(selection);
                                 }
@@ -601,76 +623,89 @@
                     });
                 }, 500); // 500ms debounce
             });
-            
+
             const customerDropdown = document.getElementById('customer-id');
             if (customerDropdown) {
-                observer.observe(customerDropdown, { childList: true, subtree: true });
+                observer.observe(customerDropdown, {
+                    childList: true,
+                    subtree: true
+                });
                 console.log('Customer filtering protection activated');
             }
         }
-        
+
         function checkSalesRepStatus() {
             console.log('Checking sales rep status...');
-            
+
             // Check if user has sales rep role
             fetch('/sales-rep/my-assignments', {
-                method: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                console.log('Sales rep API response status:', response.status);
-                return response.json().then(data => ({ status: response.status, data }));
-            })
-            .then(({ status, data }) => {
-                console.log('Sales rep API response:', { status, data });
-                
-                if (status === 200 && data.status === true && data.data && data.data.length > 0) {
-                    // User is a sales rep with assignments
-                    isSalesRep = true;
-                    console.log('User identified as sales rep with assignments:', data.data);
-                    handleSalesRepUser(data.data);
-                } else if (status === 200 && data.status === false) {
-                    // User is not a sales rep (explicit response)
+                    method: 'GET',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    console.log('Sales rep API response status:', response.status);
+                    return response.json().then(data => ({
+                        status: response.status,
+                        data
+                    }));
+                })
+                .then(({
+                    status,
+                    data
+                }) => {
+                    console.log('Sales rep API response:', {
+                        status,
+                        data
+                    });
+
+                    if (status === 200 && data.status === true && data.data && data.data.length > 0) {
+                        // User is a sales rep with assignments
+                        isSalesRep = true;
+                        console.log('User identified as sales rep with assignments:', data.data);
+                        handleSalesRepUser(data.data);
+                    } else if (status === 200 && data.status === false) {
+                        // User is not a sales rep (explicit response)
+                        isSalesRep = false;
+                        hideSalesRepDisplay();
+                        console.log('User is not a sales rep (API confirmed)');
+                    } else if (status === 200 && data.status === true && (!data.data || data.data.length ===
+                            0)) {
+                        // User is a sales rep but no assignments
+                        isSalesRep = true;
+                        console.log('User is a sales rep but has no assignments');
+                        hideSalesRepDisplay(); // Hide display if no assignments
+                    } else {
+                        // Other cases - treat as non-sales rep
+                        isSalesRep = false;
+                        hideSalesRepDisplay();
+                        console.log('User is not a sales rep (other case)');
+                    }
+                })
+                .catch(error => {
+                    // User is not a sales rep or error occurred, proceed normally
                     isSalesRep = false;
                     hideSalesRepDisplay();
-                    console.log('User is not a sales rep (API confirmed)');
-                } else if (status === 200 && data.status === true && (!data.data || data.data.length === 0)) {
-                    // User is a sales rep but no assignments
-                    isSalesRep = true;
-                    console.log('User is a sales rep but has no assignments');
-                    hideSalesRepDisplay(); // Hide display if no assignments
-                } else {
-                    // Other cases - treat as non-sales rep
-                    isSalesRep = false;
-                    hideSalesRepDisplay();
-                    console.log('User is not a sales rep (other case)');
-                }
-            })
-            .catch(error => {
-                // User is not a sales rep or error occurred, proceed normally
-                isSalesRep = false;
-                hideSalesRepDisplay();
-                console.log('Not a sales rep or error:', error);
-            });
+                    console.log('Not a sales rep or error:', error);
+                });
         }
 
         function handleSalesRepUser(assignments) {
             console.log('Handling sales rep user with assignments:', assignments);
-            
+
             // Store assignments globally for modal
             window.salesRepAssignments = assignments;
-            
+
             // Ensure sales rep display is ready to be shown (remove any hiding)
             const salesRepDisplay = document.getElementById('salesRepDisplay');
             if (salesRepDisplay) {
                 salesRepDisplay.classList.remove('d-none');
                 console.log('Sales rep display prepared for showing');
             }
-            
+
             // Check if we already have a valid selection
             if (!hasSalesRepSelection()) {
                 console.log('No existing sales rep selection, showing modal');
@@ -684,41 +719,41 @@
                 console.log('Found existing sales rep selection, validating...');
                 // Validate existing selection against current assignments
                 const selection = getSalesRepSelection();
-                
+
                 // Check if we already restored the display early
                 if (window.hasStoredSalesRepSelection) {
                     console.log('Display already restored early, just validating and updating if needed');
                 }
-                
+
                 // More robust validation - check if selection has required properties
                 let validAssignment = null;
-                if (selection && selection.vehicle && selection.route && 
+                if (selection && selection.vehicle && selection.route &&
                     selection.vehicle.id && selection.route.id) {
-                    
+
                     // First try exact match
-                    validAssignment = assignments.find(a => 
+                    validAssignment = assignments.find(a =>
                         a.sub_location && a.route &&
-                        a.sub_location.id === selection.vehicle.id && 
+                        a.sub_location.id === selection.vehicle.id &&
                         a.route.id === selection.route.id
                     );
-                    
+
                     // If no exact match, try to find by vehicle ID only (in case route data differs)
                     if (!validAssignment) {
-                        validAssignment = assignments.find(a => 
+                        validAssignment = assignments.find(a =>
                             a.sub_location && a.sub_location.id === selection.vehicle.id
                         );
                     }
                 }
-                
+
                 if (validAssignment) {
                     console.log('Valid assignment found, updating display');
                     // Update selection with current assignment data but preserve existing route selection
                     const updatedSelection = {
-                        ...selection,  // Preserve existing selection
+                        ...selection, // Preserve existing selection
                         canSell: validAssignment.can_sell || selection.canSell || true
                     };
                     storeSalesRepSelection(updatedSelection);
-                    
+
                     // Only update display if not already restored early
                     if (!window.hasStoredSalesRepSelection) {
                         updateSalesRepDisplay(updatedSelection);
@@ -727,14 +762,16 @@
                         console.log('Display already restored, ensuring correct data is shown');
                         setTimeout(() => updateSalesRepDisplay(updatedSelection), 100);
                     }
-                    
+
                     restrictLocationAccess(updatedSelection);
                     // Apply customer filtering after a short delay
                     setTimeout(() => {
                         filterCustomersByRoute(updatedSelection);
                     }, 1000); // Increased delay to ensure all other operations complete
                 } else {
-                    console.log('No exact assignment match found, but selection exists - attempting to preserve selection');
+                    console.log(
+                        'No exact assignment match found, but selection exists - attempting to preserve selection'
+                        );
                     // Instead of immediately clearing, try to use the existing selection
                     // This handles cases where the backend data structure might have changed slightly
                     if (selection && selection.vehicle && selection.route) {
@@ -743,12 +780,12 @@
                         if (typeof selection.canSell === 'undefined') {
                             selection.canSell = true; // Default to allow sales
                         }
-                        
+
                         // Check if the vehicle at least exists in assignments (more lenient check)
-                        const vehicleExists = assignments.some(a => 
+                        const vehicleExists = assignments.some(a =>
                             a.sub_location && a.sub_location.id === selection.vehicle.id
                         );
-                        
+
                         if (vehicleExists) {
                             console.log('Vehicle found in assignments, preserving selection');
                             // Try to update display with existing selection
@@ -757,9 +794,10 @@
                                 if (!window.hasStoredSalesRepSelection) {
                                     updateSalesRepDisplay(selection);
                                 } else {
-                                    console.log('Display already restored early, just ensuring customer filtering');
+                                    console.log(
+                                        'Display already restored early, just ensuring customer filtering');
                                 }
-                                
+
                                 restrictLocationAccess(selection);
                                 // Apply customer filtering after a short delay
                                 setTimeout(() => {
@@ -799,7 +837,7 @@
 
         function setupSalesRepEventListeners() {
             console.log('Setting up sales rep event listeners');
-            
+
             // Listen for selection confirmation
             window.addEventListener('salesRepSelectionConfirmed', function(event) {
                 console.log('Sales rep selection confirmed event received:', event.detail);
@@ -807,7 +845,7 @@
                 salesRepCustomersFiltered = false; // Reset flag for new selection
                 updateSalesRepDisplay(selection);
                 restrictLocationAccess(selection);
-                
+
                 // Reset customer to first available when selection changes
                 resetToWalkingCustomer();
             });
@@ -840,7 +878,7 @@
                     }
                 }, 1000);
             }
-            
+
             // Add page visibility change listener to restore display when returning to tab
             document.addEventListener('visibilitychange', function() {
                 if (!document.hidden && isSalesRep) {
@@ -853,7 +891,7 @@
                     }
                 }
             });
-            
+
             // Add beforeunload listener to ensure selection is saved
             window.addEventListener('beforeunload', function() {
                 const selection = getSalesRepSelection();
@@ -866,7 +904,7 @@
 
         function updateSalesRepDisplay(selection) {
             console.log('Updating sales rep display with selection:', selection);
-            
+
             const salesRepDisplay = document.getElementById('salesRepDisplay');
             const selectedVehicleDisplay = document.getElementById('selectedVehicleDisplay');
             const selectedRouteDisplay = document.getElementById('selectedRouteDisplay');
@@ -887,11 +925,11 @@
             }
 
             // Update display text with proper fallbacks
-            selectedVehicleDisplay.textContent = selection.vehicle && selection.vehicle.name ? 
+            selectedVehicleDisplay.textContent = selection.vehicle && selection.vehicle.name ?
                 `${selection.vehicle.name} (${selection.vehicle.vehicle_number || 'N/A'})` : 'Unknown Vehicle';
-            selectedRouteDisplay.textContent = selection.route && selection.route.name ? 
+            selectedRouteDisplay.textContent = selection.route && selection.route.name ?
                 selection.route.name : 'Unknown Route';
-            
+
             if (salesAccessBadge && salesAccessText) {
                 if (selection.canSell) {
                     salesAccessBadge.className = 'badge bg-success text-white p-2';
@@ -906,13 +944,13 @@
             salesRepDisplay.style.display = 'flex';
             salesRepDisplay.classList.add('d-flex');
             salesRepDisplay.classList.remove('d-none');
-            
+
             console.log('Sales rep display updated and made visible with data:', {
                 vehicle: selection.vehicle?.name,
                 route: selection.route?.name,
                 canSell: selection.canSell
             });
-            
+
             // Store the selection to localStorage for better persistence across page refreshes
             try {
                 localStorage.setItem('salesRepSelection', JSON.stringify(selection));
@@ -920,7 +958,7 @@
             } catch (e) {
                 console.warn('Failed to store selection in localStorage:', e);
             }
-            
+
             // Filter customers based on route cities with a small delay to ensure DOM is ready
             setTimeout(() => {
                 filterCustomersByRoute(selection);
@@ -929,10 +967,10 @@
 
         function restrictLocationAccess(selection) {
             console.log('Restricting location access to vehicle:', selection.vehicle);
-            
+
             // Override the fetchAllLocations to only include assigned vehicle
             const originalFetchLocations = window.fetchAllLocations;
-            
+
             window.fetchAllLocations = function() {
                 // Create a mock response with only the assigned vehicle
                 const mockResponse = {
@@ -940,7 +978,7 @@
                     data: [selection.vehicle]
                 };
                 populateLocationDropdown(mockResponse.data);
-                
+
                 // Auto-select the vehicle in the dropdown with multiple retries
                 const selectVehicle = () => {
                     const locationSelect = document.getElementById('locationSelect');
@@ -953,13 +991,13 @@
                         setTimeout(selectVehicle, 200);
                     }
                 };
-                
+
                 setTimeout(selectVehicle, 100);
             };
 
             // Re-fetch locations with restriction
             window.fetchAllLocations();
-            
+
             // Also set the location immediately if dropdown already exists
             setTimeout(() => {
                 const locationSelect = document.getElementById('locationSelect');
@@ -972,21 +1010,22 @@
         }
 
         let filteringInProgress = false;
-        
+
         function filterCustomersByRoute(selection) {
             if (filteringInProgress) {
                 console.log('Filtering already in progress, skipping...');
                 return;
             }
-            
+
             if (!selection || !selection.route) {
                 console.log('No valid selection or route provided for filtering');
                 return;
             }
-            
+
             filteringInProgress = true;
-            console.log('Filtering customers for route:', selection.route.name, 'with cities:', selection.route.cities);
-            
+            console.log('Filtering customers for route:', selection.route.name, 'with cities:', selection.route
+                .cities);
+
             if (!selection.route.cities || selection.route.cities.length === 0) {
                 console.log('No cities found for selected route, trying fallback filtering');
                 // Fallback: try to filter by route name pattern
@@ -1025,146 +1064,164 @@
 
             // Filter customers based on city
             fetch('/customers/filter-by-cities', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    city_ids: routeCityIds
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        city_ids: routeCityIds
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Filter customers response:', data);
-                if (data.status && data.customers) {
-                    populateFilteredCustomers(data.customers, selection.route.name);
-                    salesRepCustomersFiltered = true; // Mark that filtering has been applied
-                    console.log('Customer filtering completed successfully for route:', selection.route.name);
-                } else {
-                    console.error('Failed to filter customers:', data.message || 'Unknown error');
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Filter customers response:', data);
+                    if (data.status && data.customers) {
+                        populateFilteredCustomers(data.customers, selection.route.name);
+                        salesRepCustomersFiltered = true; // Mark that filtering has been applied
+                        console.log('Customer filtering completed successfully for route:', selection.route
+                            .name);
+                    } else {
+                        console.error('Failed to filter customers:', data.message || 'Unknown error');
+                        // Fallback to route name filtering
+                        fallbackRouteFiltering(selection);
+                    }
+                    filteringInProgress = false; // Reset flag
+                })
+                .catch(error => {
+                    console.error('Error filtering customers:', error);
                     // Fallback to route name filtering
                     fallbackRouteFiltering(selection);
-                }
-                filteringInProgress = false; // Reset flag
-            })
-            .catch(error => {
-                console.error('Error filtering customers:', error);
-                // Fallback to route name filtering
-                fallbackRouteFiltering(selection);
-                filteringInProgress = false; // Reset flag
-            });
+                    filteringInProgress = false; // Reset flag
+                });
         }
-        
+
         function fallbackRouteFiltering(selection) {
             console.log('Using fallback route name filtering for:', selection.route.name);
             const customerSelect = $('#customer-id');
             const routeName = selection.route.name.toLowerCase();
-            
+
             // Get all options and filter by route name
             const filteredOptions = [];
-            
+
             if (window.originalCustomerOptions) {
                 const tempDiv = $('<div>').html(window.originalCustomerOptions);
                 tempDiv.find('option').each(function() {
                     const optionText = $(this).text().toLowerCase();
                     const optionValue = $(this).val();
-                    
+
                     // Always include "Please select" option
                     if (optionValue === '' || optionText.includes('please select')) {
                         filteredOptions.push($(this)[0].outerHTML);
                     }
                     // Include options that match the route name
-                    else if (optionText.includes(routeName) || 
-                            (routeName.includes('sainthasmaruthu') && optionText.includes('sainthasmaruthu')) ||
-                            (routeName.includes('kalmunai') && optionText.includes('kalmunai'))) {
+                    else if (optionText.includes(routeName) ||
+                        (routeName.includes('sainthasmaruthu') && optionText.includes(
+                            'sainthasmaruthu')) ||
+                        (routeName.includes('kalmunai') && optionText.includes('kalmunai'))) {
                         filteredOptions.push($(this)[0].outerHTML);
                     }
                 });
-                
+
                 if (filteredOptions.length > 1) { // More than just "Please select"
                     customerSelect.html(filteredOptions.join(''));
-                    console.log('Fallback filtering applied, found', filteredOptions.length - 1, 'customers for route');
+                    console.log('Fallback filtering applied, found', filteredOptions.length - 1,
+                        'customers for route');
                 } else {
                     console.log('No customers found in fallback filtering, keeping original options');
                 }
             }
-            
+
             salesRepCustomersFiltered = true;
         }
 
         function populateFilteredCustomers(customers, routeName = '') {
             const customerSelect = $('#customer-id');
-            
+
             // Validate customers parameter
             if (!customers || !Array.isArray(customers)) {
-                console.error('populateFilteredCustomers: customers parameter is not a valid array:', customers);
+                console.error('populateFilteredCustomers: customers parameter is not a valid array:',
+                customers);
                 restoreOriginalCustomers();
                 return;
             }
-            
+
             console.log(`Populating ${customers.length} filtered customers for route: ${routeName}`);
-            
+
             // Clear existing options
             customerSelect.empty();
-            
+
             // Add "Please select" option first
             customerSelect.append('<option value="">Please Select</option>');
-            
+
             // Don't add Walk-In Customer for sales reps
             if (!isSalesRep) {
-                const walkInOption = $('<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>');
+                const walkInOption = $(
+                    '<option value="1" data-customer-type="retailer">Walk-in Customer (Walk-in Customer)</option>'
+                    );
                 walkInOption.data('due', 0);
                 walkInOption.data('credit_limit', 0);
                 customerSelect.append(walkInOption);
             }
-            
+
             // Sort customers alphabetically by name
             customers.sort((a, b) => {
-                const nameA = [a.prefix, a.first_name, a.last_name].filter(Boolean).join(' ').toLowerCase();
-                const nameB = [b.prefix, b.first_name, b.last_name].filter(Boolean).join(' ').toLowerCase();
+                const nameA = [a.prefix, a.first_name, a.last_name].filter(Boolean).join(' ')
+                    .toLowerCase();
+                const nameB = [b.prefix, b.first_name, b.last_name].filter(Boolean).join(' ')
+                    .toLowerCase();
                 return nameA.localeCompare(nameB);
             });
-            
+
             // Separate customers with and without cities for better organization
             const customersWithCity = customers.filter(c => c.city_name && c.city_name !== 'No City');
             const customersWithoutCity = customers.filter(c => !c.city_name || c.city_name === 'No City');
-            
+
             // Add customers with cities first
             customersWithCity.forEach(customer => {
                 const customerName = [customer.prefix, customer.first_name, customer.last_name]
                     .filter(Boolean).join(' ');
-                const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
+                const customerType = customer.customer_type ?
+                    ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` :
+                    '';
                 const cityInfo = ` [${customer.city_name}]`;
-                const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
-                const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                const displayText =
+                    `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
+                const option = $(
+                    `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
+                    );
                 option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
-            
+
             // Add separator if there are customers without cities
             if (customersWithoutCity.length > 0 && customersWithCity.length > 0) {
                 customerSelect.append('<option disabled>── Customers without city ──</option>');
             }
-            
+
             // Add customers without cities
             customersWithoutCity.forEach(customer => {
                 const customerName = [customer.prefix, customer.first_name, customer.last_name]
                     .filter(Boolean).join(' ');
-                const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
+                const customerType = customer.customer_type ?
+                    ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` :
+                    '';
                 const cityInfo = ' [No City]';
-                const displayText = `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
-                const option = $(`<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`);
+                const displayText =
+                    `${customerName}${customerType}${cityInfo} (${customer.mobile || 'No mobile'})`;
+                const option = $(
+                    `<option value="${customer.id}" data-customer-type="${customer.customer_type || 'retailer'}">${displayText}</option>`
+                    );
                 option.data('due', customer.current_due || 0);
                 option.data('credit_limit', customer.credit_limit || 0);
                 customerSelect.append(option);
             });
-            
+
             // Refresh Select2 and trigger change event to update due/credit display
             customerSelect.trigger('change');
-            
+
             // Auto-select first customer and update displays
             setTimeout(() => {
                 if (isSalesRep) {
@@ -1173,55 +1230,56 @@
                     if (options.length > 1) { // More than just "Please Select"
                         const firstCustomerOption = options.eq(1); // Get second option (first customer)
                         customerSelect.val(firstCustomerOption.val()).trigger('change');
-                        console.log('Auto-selected first customer for sales rep:', firstCustomerOption.text());
+                        console.log('Auto-selected first customer for sales rep:', firstCustomerOption
+                            .text());
                     }
                 } else {
                     // For non-sales reps, select Walk-in customer
                     customerSelect.val('1').trigger('change');
                 }
             }, 100);
-            
-            
+
+
             // Show info message with breakdown
             if (typeof toastr !== 'undefined' && routeName) {
                 const withCityCount = customersWithCity.length;
                 const withoutCityCount = customersWithoutCity.length;
                 const totalCount = customers.length;
-                
+
                 let message = `Showing ${totalCount} customers from your route`;
                 if (withoutCityCount > 0) {
                     message += ` (${withCityCount} with city, ${withoutCityCount} without city)`;
                 }
-                
+
             }
         }
-        
+
         function validateCustomerRouteMatch() {
             // Function to validate that displayed customers match the selected route
             const selection = getSalesRepSelection();
             if (!selection || !selection.route || !isSalesRep) return;
-            
+
             // Prevent validation during active filtering
             if (filteringInProgress) {
                 console.log('Filtering in progress, skipping validation');
                 return;
             }
-            
+
             const customerSelect = $('#customer-id');
             const options = customerSelect.find('option');
             const routeName = selection.route.name.toLowerCase();
-            
+
             let correctCustomers = 0;
             let wrongRouteCustomers = 0;
-            
+
             options.each(function() {
                 const optionText = $(this).text().toLowerCase();
                 const optionValue = $(this).val();
-                
+
                 // Skip "Please Select" option
                 if (!optionValue || optionText.includes('please select')) return;
-                
-                if (optionText.includes(routeName) || 
+
+                if (optionText.includes(routeName) ||
                     (routeName.includes('sainthasmaruthu') && optionText.includes('sainthasmaruthu')) ||
                     (routeName.includes('kalmunai') && optionText.includes('kalmunai'))) {
                     correctCustomers++;
@@ -1229,12 +1287,14 @@
                     wrongRouteCustomers++;
                 }
             });
-            
-            console.log(`Customer validation for route ${selection.route.name}: ${correctCustomers} correct, ${wrongRouteCustomers} wrong route`);
-            
+
+            console.log(
+                `Customer validation for route ${selection.route.name}: ${correctCustomers} correct, ${wrongRouteCustomers} wrong route`
+                );
+
             if (wrongRouteCustomers > 0 && !salesRepCustomersFiltered) {
                 setTimeout(() => filterCustomersByRoute(selection), 500);
-            } 
+            }
         }
 
         function restoreOriginalCustomers() {
@@ -1242,7 +1302,7 @@
                 const customerSelect = $('#customer-id');
                 customerSelect.html(window.originalCustomerOptions);
                 customerSelect.trigger('change');
-                
+
                 // Auto-select Walk-in customer and update displays
                 setTimeout(() => {
                     customerSelect.val('1').trigger('change');
@@ -1254,14 +1314,14 @@
         function clearSalesRepFilters() {
             // Restore original customer list
             restoreOriginalCustomers();
-            
+
             // Reset sales rep display
             const salesRepDisplay = document.getElementById('salesRepDisplay');
             if (salesRepDisplay) {
                 salesRepDisplay.style.display = 'none';
                 salesRepDisplay.classList.remove('d-flex');
             }
-            
+
             // Clear selection storage
             clearSalesRepSelection();
         }
@@ -1275,7 +1335,7 @@
                     salesRepDisplay.style.display = 'none';
                     salesRepDisplay.classList.remove('d-flex');
                 }
-                
+
                 // Also hide any related UI elements for sales reps
                 const changeSalesRepBtn = document.getElementById('changeSalesRepSelection');
                 if (changeSalesRepBtn) {
@@ -1290,25 +1350,27 @@
             if (!isSalesRep) {
                 return true; // Non-sales rep users can always sell
             }
-            
+
             const selection = getSalesRepSelection();
             if (!selection) {
-                toastr.error('Please select your vehicle and route before making a sale.', 'Selection Required');
+                toastr.error('Please select your vehicle and route before making a sale.',
+                'Selection Required');
                 return false;
             }
-            
+
             if (!selection.canSell) {
-                toastr.error('You only have view access for this vehicle/route. Sales are not permitted.', 'Access Denied');
+                toastr.error('You only have view access for this vehicle/route. Sales are not permitted.',
+                    'Access Denied');
                 return false;
             }
-            
+
             // Check if selected location matches the assigned vehicle
             const selectedLocationId = document.getElementById('locationSelect')?.value;
             if (selectedLocationId != selection.vehicle.id) {
                 toastr.error('You can only sell from your assigned vehicle location.', 'Location Mismatch');
                 return false;
             }
-            
+
             return true;
         }
 
@@ -1567,7 +1629,8 @@
             isLoadingProducts = true;
             if (reset) showLoader();
             fetch(
-                    `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`)
+                    `/api/products/stocks?location_id=${selectedLocationId}&page=${currentProductsPage}&per_page=24`
+                    )
                 .then(res => res.json())
                 .then(data => {
                     hideLoader();
@@ -1711,154 +1774,191 @@
             });
         }
 
-    // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
-    function initAutocomplete() {
-        let autoAddTimeout = null;
-        let lastSearchResults = [];
-        let currentSearchTerm = '';
-        let autocompleteAdding = false; // Prevent double-add
-        let lastAddedProduct = null; // Prevent duplicate quantity increments
+        // ---- AUTOCOMPLETE (server driven, optimized for your controller) ----
+        function initAutocomplete() {
+            let autoAddTimeout = null;
+            let lastSearchResults = [];
+            let currentSearchTerm = '';
+            let autocompleteAdding = false; // Prevent double-add
+            let lastAddedProduct = null; // Prevent duplicate quantity increments
 
-        $("#productSearchInput").autocomplete({
-            source: function(request, response) {
-                if (!selectedLocationId) return response([]);
+            $("#productSearchInput").autocomplete({
+                source: function(request, response) {
+                    if (!selectedLocationId) return response([]);
 
-                currentSearchTerm = request.term;
+                    currentSearchTerm = request.term;
 
-                if (autoAddTimeout) {
-                    clearTimeout(autoAddTimeout);
-                    autoAddTimeout = null;
-                }
+                    if (autoAddTimeout) {
+                        clearTimeout(autoAddTimeout);
+                        autoAddTimeout = null;
+                    }
 
-                $.ajax({
-                    url: '/api/products/stocks/autocomplete',
-                    data: {
-                        location_id: selectedLocationId,
-                        search: request.term,
-                        per_page: 15
-                    },
-                    success: function(data) {
-                        if (data.status === 200 && Array.isArray(data.data)) {
-                            const filtered = data.data.filter(stock =>
-                                stock.product &&
-                                (
-                                    stock.product.stock_alert == 0 ||
-                                    (stock.product.unit && (stock.product.unit.allow_decimal === true || stock.product.unit.allow_decimal === 1)
-                                        ? parseFloat(stock.total_stock) > 0
-                                        : parseInt(stock.total_stock) > 0
+                    $.ajax({
+                        url: '/api/products/stocks/autocomplete',
+                        data: {
+                            location_id: selectedLocationId,
+                            search: request.term,
+                            per_page: 15
+                        },
+                        success: function(data) {
+                            if (data.status === 200 && Array.isArray(data.data)) {
+                                const filtered = data.data.filter(stock =>
+                                    stock.product &&
+                                    (
+                                        stock.product.stock_alert == 0 ||
+                                        (stock.product.unit && (stock.product.unit
+                                                .allow_decimal === true || stock
+                                                .product.unit.allow_decimal === 1) ?
+                                            parseFloat(stock.total_stock) > 0 :
+                                            parseInt(stock.total_stock) > 0
+                                        )
                                     )
-                                )
-                            );
+                                );
 
-                            const results = filtered.map(stock => {
-                                let imeiMatch = '';
-                                let exactImeiMatch = false;
-                                if (stock.imei_numbers && stock.imei_numbers.length > 0) {
-                                    const matchingImei = stock.imei_numbers.find(imei => 
-                                        imei.imei_number.toLowerCase().includes(request.term.toLowerCase())
-                                    );
-                                    if (matchingImei) {
-                                        imeiMatch = ` 📱 IMEI: ${matchingImei.imei_number}`;
-                                        exactImeiMatch = matchingImei.imei_number.toLowerCase() === request.term.toLowerCase();
+                                const results = filtered.map(stock => {
+                                    let imeiMatch = '';
+                                    let exactImeiMatch = false;
+                                    if (stock.imei_numbers && stock.imei_numbers
+                                        .length > 0) {
+                                        const matchingImei = stock.imei_numbers
+                                            .find(imei =>
+                                                imei.imei_number.toLowerCase()
+                                                .includes(request.term
+                                                    .toLowerCase())
+                                            );
+                                        if (matchingImei) {
+                                            imeiMatch =
+                                                ` 📱 IMEI: ${matchingImei.imei_number}`;
+                                            exactImeiMatch = matchingImei
+                                                .imei_number.toLowerCase() ===
+                                                request.term.toLowerCase();
+                                        }
                                     }
+                                    return {
+                                        label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
+                                        value: stock.product.product_name,
+                                        product: stock.product,
+                                        stockData: stock,
+                                        imeiMatch: imeiMatch ? true : false,
+                                        exactImeiMatch: exactImeiMatch
+                                    };
+                                });
+
+                                if (results.length === 0) results.push({
+                                    label: "No results found",
+                                    value: ""
+                                });
+
+                                lastSearchResults = results.filter(r => r.product);
+
+                                // Auto-add exact SKU or IMEI match
+                                const exactMatch = results.find(r =>
+                                    r.product && ((r.product.sku && r.product.sku
+                                        .toLowerCase() === request.term
+                                        .toLowerCase()) || r.exactImeiMatch)
+                                );
+
+                                if (exactMatch && request.term.length >= 3) {
+                                    const matchType = exactMatch.product.sku &&
+                                        exactMatch.product.sku.toLowerCase() === request
+                                        .term.toLowerCase() ? 'SKU' : 'IMEI';
+                                    showSearchIndicator("⚡ Auto-adding...", "orange");
+                                    autoAddTimeout = setTimeout(() => {
+                                        if (!autocompleteAdding) {
+                                            autocompleteAdding = true;
+                                            $("#productSearchInput")
+                                                .autocomplete('close');
+                                            addProductFromAutocomplete(
+                                                exactMatch, request.term,
+                                                matchType);
+                                            $("#productSearchInput").val('');
+                                            hideSearchIndicator();
+                                            setTimeout(() => {
+                                                autocompleteAdding =
+                                                    false;
+                                            }, 50);
+                                        }
+                                    }, 500);
                                 }
-                                return {
-                                    label: `${stock.product.product_name} (${stock.product.sku || ''})${imeiMatch} [Stock: ${stock.product.stock_alert == 0 ? 'Unlimited' : stock.total_stock}]`,
-                                    value: stock.product.product_name,
-                                    product: stock.product,
-                                    stockData: stock,
-                                    imeiMatch: imeiMatch ? true : false,
-                                    exactImeiMatch: exactImeiMatch
-                                };
-                            });
 
-                            if (results.length === 0) results.push({ label: "No results found", value: "" });
-
-                            lastSearchResults = results.filter(r => r.product);
-
-                            // Auto-add exact SKU or IMEI match
-                            const exactMatch = results.find(r =>
-                                r.product && ((r.product.sku && r.product.sku.toLowerCase() === request.term.toLowerCase()) || r.exactImeiMatch)
-                            );
-
-                            if (exactMatch && request.term.length >= 3) {
-                                const matchType = exactMatch.product.sku && exactMatch.product.sku.toLowerCase() === request.term.toLowerCase() ? 'SKU' : 'IMEI';
-                                showSearchIndicator("⚡ Auto-adding...", "orange");
-                                autoAddTimeout = setTimeout(() => {
-                                    if (!autocompleteAdding) {
-                                        autocompleteAdding = true;
-                                        $("#productSearchInput").autocomplete('close');
-                                        addProductFromAutocomplete(exactMatch, request.term, matchType);
-                                        $("#productSearchInput").val('');
-                                        hideSearchIndicator();
-                                        setTimeout(() => { autocompleteAdding = false; }, 50);
-                                    }
-                                }, 500);
+                                response(results);
+                            } else {
+                                lastSearchResults = [];
+                                response([{
+                                    label: "No results found",
+                                    value: ""
+                                }]);
                             }
-
-                            response(results);
-                        } else {
+                        },
+                        error: function() {
                             lastSearchResults = [];
-                            response([{ label: "No results found", value: "" }]);
+                            response([{
+                                label: "No results found",
+                                value: ""
+                            }]);
                         }
-                    },
-                    error: function() {
-                        lastSearchResults = [];
-                        response([{ label: "No results found", value: "" }]);
-                    }
-                });
-            },
-            select: function(event, ui) {
-                if (!ui.item.product || autocompleteAdding) return false;
+                    });
+                },
+                select: function(event, ui) {
+                    if (!ui.item.product || autocompleteAdding) return false;
 
-                autocompleteAdding = true;
-                $("#productSearchInput").val("");
-                const isImeiMatch = ui.item.imeiMatch || false;
-                addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' : 'MANUAL');
-                setTimeout(() => { autocompleteAdding = false; }, 50);
+                    autocompleteAdding = true;
+                    $("#productSearchInput").val("");
+                    const isImeiMatch = ui.item.imeiMatch || false;
+                    addProductFromAutocomplete(ui.item, currentSearchTerm, isImeiMatch ? 'IMEI' :
+                        'MANUAL');
+                    setTimeout(() => {
+                        autocompleteAdding = false;
+                    }, 50);
 
-                return false;
-            },
-            open: function() {
-                setTimeout(() => {
-                    const autocompleteInstance = $("#productSearchInput").autocomplete("instance");
-                    const menu = autocompleteInstance.menu;
-                    const firstItem = menu.element.find("li:first-child");
-                    
-                    if (firstItem.length > 0 && !firstItem.text().includes("No results")) {
-                        // Properly set the active item using jQuery UI's method
-                        menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-                        firstItem.addClass("ui-state-focus");
-                        menu.active = firstItem;
-                        showSearchIndicator("↵ Press Enter to add");
-                    }
-                }, 50);
-            },
-            close: function() {
-                hideSearchIndicator();
-            },
-            minLength: 1
-        }).autocomplete("instance")._renderItem = function(ul, item) {
-            const li = $("<li>");
-            if (item.product) {
-                const style = item.imeiMatch ? 
-                    "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" : 
-                    "padding: 8px;";
-                li.append(`<div style="${style}">${item.label}</div>`);
-            } else {
-                li.append(`<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`);
-            }
-            return li.appendTo(ul);
-        };
+                    return false;
+                },
+                open: function() {
+                    setTimeout(() => {
+                        const autocompleteInstance = $("#productSearchInput").autocomplete(
+                            "instance");
+                        const menu = autocompleteInstance.menu;
+                        const firstItem = menu.element.find("li:first-child");
 
-        $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
-            this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("").outerWidth()));
-        };
+                        if (firstItem.length > 0 && !firstItem.text().includes(
+                            "No results")) {
+                            // Properly set the active item using jQuery UI's method
+                            menu.element.find(".ui-state-focus").removeClass(
+                                "ui-state-focus");
+                            firstItem.addClass("ui-state-focus");
+                            menu.active = firstItem;
+                            showSearchIndicator("↵ Press Enter to add");
+                        }
+                    }, 50);
+                },
+                close: function() {
+                    hideSearchIndicator();
+                },
+                minLength: 1
+            }).autocomplete("instance")._renderItem = function(ul, item) {
+                const li = $("<li>");
+                if (item.product) {
+                    const style = item.imeiMatch ?
+                        "padding: 8px; background-color: #e8f4f8; border-left: 3px solid #17a2b8;" :
+                        "padding: 8px;";
+                    li.append(`<div style="${style}">${item.label}</div>`);
+                } else {
+                    li.append(
+                        `<div style="color: red; padding: 8px; font-style: italic;">${item.label}</div>`
+                        );
+                }
+                return li.appendTo(ul);
+            };
 
-        if (!document.getElementById('autocomplete-styles')) {
-            const style = document.createElement('style');
-            style.id = 'autocomplete-styles';
-            style.textContent = `
+            $("#productSearchInput").autocomplete("instance")._resizeMenu = function() {
+                this.menu.element.outerWidth(Math.max(this.element.outerWidth(), this.menu.element.width("")
+                    .outerWidth()));
+            };
+
+            if (!document.getElementById('autocomplete-styles')) {
+                const style = document.createElement('style');
+                style.id = 'autocomplete-styles';
+                style.textContent = `
                 .ui-autocomplete { max-height: 300px; overflow-y: auto; z-index: 1000; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
                 .ui-autocomplete .ui-menu-item { border-bottom: 1px solid #f0f0f0; }
                 .ui-autocomplete .ui-menu-item:last-child { border-bottom: none; }
@@ -1869,114 +1969,130 @@
                 .quantity-error { border: 2px solid #dc3545 !important; box-shadow: 0 0 5px rgba(220, 53, 69, 0.3) !important; background-color: #fff5f5 !important; }
                 .quantity-error:focus { border-color: #dc3545 !important; box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important; }
             `;
-            document.head.appendChild(style);
-        }
-
-        function showSearchIndicator(text, color = "#28a745") {
-            hideSearchIndicator();
-            const searchContainer = $("#productSearchInput").parent();
-            if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
-            const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
-            searchContainer.append(indicator);
-        }
-        function hideSearchIndicator() { $('.search-indicator').remove(); }
-
-    // In the keydown handler for Enter
-        $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-
-                const widget = $(this).autocomplete("widget");
-                const focused = widget.find(".ui-state-focus");
-                const currentSearchTerm = $(this).val().trim();
-
-                let itemToAdd = null;
-
-                if (focused.length > 0) {
-                    // Get the item data from the autocomplete instance's active item
-                    const autocompleteInstance = $(this).autocomplete("instance");
-                    if (autocompleteInstance && autocompleteInstance.menu.active) {
-                        itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
-                    }
-                } 
-                
-                // Fallback: if no focused item found, use first item from last search results
-                if (!itemToAdd && lastSearchResults.length > 0) {
-                    itemToAdd = lastSearchResults[0];
-                }
-
-                if (itemToAdd && itemToAdd.product) {
-                    // Prevent duplicate add of same product consecutively
-                    if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
-                        lastAddedProduct = itemToAdd.product;
-                        addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd.imeiMatch ? 'IMEI' : 'ENTER');
-                    }
-                }
-
-                // Close autocomplete immediately
-                $(this).autocomplete('close');
-                $(this).val('');
-                event.stopImmediatePropagation();
-            }
-        });
-
-        $("#productSearchInput").on('input', function() {
-            lastAddedProduct = null; // reset on new input
-            if (autoAddTimeout) { clearTimeout(autoAddTimeout); autoAddTimeout = null; }
-            if ($(this).val().length === 0) hideSearchIndicator();
-        });
-
-        function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
-            if (!item.product) return;
-
-            // Prevent duplicate quantity increment for same product and matchType
-            if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL') return;
-
-            lastAddedProduct = item.product;
-
-            console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:', searchTerm, 'Match type:', matchType);
-
-            let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
-            if (!stockEntry && item.stockData) {
-                stockData.push(item.stockData);
-                allProducts.push(item.stockData);
-                stockEntry = item.stockData;
+                document.head.appendChild(style);
             }
 
-            if (!stockEntry) {
-                fetch(`/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
-                            stockData.push(data.data[0]);
-                            allProducts.push(data.data[0]);
-                            addProductToTable(data.data[0].product, searchTerm, matchType);
-                        } else {
-                            toastr.error('Stock entry not found for the product', 'Error');
+            function showSearchIndicator(text, color = "#28a745") {
+                hideSearchIndicator();
+                const searchContainer = $("#productSearchInput").parent();
+                if (searchContainer.css('position') !== 'relative') searchContainer.css('position', 'relative');
+                const indicator = $(`<span class="search-indicator" style="color: ${color};">${text}</span>`);
+                searchContainer.append(indicator);
+            }
+
+            function hideSearchIndicator() {
+                $('.search-indicator').remove();
+            }
+
+            // In the keydown handler for Enter
+            $("#productSearchInput").off('keydown.autocomplete').on('keydown.autocomplete', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+
+                    const widget = $(this).autocomplete("widget");
+                    const focused = widget.find(".ui-state-focus");
+                    const currentSearchTerm = $(this).val().trim();
+
+                    let itemToAdd = null;
+
+                    if (focused.length > 0) {
+                        // Get the item data from the autocomplete instance's active item
+                        const autocompleteInstance = $(this).autocomplete("instance");
+                        if (autocompleteInstance && autocompleteInstance.menu.active) {
+                            itemToAdd = autocompleteInstance.menu.active.data("ui-autocomplete-item");
                         }
-                    })
-                    .catch(() => { toastr.error('Error fetching product stock data', 'Error'); });
-                return;
+                    }
+
+                    // Fallback: if no focused item found, use first item from last search results
+                    if (!itemToAdd && lastSearchResults.length > 0) {
+                        itemToAdd = lastSearchResults[0];
+                    }
+
+                    if (itemToAdd && itemToAdd.product) {
+                        // Prevent duplicate add of same product consecutively
+                        if (!lastAddedProduct || lastAddedProduct.id !== itemToAdd.product.id) {
+                            lastAddedProduct = itemToAdd.product;
+                            addProductFromAutocomplete(itemToAdd, currentSearchTerm, itemToAdd
+                                .imeiMatch ? 'IMEI' : 'ENTER');
+                        }
+                    }
+
+                    // Close autocomplete immediately
+                    $(this).autocomplete('close');
+                    $(this).val('');
+                    event.stopImmediatePropagation();
+                }
+            });
+
+            $("#productSearchInput").on('input', function() {
+                lastAddedProduct = null; // reset on new input
+                if (autoAddTimeout) {
+                    clearTimeout(autoAddTimeout);
+                    autoAddTimeout = null;
+                }
+                if ($(this).val().length === 0) hideSearchIndicator();
+            });
+
+            function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
+                if (!item.product) return;
+
+                // Prevent duplicate quantity increment for same product and matchType
+                if (lastAddedProduct && lastAddedProduct.id === item.product.id && matchType !== 'MANUAL')
+                    return;
+
+                lastAddedProduct = item.product;
+
+                console.log('Adding product from autocomplete:', item.product.product_name, 'Search term:',
+                    searchTerm, 'Match type:', matchType);
+
+                let stockEntry = stockData.find(stock => stock.product.id === item.product.id);
+                if (!stockEntry && item.stockData) {
+                    stockData.push(item.stockData);
+                    allProducts.push(item.stockData);
+                    stockEntry = item.stockData;
+                }
+
+                if (!stockEntry) {
+                    fetch(
+                            `/api/products/stocks?location_id=${selectedLocationId}&product_id=${item.product.id}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 200 && Array.isArray(data.data) && data.data.length > 0) {
+                                stockData.push(data.data[0]);
+                                allProducts.push(data.data[0]);
+                                addProductToTable(data.data[0].product, searchTerm, matchType);
+                            } else {
+                                toastr.error('Stock entry not found for the product', 'Error');
+                            }
+                        })
+                        .catch(() => {
+                            toastr.error('Error fetching product stock data', 'Error');
+                        });
+                    return;
+                }
+
+                addProductToTable(item.product, searchTerm, matchType);
             }
 
-            addProductToTable(item.product, searchTerm, matchType);
+            $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
+            $("#productSearchInput").autocomplete("instance").liveRegion.remove();
+
+            $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
+                if (!this.menu.element.is(":visible")) {
+                    this.search(null, event);
+                    return;
+                }
+                if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() &&
+                        /^next/.test(direction))) {
+                    this._value(this.term);
+                    this.menu.blur();
+                    return;
+                }
+                this.menu[direction](event);
+                this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                this.menu.active.addClass("ui-state-focus");
+            };
         }
-
-        $("#productSearchInput").removeAttr("aria-live aria-autocomplete");
-        $("#productSearchInput").autocomplete("instance").liveRegion.remove();
-
-        $("#productSearchInput").autocomplete("instance")._move = function(direction, event) {
-            if (!this.menu.element.is(":visible")) { this.search(null, event); return; }
-            if ((this.menu.isFirstItem() && /^previous/.test(direction)) || (this.menu.isLastItem() && /^next/.test(direction))) {
-                this._value(this.term);
-                this.menu.blur();
-                return;
-            }
-            this.menu[direction](event);
-            this.menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
-            this.menu.active.addClass("ui-state-focus");
-        };
-    }
 
         // Re-init autocomplete when location changes
         $('#locationSelect').on('change', () => {
@@ -2071,15 +2187,17 @@
             if (product.stock_alert === 0) {
                 // Proceed to add product with batch "all" and quantity 0 (unlimited)
                 const batchesArray = normalizeBatches(stockEntry);
-                
+
                 // Use latest batch for pricing determination
                 const latestBatch = batchesArray.length > 0 ? batchesArray[0] : null;
-                
+
                 // Get customer-type-based price
                 const priceResult = getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
-                
+
                 if (priceResult.hasError) {
-                    toastr.error(`This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`, 'Pricing Error');
+                    toastr.error(
+                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                        'Pricing Error');
                     return;
                 }
 
@@ -2152,7 +2270,7 @@
                     customerTypePrices.push(priceResult.price);
                 }
             }
-            
+
             // Remove duplicates
             const uniquePrices = [...new Set(customerTypePrices)];
 
@@ -2168,13 +2286,15 @@
                         }
                     });
                 });
-                
+
                 // Use latest batch for pricing
                 const latestBatch = batchesArray[0];
                 const priceResult = getCustomerTypePrice(latestBatch, product, currentCustomer.customer_type);
-                
+
                 if (priceResult.hasError) {
-                    toastr.error(`This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`, 'Pricing Error');
+                    toastr.error(
+                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                        'Pricing Error');
                     return;
                 }
 
@@ -2199,13 +2319,13 @@
             if (!stockEntry || !stockEntry.batches) {
                 return [];
             }
-            
+
             if (Array.isArray(stockEntry.batches)) {
                 return stockEntry.batches;
             } else if (typeof stockEntry.batches === 'object' && stockEntry.batches !== null) {
                 return Object.values(stockEntry.batches);
             }
-            
+
             return [];
         }
 
@@ -2253,28 +2373,31 @@
             validBatches.forEach((batch, index) => {
                 const locationBatch = batch.location_batches.find(lb => lb.location_id ==
                     selectedLocationId);
-                
+
                 // Get customer-type-based price for this batch
                 const priceResult = getCustomerTypePrice(batch, product, currentCustomer.customer_type);
-                
+
                 let priceDisplay = '';
                 let priceToUse = 0;
                 let buttonContent = '';
-                
+
                 if (priceResult.hasError) {
-                    priceDisplay = `<span class="text-danger">No valid price for ${currentCustomer.customer_type}</span>`;
-                    buttonContent = `<button class="btn btn-sm btn-secondary" disabled>No Price</button>`;
+                    priceDisplay =
+                        `<span class="text-danger">No valid price for ${currentCustomer.customer_type}</span>`;
+                    buttonContent =
+                        `<button class="btn btn-sm btn-secondary" disabled>No Price</button>`;
                 } else {
                     priceToUse = priceResult.price;
-                    const batchMrp = batch.max_retail_price !== undefined && batch.max_retail_price !== null ?
+                    const batchMrp = batch.max_retail_price !== undefined && batch.max_retail_price !==
+                        null ?
                         parseFloat(batch.max_retail_price) : (product.max_retail_price || 0);
-                    
+
                     priceDisplay = `
                         MRP: Rs ${batchMrp.toFixed(2)}<br>
                         <strong>${currentCustomer.customer_type.charAt(0).toUpperCase() + currentCustomer.customer_type.slice(1)} Price: Rs ${priceToUse.toFixed(2)}</strong><br>
                         <small class="text-muted">Source: ${priceResult.source.replace(/_/g, ' ')}</small>
                     `;
-                    
+
                     buttonContent = `
                         <button class="btn btn-sm btn-primary select-batch-btn"
                             data-batch-id="${batch.id}"
@@ -2310,10 +2433,13 @@
                     const qty = locationBatch?.quantity || 0;
 
                     // Get customer-type-based price for the selected batch
-                    const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
-                    
+                    const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer
+                        .customer_type);
+
                     if (priceResult.hasError) {
-                        toastr.error(`This batch has no valid price configured for ${currentCustomer.customer_type} customers.`, 'Pricing Error');
+                        toastr.error(
+                            `This batch has no valid price configured for ${currentCustomer.customer_type} customers.`,
+                            'Pricing Error');
                         return;
                     }
 
@@ -2403,7 +2529,7 @@
         function showImeiSelectionModal(product, stockEntry, imeis, searchTerm = '', matchType = '') {
             currentImeiProduct = product;
             currentImeiStockEntry = stockEntry;
-            
+
             console.log('Opening IMEI modal with search term:', searchTerm, 'Match type:', matchType);
             console.log('Is editing:', isEditing, 'Current sale ID:', currentEditingSaleId);
 
@@ -2411,39 +2537,40 @@
             if (!isEditing) {
                 console.log('Force refreshing stock data for IMEI product...');
                 fetch(`/api/products/stocks/autocomplete?search=${encodeURIComponent(product.product_name)}&location_id=${selectedLocationId}`, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        // Find the current product in the response
-                        const updatedStockEntry = data.find(item => item.product.id === product.id);
-                        if (updatedStockEntry) {
-                            console.log('Updated stock entry:', updatedStockEntry);
-                            // Update the global stockData
-                            const stockIndex = stockData.findIndex(stock => stock.product.id === product.id);
-                            if (stockIndex !== -1) {
-                                stockData[stockIndex] = updatedStockEntry;
-                                console.log('Updated global stockData for product:', product.id);
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.length > 0) {
+                            // Find the current product in the response
+                            const updatedStockEntry = data.find(item => item.product.id === product.id);
+                            if (updatedStockEntry) {
+                                console.log('Updated stock entry:', updatedStockEntry);
+                                // Update the global stockData
+                                const stockIndex = stockData.findIndex(stock => stock.product.id === product
+                                    .id);
+                                if (stockIndex !== -1) {
+                                    stockData[stockIndex] = updatedStockEntry;
+                                    console.log('Updated global stockData for product:', product.id);
+                                }
+                                // Use the updated stock entry
+                                continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType);
+                            } else {
+                                console.log('Product not found in updated data, using original');
+                                continueWithImeiModal(product, stockEntry, searchTerm, matchType);
                             }
-                            // Use the updated stock entry
-                            continueWithImeiModal(product, updatedStockEntry, searchTerm, matchType);
                         } else {
-                            console.log('Product not found in updated data, using original');
+                            console.log('No updated data received, using original');
                             continueWithImeiModal(product, stockEntry, searchTerm, matchType);
                         }
-                    } else {
-                        console.log('No updated data received, using original');
+                    })
+                    .catch(error => {
+                        console.error('Error refreshing stock data:', error);
                         continueWithImeiModal(product, stockEntry, searchTerm, matchType);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error refreshing stock data:', error);
-                    continueWithImeiModal(product, stockEntry, searchTerm, matchType);
-                });
+                    });
             } else {
                 continueWithImeiModal(product, stockEntry, searchTerm, matchType);
             }
@@ -2475,12 +2602,13 @@
             // Function to process and display IMEI data
             const processImeiData = (allRelevantImeis) => {
                 console.log('ProcessImeiData called with:', allRelevantImeis);
-                
+
                 // Ensure batches is always an array using helper function
                 const batchesArray = normalizeBatches(stockEntry);
-                
+
                 const selectedBatch = batchesArray.find(b =>
-                    b.location_batches && b.location_batches.some(lb => lb.location_id == selectedLocationId)
+                    b.location_batches && b.location_batches.some(lb => lb.location_id ==
+                        selectedLocationId)
                 );
                 const batchQty = selectedBatch ? selectedBatch.total_batch_quantity : 0;
                 let missingImeiCount = Math.max(0, batchQty - allRelevantImeis.length);
@@ -2496,21 +2624,21 @@
                 // Populate all relevant IMEIs
                 allRelevantImeis.forEach((imei, index) => {
                     const isChecked = selectedImeisInBilling.includes(imei.imei_number);
-                    
+
                     // Check if this IMEI matches the search term (for auto-selection)
-                    const isSearchedImei = matchType === 'IMEI' && searchTerm && 
+                    const isSearchedImei = matchType === 'IMEI' && searchTerm &&
                         imei.imei_number.toLowerCase() === searchTerm.toLowerCase();
-                    
+
                     const row = document.createElement('tr');
                     row.dataset.imei = imei.imei_number;
                     row.dataset.imeiId = imei.id; // <-- Store primary key for edit
-                    
+
                     // Add special styling for searched IMEI
                     if (isSearchedImei) {
                         row.style.backgroundColor = '#e8f4f8';
                         row.style.border = '2px solid #17a2b8';
                     }
-                    
+
                     row.innerHTML = `
                 <td>${index + 1}</td>
                 <td><input type="checkbox" class="imei-checkbox" value="${imei.imei_number}" ${isChecked || isSearchedImei ? 'checked' : ''} data-status="${imei.status}" /></td>
@@ -2544,7 +2672,7 @@
                     return;
                 }
                 const modal = new bootstrap.Modal(modalElement);
-                
+
                 // Add event listener for modal cleanup
                 modalElement.addEventListener('hidden.bs.modal', function modalCleanup() {
                     // Ensure backdrop is removed and body styles are reset
@@ -2557,11 +2685,11 @@
                         document.body.style.overflow = '';
                         document.body.style.paddingRight = '';
                     }, 100);
-                    
+
                     // Remove the event listener to prevent memory leaks
                     modalElement.removeEventListener('hidden.bs.modal', modalCleanup);
                 });
-                
+
                 modal.show();
 
                 setupSearchAndFilter(tbody, imeiRows, searchTerm, matchType);
@@ -2573,65 +2701,70 @@
             // If we're in edit mode, fetch the current sale's IMEI data and merge with available IMEIs
             if (isEditing && currentEditingSaleId) {
                 fetch(`/sales/edit/${currentEditingSaleId}`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 200) {
-                        // Get the current sale's IMEI numbers for this product
-                        const saleProducts = data.sale_details.sale_products.filter(sp => sp.product_id == product.id);
-                        let currentSaleImeis = [];
-                        
-                        saleProducts.forEach(sp => {
-                            if (sp.imei_numbers && sp.imei_numbers.length > 0) {
-                                sp.imei_numbers.forEach(imeiNumber => {
-                                    // Create IMEI object that matches the format from autocomplete
-                                    currentSaleImeis.push({
-                                        id: sp.id, // Use sale product ID as placeholder
-                                        imei_number: imeiNumber,
-                                        location_id: sp.location_id,
-                                        batch_id: sp.batch_id,
-                                        status: 'sold' // These are currently sold IMEIs
-                                    });
-                                });
-                            }
-                        });
-
-                        console.log('Current sale IMEIs:', currentSaleImeis);
-
-                        // Merge available IMEIs from stock with current sale IMEIs
-                        let allRelevantImeis = [];
-                        
-                        if (stockEntry.imei_numbers) {
-                            // Add available IMEIs
-                            const availableImeis = stockEntry.imei_numbers.filter(imei =>
-                                imei.status === "available" && imei.location_id == selectedLocationId
-                            );
-                            allRelevantImeis.push(...availableImeis);
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
-                        
-                        // Add current sale IMEIs (these will show as sold but selectable)
-                        allRelevantImeis.push(...currentSaleImeis);
-                        
-                        // Remove duplicates based on IMEI number
-                        allRelevantImeis = allRelevantImeis.filter((imei, index, self) =>
-                            index === self.findIndex(i => i.imei_number === imei.imei_number)
-                        );
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 200) {
+                            // Get the current sale's IMEI numbers for this product
+                            const saleProducts = data.sale_details.sale_products.filter(sp => sp
+                                .product_id == product.id);
+                            let currentSaleImeis = [];
 
-                        console.log('All relevant IMEIs for edit mode:', allRelevantImeis);
-                        
-                        processImeiData(allRelevantImeis);
-                    } else {
-                        console.error('Failed to fetch sale data for IMEI editing');
+                            saleProducts.forEach(sp => {
+                                if (sp.imei_numbers && sp.imei_numbers.length > 0) {
+                                    sp.imei_numbers.forEach(imeiNumber => {
+                                        // Create IMEI object that matches the format from autocomplete
+                                        currentSaleImeis.push({
+                                            id: sp
+                                            .id, // Use sale product ID as placeholder
+                                            imei_number: imeiNumber,
+                                            location_id: sp.location_id,
+                                            batch_id: sp.batch_id,
+                                            status: 'sold' // These are currently sold IMEIs
+                                        });
+                                    });
+                                }
+                            });
+
+                            console.log('Current sale IMEIs:', currentSaleImeis);
+
+                            // Merge available IMEIs from stock with current sale IMEIs
+                            let allRelevantImeis = [];
+
+                            if (stockEntry.imei_numbers) {
+                                // Add available IMEIs
+                                const availableImeis = stockEntry.imei_numbers.filter(imei =>
+                                    imei.status === "available" && imei.location_id ==
+                                    selectedLocationId
+                                );
+                                allRelevantImeis.push(...availableImeis);
+                            }
+
+                            // Add current sale IMEIs (these will show as sold but selectable)
+                            allRelevantImeis.push(...currentSaleImeis);
+
+                            // Remove duplicates based on IMEI number
+                            allRelevantImeis = allRelevantImeis.filter((imei, index, self) =>
+                                index === self.findIndex(i => i.imei_number === imei.imei_number)
+                            );
+
+                            console.log('All relevant IMEIs for edit mode:', allRelevantImeis);
+
+                            processImeiData(allRelevantImeis);
+                        } else {
+                            console.error('Failed to fetch sale data for IMEI editing');
+                            // Fallback to available IMEIs only
+                            processImeiDataFallback();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching sale IMEI data:', error);
                         // Fallback to available IMEIs only
                         processImeiDataFallback();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching sale IMEI data:', error);
-                    // Fallback to available IMEIs only
-                    processImeiDataFallback();
-                });
+                    });
             } else {
                 // Not in edit mode, use available IMEIs only
                 processImeiDataFallback();
@@ -2640,20 +2773,21 @@
             // Fallback function for non-edit mode
             function processImeiDataFallback() {
                 let allRelevantImeis = [];
-                
+
                 console.log('StockEntry imei_numbers:', stockEntry.imei_numbers);
                 console.log('Selected Location ID:', selectedLocationId);
-                
+
                 if (stockEntry.imei_numbers) {
                     // Add available IMEIs
                     const availableImeis = stockEntry.imei_numbers.filter(imei => {
-                        console.log('Checking IMEI:', imei, 'Status:', imei.status, 'Location:', imei.location_id);
+                        console.log('Checking IMEI:', imei, 'Status:', imei.status, 'Location:', imei
+                            .location_id);
                         return imei.status === "available" && imei.location_id == selectedLocationId;
                     });
                     console.log('Filtered available IMEIs:', availableImeis);
                     allRelevantImeis.push(...availableImeis);
                 }
-                
+
                 console.log('ProcessImeiDataFallback - allRelevantImeis:', allRelevantImeis);
                 processImeiData(allRelevantImeis);
             }
@@ -2664,12 +2798,12 @@
         function setupSearchAndFilter(tbody, imeiRows, searchTerm = '', matchType = '') {
             const searchInput = document.getElementById('imeiSearch');
             const filterSelect = document.getElementById('checkboxFilter');
-            
+
             // Pre-populate search field if we searched by IMEI
             if (matchType === 'IMEI' && searchTerm && searchInput) {
                 searchInput.value = searchTerm;
                 searchInput.focus();
-                
+
                 // Add visual indication that this was auto-filled
                 searchInput.style.backgroundColor = '#e8f4f8';
                 setTimeout(() => {
@@ -2765,16 +2899,19 @@
                     document.body.style.paddingRight = '';
                 }
                 const batchId = selectedBatch ? selectedBatch.id : "all";
-                
+
                 // Get customer-type-based price
                 const currentCustomer = getCurrentCustomer();
-                const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
-                
+                const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer
+                    .customer_type);
+
                 if (priceResult.hasError) {
-                    toastr.error(`This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`, 'Pricing Error');
+                    toastr.error(
+                        `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                        'Pricing Error');
                     return;
                 }
-                
+
                 const price = priceResult.price;
                 const imeiLocationId = selectedBatch?.location_batches[0]?.location_id ?? 1;
 
@@ -2847,22 +2984,25 @@
 
             // Get current customer and determine appropriate price
             const currentCustomer = getCurrentCustomer();
-            
+
             // Ensure batches is always an array using helper function
             const batchesArray = normalizeBatches(stockEntry);
             const selectedBatch = batchesArray.find(b => b.id === parseInt(batchId));
-            
+
             // Get customer-type-based price
             const priceResult = getCustomerTypePrice(selectedBatch, product, currentCustomer.customer_type);
-            
+
             if (priceResult.hasError) {
-                toastr.error(`This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`, 'Pricing Error');
+                toastr.error(
+                    `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                    'Pricing Error');
                 return;
             }
 
             imeis.forEach(imei => {
                 addProductToBillingBody(
-                    product, stockEntry, priceResult.price, batchId, 1, currentCustomer.customer_type, 1, [imei]
+                    product, stockEntry, priceResult.price, batchId, 1, currentCustomer
+                    .customer_type, 1, [imei]
                 );
             });
 
@@ -3047,7 +3187,8 @@
                         retail_price: parseFloat(batch.retail_price),
                         wholesale_price: parseFloat(batch.wholesale_price),
                         special_price: parseFloat(batch.special_price),
-                        max_retail_price: parseFloat(batch.max_retail_price) || parseFloat(product.max_retail_price),
+                        max_retail_price: parseFloat(batch.max_retail_price) || parseFloat(product
+                            .max_retail_price),
                         batch_quantity: locationBatch ? parseFloat(locationBatch.quantity) : 0,
                         created_at: batch.created_at || null // If available
                     };
@@ -3100,17 +3241,21 @@
             if (locationBatches.length > 0) {
                 // Build batch options with all available prices
                 batchOptions = locationBatches.map((batch, idx) => {
-                    let priceDisplay = `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
-                    
+                    let priceDisplay =
+                    `R: ${formatAmountWithSeparators(batch.retail_price.toFixed(2))}`;
+
                     if (batch.wholesale_price > 0) {
-                        priceDisplay += ` | W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`;
+                        priceDisplay +=
+                            ` | W: ${formatAmountWithSeparators(batch.wholesale_price.toFixed(2))}`;
                     }
-                    
+
                     if (batch.special_price > 0) {
-                        priceDisplay += ` | S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`;
+                        priceDisplay +=
+                            ` | S: ${formatAmountWithSeparators(batch.special_price.toFixed(2))}`;
                     }
-                    
-                    priceDisplay += ` | MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`;
+
+                    priceDisplay +=
+                        ` | MRP: ${formatAmountWithSeparators(batch.max_retail_price.toFixed(2))}`;
 
                     return `
                         <option value="${batch.batch_id}" 
@@ -3126,7 +3271,7 @@
 
                 // Build price type radio buttons (only show available options)
                 let priceTypeButtons = '';
-                
+
                 // Always show retail
                 const isRetailSelected = defaultPriceType === 'retail';
                 priceTypeButtons += `
@@ -3162,7 +3307,8 @@
                 let allRetailPrice = latestBatch ? latestBatch.retail_price : finalPrice;
                 let allWholesalePrice = latestBatch ? latestBatch.wholesale_price : 0;
                 let allSpecialPrice = latestBatch ? latestBatch.special_price : 0;
-                let allMrpPrice = latestBatch ? latestBatch.max_retail_price : parseFloat(product.max_retail_price);
+                let allMrpPrice = latestBatch ? latestBatch.max_retail_price : parseFloat(product
+                    .max_retail_price);
 
                 modalBody.innerHTML = `
                     <div class="d-flex align-items-center">
@@ -3248,11 +3394,13 @@
 
             if (isNaN(price) || price <= 0) {
                 console.error('Invalid price for product:', product.product_name, 'Price:', price);
-                
+
                 // Get customer type for error message
                 const currentCustomer = getCurrentCustomer();
-                toastr.error(`This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`, 'Pricing Error');
-                
+                toastr.error(
+                    `This product has no valid price configured for ${currentCustomer.customer_type} customers. Please contact admin to fix pricing.`,
+                    'Pricing Error');
+
                 // Log the error
                 logPricingError(product, currentCustomer.customer_type, batch);
                 return;
@@ -3332,7 +3480,8 @@
             let initialQuantityValue;
             if (isEditing && saleQuantity !== undefined) {
                 // In edit mode, use the actual sale quantity
-                initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/, '') : parseInt(saleQuantity, 10);
+                initialQuantityValue = allowDecimal ? parseFloat(saleQuantity).toFixed(2).replace(/\.?0+$/,
+                    '') : parseInt(saleQuantity, 10);
             } else if (imeis.length > 0) {
                 initialQuantityValue = imeis.length;
             } else if (allowDecimal) {
@@ -3378,7 +3527,7 @@
                         rowProductId == product.id &&
                         parseFloat(rowPrice).toFixed(2) === finalPrice.toFixed(2)
                     );
-                    
+
                     // Original strict matching (uncomment if you want batch-specific rows):
                     // return (
                     //     rowProductId == product.id &&
@@ -3411,7 +3560,7 @@
             }
 
             const row = document.createElement('tr');
-            
+
             // Add data attributes for price updating functionality
             row.setAttribute('data-product-id', product.id);
             row.setAttribute('data-batch-id', batchId);
@@ -3568,7 +3717,14 @@
 
             // Handle discount inputs and price editability
             if (fixedDiscountInput) {
-                fixedDiscountInput.addEventListener('input', () => {
+                // Allow free typing, validate only on change/blur
+                fixedDiscountInput.addEventListener('change', () => {
+                    handleDiscountToggle(fixedDiscountInput);
+                    validateDiscountInput(row, fixedDiscountInput, 'fixed');
+                    updatePriceEditability(row);
+                    updateTotals();
+                });
+                fixedDiscountInput.addEventListener('blur', () => {
                     handleDiscountToggle(fixedDiscountInput);
                     validateDiscountInput(row, fixedDiscountInput, 'fixed');
                     updatePriceEditability(row);
@@ -3576,7 +3732,14 @@
                 });
             }
             if (percentDiscountInput) {
-                percentDiscountInput.addEventListener('input', () => {
+                // Allow free typing, validate only on change/blur
+                percentDiscountInput.addEventListener('change', () => {
+                    handleDiscountToggle(percentDiscountInput);
+                    validateDiscountInput(row, percentDiscountInput, 'percent');
+                    updatePriceEditability(row);
+                    updateTotals();
+                });
+                percentDiscountInput.addEventListener('blur', () => {
                     handleDiscountToggle(percentDiscountInput);
                     validateDiscountInput(row, percentDiscountInput, 'percent');
                     updatePriceEditability(row);
@@ -3585,7 +3748,11 @@
             }
 
             // Price input change → Validate minimum price and recalculate discount
-            priceInput.addEventListener('input', () => {
+            // Allow free typing, validate only on change/blur
+            priceInput.addEventListener('change', () => {
+                validatePriceInput(row, priceInput);
+            });
+            priceInput.addEventListener('blur', () => {
                 validatePriceInput(row, priceInput);
             });
 
@@ -3772,7 +3939,7 @@
 
             // Get price based on selected type, but validate it's not zero
             let price = parseFloat(selectedBatch.getAttribute(`data-${selectedPriceType}-price`));
-            
+
             // If selected price type is zero, fall back to retail price
             if (!price || price <= 0) {
                 console.warn(`${selectedPriceType} price is zero or invalid, falling back to retail price`);
@@ -3820,7 +3987,7 @@
                     selectedPriceType === 'wholesale' ?
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i>' :
                     '<i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>';
-                
+
                 // Clean up existing stars and add new ones
                 const skuText = productSkuCell.textContent.replace(/\s*★+\s*/g, '').trim();
                 productSkuCell.innerHTML = `${skuText} ${stars}`;
@@ -3960,29 +4127,34 @@
                     if (productId && quantity > 0) {
                         // Find the product in stockData or allProducts with proper null checks
                         let stock = null;
-                        
+
                         // Search in stockData first
                         if (stockData && Array.isArray(stockData)) {
-                            stock = stockData.find(s => s && s.product && s.product.id && String(s.product.id) === productId);
+                            stock = stockData.find(s => s && s.product && s.product.id && String(s
+                                .product.id) === productId);
                         }
-                        
+
                         // Search in allProducts if not found in stockData
                         if (!stock && allProducts && Array.isArray(allProducts)) {
-                            stock = allProducts.find(s => s && s.product && s.product.id && String(s.product.id) === productId);
-                            
+                            stock = allProducts.find(s => s && s.product && s.product.id && String(s
+                                .product.id) === productId);
+
                             // Also try direct product structure (for when allProducts contains products directly)
                             if (!stock) {
                                 stock = allProducts.find(s => s && s.id && String(s.id) === productId);
                                 if (stock) {
                                     // Normalize structure
-                                    stock = { product: stock };
+                                    stock = {
+                                        product: stock
+                                    };
                                 }
                             }
                         }
-                        
+
                         // Use unit information if available, otherwise default to 'pcs'
                         if (stock && stock.product && stock.product.unit) {
-                            let unitShort = stock.product.unit.short_name || stock.product.unit.name || 'pcs';
+                            let unitShort = stock.product.unit.short_name || stock.product.unit.name ||
+                                'pcs';
                             if (!unitSummary[unitShort]) unitSummary[unitShort] = 0;
                             unitSummary[unitShort] += quantity;
                         } else {
@@ -3995,13 +4167,15 @@
             } catch (error) {
                 console.error('Error calculating unit summary:', error);
                 // Fallback to simple count
-                unitSummary = { 'pcs': totalItems };
+                unitSummary = {
+                    'pcs': totalItems
+                };
             }
             // Build display string like "4 kg, 2 pcs, 1 pack"
             let unitDisplay = Object.entries(unitSummary)
                 .map(([unit, qty]) => `${qty % 1 === 0 ? qty : qty.toFixed(4).replace(/\.?0+$/, '')} ${unit}`)
                 .join(', ');
-            
+
             // Safe DOM updates with null checks
             const itemsCountEl = document.getElementById('items-count');
             const modalTotalItemsEl = document.getElementById('modal-total-items');
@@ -4010,15 +4184,18 @@
             const totalEl = document.getElementById('total');
             const paymentAmountEl = document.getElementById('payment-amount');
             const modalTotalPayableEl = document.getElementById('modal-total-payable');
-            
+
             if (itemsCountEl) itemsCountEl.textContent = unitDisplay || totalItems.toFixed(2);
             if (modalTotalItemsEl) modalTotalItemsEl.textContent = unitDisplay || totalItems.toFixed(2);
             if (totalAmountEl) totalAmountEl.textContent = formatAmountWithSeparators(totalAmount.toFixed(2));
-            if (finalTotalAmountEl) finalTotalAmountEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
+            if (finalTotalAmountEl) finalTotalAmountEl.textContent = formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
             if (totalEl) totalEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
-            if (paymentAmountEl) paymentAmountEl.textContent = 'Rs ' + formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
-            if (modalTotalPayableEl) modalTotalPayableEl.textContent = formatAmountWithSeparators(totalAmountWithDiscount.toFixed(2));
-            
+            if (paymentAmountEl) paymentAmountEl.textContent = 'Rs ' + formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
+            if (modalTotalPayableEl) modalTotalPayableEl.textContent = formatAmountWithSeparators(
+                totalAmountWithDiscount.toFixed(2));
+
             // Validate quantities and update button states
             updatePaymentButtonsState();
         }
@@ -4027,13 +4204,14 @@
         function validateAllQuantities() {
             let isValid = true;
             const productRows = $('#billing-body tr');
-            
+
             productRows.each(function() {
                 const quantityInput = $(this).find('.quantity-input');
                 const maxQuantity = parseFloat(quantityInput.attr('max')) || Infinity;
                 const currentQuantity = parseFloat(quantityInput.val()) || 0;
-                const isUnlimitedStock = quantityInput.attr('title') && quantityInput.attr('title').includes('Unlimited');
-                
+                const isUnlimitedStock = quantityInput.attr('title') && quantityInput.attr('title')
+                    .includes('Unlimited');
+
                 // Check if quantity is valid
                 if (currentQuantity <= 0) {
                     // Always invalid if quantity is zero or negative
@@ -4048,14 +4226,16 @@
                     quantityInput.removeClass('quantity-error');
                 }
             });
-            
+
             return isValid;
         }
 
         function updatePaymentButtonsState() {
             const isQuantityValid = validateAllQuantities();
-            const paymentButtons = ['#cashButton', '#cardButton', '#chequeButton', '#creditSaleButton', '#multiplePayButton'];
-            
+            const paymentButtons = ['#cashButton', '#cardButton', '#chequeButton', '#creditSaleButton',
+                '#multiplePayButton'
+            ];
+
             paymentButtons.forEach(buttonId => {
                 if (isQuantityValid) {
                     $(buttonId).prop('disabled', false);
@@ -4063,7 +4243,7 @@
                     $(buttonId).prop('disabled', true);
                 }
             });
-            
+
             // Draft button is always enabled
             $('#draftButton').prop('disabled', false);
             $('#quotationButton').prop('disabled', false);
@@ -4074,7 +4254,7 @@
             const priceInput = row.querySelector('.price-input');
             const fixedDiscountInput = row.querySelector('.fixed_discount');
             const percentDiscountInput = row.querySelector('.percent_discount');
-            
+
             if (!priceInput || !fixedDiscountInput || !percentDiscountInput) return;
 
             const fixedDiscount = parseFloat(fixedDiscountInput.value) || 0;
@@ -4099,10 +4279,11 @@
             const wholesalePrice = parseFloat(priceInput.getAttribute('data-wholesale-price')) || 0;
             const specialPrice = parseFloat(priceInput.getAttribute('data-special-price')) || 0;
             const maxRetailPrice = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
-            
+
             let enteredPrice = parseFloat(priceInput.value) || 0;
             let minimumPrice = 0;
             let priceTypeName = '';
+            let originalEnteredPrice = enteredPrice;
 
             // Determine minimum allowed price based on hierarchy
             if (specialPrice > 0) {
@@ -4132,12 +4313,12 @@
             // Validate against minimum price
             if (enteredPrice < minimumPrice && minimumPrice > 0) {
                 toastr.error(
-                    `Price cannot be below ${priceTypeName} of Rs . ${minimumPrice.toFixed(2)}. This prevents selling at loss.`,
+                    `Price cannot be below ${priceTypeName} of Rs. ${minimumPrice.toFixed(2)}. This prevents selling at loss.`,
                     'Price Validation Error'
                 );
                 priceInput.value = minimumPrice.toFixed(2);
                 enteredPrice = minimumPrice;
-                
+
                 // Add visual feedback
                 priceInput.style.borderColor = '#dc3545';
                 setTimeout(() => {
@@ -4145,11 +4326,11 @@
                 }, 3000);
             }
 
-            // Recalculate discount after price validation
+            // Recalculate discount after price validation only if price was changed
             const fixedDiscountInput = row.querySelector('.fixed_discount');
             const percentDiscountInput = row.querySelector('.percent_discount');
-            
-            if (maxRetailPrice > 0) {
+
+            if (maxRetailPrice > 0 && enteredPrice !== originalEnteredPrice) {
                 const discountAmount = maxRetailPrice - enteredPrice;
                 if (fixedDiscountInput) {
                     fixedDiscountInput.value = discountAmount > 0 ? discountAmount.toFixed(2) : '0.00';
@@ -4171,7 +4352,7 @@
             const wholesalePrice = parseFloat(priceInput.getAttribute('data-wholesale-price')) || 0;
             const specialPrice = parseFloat(priceInput.getAttribute('data-special-price')) || 0;
             const maxRetailPrice = parseFloat(priceInput.getAttribute('data-max-retail-price')) || 0;
-            
+
             let minimumPrice = 0;
             let priceTypeName = '';
 
@@ -4195,6 +4376,7 @@
             const discountValue = parseFloat(discountInput.value) || 0;
             let finalPrice = 0;
             let maxAllowedDiscount = 0;
+            let originalDiscountValue = discountValue;
 
             if (discountType === 'fixed') {
                 finalPrice = maxRetailPrice - discountValue;
@@ -4217,13 +4399,13 @@
             if (finalPrice < minimumPrice) {
                 if (discountType === 'fixed') {
                     toastr.error(
-                        `Fixed discount cannot exceed Rs . ${maxAllowedDiscount.toFixed(2)}. This would make selling price (Rs . ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs . ${minimumPrice.toFixed(2)}).`,
+                        `Fixed discount cannot exceed Rs. ${maxAllowedDiscount.toFixed(2)}. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`,
                         'Discount Validation Error'
                     );
                     discountInput.value = maxAllowedDiscount.toFixed(2);
                 } else {
                     toastr.error(
-                        `Percentage discount cannot exceed ${maxAllowedDiscount.toFixed(2)}%. This would make selling price (Rs . ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs . ${minimumPrice.toFixed(2)}).`,
+                        `Percentage discount cannot exceed ${maxAllowedDiscount.toFixed(2)}%. This would make selling price (Rs. ${finalPrice.toFixed(2)}) below ${priceTypeName} (Rs. ${minimumPrice.toFixed(2)}).`,
                         'Discount Validation Error'
                     );
                     discountInput.value = maxAllowedDiscount.toFixed(2);
@@ -4244,15 +4426,18 @@
                 }
             }
 
-            // Update the price input with the calculated final price
-            priceInput.value = finalPrice.toFixed(2);
+            // Update the price input with the calculated final price only if discount was corrected
+            if (originalDiscountValue !== parseFloat(discountInput.value) || finalPrice >= minimumPrice) {
+                priceInput.value = finalPrice.toFixed(2);
+            }
         }
 
-        //chanege event global discount
+        //change event global discount
         const globalDiscountInput = document.getElementById('global-discount');
         const globalDiscountTypeInput = document.getElementById('discount-type');
         if (globalDiscountInput) {
-            globalDiscountInput.addEventListener('input', function() {
+            // Allow free typing, validate only on change/blur
+            globalDiscountInput.addEventListener('change', function() {
                 const discountValue = parseFloat(this.value) || 0;
                 const discountType = globalDiscountTypeInput.value;
                 if (discountType === 'percentage') {
@@ -4260,18 +4445,14 @@
                 }
                 updateTotals();
             });
-            globalDiscountInput.addEventListener('input', function() {
+            globalDiscountInput.addEventListener('blur', function() {
                 const discountValue = parseFloat(this.value) || 0;
-                if (globalDiscountTypeInput.value === 'percentage') {
-                    this.value = Math.min(discountValue, 100);
+                const discountType = globalDiscountTypeInput.value;
+                if (discountType === 'percentage') {
+                    this.value = Math.min(discountValue, 100); // Limit to 100%
                 }
                 updateTotals();
-
             });
-
-
-
-
         }
 
 
@@ -4292,7 +4473,7 @@
             // Set editing mode to true
             isEditing = true;
             currentEditingSaleId = saleId; // Store the sale ID being edited
-            
+
             fetch(`/sales/edit/${saleId}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
@@ -4342,18 +4523,25 @@
                         // Populate sale products
                         saleDetails.sale_products.forEach(saleProduct => {
                             const price = saleProduct.price || saleProduct.product.retail_price;
-                            
+
                             // Use the corrected total_quantity from backend as the max available stock
                             const maxAvailableStock = saleProduct.total_quantity;
-                            
+
                             // Create a normalized stock entry for the frontend
                             const normalizedStockEntry = {
                                 batches: [{
                                     id: saleProduct.batch_id,
-                                    batch_no: saleProduct.batch?.batch_no || 'BATCH-' + saleProduct.batch_id,
-                                    retail_price: parseFloat(saleProduct.batch?.retail_price || saleProduct.product.retail_price),
-                                    wholesale_price: parseFloat(saleProduct.batch?.wholesale_price || saleProduct.product.whole_sale_price),
-                                    special_price: parseFloat(saleProduct.batch?.special_price || saleProduct.product.special_price),
+                                    batch_no: saleProduct.batch?.batch_no || 'BATCH-' +
+                                        saleProduct.batch_id,
+                                    retail_price: parseFloat(saleProduct.batch
+                                        ?.retail_price || saleProduct.product
+                                        .retail_price),
+                                    wholesale_price: parseFloat(saleProduct.batch
+                                        ?.wholesale_price || saleProduct.product
+                                        .whole_sale_price),
+                                    special_price: parseFloat(saleProduct.batch
+                                        ?.special_price || saleProduct.product
+                                        .special_price),
                                     location_batches: [{
                                         location_id: saleProduct.location_id,
                                         quantity: maxAvailableStock // This is the key fix
@@ -4362,25 +4550,30 @@
                                 total_stock: maxAvailableStock,
                                 product: {
                                     ...saleProduct.product,
-                                    batches: saleProduct.product.batches || [] // Ensure batches is always an array
+                                    batches: saleProduct.product.batches ||
+                                    [] // Ensure batches is always an array
                                 }
                             };
 
                             // Add the product to allProducts array for getProductDataById to find it
-                            const existingProductIndex = allProducts.findIndex(p => p && p.id && p.id === saleProduct.product.id);
-                            if (existingProductIndex === -1 && saleProduct.product && saleProduct.product.id) {
+                            const existingProductIndex = allProducts.findIndex(p => p && p.id && p
+                                .id === saleProduct.product.id);
+                            if (existingProductIndex === -1 && saleProduct.product && saleProduct
+                                .product.id) {
                                 const productToAdd = {
                                     ...saleProduct.product,
-                                    batches: saleProduct.product.batches || [] // Ensure batches is always an array
+                                    batches: saleProduct.product.batches ||
+                                    [] // Ensure batches is always an array
                                 };
-                                
+
                                 // Ensure unit structure exists for updateTotals function
                                 if (!productToAdd.unit && saleProduct.unit) {
                                     productToAdd.unit = saleProduct.unit;
                                 }
-                                
+
                                 allProducts.push(productToAdd);
-                                console.log('Added product to allProducts:', productToAdd.product_name, productToAdd.id);
+                                console.log('Added product to allProducts:', productToAdd
+                                    .product_name, productToAdd.id);
                             }
 
                             // Add product to billing with correct stock calculation
@@ -4392,13 +4585,15 @@
                                     saleProduct.batch_id,
                                     maxAvailableStock, // Batch quantity (max available)
                                     saleProduct.price_type,
-                                    saleProduct.quantity, // Sale quantity (current quantity in sale)
+                                    saleProduct
+                                    .quantity, // Sale quantity (current quantity in sale)
                                     saleProduct.imei_numbers || [],
                                     saleProduct.discount_type,
                                     saleProduct.discount_amount
                                 );
                             } catch (error) {
-                                console.error('Error adding product to billing:', error, saleProduct);
+                                console.error('Error adding product to billing:', error,
+                                    saleProduct);
                                 // Continue with next product instead of breaking the whole process
                             }
 
@@ -4597,16 +4792,16 @@
             // Function to refresh stock data immediately after sale for IMEI products
             function refreshStockDataAfterSale(saleData) {
                 console.log('Refreshing stock data after sale...');
-                
+
                 // Get list of products sold in this sale
                 const soldProducts = [];
                 const billingBody = document.getElementById('billing-body');
                 const billingRows = Array.from(billingBody.querySelectorAll('tr'));
-                
+
                 billingRows.forEach(row => {
                     const productId = row.querySelector('.product-id')?.textContent;
                     const imeiData = row.querySelector('.imei-data')?.textContent.trim();
-                    
+
                     if (productId && imeiData) {
                         // This row has IMEI data - need to refresh this product
                         const imeis = imeiData.split(',').filter(Boolean);
@@ -4616,34 +4811,42 @@
                         });
                     }
                 });
-                
+
                 console.log('Products with IMEIs sold:', soldProducts);
-                
+
                 if (soldProducts.length > 0) {
                     // Update the global stockData immediately
                     soldProducts.forEach(soldProduct => {
-                        const stockIndex = stockData.findIndex(stock => stock.product.id === soldProduct.productId);
+                        const stockIndex = stockData.findIndex(stock => stock.product.id ===
+                            soldProduct.productId);
                         if (stockIndex !== -1) {
-                            console.log(`Updating stock data for product ${soldProduct.productId}`);
-                            
+                            console.log(
+                                `Updating stock data for product ${soldProduct.productId}`);
+
                             // Mark sold IMEIs as "sold" in the stockData
                             if (stockData[stockIndex].imei_numbers) {
                                 stockData[stockIndex].imei_numbers.forEach(imei => {
-                                    if (soldProduct.soldImeis.includes(imei.imei_number)) {
-                                        console.log(`Marking IMEI ${imei.imei_number} as sold`);
+                                    if (soldProduct.soldImeis.includes(imei
+                                        .imei_number)) {
+                                        console.log(
+                                            `Marking IMEI ${imei.imei_number} as sold`
+                                            );
                                         imei.status = 'sold';
                                     }
                                 });
                             }
-                            
+
                             // Update total stock count
-                            const availableImeis = stockData[stockIndex].imei_numbers?.filter(imei => imei.status === 'available') || [];
+                            const availableImeis = stockData[stockIndex].imei_numbers?.filter(
+                                imei => imei.status === 'available') || [];
                             stockData[stockIndex].total_stock = availableImeis.length;
-                            
-                            console.log(`Updated stock for product ${soldProduct.productId}: ${stockData[stockIndex].total_stock} available`);
+
+                            console.log(
+                                `Updated stock for product ${soldProduct.productId}: ${stockData[stockIndex].total_stock} available`
+                                );
                         }
                     });
-                    
+
                     // Also trigger a background refresh for server sync
                     setTimeout(() => {
                         fetchPaginatedProducts(true);
@@ -4662,13 +4865,15 @@
                 if (saleData.customer_id == 1 && saleData.payments) {
                     for (let payment of saleData.payments) {
                         if (payment.payment_method === 'cheque') {
-                            toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                            toastr.error(
+                                'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
+                                );
                             onComplete();
                             return;
                         }
                     }
                 }
-                
+
                 // Extract saleId from the URL if not provided
                 if (!saleId) {
                     const pathSegments = window.location.pathname.split('/');
@@ -4702,16 +4907,16 @@
 
                             // Store current customer before reset
                             const currentCustomerId = $('#customer-id').val();
-                            
+
                             // IMMEDIATE stock refresh for IMEI products - before form reset
                             refreshStockDataAfterSale(saleData);
-                            
+
                             // IMMEDIATE refresh of Recent Transactions data
                             fetchSalesData();
-                            
+
                             // IMMEDIATE form reset and UI feedback - don't wait for async operations
                             resetForm();
-                            
+
                             // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
 
@@ -4719,7 +4924,8 @@
                             if (saleData.status !== 'suspend') {
                                 // FAST print setup - simplified and optimized
                                 const printIframe = document.createElement('iframe');
-                                printIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
+                                printIframe.style.cssText =
+                                    'position:fixed;width:0;height:0;border:none;opacity:0;';
                                 document.body.appendChild(printIframe);
 
                                 // Optimized print process
@@ -4732,18 +4938,21 @@
                                 setTimeout(() => {
                                     try {
                                         printIframe.contentWindow.print();
-                                        
+
                                         // Cleanup iframe after short delay
                                         setTimeout(() => {
-                                            if (document.body.contains(printIframe)) {
-                                                document.body.removeChild(printIframe);
+                                            if (document.body.contains(
+                                                    printIframe)) {
+                                                document.body.removeChild(
+                                                    printIframe);
                                             }
                                         }, 1000);
-                                        
+
                                         // Redirect for edits
                                         if (saleId) {
                                             setTimeout(() => {
-                                                window.location.href = '/pos-create';
+                                                window.location.href =
+                                                    '/pos-create';
                                             }, 500);
                                         }
                                     } catch (error) {
@@ -4770,44 +4979,67 @@
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
-                                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                                'X-CSRF-TOKEN': $(
+                                                    'meta[name="csrf-token"]'
+                                                    ).attr(
+                                                    'content'
+                                                    )
                                             }
                                         }).catch(error => {
-                                            console.warn('Failed to clear sales cache:', error);
+                                            console.warn(
+                                                'Failed to clear sales cache:',
+                                                error);
                                         });
                                         resolve();
                                     })
                                 ]).catch(error => {
-                                    console.warn('Background refresh error:', error);
+                                    console.warn(
+                                        'Background refresh error:',
+                                        error);
                                 });
-                                
+
                                 // Background customer data refresh
-                                if (saleData && saleData.status === 'final' && 
-                                    typeof window.customerFunctions !== 'undefined' && 
-                                    typeof window.customerFunctions.fetchCustomerData === 'function') {
-                                    
-                                    window.customerFunctions.fetchCustomerData().then(function() {
-                                        console.log('Customer data refreshed after successful sale');
-                                        
-                                        // Restore customer selection if needed
-                                        if (currentCustomerId && currentCustomerId !== '1') {
-                                            setTimeout(function() {
-                                                $('#customer-id').val(currentCustomerId);
-                                                $('#customer-id').trigger('change');
-                                            }, 100);
-                                        }
-                                    }).catch(function(error) {
-                                        console.error('Failed to refresh customer data:', error);
-                                    });
+                                if (saleData && saleData.status === 'final' &&
+                                    typeof window.customerFunctions !==
+                                    'undefined' &&
+                                    typeof window.customerFunctions
+                                    .fetchCustomerData === 'function') {
+
+                                    window.customerFunctions.fetchCustomerData()
+                                        .then(function() {
+                                            console.log(
+                                                'Customer data refreshed after successful sale'
+                                                );
+
+                                            // Restore customer selection if needed
+                                            if (currentCustomerId &&
+                                                currentCustomerId !== '1') {
+                                                setTimeout(function() {
+                                                    $('#customer-id')
+                                                        .val(
+                                                            currentCustomerId
+                                                            );
+                                                    $('#customer-id')
+                                                        .trigger(
+                                                            'change');
+                                                }, 100);
+                                            }
+                                        }).catch(function(error) {
+                                            console.error(
+                                                'Failed to refresh customer data:',
+                                                error);
+                                        });
                                 }
                             }, 200); // Small delay to let UI update first
 
                         } else {
                             // Check if this is a credit limit error
-                            if (response.message && response.message.includes('Credit limit exceeded')) {
+                            if (response.message && response.message.includes(
+                                    'Credit limit exceeded')) {
                                 // Format the error message for better display
-                                const formattedMessage = response.message.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
-                                
+                                const formattedMessage = response.message.replace(/\n/g,
+                                    '<br>').replace(/•/g, '&bull;');
+
                                 swal({
                                     title: "Credit Limit Exceeded",
                                     text: formattedMessage,
@@ -4828,21 +5060,22 @@
                             responseText: xhr.responseText,
                             responseJSON: xhr.responseJSON
                         });
-                        
+
                         let errorMessage = 'An error occurred while processing the sale.';
                         let useToastr = true;
-                        
+
                         try {
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
-                                
+
                                 // Check if this is a credit limit error
                                 if (errorMessage.includes('Credit limit exceeded')) {
                                     useToastr = false;
-                                    
+
                                     // Format the error message for better display
-                                    const formattedMessage = errorMessage.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
-                                    
+                                    const formattedMessage = errorMessage.replace(/\n/g,
+                                        '<br>').replace(/•/g, '&bull;');
+
                                     swal({
                                         title: "Credit Limit Exceeded",
                                         text: formattedMessage,
@@ -4856,12 +5089,14 @@
                                 // Try to parse responseText as JSON
                                 try {
                                     const parsedResponse = JSON.parse(xhr.responseText);
-                                    if (parsedResponse.message && parsedResponse.message.includes('Credit limit exceeded')) {
+                                    if (parsedResponse.message && parsedResponse.message
+                                        .includes('Credit limit exceeded')) {
                                         useToastr = false;
-                                        const formattedMessage = parsedResponse.message.replace(/\n/g, '<br>').replace(/•/g, '&bull;');
-                                        
+                                        const formattedMessage = parsedResponse.message
+                                            .replace(/\n/g, '<br>').replace(/•/g, '&bull;');
+
                                         swal({
-                                            title: "Credit Limit Exceeded", 
+                                            title: "Credit Limit Exceeded",
                                             text: formattedMessage,
                                             html: true,
                                             type: "error",
@@ -4869,7 +5104,8 @@
                                             confirmButtonColor: "#d33"
                                         });
                                     } else {
-                                        errorMessage = parsedResponse.message || xhr.responseText;
+                                        errorMessage = parsedResponse.message || xhr
+                                            .responseText;
                                     }
                                 } catch (parseError) {
                                     errorMessage = xhr.responseText;
@@ -4878,12 +5114,12 @@
                         } catch (e) {
                             console.error('Error parsing response:', e);
                         }
-                        
+
                         // Use toastr for other errors
                         if (useToastr) {
                             toastr.error(errorMessage);
                         }
-                        
+
                         if (onComplete) onComplete();
                     }
                 });
@@ -4917,16 +5153,19 @@
             $('#cashButton').on('click', function() {
                 const button = this;
                 // Immediate visual feedback
-                $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...').prop('disabled', true);
-                
+                $(button).html('<i class="fa fa-spinner fa-spin"></i> Processing...').prop(
+                    'disabled', true);
+
                 preventDoubleClick(button, () => {
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
-                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        toastr.error(
+                            'Please fix the invalid quantities (red borders) before processing the payment.'
+                            );
                         enableButton(button);
                         return;
                     }
-                    
+
                     const saleData = gatherSaleData('final');
                     if (!saleData) {
                         toastr.error(
@@ -5035,11 +5274,13 @@
                 preventDoubleClick(button, () => {
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
-                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        toastr.error(
+                            'Please fix the invalid quantities (red borders) before processing the payment.'
+                            );
                         enableButton(button);
                         return;
                     }
-                    
+
                     const saleData = gatherSaleData('final');
                     if (!saleData) {
                         toastr.error(
@@ -5062,7 +5303,9 @@
                 // Check if customer is walk-in customer (ID = 1)
                 const customerId = $('#customer-id').val();
                 if (customerId == 1) {
-                    toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                    toastr.error(
+                        'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
+                        );
                     return; // Prevent opening the modal
                 }
                 $('#chequeModal').modal('show');
@@ -5124,15 +5367,19 @@
                 preventDoubleClick(button, () => {
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
-                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        toastr.error(
+                            'Please fix the invalid quantities (red borders) before processing the payment.'
+                            );
                         enableButton(button);
                         return;
                     }
-                    
+
                     // Check if customer is walk-in customer (ID = 1)
                     const customerId = $('#customer-id').val();
                     if (customerId == 1) {
-                        toastr.error('Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.');
+                        toastr.error(
+                            'Cheque payment is not allowed for Walk-In Customer. Please choose another payment method or select a different customer.'
+                            );
                         enableButton(button);
                         return;
                     }
@@ -5183,11 +5430,13 @@
                 preventDoubleClick(button, () => {
                     // Validate quantities before processing
                     if (!validateAllQuantities()) {
-                        toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                        toastr.error(
+                            'Please fix the invalid quantities (red borders) before processing the payment.'
+                            );
                         enableButton(button);
                         return;
                     }
-                    
+
                     const customerId = $('#customer-id').val();
                     if (customerId == 1) {
                         toastr.error(
@@ -5207,14 +5456,15 @@
                     }
 
                     // Add credit payment information
-                    const totalAmount = parseFormattedAmount($('#final-total-amount').text().trim());
-                    
+                    const totalAmount = parseFormattedAmount($('#final-total-amount')
+                        .text().trim());
+
                     saleData.payments = [{
                         payment_method: 'credit',
                         payment_date: new Date().toISOString().slice(0, 10),
                         amount: 0 // No payment amount for credit sale
                     }];
-                    
+
                     saleData.amount_given = 0;
                     saleData.balance_amount = 0;
 
@@ -5345,10 +5595,12 @@
             document.getElementById('finalize_payment').addEventListener('click', function() {
                 // Validate quantities before processing
                 if (!validateAllQuantities()) {
-                    toastr.error('Please fix the invalid quantities (red borders) before processing the payment.');
+                    toastr.error(
+                        'Please fix the invalid quantities (red borders) before processing the payment.'
+                        );
                     return;
                 }
-                
+
                 const saleData = gatherSaleData('final');
                 if (!saleData) {
                     toastr.error('Please add at least one product before completing the sale.');
@@ -5535,12 +5787,12 @@
                 if (event.key === 'Enter') {
                     // Prevent double processing
 
-                    
+
                     if (isProcessingAmountGiven) {
                         return;
                     }
                     isProcessingAmountGiven = true;
-                    
+
                     const totalAmount = parseFormattedAmount($('#final-total-amount').text()
                         .trim());
                     const amountGiven = parseFormattedAmount($('#amount-given').val().trim());
@@ -5555,7 +5807,7 @@
 
                     if (balance > 0) {
                         const formattedBalance = formatAmountWithSeparators(balance.toFixed(2));
-                        
+
                         swal({
                             title: "Return Amount",
                             text: `<div style="text-align: center; font-size: 24px; font-weight: bold; color: #2ecc71; margin: 20px 0;">
@@ -5572,7 +5824,7 @@
                         }, function(isConfirm) {
                             // Reset flag whether OK clicked or ESC pressed
                             isProcessingAmountGiven = false;
-                            
+
                             // Only proceed with cash button if OK was clicked
                             if (isConfirm) {
                                 $('#cashButton').trigger('click');
@@ -5612,7 +5864,7 @@
 
         function resetToWalkingCustomer() {
             const customerSelect = $('#customer-id');
-            
+
             if (isSalesRep) {
                 // For sales reps, select the first available customer (not Walk-in)
                 const firstCustomer = customerSelect.find('option:first');
@@ -5637,7 +5889,7 @@
             // Reset editing mode
             isEditing = false;
             currentEditingSaleId = null; // Reset the editing sale ID
-            
+
             resetToWalkingCustomer();
             const quantityInputs = document.querySelectorAll('.quantity-input');
             quantityInputs.forEach(input => {
@@ -5824,7 +6076,7 @@
             event.preventDefault();
             if (confirm('Are you sure you want to refresh the page?')) {
                 location.reload();
-                
+
             }
         });
 
@@ -5979,7 +6231,7 @@
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
         console.log = function() {};
     }
-    
+
     function preventDoubleClick(button, callback) {
         if (button.dataset.isProcessing === "true") return;
         button.dataset.isProcessing = "true";
@@ -5996,7 +6248,7 @@
     function enableButton(button) {
         button.disabled = false;
         button.dataset.isProcessing = "false";
-        
+
         // Restore button text based on button type
         const $button = $(button);
         if ($button.attr('id') === 'cashButton') {
@@ -6007,7 +6259,8 @@
             $button.html('<i class="fa fa-credit-card"></i> Credit');
         } else {
             // Generic restore - remove spinner and restore original text if available
-            const originalText = $button.data('original-text') || $button.text().replace(/Processing\.\.\./g, '').replace(/fa-spinner fa-spin/g, 'fa-money');
+            const originalText = $button.data('original-text') || $button.text().replace(/Processing\.\.\./g, '')
+                .replace(/fa-spinner fa-spin/g, 'fa-money');
             $button.html(originalText);
         }
     }
