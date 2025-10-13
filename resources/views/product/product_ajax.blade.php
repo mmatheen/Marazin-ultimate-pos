@@ -318,11 +318,63 @@
                         .message; // Ensure this is correct according to your API response
                     const locationSelect = $('#locations');
                     locationSelect.empty();
-                    locations.forEach(function(location) {
-                        locationSelect.append(new Option(location.name, location.id));
+                    
+                    // Get current locations for selected products
+                    getCurrentProductLocations(function(currentLocationIds) {
+                        locations.forEach(function(location) {
+                            const option = new Option(location.name, location.id);
+                            // Pre-select if this location is currently assigned to any selected product
+                            if (currentLocationIds.includes(location.id)) {
+                                option.selected = true;
+                            }
+                            locationSelect.append(option);
+                        });
+                        
+                        // Trigger change to update the select2 display
+                        locationSelect.trigger('change');
                     });
                 } else {
                     console.error('Failed to fetch locations.');
+                }
+            });
+        }
+
+        // Function to get current locations for selected products
+        function getCurrentProductLocations(callback) {
+            if (selectedProductIds.length === 0) {
+                callback([]);
+                return;
+            }
+            
+            $.ajax({
+                url: '/get-product-locations',
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                data: {
+                    product_ids: selectedProductIds
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        // Get unique location IDs from all selected products
+                        const locationIds = [];
+                        response.data.forEach(product => {
+                            product.locations.forEach(location => {
+                                if (!locationIds.includes(location.id)) {
+                                    locationIds.push(location.id);
+                                }
+                            });
+                        });
+                        callback(locationIds);
+                    } else {
+                        console.error('Failed to fetch product locations');
+                        callback([]);
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Error fetching product locations:', xhr);
+                    callback([]);
                 }
             });
         }
@@ -709,6 +761,10 @@
                         render: function(data, type, row) {
                             let locationDisplay = [];
                             
+                            console.log('Business Location render - Row data:', row);
+                            console.log('Row locations:', row.locations);
+                            console.log('Row batches:', row.batches);
+                            
                             if (row.batches && row.batches.length > 0) {
                                 // Collect locations with stock from batches (already filtered by backend location scope)
                                 const locationStocks = {};
@@ -735,11 +791,21 @@
                                         locationDisplay.push(`${location.name} (${location.qty})`);
                                     }
                                 });
+                            }
+                            
+                            // Always show all assigned locations, regardless of stock
+                            if (row.locations && row.locations.length > 0) {
+                                // Get location names that are not already in locationDisplay
+                                const existingLocationNames = locationDisplay.map(display => {
+                                    const match = display.match(/^(.+?)\s*\(/);
+                                    return match ? match[1] : display;
+                                });
                                 
-                            } else if (row.locations && row.locations.length > 0) {
-                                // Fallback to product locations (already filtered by backend scope)
                                 row.locations.forEach(location => {
-                                    locationDisplay.push(location.location_name);
+                                    const locationName = location.location_name || location.name;
+                                    if (locationName && !existingLocationNames.includes(locationName)) {
+                                        locationDisplay.push(locationName);
+                                    }
                                 });
                             }
                             

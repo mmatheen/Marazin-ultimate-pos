@@ -1753,6 +1753,39 @@ class ProductController extends Controller
     }
 
 
+    public function getProductLocations(Request $request)
+    {
+        $productIds = $request->input('product_ids', []);
+
+        if (empty($productIds)) {
+            return response()->json(['status' => 'error', 'message' => 'No products selected.'], 400);
+        }
+
+        try {
+            $products = Product::with(['locations' => function($query) {
+                $query->select('locations.id', 'locations.name');
+            }])
+            ->whereIn('id', $productIds)
+            ->get(['id', 'product_name'])
+            ->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->product_name,
+                    'locations' => $product->locations->map(function($location) {
+                        return [
+                            'id' => $location->id,
+                            'name' => $location->name
+                        ];
+                    })
+                ];
+            });
+
+            return response()->json(['status' => 'success', 'data' => $products]);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
     public function saveChanges(Request $request)
     {
         $productIds = $request->input('product_ids', []);
@@ -1767,63 +1800,74 @@ class ProductController extends Controller
 
         try {
             foreach ($productIds as $productId) {
-                // 1. Existing locations for the product
-                $existingLocations = DB::table('location_product')
+                // 1. Get existing locations with their current stock
+                $existingLocationData = DB::table('location_product')
                     ->where('product_id', $productId)
-                    ->pluck('location_id')
-                    ->toArray();
+                    ->get()
+                    ->keyBy('location_id');
 
-                // 2. Remove unselected locations from location_product
-                DB::table('location_product')
-                    ->where('product_id', $productId)
-                    ->whereNotIn('location_id', $locationIds)
-                    ->delete();
+                // 2. Only remove locations that have zero stock and are not in the new selection
+                $locationsToRemove = [];
+                foreach ($existingLocationData as $locationId => $locationData) {
+                    if (!in_array($locationId, $locationIds) && $locationData->qty == 0) {
+                        $locationsToRemove[] = $locationId;
+                    }
+                }
 
-                // 3. Insert or update selected locations in location_product
+                // Remove only zero-stock locations that are not selected
+                if (!empty($locationsToRemove)) {
+                    DB::table('location_product')
+                        ->where('product_id', $productId)
+                        ->whereIn('location_id', $locationsToRemove)
+                        ->delete();
+                }
+
+                // 3. Add new locations (only if they don't already exist)
                 foreach ($locationIds as $locationId) {
-                    DB::table('location_product')->updateOrInsert(
-                        [
+                    if (!isset($existingLocationData[$locationId])) {
+                        // This is a new location for this product
+                        DB::table('location_product')->insert([
                             'product_id' => $productId,
                             'location_id' => $locationId,
-                        ],
-                        [
                             'qty' => 0,
                             'updated_at' => $now,
                             'created_at' => $now,
-                        ]
-                    );
+                        ]);
+                    }
+                    // If location already exists, keep it unchanged (preserve stock)
                 }
 
-                // 4. Get all batch IDs related to the product
+                // 4. Handle batches for new locations only
                 $batchIds = DB::table('batches')
                     ->where('product_id', $productId)
                     ->pluck('id')
                     ->toArray();
 
                 foreach ($batchIds as $batchId) {
-                    // 5. Fetch existing location_batches records for the batch
+                    // Get existing batch locations
                     $existingBatchLocations = DB::table('location_batches')
                         ->where('batch_id', $batchId)
-                        ->pluck('location_id', 'id')
+                        ->pluck('location_id')
                         ->toArray();
 
-                    // 6. Update only the location_id in location_batches (Qty should not change)
-                    foreach ($existingBatchLocations as $locationBatchId => $existingLocationId) {
-                        if (!in_array($existingLocationId, $locationIds)) {
-                            // Change location_id only if it's not in the newly selected locations
-                            DB::table('location_batches')
-                                ->where('id', $locationBatchId)
-                                ->update([
-                                    'location_id' => reset($locationIds), // Assign the first selected location
-                                    'updated_at' => $now,
-                                ]);
+                    // Add batch entries for new locations only
+                    foreach ($locationIds as $locationId) {
+                        if (!in_array($locationId, $existingBatchLocations) && !isset($existingLocationData[$locationId])) {
+                            // This is a completely new location for this product
+                            DB::table('location_batches')->insert([
+                                'batch_id' => $batchId,
+                                'location_id' => $locationId,
+                                'qty' => 0,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ]);
                         }
                     }
                 }
             }
 
             DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Changes saved successfully.']);
+            return response()->json(['status' => 'success', 'message' => 'Locations added successfully. Existing location stock preserved.']);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);

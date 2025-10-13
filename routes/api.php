@@ -289,6 +289,7 @@ Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
 Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
 // Save Changes & Discount
 Route::post('/save-changes', [ProductController::class, 'saveChanges']);
+Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
 Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
 
 
