@@ -1227,8 +1227,8 @@ class ProductController extends Controller
                         'is_active' => $product->is_active,
                     ],
                     'total_stock' => $totalStock,
-                    'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
-                        return [
+                    'batches' => $filteredBatches->mapWithKeys(function ($batch) use ($allowDecimal) {
+                        return [$batch->id => [
                             'id' => $batch->id,
                             'batch_no' => $batch->batch_no,
                             'unit_cost' => $batch->unit_cost,
@@ -1248,7 +1248,7 @@ class ProductController extends Controller
                                     'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
                                 ];
                             })
-                        ];
+                        ]];
                     }),
                     'locations' => $locationId ? 
                         // If location filter is applied, show the filtered location data
@@ -1483,8 +1483,8 @@ class ProductController extends Controller
                     'max_retail_price' => $product->max_retail_price,
                 ],
                 'total_stock' => $product->stock_alert == 0 ? 'Unlimited' : $totalStock,
-                'batches' => $filteredBatches->map(function ($batch) use ($allowDecimal) {
-                    return [
+                'batches' => $filteredBatches->mapWithKeys(function ($batch) use ($allowDecimal) {
+                    return [$batch->id => [
                         'id' => $batch->id,
                         'batch_no' => $batch->batch_no,
                         'unit_cost' => $batch->unit_cost,
@@ -1504,7 +1504,7 @@ class ProductController extends Controller
                                 'quantity' => $allowDecimal ? round((float)$lb->qty, 2) : (int)$lb->qty
                             ];
                         })
-                    ];
+                    ]];
                 }),
                 'locations' => $product->locations->map(fn($loc) => [
                     'location_id' => $loc->id,

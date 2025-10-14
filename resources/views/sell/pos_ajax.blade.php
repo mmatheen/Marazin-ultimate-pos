@@ -1706,13 +1706,21 @@
                 return;
             }
             // Only show products with stock in selected location, or unlimited stock
-            const filteredProducts = products.filter(stock =>
-                Array.isArray(stock.batches) && stock.batches.some(batch =>
+            const filteredProducts = products.filter(stock => {
+                // Use the existing normalizeBatches function to handle both array and object formats
+                const batches = normalizeBatches(stock);
+
+                if (!batches || batches.length === 0) {
+                    return false;
+                }
+
+                return batches.some(batch =>
                     Array.isArray(batch.location_batches) && batch.location_batches.some(lb =>
                         lb.location_id == selectedLocationId &&
                         (
                             // If allow_decimal, check for > 0 as float (including decimals)
-                            (stock.product.unit && (stock.product.unit.allow_decimal === true || stock
+                            (stock.product.unit && (stock.product.unit.allow_decimal === true ||
+                                    stock
                                     .product.unit.allow_decimal === 1) ?
                                 parseFloat(lb.quantity) > 0 :
                                 parseInt(lb.quantity) > 0
@@ -1720,15 +1728,19 @@
                             stock.product.stock_alert === 0
                         )
                     )
-                )
-            );
+                );
+            });
             filteredProducts.forEach(stock => {
                 const product = stock.product;
                 let locationQty = 0;
-                stock.batches.forEach(batch => {
+
+                // Use the existing normalizeBatches function to handle both array and object formats
+                const batches = normalizeBatches(stock);
+
+                batches.forEach(batch => {
                     batch.location_batches.forEach(lb => {
-                        if (lb.location_id == selectedLocationId) locationQty += lb
-                            .quantity;
+                        if (lb.location_id == selectedLocationId) locationQty +=
+                            parseFloat(lb.quantity);
                     });
                 });
                 stock.total_stock = product.stock_alert === 0 ? 0 : locationQty;
