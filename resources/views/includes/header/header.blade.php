@@ -1,14 +1,14 @@
-<div>
+F<div>
     <div class="header">
 
-       <div class="header-left">
-        <a href="{{ route('dashboard') }}" class="logo">
-            <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="100" height="50">
-        </a>
-        <a href="{{ route('dashboard') }}" class="logo logo-small">
-            <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="50" height="50">
-        </a>
-    </div>
+        <div class="header-left">
+            <a href="{{ route('dashboard') }}" class="logo">
+                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="100" height="50">
+            </a>
+            <a href="{{ route('dashboard') }}" class="logo logo-small">
+                <img src="{{ $activeSetting?->logo_url }}" alt="Logo" width="50" height="50">
+            </a>
+        </div>
         <div class="menu-toggle">
             <a href="javascript:void(0);" id="toggle_btn">
                 <i class="fas fa-bars"></i>
@@ -102,7 +102,7 @@
 
                         </div>
                     </div>
-                    <a class="dropdown-item" href="{{ route('profile.edit') }}">My Profile</a>
+                    {{-- <a class="dropdown-item" href="{{ route('profile.edit') }}">My Profile</a> --}}
                     {{-- <a class="dropdown-item" href="{{ route('logout') }}">Logout</a> --}}
                     <form method="POST" action="{{ route('logout') }}" id="logout-form">
                         @csrf

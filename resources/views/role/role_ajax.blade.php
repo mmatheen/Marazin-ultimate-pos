@@ -206,7 +206,7 @@
 
         function populateRoleDropdown() {
             $.ajax({
-                url: "{{ route('role.dropdown') }}", // Route URL
+                url: "/user-select-box-dropdown", // Route URL
                 type: "GET",
                 dataType: "json",
                 success: function(response) {

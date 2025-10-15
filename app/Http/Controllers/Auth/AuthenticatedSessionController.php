@@ -58,7 +58,6 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // ✅ Web Login: Authenticate session
         if (!$isApi) {
             Auth::login($user, $request->boolean('remember'));
 
@@ -76,7 +75,6 @@ class AuthenticatedSessionController extends Controller
                 ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.");
         }
 
-        // 🔐 API Login: Generate Sanctum Token
         $token = $user->createToken('mobile_token')->plainTextToken;
 
         return response()->json([

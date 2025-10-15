@@ -4,39 +4,37 @@ use Illuminate\Http\Request;
 use App\Models\VariationTitle;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\SellController;
-use App\Http\Controllers\UnitController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\PaymentController;
-// use App\Http\Controllers\ProductController;
-// use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\LocationController;
-use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\SupplierController;
-use App\Http\Controllers\WarrantyController;
-use App\Http\Controllers\VariationController;
-use App\Http\Controllers\SaleReturnController;
-use App\Http\Controllers\SalesReturnController;
-use App\Http\Controllers\SubCategoryController;
-use App\Http\Controllers\MainCategoryController;
-use App\Http\Controllers\OpeningStockController;
-use App\Http\Controllers\CustomerGroupController;
-use App\Http\Controllers\RoleAndPermissionController;
-use App\Http\Controllers\SellingPriceGroupController;
-use App\Http\Controllers\ExpenseSubCategoryController;
-use App\Http\Controllers\ExpenseParentCategoryController;
-use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\StockTransferController;
-use App\Http\Controllers\PurchaseReturnController;
-use App\Http\Controllers\VariationTitleController;
-use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\{
+  BrandController,
+  CartController,
+  CustomerGroupController,
+  ExpenseController,
+  ExpenseParentCategoryController,
+  ExpenseSubCategoryController,
+  LocationController,
+  MainCategoryController,
+  OpeningStockController,
+  PaymentController,
+  PurchaseController,
+  PurchaseReturnController,
+  RoleAndPermissionController,
+  RoleController,
+  SaleController,
+  SaleReturnController,
+  SalesReturnController,
+  SellingPriceGroupController,
+  SellController,
+  StockAdjustmentController,
+  StockTransferController,
+  SubCategoryController,
+  SupplierController,
+  UnitController,
+  VariationController,
+  VariationTitleController,
+  WarrantyController
+};
 
 use App\Http\Controllers\Api\{
-  VehicleController,
-  VehicleLocationController,
   SalesRepController,
   RouteController,
   CityController,
@@ -49,16 +47,6 @@ use App\Http\Controllers\Api\{
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
 // Login (mobile)
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 
@@ -216,20 +204,7 @@ Route::post('/import-opening-stock-update/{id}', [OpeningStockController::class,
 Route::delete('/import-opening-stock-delete/{id}', [OpeningStockController::class, 'destroy']);
 //stop  import-opening-stock route
 
-// Route::middleware('auth:sanctum')->group(function () {
-//   //live tracking
-//   // Sales rep sends vehicle location
-//   Route::get('/vehicle/track', [VehicleTrackingController::class, 'trackVehicle'])->name('vehicle.track');
-//   Route::post('/vehicle/location', [VehicleTrackingController::class, 'updateLocation']);
 
-//   // Admin gets all live vehicles
-//   Route::get('/vehicle/live', [VehicleTrackingController::class, 'getLiveVehicles']);
-
-
-
-//   //// Product Details & Stock
-// });
-// Route::middleware(['auth:sanctum', 'permission:view customer'])->get('/customer-get-all', [CustomerController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
   Route::get('/customer-get-all', [CustomerController::class, 'index']);
   Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);

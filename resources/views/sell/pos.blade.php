@@ -37,6 +37,50 @@
             font-size: 14px;
             line-height: 1.5;
             background-color: #dedede;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .container-fluid {
+            padding-left: 15px;
+            padding-right: 15px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        /* Prevent horizontal scroll on all elements */
+        * {
+            box-sizing: border-box;
+        }
+
+        .row {
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        .col-md-5,
+        .col-md-7,
+        .col-md-12,
+        .col-md-6 {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+
+        /* Fix button text wrapping */
+        .bottom-fixed .btn {
+            word-break: keep-all;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Ensure cards don't overflow */
+        .card {
+            overflow: hidden;
+            word-wrap: break-word;
         }
 
         .is-invalidRed {
@@ -87,11 +131,13 @@
             position: fixed;
             bottom: 0;
             left: 0;
+            right: 0;
             width: 100%;
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            padding: 10px 20px;
+            padding: 15px 20px;
+            border-top: 1px solid #ddd;
         }
 
         .bottom-fixed .btn {
@@ -99,6 +145,17 @@
             font-weight: bold;
             padding: 10px 15px;
             border-radius: 5px;
+            margin: 2px;
+        }
+
+        .bottom-fixed .row {
+            margin: 0;
+            align-items: center;
+        }
+
+        .bottom-fixed .col-md-5,
+        .bottom-fixed .col-md-7 {
+            padding: 0 10px;
         }
 
         .product-card {
@@ -604,248 +661,155 @@
 
 
 
-        /* 768px–1199px: Common fixes for all laptop/tablet */
+        /* Laptop/Tablet fixes (768px-1199px) */
         @media (max-width: 1199px) and (min-width: 768px) {
 
-            /* .product-card, */
             .category-card,
             .brand-card {
-                min-height: 72px !important;
-                padding: 14px 18px !important;
-                display: flex !important;
-                flex-direction: row !important;
-                align-items: center !important;
-                gap: 16px !important;
-                justify-content: flex-start !important;
+                min-height: 72px;
+                padding: 14px 18px;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 16px;
+                justify-content: flex-start;
             }
 
-            /* .product-card img {
-                max-width: 54px !important;
-                max-height: 54px !important;
-                min-width: 36px !important;
-                object-fit: contain !important;
-            } */
-
-            /* .product-card h6, */
             .category-card h6,
             .brand-card h6 {
-                font-size: 1.08rem !important;
-                margin-bottom: 5px !important;
-                white-space: normal !important;
-                overflow: visible !important;
+                font-size: 1.08rem;
+                margin-bottom: 5px;
+                white-space: normal;
+                overflow: visible;
             }
 
-            /* .product-card .badge {
-                font-size: 1rem !important;
-                margin: 5px 0 !important;
-            } */
-
-            .row.g-3.overflow-auto,
-            #posProduct {
-                gap: 0 !important;
-                padding: 0 !important;
-            }
-
-            /* Bottom-fixed: 3-column button grid for tablet */
+            /* Simplified bottom-fixed for laptop */
             .bottom-fixed {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                justify-content: space-between !important;
-                align-items: flex-start !important;
-                gap: 16px !important;
-                padding: 16px 3vw !important;
-                width: 100vw !important;
-                background: #fff !important;
-                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04) !important;
-                z-index: 100;
-            }
-
-            .bottom-fixed .row {
-                flex-wrap: wrap !important;
-                width: 100vw !important;
-                gap: 0 !important;
-            }
-
-            .bottom-fixed .col-md-5,
-            .bottom-fixed .col-md-7 {
-                width: 100vw !important;
-                max-width: 100vw !important;
-                flex: 0 0 100vw !important;
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-
-            /* Button grid: 3 per row for tablet */
-            .bottom-fixed .d-flex,
-            .bottom-fixed .justify-content-end,
-            .bottom-fixed .gap-2,
-            .bottom-fixed .flex-wrap {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 0 !important;
-                justify-content: center !important;
-                width: 100vw !important;
-                margin: 0 !important;
+                padding: 15px 20px;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                background: #fff;
+                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+                z-index: 1000;
             }
 
             .bottom-fixed .btn {
-                width: 31vw !important;
-                max-width: 32vw !important;
-                min-width: 110px !important;
-                flex: 1 1 31vw !important;
-                margin: 10px 1vw !important;
-                font-size: 1.08rem !important;
-                padding: 14px 0 !important;
-                border-radius: 12px !important;
-                text-align: center !important;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+                font-size: 12px;
+                padding: 8px 12px;
+                margin: 2px 4px;
             }
 
-            .bottom-fixed h4,
-            .bottom-fixed span {
-                font-size: 1.18rem !important;
-                margin-right: 8px !important;
+            .bottom-fixed .row {
+                align-items: center;
             }
 
-            .bottom-fixed #cancelButton {
-                margin-left: 10px !important;
-            }
-
-            html,
-            body {
-                overflow-x: hidden !important;
+            .bottom-fixed h4 {
+                font-size: 1.1rem;
+                margin-bottom: 0;
             }
         }
 
         /* 600px–767px: Small tablet, landscape mobile */
+        /* Medium Mobile/Small Tablet */
         @media (max-width: 767px) and (min-width: 600px) {
 
-            /* #posProduct>div[class*="col-"],
-            .product-card {
-                flex: 0 0 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                margin: 0 auto 14px auto !important;
-                box-sizing: border-box;
-            } */
-
-            /* .product-card, */
             .category-card,
             .brand-card {
-                min-height: 68px !important;
-                padding: 12px 13px !important;
-                gap: 13px !important;
+                min-height: 68px;
+                padding: 12px 13px;
+                gap: 13px;
             }
 
-            /* .product-card img {
-                max-width: 48px !important;
-                max-height: 48px !important;
-                min-width: 28px !important;
-            } */
-
-            /* .product-card h6, */
             .category-card h6,
             .brand-card h6 {
-                font-size: 1.01rem !important;
-                margin-bottom: 4px !important;
+                font-size: 1.01rem;
+                margin-bottom: 4px;
             }
 
-            /* Bottom-fixed: 2-column button grid for mobile/tablet */
-            .bottom-fixed .d-flex,
-            .bottom-fixed .justify-content-end,
-            .bottom-fixed .gap-2,
-            .bottom-fixed .flex-wrap {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 0 !important;
-                justify-content: center !important;
-                width: 100vw !important;
-                margin: 0 !important;
+            /* Fix main content area */
+            .col-md-12 .card {
+                margin-bottom: 10px;
             }
 
-            .bottom-fixed .btn {
-                width: 48vw !important;
-                max-width: 48vw !important;
-                min-width: 90px !important;
-                font-size: 1.01rem !important;
-                padding: 11px 0 !important;
-                border-radius: 10px !important;
-                margin: 8px 1vw !important;
+            .table-responsive {
+                overflow-x: auto;
+                max-width: 100%;
+            }
+
+            /* Header buttons */
+            .col-md-6 .d-flex {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .col-md-6 .btn {
+                font-size: 12px;
+                padding: 6px 8px;
             }
         }
 
-        /* 320px–599px: Mobile, portrait tablet */
+        /* Small Mobile Screens */
         @media (max-width: 599px) {
-            /*
-            #posProduct>div[class*="col-"],
-            .product-card {
-                flex: 0 0 100% !important;
-                max-width: 100% !important;
-                min-width: 0 !important;
-                margin: 0 auto 12px auto !important;
-                box-sizing: border-box;
-            }
 
-            .product-card,
             .category-card,
             .brand-card {
-                min-height: 62px !important;
-                padding: 10px 8px !important;
-                flex-direction: row !important;
-                align-items: center !important;
-                gap: 10px !important;
+                min-height: 62px;
+                padding: 10px 8px;
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
             }
 
-            .product-card img {
-                max-width: 40px !important;
-                max-height: 40px !important;
-                min-width: 20px !important;
-                object-fit: contain !important;
-            }
-
-            .product-card h6,
             .category-card h6,
             .brand-card h6 {
-                font-size: 0.98rem !important;
-                margin-bottom: 3px !important;
-            } */
-
-            /* --- UX improvement: Make bottom-fixed NOT sticky on mobile --- */
-            .bottom-fixed {
-                position: static !important;
-                box-shadow: none !important;
-                border-top: 1px solid #eee !important;
-                padding-bottom: 12px !important;
-                margin-bottom: 0 !important;
-                background: #fff !important;
+                font-size: 0.98rem;
+                margin-bottom: 3px;
             }
 
-            html,
-            body {
-                padding-bottom: 0 !important;
+            /* Fix header layout for small screens */
+            .row.align-items-center .col-md-6 {
+                margin-bottom: 10px;
             }
 
-            /* Button grid for mobile */
-            .bottom-fixed .d-flex,
-            .bottom-fixed .justify-content-end,
-            .bottom-fixed .gap-2,
-            .bottom-fixed .flex-wrap {
-                display: flex !important;
-                flex-wrap: wrap !important;
-                gap: 0 !important;
-                justify-content: center !important;
-                width: 100vw !important;
-                margin: 0 !important;
+            .d-flex.flex-row.align-items-center.gap-3.flex-wrap {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
 
-            .bottom-fixed .btn {
-                width: 48vw !important;
-                max-width: 48vw !important;
-                min-width: 80px !important;
-                font-size: 0.95rem !important;
-                padding: 10px 0 !important;
-                border-radius: 9px !important;
-                margin: 7px 1vw !important;
+            #locationSelect {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            /* Fix customer section */
+            .customer-select2 {
+                margin-bottom: 10px;
+            }
+
+            /* Fix product search */
+            #productSearchInput {
+                margin-bottom: 10px;
+            }
+
+            /* Fix table responsiveness */
+            .table-responsive {
+                font-size: 12px;
+            }
+
+            .table th,
+            .table td {
+                padding: 6px 4px;
+                font-size: 11px;
+            }
+
+            /* Fix discount section */
+            .card.bg-white.mt-3.p-2 .row .col-md-2,
+            .card.bg-white.mt-3.p-2 .row .col-md-3 {
+                margin-bottom: 10px;
             }
         }
 
@@ -859,98 +823,159 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
         } */
 
+        /* Mobile/Tablet adjustments */
         @media (max-width: 991px) {
-
             .bottom-fixed {
                 position: static !important;
-                left: 0 !important;
-                bottom: 0 !important;
-                right: 0 !important;
-                width: 100vw !important;
-                /* padding: 4px 2vw !important; */
-                margin: 0 auto !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 15px 10px !important;
+                margin: 0 !important;
                 background: #fff !important;
                 box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08) !important;
+                border-top: 1px solid #ddd !important;
+                overflow: hidden !important;
+            }
+
+            .bottom-fixed .row {
+                margin: 0 !important;
+                width: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
-                /* align-items: stretch !important; */
-                z-index: 1000 !important;
-                overflow-x: auto !important;
             }
 
-            /* Button grid: 2-per-row, wrap if odd number */
-            .bottom-fixed .button-grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px 2vw;
-                width: 100%;
-                justify-content: center;
-                margin: 0 auto;
+            /* Total Payable Section */
+            .bottom-fixed .col-md-5 {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 10px 0 !important;
+                text-align: center !important;
+                order: 1 !important;
+                margin-bottom: 15px !important;
             }
 
-            .bottom-fixed .button-grid .btn {
-                flex: 1 1 45%;
-                max-width: 48vw;
-                min-width: 80px;
-                margin: 0;
-                font-size: 0.95rem !important;
-                padding: 8px 0 !important;
-                border-radius: 8px !important;
-                text-align: center;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-                margin-bottom: 7px !important;
+            .bottom-fixed .col-md-5 h4 {
+                font-size: 18px !important;
+                margin: 0 5px 0 0 !important;
+                display: inline-block !important;
             }
 
-            /* Remove extra margin from last row if odd */
-            .bottom-fixed .button-grid .btn:last-child:nth-child(odd) {
-                margin-left: 25vw;
+            .bottom-fixed .col-md-5 #total {
+                font-size: 18px !important;
+                font-weight: bold !important;
             }
 
-            /* Total Payable and Cancel should be a row above, large and clear */
-            .bottom-fixed .total-row {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 12px;
-                gap: 8px;
-                width: 100%;
-                flex-wrap: wrap;
+            .bottom-fixed .col-md-5 #items-count {
+                font-size: 14px !important;
             }
 
-            .bottom-fixed .total-row h4,
-            .bottom-fixed .total-row span {
-                font-size: 1.11rem !important;
-                margin: 0 5px 0 0;
+            .bottom-fixed .col-md-5 #cancelButton {
+                font-size: 14px !important;
+                padding: 8px 16px !important;
+                margin-left: 10px !important;
+                border-radius: 6px !important;
             }
 
-            .bottom-fixed .total-row .btn {
-                font-size: 0.95rem !important;
-                padding: 7px 0 !important;
-                min-width: 70px !important;
-                border-radius: 8px !important;
-                margin: 0;
-                white-space: nowrap;
+            /* Payment Buttons Section */
+            .bottom-fixed .col-md-7 {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                order: 2 !important;
             }
 
-            /* Scroll area fix for mobile: make whole content scrollable */
-            html,
-            body,
-            .container-fluid {
+            .bottom-fixed .col-md-7 .d-flex {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+                width: 100% !important;
+                justify-content: center !important;
+                align-items: stretch !important;
+            }
+
+            .bottom-fixed .btn {
+                font-size: 12px !important;
+                padding: 10px 8px !important;
+                margin: 0 !important;
+                border-radius: 6px !important;
+                min-height: 44px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            /* Ensure body has proper spacing */
+            body {
+                padding-bottom: 20px !important;
                 overflow-x: hidden !important;
-                height: 100vh !important;
-                padding-bottom: 100px !important;
+            }
+
+            /* Fix container width */
+            .container-fluid {
+                max-width: 100vw !important;
+                overflow-x: hidden !important;
+                padding-left: 10px !important;
+                padding-right: 10px !important;
             }
         }
 
-        /* For very small screens, shrink button font a bit */
-        @media (max-width: 500px) {
+        /* Small Mobile Screens */
+        @media (max-width: 576px) {
+            .bottom-fixed {
+                padding: 12px 8px !important;
+            }
 
-            .bottom-fixed .button-grid .btn,
-            .bottom-fixed .total-row .btn,
+            .bottom-fixed .col-md-5 h4 {
+                font-size: 16px !important;
+            }
+
+            .bottom-fixed .col-md-5 #total {
+                font-size: 16px !important;
+            }
+
             .bottom-fixed .btn {
-                font-size: 0.82rem !important;
-                min-width: 60px !important;
-                padding: 6px 0 !important;
+                font-size: 11px !important;
+                padding: 8px 6px !important;
+                min-height: 40px !important;
+            }
+
+            .bottom-fixed .col-md-7 .d-flex {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 6px !important;
+            }
+
+            /* Make sure container fits properly */
+            .container-fluid {
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+            }
+
+            /* Fix card padding for mobile */
+            .card.bg-white.p-3,
+            .card.bg-white.p-2 {
+                padding: 15px 10px !important;
+            }
+        }
+
+        /* Extra Small Mobile Screens */
+        @media (max-width: 400px) {
+            .bottom-fixed .btn {
+                font-size: 10px !important;
+                padding: 6px 4px !important;
+                min-height: 36px !important;
+            }
+
+            .bottom-fixed .col-md-5 h4,
+            .bottom-fixed .col-md-5 #total {
+                font-size: 14px !important;
+            }
+
+            .bottom-fixed .col-md-7 .d-flex {
+                gap: 4px !important;
             }
         }
 
@@ -995,6 +1020,7 @@
             }
         }
 
+        /* Desktop screens */
         @media (min-width: 1200px) {
 
             html,
@@ -1006,8 +1032,53 @@
             }
 
             body {
-                padding-bottom: 90px;
-                /* Height of .bottom-fixed + some margin */
+                padding-bottom: 120px;
+                /* Height of .bottom-fixed + margin */
+            }
+
+            .bottom-fixed {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                padding: 20px;
+                z-index: 1000;
+            }
+        }
+
+        /* Laptop screen fix (1024px-1199px) */
+        @media (min-width: 1024px) and (max-width: 1199px) {
+            body {
+                padding-bottom: 140px;
+            }
+
+            .bottom-fixed {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                padding: 15px 20px;
+                z-index: 1000;
+                background: #fff;
+                border-top: 1px solid #ddd;
+                box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            .bottom-fixed .btn {
+                font-size: 13px;
+                padding: 8px 10px;
+                margin: 2px 3px;
+            }
+
+            .bottom-fixed h4 {
+                font-size: 1.1rem;
+            }
+
+            .bottom-fixed .row {
+                align-items: center;
+                margin: 0;
             }
         }
 
@@ -1046,11 +1117,11 @@
             .customer-credit-info .p-2 {
                 padding: 8px !important;
             }
-            
+
             .customer-credit-info small {
                 font-size: 10px;
             }
-            
+
             .customer-credit-info .fw-bold {
                 font-size: 12px;
             }
@@ -1060,12 +1131,12 @@
             .customer-credit-info .row {
                 flex-direction: column;
             }
-            
+
             .customer-credit-info .col-4 {
                 border-right: none !important;
                 border-bottom: 1px solid #e0e6ed;
             }
-            
+
             .customer-credit-info .col-4:last-child {
                 border-bottom: none;
             }
@@ -1088,10 +1159,11 @@
                             --}}
 
                             <div class="d-flex flex-row align-items-center gap-3 flex-wrap">
-                                <select id="locationSelect" class="form-control selectBox rounded-start" style="max-width: 220px;">
+                                <select id="locationSelect" class="form-control selectBox rounded-start"
+                                    style="max-width: 220px;">
                                     <option value="" selected disabled>Select Location</option>
                                 </select>
-                                
+
                                 <!-- Sales Rep Vehicle/Route Display -->
                                 <div id="salesRepDisplay" style="display: none;" class="align-items-center gap-2">
                                     <div class="badge bg-success text-white p-2">
@@ -1105,21 +1177,24 @@
                                     <div id="salesAccessBadge" class="badge p-2">
                                         <span id="salesAccessText">-</span>
                                     </div>
-                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection" title="Change Vehicle/Route">
+                                    <button class="btn btn-sm btn-outline-secondary" id="changeSalesRepSelection"
+                                        title="Change Vehicle/Route">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                 </div>
-                                
-                                <button class="btn btn-primary text-white border-1 px-3 py-1" style="width: 130px; font-size: 1.15rem;" id="currentDateButton">
+
+                                <button class="btn btn-primary text-white border-1 px-3 py-1"
+                                    style="width: 130px; font-size: 1.15rem;" id="currentDateButton">
                                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d') }}
                                 </button>
-                                <span id="currentTimeText" style="color: #1e90ff; font-weight: 600; font-size: 1.08rem;">
+                                <span id="currentTimeText"
+                                    style="color: #1e90ff; font-weight: 600; font-size: 1.08rem;">
                                     {{ \Carbon\Carbon::now('Asia/Colombo')->format('H:i:s') }}
                                 </span>
-                                <button class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
-                                    id="shortcutButton"
-                                    style="width: 40px; height: 40px;"
-                                    data-bs-toggle="popover" data-bs-trigger="hover" data-bs-html="true"
+                                <button
+                                    class="btn btn-info text-white border-1 px-2 py-1 d-flex align-items-center justify-content-center"
+                                    id="shortcutButton" style="width: 40px; height: 40px;" data-bs-toggle="popover"
+                                    data-bs-trigger="hover" data-bs-html="true"
                                     data-bs-content="
                                     <div class='row'>
                                         <div class='col-6'><strong>Operation</strong></div>
@@ -1175,9 +1250,59 @@
                                     const popoverList = popoverTriggerList.map(function(popoverTriggerEl) {
                                         return new bootstrap.Popover(popoverTriggerEl)
                                     })
+
+                                    // Fix layout alignment on load and resize
+                                    function fixLayoutAlignment() {
+                                        const bottomFixed = document.querySelector('.bottom-fixed');
+                                        const container = document.querySelector('.container-fluid');
+                                        const isMobile = window.innerWidth <= 991;
+
+                                        if (bottomFixed && container) {
+                                            // Mobile-specific fixes
+                                            if (isMobile) {
+                                                bottomFixed.style.position = 'static';
+                                                bottomFixed.style.left = 'auto';
+                                                bottomFixed.style.right = 'auto';
+                                                bottomFixed.style.bottom = 'auto';
+                                                bottomFixed.style.width = '100%';
+                                                bottomFixed.style.maxWidth = '100%';
+                                                bottomFixed.style.overflow = 'hidden';
+
+                                                // Fix button layout on mobile
+                                                const buttonContainer = bottomFixed.querySelector('.col-md-7 .d-flex');
+                                                if (buttonContainer) {
+                                                    buttonContainer.style.display = 'grid';
+                                                    buttonContainer.style.gridTemplateColumns = '1fr 1fr';
+                                                    buttonContainer.style.gap = '8px';
+                                                    buttonContainer.style.width = '100%';
+                                                }
+
+                                                // Fix body padding for mobile
+                                                document.body.style.paddingBottom = '20px';
+                                            } else {
+                                                // Desktop fixes
+                                                bottomFixed.style.position = 'fixed';
+                                                bottomFixed.style.left = '0';
+                                                bottomFixed.style.right = '0';
+                                                bottomFixed.style.bottom = '0';
+                                                bottomFixed.style.width = '100%';
+                                                bottomFixed.style.maxWidth = '100vw';
+
+                                                document.body.style.paddingBottom = '120px';
+                                            }
+
+                                            // Fix container overflow
+                                            container.style.maxWidth = '100vw';
+                                            container.style.overflowX = 'hidden';
+                                        }
+                                    }
+
+                                    // Apply fixes on load and resize
+                                    fixLayoutAlignment();
+                                    window.addEventListener('resize', fixLayoutAlignment);
+                                    window.addEventListener('orientationchange', fixLayoutAlignment);
                                 });
                             </script>
-
                         </div>
 
                         <!-- Action Buttons -->
@@ -1185,7 +1310,8 @@
                             <div class="d-flex justify-content-end gap-3">
 
                                 {{-- //Home Pagee --}}
-                                 <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip"
+                                <button class="btn btn-secondary btn-sm"
+                                    onclick="window.location.href='{{ route('dashboard') }}'" data-bs-toggle="tooltip"
                                     title="Go home"><i class="fas fa-home"></i></button>
 
                                 <button class="btn btn-light btn-sm" onclick="handleGoBack()" data-bs-toggle="tooltip"
@@ -1198,7 +1324,8 @@
                                         title="Calculator">
                                         <i class="fas fa-calculator"></i>
                                     </button>
-                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown" style="width: 220px;">
+                                    <div class="dropdown-menu p-2 shadow" id="calculatorDropdown"
+                                        style="width: 220px;">
                                         <div class="text-center">
                                             <input type="text" id="calcDisplay" class="form-control text-end mb-2"
                                                 onkeydown="handleKeyboardInput(event)" autofocus>
@@ -1289,28 +1416,9 @@
         </div>
 
         <script>
-            // Handle back navigation properly for POS system
+            // Handle back navigation for POS system: always redirect to dashboard if no history
             function handleGoBack() {
-                // Check if there's browser history available and user came from within app
-                const referrer = document.referrer;
-                const currentDomain = window.location.origin;
-                const hasValidHistory = window.history.length > 1;
-                const cameFromSameDomain = referrer && referrer.startsWith(currentDomain);
-                
-                if (hasValidHistory && cameFromSameDomain) {
-                    // Safe to use history.back()
-                    window.history.back();
-                } else {
-                    // Direct URL access or no history - use fallback navigation
-                    @can('view sale')
-                        window.location.href = "{{ route('list-sale') }}";
-                    @elsecan('view dashboard') 
-                        window.location.href = "{{ route('dashboard') }}";
-                    @else
-                        // Last resort - go to main page
-                        window.location.href = "{{ url('/') }}";
-                    @endcan
-                }
+                window.location.href = "{{ route('dashboard') }}";
             }
         </script>
 
@@ -2022,7 +2130,7 @@
                             </select>
                             <div id="chequeStatusError" class="text-danger"></div>
                             <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> 
+                                <i class="fas fa-info-circle"></i>
                                 Pending: Cheque received but not yet deposited<br>
                                 Deposited: Cheque deposited but not yet cleared<br>
                                 Cleared: Cheque amount successfully credited
@@ -2375,19 +2483,19 @@
         function parseFormattedAmount(formattedAmount) {
             return parseFloat(formattedAmount.replace(/,/g, ''));
         }
-        
+
         // Format input field value with commas for better readability
         function formatAmount(input) {
             // Get the current value and remove any existing commas
             let value = input.value.replace(/,/g, '');
-            
+
             // Only format if it's a valid number
             if (value && !isNaN(value)) {
                 // Format with commas and update the input
                 input.value = formatAmountWithSeparators(parseFloat(value));
             }
         }
-        
+
         let totalPayable = 0;
         document.getElementById('addPaymentRow').addEventListener('click', function() {
             const paymentRows = document.getElementById('paymentRows');
@@ -2482,7 +2590,8 @@
             const totalItems = fetchTotalItems();
             const totalAmount = fetchTotalAmount();
             // Apply discount if any
-            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById('global-discount')
+            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
+                    'global-discount')
                 .value) || 0);
             const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
                 .value) || 'fixed';
@@ -2546,9 +2655,11 @@
             // Set default first cash row
             const totalAmount = fetchTotalAmount();
             // Apply global discount to get the actual payable amount
-            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById('global-discount')
+            const discount = parseFloat((document.getElementById('global-discount') && document.getElementById(
+                    'global-discount')
                 .value) || 0);
-            const discountType = (document.getElementById('discount-type') && document.getElementById('discount-type')
+            const discountType = (document.getElementById('discount-type') && document.getElementById(
+                    'discount-type')
                 .value) || 'fixed';
             const defaultAmount = discountType === 'percentage' ?
                 totalAmount - (totalAmount * discount / 100) :

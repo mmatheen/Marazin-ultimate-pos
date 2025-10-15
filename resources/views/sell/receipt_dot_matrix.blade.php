@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,58 +15,63 @@
         /* =========================
        PRINT SETTINGS
        ========================= */
-    @media print {
-        @page {
-            size: 8.0in 5.5in; /* Actual printable width of dot matrix paper */
-            margin: 0in;       /* Remove extra white borders */
+        @media print {
+            @page {
+                size: 8.0in 5.5in;
+                /* Actual printable width of dot matrix paper */
+                margin: 0in;
+                /* Remove extra white borders */
+            }
+
+            html,
+            body {
+                width: 8.0in;
+                height: 5.5in;
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
+                margin: 0;
+                padding: 0;
+                font-family: 'Roboto Mono', monospace;
+                font-size: 12px;
+                line-height: 1.3;
+            }
+
+            .invoice-page {
+                width: 8.0in;
+                margin: 0.2 auto;
+                padding: 0.5in 0.5in 0.05in 0.5in;
+                background: white !important;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+
+            /* Avoid page cutting */
+            .invoice-page,
+            .items-table,
+            .summary-section {
+                page-break-after: avoid;
+            }
         }
 
-        html, body {
-            width: 8.0in;
-            height: 5.5in;
-            background: white !important;
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-            margin: 0;
-            padding: 0;
+        /* =========================
+       SCREEN + PRINT COMMON STYLES
+       ========================= */
+        body {
             font-family: 'Roboto Mono', monospace;
-            font-size: 12px;
-            line-height: 1.3;
+            background-color: white;
+            width: 100%;
+            padding: 0;
+            margin: 0;
         }
 
         .invoice-page {
-            width: 8.0in;
-            margin: 0.2 auto;
-            padding: 0.5in 0.5in 0.05in 0.5in;
-            background: white !important;
-            box-shadow: none;
-            page-break-inside: avoid;
+            max-width: 8.0in;
+            margin: 0 auto;
+            background-color: white;
+            position: relative;
+            padding: 0.2in 0.2in 0.05in 0.2in;
         }
-
-        /* Avoid page cutting */
-        .invoice-page, .items-table, .summary-section {
-            page-break-after: avoid;
-        }
-    }
-
-    /* =========================
-       SCREEN + PRINT COMMON STYLES
-       ========================= */
-    body {
-        font-family: 'Roboto Mono', monospace;
-        background-color: white;
-        width: 100%;
-        padding: 0;
-        margin: 0;
-    }
-
-    .invoice-page {
-        max-width: 8.0in;
-        margin: 0 auto;
-        background-color: white;
-        position: relative;
-        padding: 0.2in 0.2in 0.05in 0.2in;
-    }
 
         .perforation-top,
         .perforation-bottom {
@@ -104,14 +110,15 @@
 
         .company-address {
             font-size: 11px;
-            line-height: 1.35;  
+            line-height: 1.35;
         }
 
         .customer-box {
             margin: 0.1in 0 0 0;
             border: 2px dashed #333;
             padding: 4px 8px;
-            width: 3.5in; /* Reduced width */
+            width: 3.5in;
+            /* Reduced width */
             background-color: white;
             border-radius: 10px;
 
@@ -124,7 +131,8 @@
         }
 
         .customer-line label {
-            width: 0.8in; /* Reduced width */
+            width: 0.8in;
+            /* Reduced width */
         }
 
         .customer-line span {
@@ -166,15 +174,18 @@
         }
 
         .items-table th {
-            padding: 6px 4px; /* Reduced padding */
-            font-size: 12px; /* Reduced font size */
+            padding: 6px 4px;
+            /* Reduced padding */
+            font-size: 14px;
+            /* Increased font size by 2px */
             font-weight: bold;
             border-bottom: 1px solid #666;
         }
 
         .items-table th:first-child {
             text-align: center;
-            width: 0.3in; /* Reduced width */
+            width: 0.3in;
+            /* Reduced width */
         }
 
         .items-table th:nth-child(2) {
@@ -187,12 +198,15 @@
         .items-table th:nth-child(6),
         .items-table th:nth-child(7) {
             text-align: right;
-            width: 0.8in; /* Reduced width */
+            width: 0.8in;
+            /* Reduced width */
         }
 
         .items-table td {
-            padding: 4px; /* Reduced padding */
-            font-size: 10px; /* Reduced font size */
+            padding: 4px;
+            /* Reduced padding */
+            font-size: 12px;
+            /* Increased font size by 2px */
         }
 
         .items-table tbody tr {
@@ -220,9 +234,11 @@
         .summary-section {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 0.1in; /* Reduced gap */
+            gap: 0.1in;
+            /* Reduced gap */
             margin-top: 0.22in;
-            font-size: 11px; /* Reduced font size */
+            font-size: 11px;
+            /* Reduced font size */
             padding: 0;
         }
 
@@ -234,7 +250,8 @@
         .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 2px 0; /* Reduced padding */
+            padding: 2px 0;
+            /* Reduced padding */
             line-height: 1.3;
         }
 
@@ -268,12 +285,13 @@
         }
     </style>
 </head>
+
 <body>
     <div class="invoice-page">
         <div class="perforation-top"></div>
-        
+
         {{-- <div class="reg-no">Reg No: {{ $sale->invoice_no }}</div> --}}
-        
+
         <div class="header-section">
             <div class="company-info">
                 <div class="company-logo">{{ strtoupper($location->name ?? 'HARDWARE STORE') }}</div>
@@ -282,14 +300,17 @@
                         {{ strtoupper($location->address) }}<br>
                     @endif
                     @if ($location && $location->mobile)
-                        Mobile: {{ $location->mobile }}@if($location->email), Email: {{ $location->email }}@endif<br>
+                        Mobile: {{ $location->mobile }}@if ($location->email)
+                            , Email: {{ $location->email }}
+                        @endif
+                        <br>
                     @endif
                     @if ($location && $location->mobile)
                         Phone: {{ $location->mobile }}
                     @endif
                 </div>
             </div>
-            
+
             <div class="customer-box">
                 <div class="customer-line">
                     <label>Customer</label>
@@ -305,12 +326,15 @@
                 </div>
                 <div class="customer-line">
                     <label>Invoice No</label>
-                    <span>: {{ $sale->invoice_no }}@if($sale->total_due > 0)<span class="type-credit">Type: Credit</span>@endif</span>
+                    <span>: {{ $sale->invoice_no }}@if ($sale->total_due > 0)
+                            <span class="type-credit">Type: Credit</span>
+                        @endif
+                    </span>
                 </div>
             </div>
         </div>
 
-        @if($sale->total_due <= 0)
+        @if ($sale->total_due <= 0)
             {{-- <div class="delivered-badge">Delivered</div> --}}
         @endif
 
@@ -337,119 +361,129 @@
                         $firstProduct = $group->first();
                         $totalQuantity = $group->sum('quantity');
                         $totalAmount = $group->sum(fn($p) => $p->price * $p->quantity);
-                        $productDiscount = $group->sum(fn($p) => ($p->product->max_retail_price - $p->price) * $p->quantity);
+                        $productDiscount = $group->sum(
+                            fn($p) => ($p->product->max_retail_price - $p->price) * $p->quantity,
+                        );
                         $unitPrice = $firstProduct->product->max_retail_price;
                         $rate = $firstProduct->price;
                     @endphp
                     <tr>
                         <td>{{ $index++ }}</td>
-                        <td>{{ substr($firstProduct->product->product_name, 0, 35) }}@if($firstProduct->product->product_variation ?? false) ({{ substr($firstProduct->product->product_variation, 0, 8) }})@endif</td>
+                        <td>{{ substr($firstProduct->product->product_name, 0, 35) }}@if ($firstProduct->product->product_variation ?? false)
+                                ({{ substr($firstProduct->product->product_variation, 0, 8) }})
+                            @endif
+                        </td>
                         <td>{{ number_format($totalQuantity, 0) }}</td>
                         <td>{{ number_format($unitPrice, 2) }}</td>
                         <td>{{ number_format($productDiscount, 2) }}</td>
                         <td>{{ number_format($rate, 2) }}</td>
                         <td>{{ number_format($totalAmount, 2) }}</td>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" style="text-align: center;">NO PRODUCTS FOUND</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                    @empty
+                        <tr>
+                            <td colspan="7" style="text-align: center;">NO PRODUCTS FOUND</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
 
-        @php
-            $total_discount = $products->sum(function ($product) {
-                return ($product->product->max_retail_price - $product->price) * $product->quantity;
-            });
+            @php
+                $total_discount = $products->sum(function ($product) {
+                    return ($product->product->max_retail_price - $product->price) * $product->quantity;
+                });
 
-            $bill_discount = 0;
-            if ($sale->discount_amount > 0) {
-                if ($sale->discount_type == 'percentage') {
-                    $bill_discount = ($sale->subtotal * $sale->discount_amount) / 100;
-                } else {
-                    $bill_discount = $sale->discount_amount;
+                $bill_discount = 0;
+                if ($sale->discount_amount > 0) {
+                    if ($sale->discount_type == 'percentage') {
+                        $bill_discount = ($sale->subtotal * $sale->discount_amount) / 100;
+                    } else {
+                        $bill_discount = $sale->discount_amount;
+                    }
                 }
-            }
 
-            $total_all_discounts = $total_discount + $bill_discount;
-            $amount_paid = $sale->total_paid ?? 0;
-            $balance = $sale->total_due ?? 0;
-        @endphp
+                $total_all_discounts = $total_discount + $bill_discount;
+                $amount_paid = $sale->total_paid ?? 0;
+                $balance = $sale->total_due ?? 0;
+            @endphp
 
-        <div class="summary-section">
-            <div class="summary-column">
-                <div class="summary-row">
-                    <span>Total Items:</span>
-                    <span>{{ count($products) }}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Total Quantity:</span>
-                    <span>{{ $products->sum('quantity') }}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Previous Outstanding:</span>
-                    <span>0.00</span>
-                </div>
-            </div>
-
-            <div class="summary-column">
-                <div class="summary-row">
-                    <span>Total Discounts:</span>
-                    <span>{{ number_format($total_all_discounts, 2) }}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Return Amount:</span>
-                    <span>0.00</span>
-                </div>
-                <div class="summary-row">
-                    <span>Amount Payable:</span>
-                    <span>{{ number_format($sale->final_total, 2) }}</span>
-                </div>
-            </div>
-
-            <div class="summary-column">
-                <div class="summary-row">
-                    <span>Discount:</span>
-                    <span>{{ number_format($total_all_discounts, 2) }}</span>
-                </div>
-                <div class="summary-row bold">
-                    <span>Bill Total:</span>
-                    <span>{{ number_format($sale->final_total, 2) }}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Amount Paid:</span>
-                    <span>{{ number_format($amount_paid, 2) }}</span>
-                </div>
-                <div class="summary-row">
-                    <span>Balance:</span>
-                    <span>{{ number_format($balance, 2) }}</span>
-                </div>
-                @if($sale->total_due > 0)
-                    <div class="summary-row total">
-                        <span>*Current Credit:</span>
-                        <span>{{ number_format($sale->total_due, 2) }}</span>
+            <div class="summary-section">
+                <div class="summary-column">
+                    <div class="summary-row">
+                        <span>Total Items:</span>
+                        <span>{{ count($products) }}</span>
                     </div>
-                @endif
+                    <div class="summary-row">
+                        <span>Total Quantity:</span>
+                        <span>{{ $products->sum('quantity') }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Previous Outstanding:</span>
+                        <span>0.00</span>
+                    </div>
+                </div>
+
+                <div class="summary-column">
+                    <div class="summary-row">
+                        <span>Total Discounts:</span>
+                        <span>{{ number_format($total_all_discounts, 2) }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Return Amount:</span>
+                        <span>0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Amount Payable:</span>
+                        <span>{{ number_format($sale->final_total, 2) }}</span>
+                    </div>
+                </div>
+
+                <div class="summary-column">
+                    <div class="summary-row">
+                        <span>Discount:</span>
+                        <span>{{ number_format($total_all_discounts, 2) }}</span>
+                    </div>
+                    <div class="summary-row bold">
+                        <span>Bill Total:</span>
+                        <span>{{ number_format($sale->final_total, 2) }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Amount Paid:</span>
+                        <span>{{ number_format($amount_paid, 2) }}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Balance:</span>
+                        <span>{{ number_format($balance, 2) }}</span>
+                    </div>
+                    @if ($sale->total_due > 0)
+                        <div class="summary-row total">
+                            <span>*Current Credit:</span>
+                            <span>{{ number_format($sale->total_due, 2) }}</span>
+                        </div>
+                    @endif
+                </div>
             </div>
-        </div>
 
-        <div style="text-align: center; font-size: 11px; font-weight: bold;">
-            Payment: @if($payments && $payments->count() > 0){{ strtoupper($payments->first()->payment_method) }}@else CASH @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
-        </div>
+            <div style="text-align: center; font-size: 11px; font-weight: bold;">
+                Payment: @if ($payments && $payments->count() > 0)
+                    {{ strtoupper($payments->first()->payment_method) }}
+                @else
+                    CASH
+                @endif | <span>{{ number_format($sale->total_paid ?? 0, 2) }}</span>
+            </div>
 
-        <div class="footer-line">
-            <div>Prepared By: {{ strtoupper($user->user_name ?? $user->name ?? 'CASHIER') }}</div>
-            <div>Checked By:</div>
-            <div>Customer Acceptance:</div>
-        </div>
+            <div class="footer-line">
+                <div>Prepared By: {{ strtoupper($user->user_name ?? ($user->name ?? 'CASHIER')) }}</div>
+                <div>Checked By:</div>
+                <div>Customer Acceptance:</div>
+            </div>
 
-        <div class="software-info">
-            Software by Marazin Pvt.Ltd | 
-            Thank you for your business!
-        </div>
+            <div class="software-info">
+                Software by Marazin Pvt.Ltd |
+                Thank you for your business!
+            </div>
 
-        <div class="perforation-bottom"></div>
-    </div>
-</body>
-</html>
+            <div class="perforation-bottom"></div>
+        </div>
+    </body>
+
+    </html>

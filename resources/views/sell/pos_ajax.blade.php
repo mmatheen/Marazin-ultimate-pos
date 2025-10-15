@@ -3,10 +3,10 @@
 <script>
     // Pass user permissions to JavaScript
     const userPermissions = {
-        canEditSale: @json(auth()->user()->can('edit sale')),
-        canDeleteSale: @json(auth()->user()->can('delete sale')),
-        canEditProduct: @json(auth()->user()->can('edit product')),
-        canDeleteProduct: @json(auth()->user()->can('delete product'))
+        canEditSale: @json(auth()->check() && auth()->user()->can('edit sale')),
+        canDeleteSale: @json(auth()->check() && auth()->user()->can('delete sale')),
+        canEditProduct: @json(auth()->check() && auth()->user()->can('edit product')),
+        canDeleteProduct: @json(auth()->check() && auth()->user()->can('delete product'))
     };
 
     // Global function to clean up modal backdrops and body styles
