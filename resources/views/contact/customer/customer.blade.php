@@ -8,7 +8,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Customer</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Warranties</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Contacts</a></li>
                                 <li class="breadcrumb-item active">List Customers</li>
                             </ul>
                         </div>

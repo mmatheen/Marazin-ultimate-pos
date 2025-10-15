@@ -9,7 +9,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">All Sales</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Sell</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Sell</a></li>
                                 <li class="breadcrumb-item active">All Sales</li>
                             </ul>
                         </div>
@@ -113,8 +114,7 @@
                                             <div class="row align-items-center">
                                                 <div class="col-auto text-end float-end ms-auto download-grp">
                                                     <!-- Button trigger modal -->
-                                                    <a href="#"><button type="button"
-                                                            class="btn btn-outline-info">
+                                                    <a href="#"><button type="button" class="btn btn-outline-info">
                                                             <i class="fas fa-plus px-2"> </i>Add
                                                         </button></a>
 
@@ -126,7 +126,8 @@
                                             <table class="datatable table table-stripped" style="width:100%" id="posTable">
                                                 <thead>
                                                     <tr>
-                                                        <th><input type="checkbox" name="" value="" id="allchecked"
+                                                        <th><input type="checkbox" name="" value=""
+                                                                id="allchecked"
                                                                 onclick="toggleLoginFields(id,'.checked')" /></th>
                                                         <th>Action</th>
                                                         <th>Date</th>
@@ -190,14 +191,14 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            fetch('/sales')
-                .then(response => response.json())
-                .then(data => {
-                    const posSales = data.sales.filter(sale => sale.sale_type === "POS");
-                    const tbody = document.querySelector('#posTable tbody');
-                    posSales.forEach(sale => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
+                    fetch('/sales')
+                        .then(response => response.json())
+                        .then(data => {
+                                const posSales = data.sales.filter(sale => sale.sale_type === "POS");
+                                const tbody = document.querySelector('#posTable tbody');
+                                posSales.forEach(sale => {
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = `
                         <td><input type="checkbox" class="checked" /></td>
                          <td>
                         <div class="dropdown dropdown-action">
@@ -228,37 +229,51 @@
                             } else if (sale.payment_status === 'Paid') {
                                 paymentStatusBadge = '<span class="badge bg-success">Paid</span>';
                             } else {
-                                paymentStatusBadge = `<span class="badge bg-secondary">${sale.payment_status}</span>`;
-                            }
-                            return paymentStatusBadge;
-                        })()}
-                    </td>
-                    <td>${sale.payments.length > 0 ? sale.payments[0].payment_method : ''}</td>
-                        <td>${sale.final_total}</td>
-                        <td>${sale.total_paid}</td>
-                        <td>${sale.total_due}</td>
-                        <td>${sale.products.length}</td>
-                        <td>${sale.created_at}</td>
-                    `;
-                        tbody.appendChild(row);
-                    });
+                                paymentStatusBadge = ` < span class = "badge bg-secondary" > $ {
+                                            sale.payment_status
+                                        } < /span>`;
+                                }
+                                return paymentStatusBadge;
+                            })()
+                    } <
+                    /td> <
+                    td > $ {
+                        sale.payments.length > 0 ? sale.payments[0].payment_method : ''
+                    } < /td> <
+                    td > $ {
+                        sale.final_total
+                    } < /td> <
+                    td > $ {
+                        sale.total_paid
+                    } < /td> <
+                    td > $ {
+                        sale.total_due
+                    } < /td> <
+                    td > $ {
+                        sale.products.length
+                    } < /td> <
+                    td > $ {
+                        sale.created_at
+                    } < /td>
+                `;
+                            tbody.appendChild(row);
+                        });
 
-                    // Destroy existing DataTable instance if it exists
-                    if ($.fn.DataTable.isDataTable('#posTable')) {
-                        $('#posTable').DataTable().destroy();
-                    }
+                        // Destroy existing DataTable instance if it exists
+                        if ($.fn.DataTable.isDataTable('#posTable')) {
+                            $('#posTable').DataTable().destroy();
+                        }
 
-                    // Initialize DataTable
-                    $('#posTable').DataTable({
-                        "searching": true, // Enable default search box
-                        "paging": true, // Enable pagination
-                        "info": true // Enable information display
-                    });
-                })
-                .catch(error => console.error('Error fetching sales:', error));
-        });
+                        // Initialize DataTable
+                        $('#posTable').DataTable({
+                            "searching": true, // Enable default search box
+                            "paging": true, // Enable pagination
+                            "info": true // Enable information display
+                        });
+                    })
+                    .catch(error => console.error('Error fetching sales:', error));
+            });
     </script>
 
     @include('sell.pos_ajax')
-
 @endsection

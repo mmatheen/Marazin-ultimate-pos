@@ -1,91 +1,93 @@
 @extends('layout.layout')
 
 @section('styles')
-<style>
-    #vehicleDetailsSection, #parentLocationDetails {
-        animation: slideIn 0.3s ease-in-out;
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
+    <style>
+        #vehicleDetailsSection,
+        #parentLocationDetails {
+            animation: slideIn 0.3s ease-in-out;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-    }
-    
-    .vehicle-alert {
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
-    }
-    
-    .input-group-text {
-        border-right: none;
-        background: #f8f9fa;
-    }
-    
-    .input-group .form-control,
-    .input-group .form-select {
-        border-left: none;
-    }
-    
-    .input-group:focus-within .input-group-text {
-        border-color: #80bdff;
-        background: #e7f3ff;
-    }
-    
-    .input-group:focus-within .form-control,
-    .input-group:focus-within .form-select {
-        border-color: #80bdff;
-    }
-    
-    /* Compact sublocation styling */
-    .sublocation-badge {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 8px 12px;
-        transition: all 0.2s ease;
-        display: inline-block;
-        margin: 2px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .sublocation-badge:hover {
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        transform: translateY(-1px);
-    }
-    
-    .sublocation-vehicle {
-        background: #e3f2fd;
-        color: #1976d2;
-        padding: 2px 6px;
-        border-radius: 10px;
-        font-size: 0.75em;
-        font-weight: 500;
-        margin-left: 5px;
-    }
-    
-    .parent-info-row {
-        margin-bottom: 0 !important;
-    }
-    
-    .parent-info-row .col-md-3 {
-        padding: 4px 8px;
-    }
-    
-    /* Compact form spacing */
-    .modal-xl {
-        max-width: 95%;
-    }
-    
-    .form-group.local-forms {
-        margin-bottom: 0.8rem;
-    }
-</style>
+
+        .vehicle-alert {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+        }
+
+        .input-group-text {
+            border-right: none;
+            background: #f8f9fa;
+        }
+
+        .input-group .form-control,
+        .input-group .form-select {
+            border-left: none;
+        }
+
+        .input-group:focus-within .input-group-text {
+            border-color: #80bdff;
+            background: #e7f3ff;
+        }
+
+        .input-group:focus-within .form-control,
+        .input-group:focus-within .form-select {
+            border-color: #80bdff;
+        }
+
+        /* Compact sublocation styling */
+        .sublocation-badge {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px 12px;
+            transition: all 0.2s ease;
+            display: inline-block;
+            margin: 2px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .sublocation-badge:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .sublocation-vehicle {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: 500;
+            margin-left: 5px;
+        }
+
+        .parent-info-row {
+            margin-bottom: 0 !important;
+        }
+
+        .parent-info-row .col-md-3 {
+            padding: 4px 8px;
+        }
+
+        /* Compact form spacing */
+        .modal-xl {
+            max-width: 95%;
+        }
+
+        .form-group.local-forms {
+            margin-bottom: 0.8rem;
+        }
+    </style>
 @endsection
 
 @section('content')
@@ -97,8 +99,9 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Location</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Locations</a></li>
-                                <li class="breadcrumb-item active">List Locations</li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Business Settings</a></li>
+                                <li class="breadcrumb-item active">Locations</li>
                             </ul>
                         </div>
                     </div>
@@ -206,12 +209,14 @@
 
                                     <!-- Parent Location Details Section (Initially Hidden) -->
                                     <div id="parentLocationDetails" class="col-12" style="display: none;">
-                                        <div class="alert alert-success border-0 mb-3" style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); border-radius: 10px;">
+                                        <div class="alert alert-success border-0 mb-3"
+                                            style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); border-radius: 10px;">
                                             <div class="d-flex align-items-center mb-2">
                                                 <i class="fas fa-building text-success me-2"></i>
-                                                <h6 class="mb-0 text-success fw-bold" id="parentLocationName">Parent Location Details</h6>
+                                                <h6 class="mb-0 text-success fw-bold" id="parentLocationName">Parent
+                                                    Location Details</h6>
                                             </div>
-                                            
+
                                             <div class="row g-2 mb-2">
                                                 <div class="col-md-3">
                                                     <small class="text-muted d-block">📍 Address</small>
@@ -230,7 +235,7 @@
                                                     <span id="parentTelephone" class="fw-semibold">-</span>
                                                 </div>
                                             </div>
-                                            
+
                                             <!-- Existing Sublocations -->
                                             <div id="existingSublocations" style="display: none;">
                                                 <hr class="my-2" style="border-color: #28a745; opacity: 0.3;">
@@ -249,13 +254,16 @@
                                     <div id="vehicleDetailsSection" class="col-12" style="display: none;">
                                         <div class="row">
                                             <div class="col-12">
-                                                <div class="alert alert-info border-info vehicle-alert mb-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left: 4px solid #2196f3;">
+                                                <div class="alert alert-info border-info vehicle-alert mb-3"
+                                                    style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-left: 4px solid #2196f3;">
                                                     <div class="d-flex align-items-center">
-                                                        <i class="fas fa-truck text-primary me-2" style="font-size: 1.2em;"></i>
+                                                        <i class="fas fa-truck text-primary me-2"
+                                                            style="font-size: 1.2em;"></i>
                                                         <div>
                                                             <strong class="text-primary">Vehicle Details Required</strong>
                                                             <br>
-                                                            <small class="text-muted">Sublocations must have vehicle information for delivery tracking</small>
+                                                            <small class="text-muted">Sublocations must have vehicle
+                                                                information for delivery tracking</small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -268,9 +276,11 @@
                                                             Vehicle Number <span class="login-danger">*</span>
                                                         </label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text"><i class="fas fa-car"></i></span>
-                                                            <input class="form-control" id="edit_vehicle_number" name="vehicle_number" 
-                                                                   type="text" placeholder="e.g., ABC-1234" maxlength="20">
+                                                            <span class="input-group-text"><i
+                                                                    class="fas fa-car"></i></span>
+                                                            <input class="form-control" id="edit_vehicle_number"
+                                                                name="vehicle_number" type="text"
+                                                                placeholder="e.g., ABC-1234" maxlength="20">
                                                         </div>
                                                         <span class="text-danger" id="vehicle_number_error"></span>
                                                     </div>
@@ -284,8 +294,10 @@
                                                             Vehicle Type <span class="login-danger">*</span>
                                                         </label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text"><i class="fas fa-cogs"></i></span>
-                                                            <select class="form-control form-select" id="edit_vehicle_type" name="vehicle_type">
+                                                            <span class="input-group-text"><i
+                                                                    class="fas fa-cogs"></i></span>
+                                                            <select class="form-control form-select"
+                                                                id="edit_vehicle_type" name="vehicle_type">
                                                                 <option value="">Select Vehicle Type</option>
                                                                 <option value="Van">🚐 Van</option>
                                                                 <option value="Truck">🚛 Truck</option>
@@ -309,7 +321,8 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Address<span class="login-danger" id="address_required">*</span></label>
+                                                        <label>Address<span class="login-danger"
+                                                                id="address_required">*</span></label>
                                                         <textarea class="form-control" id="edit_address" name="address" placeholder="Address"></textarea>
                                                         <span class="text-danger" id="address_error"></span>
                                                     </div>
@@ -319,8 +332,10 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Province<span class="login-danger" id="province_required">*</span></label>
-                                                        <select class="form-control form-select" id="edit_province" name="province">
+                                                        <label>Province<span class="login-danger"
+                                                                id="province_required">*</span></label>
+                                                        <select class="form-control form-select" id="edit_province"
+                                                            name="province">
                                                             <option value="">Select Province</option>
                                                             <option value="Western">Western</option>
                                                             <option value="Central">Central</option>
@@ -340,8 +355,10 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>District<span class="login-danger" id="district_required">*</span></label>
-                                                        <select class="form-control form-select" id="edit_district" name="district">
+                                                        <label>District<span class="login-danger"
+                                                                id="district_required">*</span></label>
+                                                        <select class="form-control form-select" id="edit_district"
+                                                            name="district">
                                                             <option value="">Select District</option>
                                                         </select>
                                                         <span class="text-danger" id="district_error"></span>
@@ -352,8 +369,10 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>City<span class="login-danger" id="city_required"></span></label>
-                                                        <input class="form-control" id="edit_city" name="city" type="text" placeholder="City">
+                                                        <label>City<span class="login-danger"
+                                                                id="city_required"></span></label>
+                                                        <input class="form-control" id="edit_city" name="city"
+                                                            type="text" placeholder="City">
                                                         <span class="text-danger" id="city_error"></span>
                                                     </div>
                                                 </div>
@@ -362,8 +381,10 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Email<span class="login-danger" id="email_required"></span></label>
-                                                        <input type="text" class="form-control" id="edit_email" name="email" placeholder="Email">
+                                                        <label>Email<span class="login-danger"
+                                                                id="email_required"></span></label>
+                                                        <input type="text" class="form-control" id="edit_email"
+                                                            name="email" placeholder="Email">
                                                         <span class="text-danger" id="email_error"></span>
                                                     </div>
                                                 </div>
@@ -372,8 +393,10 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Phone<span class="login-danger" id="mobile_required"></span></label>
-                                                        <input type="text" class="form-control" id="edit_mobile" name="mobile" placeholder="Phone No">
+                                                        <label>Phone<span class="login-danger"
+                                                                id="mobile_required"></span></label>
+                                                        <input type="text" class="form-control" id="edit_mobile"
+                                                            name="mobile" placeholder="Phone No">
                                                         <span class="text-danger" id="mobile_error"></span>
                                                     </div>
                                                 </div>
@@ -383,7 +406,8 @@
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
                                                         <label>Telephone (Optional)</label>
-                                                        <input type="text" class="form-control" id="edit_telephone_no" name="telephone_no" placeholder="Telephone No">
+                                                        <input type="text" class="form-control" id="edit_telephone_no"
+                                                            name="telephone_no" placeholder="Telephone No">
                                                         <span class="text-danger" id="telephone_no_error"></span>
                                                     </div>
                                                 </div>
@@ -393,7 +417,8 @@
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
                                                         <label>Location Logo<span class="login-danger"></span></label>
-                                                        <input type="file" class="form-control" id="edit_logo_image" name="logo_image" accept="image/*">
+                                                        <input type="file" class="form-control" id="edit_logo_image"
+                                                            name="logo_image" accept="image/*">
                                                         <span class="text-danger" id="logo_image_error"></span>
                                                         <div id="logo_preview" style="margin-top: 10px;">
                                                             <!-- Logo preview will be shown here -->
@@ -406,8 +431,11 @@
                                             <div class="col-md-4">
                                                 <div class="mb-3">
                                                     <div class="form-group local-forms">
-                                                        <label>Receipt Layout for POS <span class="login-danger">*</span></label>
-                                                        <select class="form-control form-select" id="edit_invoice_layout_pos" name="invoice_layout_pos" required>
+                                                        <label>Receipt Layout for POS <span
+                                                                class="login-danger">*</span></label>
+                                                        <select class="form-control form-select"
+                                                            id="edit_invoice_layout_pos" name="invoice_layout_pos"
+                                                            required>
                                                             <option value="">Select Receipt Layout</option>
                                                             <option value="80mm">80mm Thermal Printer</option>
                                                             <option value="a4">A4 Size Printer</option>
@@ -415,8 +443,8 @@
                                                         </select>
                                                         <span class="text-danger" id="invoice_layout_pos_error"></span>
                                                         <small class="text-muted mt-1">
-                                                            <strong>80mm:</strong> Standard thermal receipt | 
-                                                            <strong>A4:</strong> Detailed invoice | 
+                                                            <strong>80mm:</strong> Standard thermal receipt |
+                                                            <strong>A4:</strong> Detailed invoice |
                                                             <strong>Dot Matrix:</strong> Traditional format
                                                         </small>
                                                     </div>

@@ -135,16 +135,17 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="customerId" class="form-label">Customer:</label>
-                                        <select id="customerId" name="customer_id" class="form-select selectBox" required>
-                                            <option value="">Select Customer</option>
-                                            <!-- Populate with customers -->
-                                        </select>
+                                        <div class="d-flex gap-2">
+                                            <select id="customerId" name="customer_id" class="form-select selectBox"
+                                                style="flex: 1;" required>
+                                                <option value="">Select Customer</option>
+                                                <!-- Populate with customers -->
+                                            </select>
+                                            <button type="button" class="btn btn-primary" id="addCustomerButton">
+                                                <i class="fas fa-plus-circle"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <button type="button" class="btn btn-primary mt-4" id="addCustomerButton">
-                                        Add New Customer
-                                    </button>
                                 </div>
                             </div>
                         </div>

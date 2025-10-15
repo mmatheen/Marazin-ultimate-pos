@@ -11,8 +11,9 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">All Products</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Products</a></li>
-                                <li class="breadcrumb-item active">List Products</li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Products</a></li>
+                                <li class="breadcrumb-item active">All Products</li>
                             </ul>
                         </div>
                     </div>
@@ -37,7 +38,8 @@
                             <div class="col-lg-3 col-md-6">
                                 <div class="form-group local-forms">
                                     <label>Product <span class="login-danger"></span></label>
-                                    <select class="form-control selectBox select2" id="productNameFilter" style="width: 100%;">
+                                    <select class="form-control selectBox select2" id="productNameFilter"
+                                        style="width: 100%;">
                                         <option value="">Select Product</option>
                                         <!-- Populate with product options -->
                                     </select>
@@ -208,11 +210,20 @@
                                                                     <!-- Location Selection -->
                                                                     <div class="col-md-12 mt-3">
                                                                         <div class="mb-3">
-                                                                            <label for="import_location" class="form-label"><i class="fas fa-map-marker-alt"></i> Select Location for Import <span class="text-danger">*</span></label>
-                                                                            <select name="import_location" id="import_location" class="form-control" required>
-                                                                                <option value="">Choose Location to Import Products...</option>
+                                                                            <label for="import_location"
+                                                                                class="form-label"><i
+                                                                                    class="fas fa-map-marker-alt"></i>
+                                                                                Select Location for Import <span
+                                                                                    class="text-danger">*</span></label>
+                                                                            <select name="import_location"
+                                                                                id="import_location" class="form-control"
+                                                                                required>
+                                                                                <option value="">Choose Location to
+                                                                                    Import Products...</option>
                                                                             </select>
-                                                                            <small class="text-muted">All products from the uploaded file will be imported to the selected location</small>
+                                                                            <small class="text-muted">All products from the
+                                                                                uploaded file will be imported to the
+                                                                                selected location</small>
                                                                         </div>
                                                                     </div>
 
@@ -478,7 +489,8 @@
     </div>
 
     <!-- Batch Prices Modal -->
-    <div class="modal fade" id="batchPricesModal" tabindex="-1" aria-labelledby="batchPricesModalLabel" aria-hidden="true">
+    <div class="modal fade" id="batchPricesModal" tabindex="-1" aria-labelledby="batchPricesModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -494,14 +506,15 @@
                             <h6><strong>SKU:</strong> <span id="productSku"></span></h6>
                         </div>
                     </div>
-                    
+
                     <div id="batchPricesTable" class="table-responsive">
                         <table class="table table-bordered table-sm">
                             <thead class="table-light">
                                 <tr>
                                     <th class="text-nowrap">Batch No</th>
                                     <th class="text-nowrap">Stock</th>
-                                    <th class="text-nowrap d-none d-md-table-cell">Cost Price <small class="text-muted d-block">(Not Editable)</small></th>
+                                    <th class="text-nowrap d-none d-md-table-cell">Cost Price <small
+                                            class="text-muted d-block">(Not Editable)</small></th>
                                     <th class="text-nowrap">Wholesale</th>
                                     <th class="text-nowrap">Special</th>
                                     <th class="text-nowrap">Retail</th>
@@ -515,7 +528,7 @@
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Mobile-friendly info cards for small screens -->
                     <div id="batchPricesMobile" class="d-block d-md-none">
                         <!-- Mobile cards will be populated here -->
@@ -531,7 +544,7 @@
 
 
 
-        </div>
+    </div>
 
     <script>
         // Set global permission variables - Most efficient Laravel approach
