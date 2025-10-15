@@ -82,12 +82,7 @@ class Customer extends Model
     // Credit limit based on city
     public static function calculateCreditLimitForCity($cityId)
     {
-        if (!$cityId) return 0;
-
-        $salesRepsWithRoutes = SalesRep::whereHas('route.cities', function ($q) use ($cityId) {
-            $q->where('cities.id', $cityId);
-        })->get();
-
-        return $salesRepsWithRoutes->max('default_credit_limit') ?: 0;
+        // Return default credit limit of 0 (no automatic calculation)
+        return 0;
     }
 }

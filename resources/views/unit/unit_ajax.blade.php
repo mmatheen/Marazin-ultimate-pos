@@ -49,6 +49,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditUnitModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditUnitModal .selectBox').select2({
+                dropdownParent: $('#addAndEditUnitModal')
+            });
+        });
+
         // Show Add Warranty Modal
         $('#addUnitButton').click(function() {
             $('#modalTitle').text('New Unit');
@@ -77,10 +85,10 @@
                         row.append('<td>' + item.short_name + '</td>');
                         row.append('<td>' + item.allow_decimal + '</td>');
                         row.append('<td>' +
-                            '@can("edit unit")<button type="button" value="' +
+                            '@can('edit unit')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete unit")<button type="button" value="' +
+                            '@can('delete unit')<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');
@@ -160,13 +168,13 @@
                     } else {
 
                         let newUnitId = response.newUnitId ||
-                        id; // Get new brand ID or use existing ID
+                            id; // Get new brand ID or use existing ID
                         populateUnitDropdown(newUnitId);
                         $('#addAndEditUnitModal').modal('hide');
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -199,7 +207,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -249,7 +257,7 @@
                     let unitSelect = $('#edit_unit_id');
                     unitSelect.empty(); // Clear existing options
                     unitSelect.append(
-                    '<option selected disabled>Unit</option>'); // Add default option
+                        '<option selected disabled>Unit</option>'); // Add default option
                     $.each(data, function(key, value) {
                         unitSelect.append('<option value="' + value.id + '">' + value.name +
                             '</option>');

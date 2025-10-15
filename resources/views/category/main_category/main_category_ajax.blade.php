@@ -52,6 +52,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditMainCategoryModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditMainCategoryModal .selectBox').select2({
+                dropdownParent: $('#addAndEditMainCategoryModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addMainCategoryButton').click(function() {
             $('#modalTitle').text('New Main Category');
@@ -78,10 +86,10 @@
                         row.append('<td>' + item.mainCategoryName + '</td>');
                         row.append('<td>' + item.description + '</td>');
                         row.append('<td>' +
-                            '@can("edit main-category")<button type="button" value="' +
+                            '@can('edit main-category')<button type="button" value="' +
                             item.id +
                             '" class="main_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete main-category")<button type="button" value="' +
+                            '@can('delete main-category')<button type="button" value="' +
                             item.id +
                             '" class="main_delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');
@@ -275,18 +283,24 @@
                     }
                 },
                 error: function(xhr) {
-        
+
                     // Check for SQLSTATE[23000] error code 1451 (foreign key constraint)
                     if (
                         xhr.responseJSON &&
                         (
-                            (xhr.responseJSON.message && xhr.responseJSON.message.includes('SQLSTATE[23000]') && xhr.responseJSON.message.includes('1451')) ||
-                            (xhr.responseJSON.exception && xhr.responseJSON.exception.includes('Integrity constraint violation'))
+                            (xhr.responseJSON.message && xhr.responseJSON.message.includes(
+                                'SQLSTATE[23000]') && xhr.responseJSON.message.includes(
+                                '1451')) ||
+                            (xhr.responseJSON.exception && xhr.responseJSON.exception
+                                .includes('Integrity constraint violation'))
                         )
                     ) {
-                        toastr.error('This category cannot be deleted because it is associated with one or more products.', 'Delete Not Allowed');
+                        toastr.error(
+                            'This category cannot be deleted because it is associated with one or more products.',
+                            'Delete Not Allowed');
                     } else {
-                        toastr.error('An error occurred while deleting the category.', 'Error');
+                        toastr.error('An error occurred while deleting the category.',
+                            'Error');
                     }
                 }
             });

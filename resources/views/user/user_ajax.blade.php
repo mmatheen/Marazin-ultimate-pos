@@ -117,6 +117,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditModal .selectBox').select2({
+                dropdownParent: $('#addAndEditModal')
+            });
+        });
+
         // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
         $('#addAndUserUpdateForm').on('input change', 'input', function() {
@@ -156,10 +164,10 @@
                             item.locations.join(', ') + '</span></td>');
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' +
-                            '@can("edit user")<button type="button" value="' +
+                            '@can('edit user')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete user")<button type="button" value="' +
+                            '@can('delete user')<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');
@@ -270,16 +278,17 @@
             $('#deleteName').text('Delete User');
         });
 
-        $(document).off('click', '.confirm_user_delete_btn').on('click', '.confirm_user_delete_btn', function() {
+        $(document).off('click', '.confirm_user_delete_btn').on('click', '.confirm_user_delete_btn',
+    function() {
             var id = $('#deleting_id').val();
-            
+
             // Prevent multiple clicks
             if ($(this).data('processing')) {
                 return false;
             }
-            
+
             $(this).data('processing', true);
-            
+
             $.ajax({
                 url: 'user-delete/' + id,
                 type: 'delete',
@@ -307,25 +316,25 @@
                 },
                 error: function(xhr, status, error) {
                     $('#deleteModal').modal('hide');
-                    
+
                     // Reset processing flag
                     $('.confirm_user_delete_btn').data('processing', false);
-                    
+
                     // Clear any existing toastr messages first
                     toastr.clear();
-                    
+
                     var errorMessage = 'An error occurred while deleting the user.';
-                    
+
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     }
-                    
+
                     toastr.options = {
                         "closeButton": true,
                         "positionClass": "toast-top-right",
                         "timeOut": 5000
                     };
-                    
+
                     if (xhr.status === 403) {
                         toastr.warning(errorMessage, 'Access Denied');
                     } else if (xhr.status === 404) {

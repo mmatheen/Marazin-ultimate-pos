@@ -1,4 +1,36 @@
 {{-- Add/Edit modal row --}}
+<style>
+    /* Custom styling for city dropdown with plus button */
+    .city-select-container {
+        position: relative;
+    }
+
+    .city-select-container .select2-container {
+        width: 100% !important;
+    }
+
+    .city-select-container .select2-container .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+
+    .city-select-container .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+        padding-left: 12px;
+        color: #495057;
+    }
+
+    .city-select-container .select2-container .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+        right: 10px;
+    }
+
+    /* Ensure proper alignment */
+    .d-flex.align-items-start.gap-2 {
+        gap: 8px !important;
+    }
+</style>
 <div class="row">
     <div id="addAndEditCustomerModal" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
@@ -14,7 +46,7 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label>Prefix</label>
-                                    <select class="form-control form-select" id="edit_prefix" name="prefix">
+                                    <select class="form-control form-select selectBox" id="edit_prefix" name="prefix">
                                         <option selected disabled>Mr / Mrs / Miss</option>
                                         <option>Mr</option>
                                         <option>Mrs</option>
@@ -73,18 +105,28 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label>City
-                                        @if(auth()->user()->hasRole('Sales Rep'))
+                                        @if (auth()->user()->hasRole('Sales Rep'))
                                             <span class="login-danger">*</span>
                                         @else
                                             <small class="text-muted">(Optional)</small>
                                         @endif
                                     </label>
-                                    <select class="form-control form-select" id="edit_city_id" name="city_id">
-                                        <option value="">Select City</option>
-                                    </select>
+                                    <div class="d-flex align-items-start gap-2">
+                                        <div class="flex-grow-1 city-select-container">
+                                            <select class="form-control form-select selectBox" id="edit_city_id"
+                                                name="city_id" style="width: 100%;">
+                                                <option value="">Select City</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-info btn-sm mt-0"
+                                            id="addCityButton" style="min-width: 40px; height: 38px;">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
                                     <span class="text-danger" id="city_id_error"></span>
-                                    @if(!auth()->user()->hasRole('Sales Rep'))
-                                        <small class="text-muted">City selection helps sales reps filter customers by location</small>
+                                    @if (!auth()->user()->hasRole('Sales Rep'))
+                                        <small class="text-muted">City selection helps sales reps filter customers by
+                                            location</small>
                                     @endif
                                 </div>
                             </div>
@@ -103,7 +145,8 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label>Customer Type<span class="login-danger">*</span></label>
-                                    <select class="form-control form-select" id="edit_customer_type" name="customer_type">
+                                    <select class="form-control form-select selectBox" id="edit_customer_type"
+                                        name="customer_type">
                                         <option value="">Select Customer Type</option>
                                         <option value="wholesaler">Wholesaler</option>
                                         <option value="retailer" selected>Retailer</option>

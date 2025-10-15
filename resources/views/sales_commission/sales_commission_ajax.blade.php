@@ -57,6 +57,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditSalesCommissionModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditSalesCommissionModal .selectBox').select2({
+                dropdownParent: $('#addAndEditSalesCommissionModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addSalesCommissionButton').click(function() {
             $('#modalTitle').text('New Sales Commision Agent');
@@ -87,8 +95,14 @@
                         row.append('<td>' + item.contact_number + '</td>');
                         row.append('<td>' + item.sales_commission_percentage + '</td>');
                         row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' + '@can("edit sales-commission-agent")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete sales-commission-agent")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
+                        row.append('<td>' +
+                            '@can('edit sales-commission-agent')<button type="button" value="' +
+                            item.id +
+                            '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                            '@can('delete sales-commission-agent')<button type="button" value="' +
+                            item.id +
+                            '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
+                            '</td>');
                         table.row.add(row).draw(false);
                         counter++;
                     });
@@ -121,7 +135,8 @@
                         $('#edit_last_name').val(response.message.last_name);
                         $('#edit_email').val(response.message.email);
                         $('#edit_contact_number').val(response.message.contact_number);
-                        $('#edit_sales_commission_percentage').val(response.message.sales_commission_percentage);
+                        $('#edit_sales_commission_percentage').val(response.message
+                            .sales_commission_percentage);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditSalesCommissionModal').modal('show');
                     }
@@ -163,9 +178,10 @@
                 success: function(response) {
                     if (response.status == 400) {
                         $.each(response.errors, function(key, err_value) {
-                            document.getElementsByClassName('warningSound')[0].play(); //for sound
+                            document.getElementsByClassName('warningSound')[0]
+                            .play(); //for sound
                             $('#' + key + '_error').html(err_value);
-                            toastr.error(err_value,'Error');
+                            toastr.error(err_value, 'Error');
                         });
 
                     } else {
@@ -173,7 +189,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -185,7 +201,7 @@
             });
         });
 
-           // it will Clear the serverside validation errors on input change
+        // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
         $('#addAndUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
@@ -219,7 +235,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

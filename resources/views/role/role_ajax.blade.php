@@ -55,6 +55,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditRoleModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditRoleModal .selectBox').select2({
+                dropdownParent: $('#addAndEditRoleModal')
+            });
+        });
+
         // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
         $('#addAndRoleUpdateForm').on('input change', 'input', function() {
@@ -87,10 +95,10 @@
                         row.append('<td>' + counter + '</td>');
                         row.append('<td>' + item.name + '</td>');
                         row.append('<td>' +
-                            '@can("edit role")<button type="button" value="' +
+                            '@can('edit role')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete role")<button type="button" value="' +
+                            '@can('delete role')<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');
@@ -114,25 +122,26 @@
                 url: 'role-edit/' + id,
                 type: 'get',
                 success: function(response) {
-                if (response.status === 200) {
-                    // toastr.success(response.message);
-                       $('#edit_name').val(response.message.name);
-                        $('#edit_key').val(response.message.key); 
+                    if (response.status === 200) {
+                        // toastr.success(response.message);
+                        $('#edit_name').val(response.message.name);
+                        $('#edit_key').val(response.message.key);
                         $('#addAndEditRoleModal').modal('show');
-                } else if (response.status === 403) {
-                    toastr.error(response.message);
-                } else {
-                    toastr.error('Unexpected error occurred.');
+                    } else if (response.status === 403) {
+                        toastr.error(response.message);
+                    } else {
+                        toastr.error('Unexpected error occurred.');
+                    }
+                },
+                error: function(xhr) {
+                    // If backend returns 403 as HTTP status
+                    if (xhr.status === 403 && xhr.responseJSON && xhr.responseJSON
+                        .message) {
+                        toastr.error(xhr.responseJSON.message);
+                    } else {
+                        toastr.error('Server error!');
+                    }
                 }
-            },
-            error: function(xhr) {
-                // If backend returns 403 as HTTP status
-                if (xhr.status === 403 && xhr.responseJSON && xhr.responseJSON.message) {
-                    toastr.error(xhr.responseJSON.message);
-                } else {
-                    toastr.error('Server error!');
-                }
-            }
             });
         });
 
@@ -173,7 +182,7 @@
                             $('#' + key + '_error').html(err_value);
                             toastr.error(err_value, 'Validation Error');
                             document.getElementsByClassName('errorSound')[0]
-                        .play(); //for sound
+                                .play(); //for sound
                         });
 
                     } else {
@@ -181,21 +190,25 @@
                         // Clear validation error messages
                         showFetchData();
                         populateRoleDropdown();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
+                        document.getElementsByClassName('successSound')[0]
+                    .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
                         };
                         toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
-                        
+
                         // If it's a new role creation and response indicates redirect to permissions
                         if (!id && response.redirect_to_permissions) {
                             // Show success message first, then redirect after a short delay
                             setTimeout(function() {
-                                toastr.info('Redirecting to assign permissions to the new role...', 'Next Step');
+                                toastr.info(
+                                    'Redirecting to assign permissions to the new role...',
+                                    'Next Step');
                                 setTimeout(function() {
-                                    window.location.href = '/group-role-and-permission';
+                                    window.location.href =
+                                        '/group-role-and-permission';
                                 }, 1500);
                             }, 2000);
                         }
@@ -240,14 +253,14 @@
 
         $(document).off('click', '.confirm_delete_btn').on('click', '.confirm_delete_btn', function() {
             var id = $('#deleting_id').val();
-            
+
             // Prevent multiple clicks
             if ($(this).data('processing')) {
                 return false;
             }
-            
+
             $(this).data('processing', true);
-            
+
             $.ajax({
                 url: 'role-delete/' + id,
                 type: 'delete',
@@ -266,7 +279,7 @@
                         showFetchData();
                         populateRoleDropdown();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -276,25 +289,25 @@
                 },
                 error: function(xhr, status, error) {
                     $('#deleteModal').modal('hide');
-                    
+
                     // Reset processing flag
                     $('.confirm_delete_btn').data('processing', false);
-                    
+
                     // Clear any existing toastr messages first
                     toastr.clear();
-                    
+
                     var errorMessage = 'An error occurred while deleting the role.';
-                    
+
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     }
-                    
+
                     toastr.options = {
                         "closeButton": true,
                         "positionClass": "toast-top-right",
                         "timeOut": 5000
                     };
-                    
+
                     if (xhr.status === 403) {
                         toastr.warning(errorMessage, 'Access Denied');
                     } else if (xhr.status === 404) {

@@ -1,6 +1,6 @@
 <div class="row">
     <div class="modal fade" id="new_purchase_product" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-xl-custom">
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="exampleModalLabel">Add new product</h1>
@@ -15,7 +15,7 @@
                                         <div class="page-header">
                                             <div class="row align-items-center">
                                                 <div class="row">
-                                                    <div class="col-md-4">
+                                                    <div class="col-12 col-md-6 col-lg-4">
                                                         <div class="mb-3">
                                                             <div class="form-group local-forms">
                                                                 <label>Product Name <span
@@ -29,7 +29,7 @@
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4">
+                                                    <div class="col-12 col-md-6 col-lg-4">
                                                         <div class="mb-3">
                                                             <div class="form-group local-forms">
                                                                 <label>Product SKU</label>
@@ -41,83 +41,99 @@
                                                         </div>
                                                     </div>
 
-                                                      <div class="col-md-4">
-                                                        <div class="mb-3 ">
-                                                            <div class="input-group local-forms d-flex">
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="mb-3">
+                                                            <div class="form-group local-forms">
                                                                 <label>Product Unit <span
                                                                         class="login-danger">*</span></label>
-                                                                <select class="form-control form-select select"
-                                                                    id="edit_unit_id" name="unit_id">
-                                                                    <option>Select Unit</option>
-                                                                </select>
-                                                                <button type="button" class="btn btn-outline-info "
-                                                                    id="addUnitButton">
-                                                                    <i class="fas fa-plus-circle"></i>
-                                                                </button>
+                                                                <div class="d-flex gap-2">
+                                                                    <select class="form-control form-select select"
+                                                                        id="edit_unit_id" name="unit_id"
+                                                                        style="flex: 1;">
+                                                                        <option>Select Unit</option>
+                                                                    </select>
+                                                                    <button type="button" class="btn btn-outline-info"
+                                                                        id="addUnitButton">
+                                                                        <i class="fas fa-plus-circle"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <span class="text-danger" id="unit_id_error"></span>
                                                             </div>
-                                                            <span class="text-danger" id="brand_id_error"></span>
                                                         </div>
                                                     </div>
 
-                                                   
 
 
 
 
 
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3 ">
-                                                            <div class="input-group local-forms d-flex">
+
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="mb-3">
+                                                            <div class="form-group local-forms">
                                                                 <label>Product Brand <span
                                                                         class="login-danger">*</span></label>
-                                                                <select class="form-control form-select select"
-                                                                    id="edit_brand_id" name="brand_id">
-                                                                    <option>Select Brand</option>
-                                                                </select>
-                                                                <button type="button" class="btn btn-outline-info "
-                                                                    id="addBrandButton">
-                                                                    <i class="fas fa-plus-circle"></i>
-                                                                </button>
+                                                                <div class="d-flex gap-2">
+                                                                    <select class="form-control form-select select"
+                                                                        id="edit_brand_id" name="brand_id"
+                                                                        style="flex: 1;">
+                                                                        <option>Select Brand</option>
+                                                                    </select>
+                                                                    <button type="button" class="btn btn-outline-info"
+                                                                        id="addBrandButton">
+                                                                        <i class="fas fa-plus-circle"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <span class="text-danger" id="brand_id_error"></span>
                                                             </div>
-                                                            <span class="text-danger" id="brand_id_error"></span>
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4">
+                                                    <div class="col-12 col-md-6 col-lg-4">
                                                         <div class="mb-3">
-                                                            <div class="input-group local-forms d-flex">
+                                                            <div class="form-group local-forms">
                                                                 <label>Main Category <span
                                                                         class="login-danger">*</span></label>
-                                                                <select class="form-control form-select select"
-                                                                    id="edit_main_category_id" name="main_category_id">
-                                                                </select>
-                                                                <button type="button" class="btn btn-outline-info"
-                                                                    id="addMainCategoryButton">
-                                                                    <i class="fas fa-plus-circle"></i>
-                                                                </button>
+                                                                <div class="d-flex gap-2">
+                                                                    <select class="form-control form-select select"
+                                                                        id="edit_main_category_id"
+                                                                        name="main_category_id" style="flex: 1;">
+                                                                    </select>
+                                                                    <button type="button" class="btn btn-outline-info"
+                                                                        id="addMainCategoryButton">
+                                                                        <i class="fas fa-plus-circle"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <span class="text-danger"
+                                                                    id="main_category_id_error"></span>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3 ">
-                                                            <div class="input-group local-forms d-flex">
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="mb-3">
+                                                            <div class="form-group local-forms">
                                                                 <label>Sub Category</label>
-                                                                <select class="form-control form-select select"
-                                                                    id="edit_sub_category_id" name="sub_category_id">
-                                                                </select>
-                                                                <button type="button" class="btn btn-outline-info"
-                                                                    id="addSubCategoryButton">
-                                                                    <i class="fas fa-plus-circle"></i>
-                                                                </button>
+                                                                <div class="d-flex gap-2">
+                                                                    <select class="form-control form-select select"
+                                                                        id="edit_sub_category_id" name="sub_category_id"
+                                                                        style="flex: 1;">
+                                                                    </select>
+                                                                    <button type="button"
+                                                                        class="btn btn-outline-info"
+                                                                        id="addSubCategoryButton">
+                                                                        <i class="fas fa-plus-circle"></i>
+                                                                    </button>
+                                                                </div>
+                                                                <span class="text-danger"
+                                                                    id="sub_category_id_error"></span>
                                                             </div>
-                                                            <span class="text-danger" id="sub_category_id_error"></span>
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4">
-                                                        <div class="mt-4 mb-3">
-                                                            <div class="input-group local-forms">
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="mb-3">
+                                                            <div class="form-group local-forms">
                                                                 <label>Business Locations<span
                                                                         class="login-danger">*</span></label>
                                                                 <select
@@ -143,7 +159,7 @@
                                                 </div>
 
                                                 <div class="mt-3 row">
-                                                    <div class="col-md-4">
+                                                    <div class="col-12 col-md-6 col-lg-4">
                                                         <div class="mb-5">
                                                             <div class="form-check">
                                                                 <!-- Hidden input to submit 0 when checkbox is unchecked -->
@@ -162,7 +178,8 @@
                                                         </div>
                                                     </div>
 
-                                                    <div class="col-md-4" id="alert_quantity_container">
+                                                    <div class="col-12 col-md-6 col-lg-4"
+                                                        id="alert_quantity_container">
                                                         <div class="mb-5">
                                                             <div class="form-group local-forms">
                                                                 <label>Alert Quantity<span
@@ -188,13 +205,13 @@
 
 
                                                 <div class="row">
-                                                    <div class="col-md-8">
+                                                    <div class="col-12 col-lg-8">
                                                         {{-- <div id="summernote" name="description"></div> --}}
                                                         <textarea id="summernote" name="description"></textarea>
                                                     </div>
-                                                    <div class="col-md-4">
+                                                    <div class="col-12 col-lg-4">
                                                         <div class="row">
-                                                            <div class="col-md-12">
+                                                            <div class="col-12">
                                                                 <label>Product image</label>
                                                                 <div class="invoices-upload-btn">
                                                                     <input type="file" accept="image/*"
@@ -206,7 +223,7 @@
                                                                 <span>Max File size: 5MB</span>
                                                             </div>
 
-                                                            <div class="my-4 col-md-12 d-flex justify-content-center">
+                                                            <div class="my-4 col-12 d-flex justify-content-center">
                                                                 <img id="product-selectedImage"
                                                                     src="/assets/images/No Product Image Available.png"
                                                                     alt="Selected Image" width="200px"
@@ -228,7 +245,7 @@
                                             <div class="page-header">
                                                 <div class="row align-items-center">
                                                     <div class="mt-2 row">
-                                                        <div class="col-md-6">
+                                                        <div class="col-12 col-md-6">
                                                             <div class="mb-3">
                                                                 <div class="form-check ms-3">
                                                                     <input type="hidden" name="is_imei_or_serial_no"
@@ -246,7 +263,7 @@
                                                             </div>
                                                         </div>
 
-                                                        <div class="col-md-6">
+                                                        <div class="col-12 col-md-6">
                                                             <div class="mb-3">
                                                                 <div class="form-check ms-3">
                                                                     <input type="hidden" name="is_for_selling"
@@ -263,9 +280,9 @@
                                                         </div>
                                                     </div>
                                                     <div class="mt-4 row">
-                                                        <div class="col-md-6">
+                                                        <div class="col-12 col-md-6">
                                                             <div class="mb-3">
-                                                                <div class="input-group local-forms">
+                                                                <div class="form-group local-forms">
                                                                     <select class="form-control form-select select"
                                                                         id="edit_product_type" name="product_type"
                                                                         aria-label="Example text with button addon"
@@ -278,16 +295,14 @@
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-6">
+                                                        <div class="col-12 col-md-6">
                                                             <div class="mb-3">
-                                                                <div class="mb-3">
-                                                                    <div class="form-group local-forms">
-                                                                        <label>Pax<span
-                                                                                class="login-danger"></span></label>
-                                                                        <input class="form-control" id="edit_pax"
-                                                                            name="pax" type="number"
-                                                                            placeholder="0">
-                                                                    </div>
+                                                                <div class="form-group local-forms">
+                                                                    <label>Pax<span
+                                                                            class="login-danger"></span></label>
+                                                                    <input class="form-control" id="edit_pax"
+                                                                        name="pax" type="number"
+                                                                        placeholder="0">
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -457,3 +472,89 @@
         });
     });
 </script>
+
+<style>
+    /* Responsive modal improvements */
+    @media (min-width: 1200px) {
+        .modal-xl-custom {
+            max-width: 1140px;
+        }
+    }
+
+    @media (max-width: 1199.98px) {
+        .modal-xl-custom {
+            max-width: 90%;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .modal-xl-custom {
+            max-width: 95%;
+            margin: 0.5rem;
+        }
+
+        /* Ensure proper spacing on mobile */
+        #new_purchase_product .modal-body {
+            padding: 1rem 0.75rem;
+        }
+
+        /* Better button alignment on mobile */
+        #new_purchase_product .d-flex.gap-2 {
+            flex-direction: column;
+            gap: 0.5rem !important;
+        }
+
+        #new_purchase_product .d-flex.gap-2 select {
+            margin-bottom: 0.5rem;
+        }
+
+        #new_purchase_product .d-flex.gap-2 button {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    @media (min-width: 769px) {
+
+        /* Ensure proper horizontal layout on larger screens */
+        #new_purchase_product .d-flex.gap-2 {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        #new_purchase_product .d-flex.gap-2 select {
+            flex: 1;
+        }
+
+        #new_purchase_product .d-flex.gap-2 button {
+            flex-shrink: 0;
+            width: auto;
+        }
+    }
+
+    /* Improve form field spacing */
+    #new_purchase_product .form-group {
+        margin-bottom: 1rem;
+    }
+
+    #new_purchase_product .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+
+    /* Better Select2 dropdown styling in modal */
+    #new_purchase_product .select2-container {
+        width: 100% !important;
+    }
+
+    #new_purchase_product .select2-container .select2-selection {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+
+    #new_purchase_product .select2-container .select2-selection .select2-selection__rendered {
+        line-height: 36px;
+        padding-left: 12px;
+        color: #495057;
+    }
+</style>

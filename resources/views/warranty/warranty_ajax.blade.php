@@ -1,55 +1,55 @@
 <script type="text/javascript">
-    $(document).ready(function () {
-    var csrfToken = $('meta[name="csrf-token"]').attr('content');  //for crf token
+    $(document).ready(function() {
+        var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
         showFetchData();
 
-    // add form and update validation rules code start
-              var addAndUpdateValidationOptions = {
-        rules: {
-            name: {
-                required: true,
+        // add form and update validation rules code start
+        var addAndUpdateValidationOptions = {
+            rules: {
+                name: {
+                    required: true,
+                },
+                duration: {
+                    required: true,
+                },
+                duration_type: {
+                    required: true,
+                },
+
             },
-            duration: {
-                required: true,
+            messages: {
+
+                name: {
+                    required: "Name is required",
+                },
+
+                duration: {
+                    required: "Duration is required",
+                },
+                duration_type: {
+                    required: "Duration type  is required",
+                },
+
             },
-            duration_type: {
-                required: true,
+            errorElement: 'span',
+            errorPlacement: function(error, element) {
+                error.addClass('text-danger');
+                error.insertAfter(element);
             },
-
-        },
-        messages: {
-
-            name: {
-                required: "Name is required",
+            highlight: function(element, errorClass, validClass) {
+                $(element).addClass('is-invalidRed').removeClass('is-validGreen');
             },
+            unhighlight: function(element, errorClass, validClass) {
+                $(element).removeClass('is-invalidRed').addClass('is-validGreen');
+            }
+        };
 
-            duration: {
-                required: "Duration is required",
-            },
-            duration_type: {
-                required: "Duration type  is required",
-            },
+        // Apply validation to both forms
+        $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
 
-        },
-        errorElement: 'span',
-        errorPlacement: function (error, element) {
-            error.addClass('text-danger');
-            error.insertAfter(element);
-        },
-        highlight: function (element, errorClass, validClass) {
-            $(element).addClass('is-invalidRed').removeClass('is-validGreen');
-        },
-        unhighlight: function (element, errorClass, validClass) {
-            $(element).removeClass('is-invalidRed').addClass('is-validGreen');
-        }
-    };
+        // add form and update validation rules code end
 
-    // Apply validation to both forms
-    $('#addAndUpdateForm').validate(addAndUpdateValidationOptions);
-
-  // add form and update validation rules code end
-
-  // Function to reset form and validation errors
+        // Function to reset form and validation errors
         function resetFormAndValidation() {
             // Reset the form fields
             $('#addAndUpdateForm')[0].reset();
@@ -60,9 +60,17 @@
         }
 
         // Clear form and validation errors when the modal is hidden
-            $('#addAndEditWarrantyModal').on('hidden.bs.modal', function () {
-                resetFormAndValidation();
+        $('#addAndEditWarrantyModal').on('hidden.bs.modal', function() {
+            resetFormAndValidation();
+        });
+
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditWarrantyModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditWarrantyModal .selectBox').select2({
+                dropdownParent: $('#addAndEditWarrantyModal')
             });
+        });
 
         // Show Add Warranty Modal
         $('#addWarrantyButton').click(function() {
@@ -114,10 +122,10 @@
                     });
                 },
             });
-          }
+        }
 
-            // Show Edit Modal
-            $(document).on('click', '.edit_btn', function() {
+        // Show Edit Modal
+        $(document).on('click', '.edit_btn', function() {
             var id = $(this).val();
             $('#modalTitle').text('Edit Warranty');
             $('#modalButton').text('Update');
@@ -130,7 +138,10 @@
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
                         $('#edit_name').val(response.message.name);
@@ -148,11 +159,14 @@
         $('#addAndUpdateForm').submit(function(e) {
             e.preventDefault();
 
-             // Validate the form before submitting
+            // Validate the form before submitting
             if (!$('#addAndUpdateForm').valid()) {
-                   document.getElementsByClassName('warningSound')[0].play(); //for sound
-                   toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
-                        toastr.error('Invalid inputs, Check & try again!!','Warning');
+                document.getElementsByClassName('warningSound')[0].play(); //for sound
+                toastr.options = {
+                    "closeButton": true,
+                    "positionClass": "toast-top-right"
+                };
+                toastr.error('Invalid inputs, Check & try again!!', 'Warning');
                 return; // Return if form is not valid
             }
 
@@ -164,8 +178,10 @@
             $.ajax({
                 url: url,
                 type: type,
-                headers: {'X-CSRF-TOKEN': csrfToken},
-                data: formData,  
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                data: formData,
                 contentType: false,
                 processData: false,
                 dataType: 'json',
@@ -177,10 +193,14 @@
 
                     } else {
                         $('#addAndEditWarrantyModal').modal('hide');
-                           // Clear validation error messages
+                        // Clear validation error messages
                         showFetchData();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                        document.getElementsByClassName('successSound')[0]
+                    .play(); //for sound
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
                         toastr.success(response.message, id ? 'Updated' : 'Added');
                         resetFormAndValidation();
                     }
@@ -202,16 +222,25 @@
             $.ajax({
                 url: 'warranty-delete/' + id,
                 type: 'delete',
-                headers: {'X-CSRF-TOKEN': csrfToken},
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken
+                },
                 success: function(response) {
                     if (response.status == 404) {
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
                         toastr.error(response.message, 'Error');
                     } else {
                         $('#deleteModal').modal('hide');
                         showFetchData();
-                        document.getElementsByClassName('successSound')[0].play(); //for sound
-                        toastr.options = {"closeButton": true,"positionClass": "toast-top-right"};
+                        document.getElementsByClassName('successSound')[0]
+                    .play(); //for sound
+                        toastr.options = {
+                            "closeButton": true,
+                            "positionClass": "toast-top-right"
+                        };
                         toastr.success(response.message, 'Deleted');
                     }
                 }

@@ -69,6 +69,7 @@
         </div>
 
         @include('contact.customer.add_customer_modal')
+        @include('contact.customer.city_modal')
 
         {{-- Delete modal --}}
         <div id="deleteModal" class="modal custom-modal fade" role="dialog">
@@ -102,4 +103,5 @@
     </div>
 
     @include('contact.customer.customer_ajax')
+    @include('contact.customer.cities_ajax')
 @endsection

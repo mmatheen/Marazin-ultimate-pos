@@ -2930,7 +2930,9 @@
     <!-- Include Bootstrap JS -->
     @include('sell.pos_ajax')
     @include('contact.customer.customer_ajax')
+    @include('contact.customer.cities_ajax')
     @include('contact.customer.add_customer_modal')
+    @include('contact.customer.city_modal')
 
 </body>
 

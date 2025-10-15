@@ -201,10 +201,8 @@ public function recalculateCurrentBalance()
 
     public static function calculateCreditLimitForCity($cityId)
     {
-        if (!$cityId) return 0;
-
-        return \App\Models\SalesRep::whereHas('route.cities', fn($q) => $q->where('cities.id', $cityId))
-            ->max('default_credit_limit') ?: 0;
+        // Return default credit limit of 0 (no automatic calculation)
+        return 0;
     }
 
     /**

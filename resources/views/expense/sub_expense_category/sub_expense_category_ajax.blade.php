@@ -1,7 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        
+
         // Initialize DataTable for sub categories
         $('#SubCategory').DataTable({
             responsive: true,
@@ -10,7 +10,7 @@
             paging: true,
             pageLength: 25
         });
-        
+
         showFetchData();
 
         // add form and update validation rules code start
@@ -68,6 +68,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditMainCategoryModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditMainCategoryModal .selectBox').select2({
+                dropdownParent: $('#addAndEditMainCategoryModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addSubCategoryButton').click(function() {
             $('#modalTitle').text('New Expense Sub Category');
@@ -88,26 +96,36 @@
                     var table = $('#SubCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    
+
                     // Check if response.message exists and is an array
                     if (response.message && Array.isArray(response.message)) {
                         response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter + '</td>');
-                        var parentCategoryName = 'N/A';
-                        if (item.main_expense_category && item.main_expense_category.expenseParentCatergoryName) {
-                            parentCategoryName = item.main_expense_category.expenseParentCatergoryName;
-                        } else if (item.mainExpenseCategory && item.mainExpenseCategory.expenseParentCatergoryName) {
-                            parentCategoryName = item.mainExpenseCategory.expenseParentCatergoryName;
-                        }
-                        row.append('<td>' + parentCategoryName + '</td>');
-                        row.append('<td>' + item.subExpenseCategoryname + '</td>');
-                        row.append('<td>' + item.subExpenseCategoryCode + '</td>');
-                        row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' + '@can("edit child-expense")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete child-expense")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
-                        table.row.add(row).draw(false);
-                        counter++;
+                            let row = $('<tr>');
+                            row.append('<td>' + counter + '</td>');
+                            var parentCategoryName = 'N/A';
+                            if (item.main_expense_category && item.main_expense_category
+                                .expenseParentCatergoryName) {
+                                parentCategoryName = item.main_expense_category
+                                    .expenseParentCatergoryName;
+                            } else if (item.mainExpenseCategory && item.mainExpenseCategory
+                                .expenseParentCatergoryName) {
+                                parentCategoryName = item.mainExpenseCategory
+                                    .expenseParentCatergoryName;
+                            }
+                            row.append('<td>' + parentCategoryName + '</td>');
+                            row.append('<td>' + item.subExpenseCategoryname + '</td>');
+                            row.append('<td>' + item.subExpenseCategoryCode + '</td>');
+                            row.append('<td>' + item.description + '</td>');
+                            row.append('<td>' +
+                                '@can('edit child-expense')<button type="button" value="' +
+                                item.id +
+                                '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                                '@can('delete child-expense')<button type="button" value="' +
+                                item.id +
+                                '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
+                                '</td>');
+                            table.row.add(row).draw(false);
+                            counter++;
                         });
                     } else {
                         console.warn('No sub-category data received or invalid data format');
@@ -140,9 +158,12 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_subExpenseCategoryname').val(response.message.subExpenseCategoryname);
-                        $('#edit_main_category_id').val(response.message.main_expense_category_id);
-                        $('#edit_subExpenseCategoryCode').val(response.message.subExpenseCategoryCode);
+                        $('#edit_subExpenseCategoryname').val(response.message
+                            .subExpenseCategoryname);
+                        $('#edit_main_category_id').val(response.message
+                            .main_expense_category_id);
+                        $('#edit_subExpenseCategoryCode').val(response.message
+                            .subExpenseCategoryCode);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditMainCategoryModal').modal('show');
                     }
@@ -192,7 +213,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -232,7 +253,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

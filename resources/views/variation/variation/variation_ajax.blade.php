@@ -58,6 +58,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditVariationModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditVariationModal .selectBox').select2({
+                dropdownParent: $('#addAndEditVariationModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addVariationButton').click(function() {
             $('#modalTitle').text('New Variation');
@@ -88,7 +96,8 @@
                                 values: []
                             };
                         }
-                        groupedData[item.variation_title_id].values.push(item.variation_value);
+                        groupedData[item.variation_title_id].values.push(item
+                            .variation_value);
                     });
 
                     // Display grouped data
@@ -98,7 +107,12 @@
                         row.append('<td>' + counter + '</td>');
                         row.append('<td>' + data.title + '</td>');
                         row.append('<td>' + data.values.join(', ') + '</td>');
-                        row.append('<td><button type="button" value="' + variation_title_id +'" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' + variation_title_id +'" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>');
+                        row.append('<td><button type="button" value="' +
+                            variation_title_id +
+                            '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' +
+                            variation_title_id +
+                            '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>'
+                            );
                         table.row.add(row).draw(false);
                         counter++;
                     });
@@ -130,10 +144,12 @@
                         var variations = response.message;
 
                         if (variations.length > 0) {
-                            $('#edit_variations_container').empty(); // Clear existing inputs
+                            $('#edit_variations_container')
+                        .empty(); // Clear existing inputs
 
                             // Set the selected variation title
-                            $('#edit_variation_title').val(variations[0].variation_title_id);
+                            $('#edit_variation_title').val(variations[0]
+                            .variation_title_id);
 
                             // Loop through each variation and create input fields for editing
                             $.each(variations, function(index, variation) {
@@ -164,7 +180,7 @@
                     "closeButton": true,
                     "positionClass": "toast-top-right"
                 };
-                toastr.error('Invalid inputs, Check & try again!!','Error');
+                toastr.error('Invalid inputs, Check & try again!!', 'Error');
                 return; // Return if form is not valid
             }
 
@@ -186,9 +202,10 @@
                 success: function(response) {
                     if (response.status == 400) {
                         $.each(response.errors, function(key, err_value) {
-                            document.getElementsByClassName('warningSound')[0].play(); //for sound
+                            document.getElementsByClassName('warningSound')[0]
+                            .play(); //for sound
                             $('#' + key + '_error').html(err_value);
-                            toastr.error(err_value,'Error');
+                            toastr.error(err_value, 'Error');
                         });
 
                     } else {
@@ -196,7 +213,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -208,7 +225,7 @@
             });
         });
 
-           // it will Clear the serverside validation errors on input change
+        // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
         $('#addAndUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
@@ -242,7 +259,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

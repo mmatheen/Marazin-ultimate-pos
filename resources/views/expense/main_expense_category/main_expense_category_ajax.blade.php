@@ -1,7 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
-        
+
         // Initialize DataTable for main categories
         $('#mainCategory').DataTable({
             responsive: true,
@@ -10,7 +10,7 @@
             paging: true,
             pageLength: 25
         });
-        
+
         showFetchData();
 
         // add form and update validation rules code start
@@ -61,6 +61,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditMainCategoryModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditMainCategoryModal .selectBox').select2({
+                dropdownParent: $('#addAndEditMainCategoryModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addMainCategoryButton').click(function() {
             $('#modalTitle').text('New Expense Parent Category');
@@ -74,26 +82,32 @@
         // Fetch and Display Data
         function showFetchData() {
             $.ajax({
-                url: '/expense-parent-catergory-get-all', 
+                url: '/expense-parent-catergory-get-all',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
                     var table = $('#mainCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    
+
                     // Check if response.message exists and is an array
                     if (response.message && Array.isArray(response.message)) {
                         response.message.forEach(function(item) {
-                        let row = $('<tr>');
-                        row.append('<td>' + counter + '</td>');
-                        row.append('<td>' + item.expenseParentCatergoryName + '</td>');
-                        row.append('<td>' + item.description + '</td>');
-                        row.append('<td>' + '@can("edit parent-expense")<button type="button" value="' + item.id + '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete parent-expense")<button type="button" value="' + item.id + '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +'</td>');
-                        // row.append(actionDropdown);
-                        table.row.add(row).draw(false);
-                        counter++;
+                            let row = $('<tr>');
+                            row.append('<td>' + counter + '</td>');
+                            row.append('<td>' + item.expenseParentCatergoryName + '</td>');
+                            row.append('<td>' + item.description + '</td>');
+                            row.append('<td>' +
+                                '@can('edit parent-expense')<button type="button" value="' +
+                                item.id +
+                                '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
+                                '@can('delete parent-expense')<button type="button" value="' +
+                                item.id +
+                                '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
+                                '</td>');
+                            // row.append(actionDropdown);
+                            table.row.add(row).draw(false);
+                            counter++;
                         });
                     } else {
                         console.warn('No data received or invalid data format');
@@ -116,7 +130,7 @@
             $('#edit_id').val(id);
 
             $.ajax({
-                url: '/expense-parent-catergory-edit/' + id, 
+                url: '/expense-parent-catergory-edit/' + id,
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
@@ -126,7 +140,8 @@
                         };
                         toastr.error(response.message, 'Error');
                     } else if (response.status == 200) {
-                        $('#edit_expenseParentCatergoryName').val(response.message.expenseParentCatergoryName);
+                        $('#edit_expenseParentCatergoryName').val(response.message
+                            .expenseParentCatergoryName);
                         $('#edit_description').val(response.message.description);
                         $('#addAndEditMainCategoryModal').modal('show');
                     }
@@ -152,7 +167,7 @@
 
             let formData = new FormData(this);
             let id = $('#edit_id').val(); // for edit
-            let url = id ? '/expense-parent-catergory-update/' + id : '/expense-parent-catergory-store'; 
+            let url = id ? '/expense-parent-catergory-update/' + id : '/expense-parent-catergory-store';
             let type = id ? 'post' : 'post';
 
             $.ajax({
@@ -176,7 +191,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -216,7 +231,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

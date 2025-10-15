@@ -51,6 +51,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditVariationTitleModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditVariationTitleModal .selectBox').select2({
+                dropdownParent: $('#addAndEditVariationTitleModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addMainCategoryButton').click(function() {
             $('#modalTitle').text('New Variation Title');
@@ -79,7 +87,7 @@
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button><button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i>Delete</button></td>'
-                            );
+                        );
                         // row.append(actionDropdown);
                         table.row.add(row).draw(false);
                         counter++;
@@ -149,9 +157,10 @@
                 success: function(response) {
                     if (response.status == 400) {
                         $.each(response.errors, function(key, err_value) {
-                            document.getElementsByClassName('warningSound')[0].play(); //for sound
+                            document.getElementsByClassName('warningSound')[0]
+                            .play(); //for sound
                             $('#' + key + '_error').html(err_value);
-                            toastr.error(err_value,'Error');
+                            toastr.error(err_value, 'Error');
                         });
 
                     } else {
@@ -159,7 +168,7 @@
                         // Clear validation error messages
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
@@ -171,7 +180,7 @@
             });
         });
 
-           // it will Clear the serverside validation errors on input change
+        // it will Clear the serverside validation errors on input change
         // Clear validation error for specific fields on input change based on 'name' attribute
         $('#addAndUpdateForm').on('input change', 'input', function() {
             var fieldName = $(this).attr('name');
@@ -205,7 +214,7 @@
                         $('#deleteModal').modal('hide');
                         showFetchData();
                         document.getElementsByClassName('successSound')[0]
-                    .play(); //for sound
+                            .play(); //for sound
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"

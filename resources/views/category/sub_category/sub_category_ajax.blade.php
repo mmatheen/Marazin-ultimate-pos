@@ -59,6 +59,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditSubCategoryModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditSubCategoryModal .selectBox').select2({
+                dropdownParent: $('#addAndEditSubCategoryModal')
+            });
+        });
+
         // Show Add Selling Price Group Modal
         $('#addSubCategoryButton').click(function() {
             $('#modalTitle').text('New Sub Category');
@@ -79,21 +87,22 @@
                     var table = $('#SubCategory').DataTable();
                     table.clear().draw();
                     var counter = 1;
-                    
+
                     // Check if response.message is an array before using forEach
                     if (Array.isArray(response.message)) {
                         response.message.forEach(function(item) {
                             let row = $('<tr>');
                             row.append('<td>' + counter + '</td>');
-                            row.append('<td>' + item.main_category.mainCategoryName + '</td>');
+                            row.append('<td>' + item.main_category.mainCategoryName +
+                                '</td>');
                             row.append('<td>' + item.subCategoryname + '</td>');
                             row.append('<td>' + item.subCategoryCode + '</td>');
                             row.append('<td>' + item.description + '</td>');
                             row.append('<td>' +
-                                '@can("edit sub-category")<button type="button" value="' +
+                                '@can('edit sub-category')<button type="button" value="' +
                                 item.id +
                                 '" class="sub_category_edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                                '@can("delete sub-category")<button type="button" value="' +
+                                '@can('delete sub-category')<button type="button" value="' +
                                 item.id +
                                 '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                                 '</td>');
@@ -262,7 +271,7 @@
                 success: function(response) {
                     let dropdown = $('#edit_sub_category_id');
                     dropdown.empty().append('<option value="">Select Sub Category</option>');
-                    
+
                     // Check if response.message is an array before using $.each
                     if (Array.isArray(response.message)) {
                         $.each(response.message, function(index, item) {

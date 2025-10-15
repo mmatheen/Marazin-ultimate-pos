@@ -55,58 +55,7 @@
         </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div class="modal fade" id="addAndEditCityModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="text-center mt-2 mb-4">
-                        <h5 id="modalTitle">Add City</h5>
-                    </div>
-                    <form id="cityAddUpdateForm">
-                        <input type="hidden" name="id" id="city_id">
-
-                        <div class="mb-3">
-                            <label>City Name <span class="text-danger">*</span></label>
-                            <input type="text" name="name" id="city_name" class="form-control"
-                                placeholder="e.g. Colombo">
-                            <span class="text-danger" id="name_error"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label>Province</label>
-                            <select name="province" id="province" class="form-select">
-                                <option value="">Select Province</option>
-                                <option value="Western">Western</option>
-                                <option value="Central">Central</option>
-                                <option value="Southern">Southern</option>
-                                <option value="North Western">North Western</option>
-                                <option value="North Central">North Central</option>
-                                <option value="Northern">Northern</option>
-                                <option value="Eastern">Eastern</option>
-                                <option value="Uva">Uva</option>
-                                <option value="Sabaragamuwa">Sabaragamuwa</option>
-                            </select>
-                            <span class="text-danger" id="province_error"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label>District</label>
-                            <select name="district" id="district" class="form-select" disabled>
-                                <option value="">Select District</option>
-                            </select>
-                            <span class="text-danger" id="district_error"></span>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button type="submit" id="saveBtn" class="btn btn-outline-primary">Save</button>
-                            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('contact.customer.city_modal')
 
     <!-- Delete Modal -->
     <div id="deleteModal" class="modal custom-modal fade" role="dialog">
@@ -136,45 +85,6 @@
 
     <script>
         $(document).ready(function() {
-
-
-            var provinceDistricts = {
-                'Western': ['Colombo', 'Gampaha', 'Kalutara'],
-                'Central': ['Kandy', 'Matale', 'Nuwara Eliya'],
-                'Southern': ['Galle', 'Matara', 'Hambantota'],
-                'North Western': ['Kurunegala', 'Puttalam'],
-                'North Central': ['Anuradhapura', 'Polonnaruwa'],
-                'Northern': ['Jaffna', 'Kilinochchi', 'Mullaitivu'],
-                'Eastern': ['Ampara', 'Batticaloa', 'Trincomalee'],
-                'Uva': ['Badulla', 'Monaragala'],
-                'Sabaragamuwa': ['Kegalle', 'Ratnapura']
-            };
-
-            // Helper: populate District dropdown based on Province selection
-            function populateDistricts(province, selectedDistrict = '') {
-                const $district = $('#district');
-                $district.empty();
-
-                if (province && provinceDistricts[province]) {
-                    $district.prop('disabled', false);
-                    $district.append('<option value="">Select District</option>');
-                    provinceDistricts[province].forEach(function(district) {
-                        const selected = district === selectedDistrict ? 'selected' : '';
-                        $district.append(`<option value="${district}" ${selected}>${district}</option>`);
-                    });
-                } else {
-                    $district.prop('disabled', true);
-                    $district.append('<option value="">Select District</option>');
-                }
-            }
-
-
-            // --- Province change in modal: update district dropdown ---
-            $('#province').on('change', function() {
-                populateDistricts($(this).val());
-            });
-
-
             // --- Prevent DataTable Reinitialization ---
             if ($.fn.DataTable.isDataTable('#citiesTable')) {
                 $('#citiesTable').DataTable().destroy();
@@ -190,7 +100,6 @@
                     dataSrc: "data",
                     error: function(xhr) {
                         console.log('Error loading cities:', xhr);
-                        // Don't show toastr error, let table show "No data available"
                         return [];
                     }
                 },
@@ -232,66 +141,16 @@
                 ]
             });
 
-            // --- Open Add Modal ---
-            $('#addCityButton').on('click', function() {
-                $('#cityAddUpdateForm')[0].reset();
-                $('#city_id').val('');
-                $('#modalTitle').text('Add City');
-                $('#saveBtn').text('Save');
-                $('.text-danger').text('');
-                $('#addAndEditCityModal').modal('show');
-            });
-
-            // --- Save or Update City ---
-            $('#cityAddUpdateForm').on('submit', function(e) {
-                e.preventDefault();
-
-                const id = $('#city_id').val();
-                const url = id ? `/api/cities/${id}` : `/api/cities`;
-                const method = id ? 'PUT' : 'POST';
-
-                $.ajax({
-                    url: url,
-                    method: method,
-                    data: $(this).serialize(),
-                    success: function(response) {
-                        $('#addAndEditCityModal').modal('hide');
-                        table.ajax.reload();
-                        toastr.success(response.message || 'City saved successfully.');
-                    },
-                    error: function(xhr) {
-                        const errors = xhr.responseJSON?.errors || {};
-                        const message = xhr.responseJSON?.message || 'An error occurred.';
-
-                        $('#name_error').text(errors.name || '');
-                        $('#district_error').text(errors.district || '');
-                        $('#province_error').text(errors.province || '');
-
-                        toastr.error(message);
-                    }
-                });
-            });
-
             // --- Edit City ---
             $('#citiesTable').on('click', '.editBtn', function() {
                 const id = $(this).data('id');
                 $.get(`/api/cities/${id}`, function(response) {
                     if (response.status === true && response.data) {
-                        const data = response.data;
-
-                        $('#city_id').val(data.id);
-                        $('#city_name').val(data.name);
-                        $('#province').val(data.province || '');
-                        
-                        // Populate districts first, then set the selected district
-                        populateDistricts(data.province || '', data.district || '');
-
-                        $('#modalTitle').text('Edit City');
-                        $('#saveBtn').text('Update');
-                        $('#addAndEditCityModal').modal('show');
-
-                        // Clear previous errors
-                        $('.text-danger').text('');
+                        // Use the global function from cities_ajax
+                        if (window.populateCityEditForm) {
+                            window.populateCityEditForm(response.data);
+                            $('#addAndEditCityModal').modal('show');
+                        }
                     } else {
                         toastr.error('Failed to load city data.');
                     }
@@ -328,4 +187,6 @@
             });
         });
     </script>
+
+    @include('contact.customer.cities_ajax')
 @endsection

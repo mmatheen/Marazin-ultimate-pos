@@ -135,7 +135,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="customerId" class="form-label">Customer:</label>
-                                        <select id="customerId" name="customer_id" class="form-select">
+                                        <select id="customerId" name="customer_id" class="form-select selectBox" required>
                                             <option value="">Select Customer</option>
                                             <!-- Populate with customers -->
                                         </select>
@@ -393,6 +393,8 @@
     </script>
 
     @include('contact.customer.add_customer_modal')
+    @include('contact.customer.city_modal')
     @include('contact.customer.customer_ajax')
+    @include('contact.customer.cities_ajax')
     @include('saleReturn.sale_return_ajax')
 @endsection

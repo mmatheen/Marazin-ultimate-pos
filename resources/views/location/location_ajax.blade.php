@@ -10,27 +10,31 @@
             const vehicleSection = $('#vehicleDetailsSection');
             const parentDetailsSection = $('#parentLocationDetails');
             const contactDetailsSection = $('#contactDetailsSection');
-            
+
             if (parentId && parentId !== '') {
                 // SUBLOCATION - Show vehicle section, hide contact details, show parent info
                 vehicleSection.slideDown(300);
                 contactDetailsSection.slideUp(300);
                 parentDetailsSection.slideDown(300);
-                
+
                 // Make vehicle fields required, contact fields not required
                 $('#edit_vehicle_number').prop('required', true);
                 $('#edit_vehicle_type').prop('required', true);
-                
+
                 // Remove required status from contact fields
-                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile').prop('required', false);
-                
+                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile').prop(
+                    'required', false);
+
                 // Hide required asterisks for contact fields
-                $('#address_required, #province_required, #district_required, #city_required, #email_required, #mobile_required').hide();
-                
+                $('#address_required, #province_required, #district_required, #city_required, #email_required, #mobile_required')
+                    .hide();
+
                 // Clear contact field values and errors (they'll be inherited from parent)
-                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile, #edit_telephone_no').val('');
-                $('#address_error, #province_error, #district_error, #city_error, #email_error, #mobile_error, #telephone_no_error').text('');
-                
+                $('#edit_address, #edit_province, #edit_district, #edit_city, #edit_email, #edit_mobile, #edit_telephone_no')
+                    .val('');
+                $('#address_error, #province_error, #district_error, #city_error, #email_error, #mobile_error, #telephone_no_error')
+                    .text('');
+
                 // Fetch and display parent location details
                 fetchParentLocationDetails(parentId);
             } else {
@@ -38,18 +42,18 @@
                 vehicleSection.slideUp(300);
                 contactDetailsSection.slideDown(300);
                 parentDetailsSection.slideUp(300);
-                
+
                 // Make contact fields required, vehicle fields not required
                 $('#edit_address, #edit_province, #edit_district').prop('required', true);
                 $('#edit_vehicle_number, #edit_vehicle_type').prop('required', false).val('');
-                
+
                 // Show required asterisks for contact fields
                 $('#address_required, #province_required, #district_required').show();
-                
+
                 // Clear vehicle validation errors
                 $('#vehicle_number_error, #vehicle_type_error').text('');
             }
-            
+
             // Revalidate the form
             if ($('#addAndLocationUpdateForm').length) {
                 $('#addAndLocationUpdateForm').validate().resetForm();
@@ -59,21 +63,21 @@
         // Function to fetch parent location details and sublocations
         function fetchParentLocationDetails(parentId) {
             if (!parentId) return;
-            
+
             $.ajax({
                 url: '/location-hierarchy/' + parentId,
                 type: 'GET',
                 success: function(response) {
                     if (response.status && response.data) {
                         const parent = response.data;
-                        
+
                         // Update parent details
                         $('#parentLocationName').text(parent.name + ' Details');
                         $('#parentAddress').text(parent.address || '-');
                         $('#parentCity').text(parent.city || '-');
                         $('#parentDistrict').text(parent.district || '-');
                         $('#parentTelephone').text(parent.telephone_no || '-');
-                        
+
                         // Display existing sublocations
                         displaySublocations(parent.children || []);
                     }
@@ -89,15 +93,15 @@
         function displaySublocations(sublocations) {
             const sublocationsList = $('#sublocationsList');
             const existingSublocations = $('#existingSublocations');
-            
+
             if (sublocations && sublocations.length > 0) {
                 sublocationsList.empty();
-                
+
                 sublocations.forEach(function(sublocation) {
                     const sublocationCard = createSublocationCard(sublocation);
                     sublocationsList.append(sublocationCard);
                 });
-                
+
                 existingSublocations.slideDown(300);
             } else {
                 existingSublocations.slideUp(300);
@@ -106,10 +110,10 @@
 
         // Function to create sublocation card HTML
         function createSublocationCard(sublocation) {
-            const vehicleInfo = sublocation.vehicle_number 
-                ? `<span class="sublocation-vehicle">� ${sublocation.vehicle_number}</span>`
-                : '';
-                
+            const vehicleInfo = sublocation.vehicle_number ?
+                `<span class="sublocation-vehicle">� ${sublocation.vehicle_number}</span>` :
+                '';
+
             return `
                 <div class="sublocation-badge">
                     <strong>📍 ${sublocation.name}</strong><br>
@@ -229,22 +233,22 @@
             }
             // Clear the district dropdown
             $('#edit_district').html('<option selected disabled>Select District</option>');
-            
+
             // Hide vehicle details section and reset vehicle fields
             $('#vehicleDetailsSection').hide();
             $('#edit_vehicle_number').val('').prop('required', false);
             $('#edit_vehicle_type').val('').prop('required', false);
-            
+
             // Reset invoice layout to default
             $('#edit_invoice_layout_pos').val('80mm');
-            
+
             // Hide parent details section and reset parent info
             $('#parentLocationDetails').hide();
             $('#parentLocationName').text('Parent Location Details');
             $('#parentAddress, #parentCity, #parentDistrict, #parentTelephone').text('-');
             $('#existingSublocations').hide();
             $('#sublocationsList').empty();
-            
+
             // Clear all error messages
             $('.text-danger').text('');
         }
@@ -254,26 +258,34 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditLocationModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditLocationModal .selectBox').select2({
+                dropdownParent: $('#addAndEditLocationModal')
+            });
+        });
+
         // Show Add Location Modal
         $('#addLocationButton').click(function() {
             // Clear any existing toastr messages
             toastr.clear();
-            
+
             $('#modalTitle').text('New Location');
             $('#modalButton').text('Save');
             $('#addAndLocationUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
-            
+
             // Reset vehicle details section
             $('#vehicleDetailsSection').hide();
             $('#edit_vehicle_number').prop('required', false);
             $('#edit_vehicle_type').prop('required', false);
-            
+
             // Reset parent details section
             $('#parentLocationDetails').hide();
             $('#contactDetailsSection').show(); // Ensure contact details are shown for new location
-            
+
             $('#addAndEditLocationModal').modal('show');
         });
 
@@ -342,12 +354,15 @@
                                 'a4': '<span class="badge bg-success">A4 Size</span>',
                                 'dot_matrix': '<span class="badge bg-secondary">Dot Matrix</span>'
                             };
-                            return layouts[data] || '<span class="badge bg-warning">Unknown</span>';
+                            return layouts[data] ||
+                                '<span class="badge bg-warning">Unknown</span>';
                         }
                     },
                     {
                         data: 'logo_url',
-                        render: data => data ? `<img src="${data}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">` : '—'
+                        render: data => data ?
+                            `<img src="${data}" alt="Logo" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">` :
+                            '—'
                     },
 
                     {
@@ -373,14 +388,14 @@
 
             // Clear any existing toastr messages
             toastr.clear();
-            
+
             $('#modalTitle').text('Edit Location');
             $('#modalButton').text('Update');
             $('#edit_id').val(id);
-            
+
             // Clear all error messages
             $('.text-danger').text('');
-            
+
             // Clear logo preview
             $('#logo_preview').html('');
 
@@ -403,15 +418,17 @@
                         $('#edit_vehicle_number').val(d.vehicle_number || '');
                         $('#edit_vehicle_type').val(d.vehicle_type || '');
                         $('#edit_invoice_layout_pos').val(d.invoice_layout_pos || '80mm');
-                        
+
                         // Display existing logo if available
                         if (d.logo_url) {
-                            $('#logo_preview').html('<img src="' + d.logo_url + '" alt="Current Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">');
+                            $('#logo_preview').html('<img src="' + d.logo_url +
+                                '" alt="Current Logo" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">'
+                                );
                         }
-                        
+
                         // Show/hide vehicle details based on parent_id
                         toggleVehicleDetails();
-                        
+
                         $('#addAndEditLocationModal').modal('show');
                     } else {
                         toastr.error(res.message || 'Not found');
@@ -443,13 +460,13 @@
             let isSubLocation = $('#edit_parent_id').val() !== '';
             let actionType = id ? 'Updating' : 'Creating';
             let locationType = isSubLocation ? 'sublocation' : 'main location';
-            
+
             // Clear any existing toastr notifications first
             toastr.clear();
-            
+
             // Show loading message
             $('#modalButton').prop('disabled', true).text(`${actionType}...`);
-            
+
             toastr.options = {
                 "closeButton": true,
                 "positionClass": "toast-top-right",
@@ -471,29 +488,31 @@
                 success: function(response) {
                     // Clear loading message first
                     toastr.clear();
-                    
+
                     // Re-enable button and reset text
                     $('#modalButton').prop('disabled', false).text(id ? 'Update' : 'Save');
-                    
+
                     // Handle validation errors
                     if (response.status == 400 || response.status === false) {
                         // Handle validation errors
                         if (response.errors) {
                             // Clear previous error messages
                             $('.text-danger').text('');
-                            
+
                             $.each(response.errors, function(key, err_value) {
-                                const errorMessage = Array.isArray(err_value) ? err_value[0] : err_value;
+                                const errorMessage = Array.isArray(err_value) ?
+                                    err_value[0] : err_value;
                                 $('#' + key + '_error').html(errorMessage);
                             });
-                            
+
                             document.getElementsByClassName('errorSound')[0].play();
                             toastr.options = {
                                 "closeButton": true,
                                 "positionClass": "toast-top-right",
                                 "timeOut": "5000"
                             };
-                            toastr.error('Please fix the validation errors', 'Validation Error');
+                            toastr.error('Please fix the validation errors',
+                                'Validation Error');
                         } else {
                             document.getElementsByClassName('errorSound')[0].play();
                             toastr.options = {
@@ -506,21 +525,21 @@
                     } else {
                         // Success - close modal and refresh data
                         $('#addAndEditLocationModal').modal('hide');
-                        
+
                         // Clear all error messages
                         $('.text-danger').text('');
-                        
+
                         // Refresh data tables
                         showFetchData();
-                        
+
                         // Refresh parent dropdown if a new main location was created
                         if (!isSubLocation) {
                             populateLocationDropdown();
                         }
-                        
+
                         // Reset form
                         resetFormAndValidation();
-                        
+
                         // Play success sound and show success message
                         document.getElementsByClassName('successSound')[0].play();
                         toastr.options = {
@@ -528,52 +547,57 @@
                             "positionClass": "toast-top-right",
                             "timeOut": "3000"
                         };
-                        
-                        const successMessage = id ? 
-                            `${locationType} updated successfully!` : 
+
+                        const successMessage = id ?
+                            `${locationType} updated successfully!` :
                             `${locationType} created successfully!`;
-                        
+
                         toastr.success(successMessage, id ? 'Updated' : 'Created');
                     }
                 },
                 error: function(xhr, status, error) {
                     // Clear loading message first
                     toastr.clear();
-                    
+
                     // Re-enable button and reset text
                     $('#modalButton').prop('disabled', false).text(id ? 'Update' : 'Save');
-                    
+
                     // Handle HTTP error responses (422, 500, etc.)
                     document.getElementsByClassName('errorSound')[0].play();
-                    
+
                     // Configure toastr options for all error messages
                     toastr.options = {
                         "closeButton": true,
                         "positionClass": "toast-top-right",
                         "timeOut": "5000"
                     };
-                    
+
                     if (xhr.status === 422) {
                         // Laravel validation errors
                         const response = xhr.responseJSON;
                         if (response && response.errors) {
                             // Clear previous error messages
                             $('.text-danger').text('');
-                            
+
                             $.each(response.errors, function(key, err_value) {
-                                const errorMessage = Array.isArray(err_value) ? err_value[0] : err_value;
+                                const errorMessage = Array.isArray(err_value) ?
+                                    err_value[0] : err_value;
                                 $('#' + key + '_error').html(errorMessage);
                             });
-                            toastr.error('Please fix the validation errors', 'Validation Error');
+                            toastr.error('Please fix the validation errors',
+                                'Validation Error');
                         } else if (response && response.message) {
                             toastr.error(response.message, 'Validation Error');
                         } else {
-                            toastr.error('Validation failed. Please check your inputs.', 'Validation Error');
+                            toastr.error('Validation failed. Please check your inputs.',
+                                'Validation Error');
                         }
                     } else if (xhr.status === 500) {
-                        toastr.error('Internal server error. Please try again.', 'Server Error');
+                        toastr.error('Internal server error. Please try again.',
+                            'Server Error');
                     } else if (xhr.status === 403) {
-                        toastr.error('You do not have permission to perform this action.', 'Access Denied');
+                        toastr.error('You do not have permission to perform this action.',
+                            'Access Denied');
                     } else {
                         toastr.error('An error occurred. Please try again.', 'Error');
                     }
@@ -627,21 +651,24 @@
                 error: function(xhr, status, error) {
                     $('#deleteModal').modal('hide');
                     document.getElementsByClassName('errorSound')[0].play();
-                    
+
                     toastr.options = {
                         "closeButton": true,
                         "positionClass": "toast-top-right",
                         "timeOut": "5000"
                     };
-                    
+
                     if (xhr.status === 403) {
-                        toastr.error('You do not have permission to delete this location.', 'Access Denied');
+                        toastr.error('You do not have permission to delete this location.',
+                            'Access Denied');
                     } else if (xhr.status === 404) {
                         toastr.error('Location not found.', 'Not Found');
                     } else if (xhr.status === 500) {
-                        toastr.error('Internal server error. Please try again.', 'Server Error');
+                        toastr.error('Internal server error. Please try again.',
+                            'Server Error');
                     } else {
-                        toastr.error('Failed to delete location. Please try again.', 'Delete Error');
+                        toastr.error('Failed to delete location. Please try again.',
+                            'Delete Error');
                     }
                 }
             });
@@ -725,21 +752,23 @@
             });
         }
 
-    // Logo image preview functionality
-    $('#edit_logo_image').on('change', function() {
-        const file = this.files[0];
-        const preview = $('#logo_preview');
-        
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.html('<img src="' + e.target.result + '" alt="Logo Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">');
-            };
-            reader.readAsDataURL(file);
-        } else {
-            preview.html('');
-        }
-    });
+        // Logo image preview functionality
+        $('#edit_logo_image').on('change', function() {
+            const file = this.files[0];
+            const preview = $('#logo_preview');
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.html('<img src="' + e.target.result +
+                        '" alt="Logo Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">'
+                        );
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.html('');
+            }
+        });
 
     });
 </script>

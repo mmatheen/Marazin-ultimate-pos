@@ -1,4 +1,3 @@
-
 <script type="text/javascript">
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
@@ -8,7 +7,7 @@
 
         // Check if current user is a sales rep
         var isSalesRep = @json(auth()->user()->hasRole('Sales Rep'));
-        
+
         // Build validation rules conditionally
         var validationRules = {
             first_name: {
@@ -25,7 +24,7 @@
                 required: true,
             },
         };
-        
+
         var validationMessages = {
             first_name: {
                 required: "First Name is required",
@@ -41,7 +40,7 @@
                 required: "Customer Type is required",
             },
         };
-        
+
         // Add city validation only for sales reps
         if (isSalesRep) {
             validationRules.city_id = {
@@ -92,6 +91,14 @@
             resetFormAndValidation();
         });
 
+        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        $('#addAndEditCustomerModal').on('shown.bs.modal', function() {
+            // Re-initialize Select2 dropdowns in the modal
+            $('#addAndEditCustomerModal .selectBox').select2({
+                dropdownParent: $('#addAndEditCustomerModal')
+            });
+        });
+
         // Show Add Customer Modal
         $('#addCustomerButton').click(function() {
             $('#modalTitle').text('New Customer');
@@ -99,10 +106,10 @@
             $('#addAndUpdateForm')[0].reset();
             $('.text-danger').text(''); // Clear all error messages
             $('#edit_id').val(''); // Clear the edit_id to ensure it's not considered an update
-            
+
             // Set default customer type to retailer
             $('#edit_customer_type').val('retailer').trigger('change');
-            
+
             // Show helpful message for non-sales rep users
             if (!isSalesRep) {
                 // Add a subtle info banner at the top of the modal
@@ -117,7 +124,7 @@
                     $('.modal-body .text-center').after(infoBanner);
                 }
             }
-            
+
             $('#addAndEditCustomerModal').modal('show');
         });
 
@@ -145,7 +152,9 @@
                         row.append('<td>' + item.mobile_no + '</td>');
                         row.append('<td>' + item.email + '</td>');
                         row.append('<td>' + item.city_name + '</td>');
-                        row.append('<td>' + (item.customer_type ? item.customer_type.charAt(0).toUpperCase() + item.customer_type.slice(1) : 'Not Set') + '</td>');
+                        row.append('<td>' + (item.customer_type ? item.customer_type.charAt(
+                                0).toUpperCase() + item.customer_type.slice(1) :
+                            'Not Set') + '</td>');
                         row.append('<td>' + item.address + '</td>');
                         row.append('<td>' + item.opening_balance + '</td>');
                         row.append('<td>' + item.credit_limit + '</td>');
@@ -154,13 +163,13 @@
 
 
                         row.append('<td>' +
-                            '@can("view customer")<button type="button" value="' +
+                            '@can('view customer')<button type="button" value="' +
                             item.id +
                             '" class="ledger_btn btn btn-outline-primary btn-sm me-2"><i class="feather-book-open text-primary"></i> Ledger</button>@endcan' +
-                            '@can("edit customer")<button type="button" value="' +
+                            '@can('edit customer')<button type="button" value="' +
                             item.id +
                             '" class="edit_btn btn btn-outline-info btn-sm me-2"><i class="feather-edit text-info"></i> Edit</button>@endcan' +
-                            '@can("delete customer")<button type="button" value="' +
+                            '@can('delete customer')<button type="button" value="' +
                             item.id +
                             '" class="delete_btn btn btn-outline-danger btn-sm"><i class="feather-trash-2 text-danger me-1"></i> Delete</button>@endcan' +
                             '</td>');
@@ -228,8 +237,9 @@
                         $('#edit_credit_limit').val(response.customer.credit_limit || '');
                         $('#edit_city_id').val(response.customer.city_id || '').trigger(
                             'change');
-                        $('#edit_customer_type').val(response.customer.customer_type || '').trigger(
-                            'change');
+                        $('#edit_customer_type').val(response.customer.customer_type || '')
+                            .trigger(
+                                'change');
                         $('#addAndEditCustomerModal').modal('show');
                     } else {
                         toastr.options = {
@@ -292,22 +302,24 @@
                         if (response.errors) {
                             // Display field-specific validation errors
                             $.each(response.errors, function(key, err_value) {
-                                $('#' + key + '_error').html(Array.isArray(err_value) ? err_value[0] : err_value);
+                                $('#' + key + '_error').html(Array.isArray(
+                                    err_value) ? err_value[0] : err_value);
                             });
-                            
+
                             // Show simple error toastr for validation errors
                             toastr.options = {
                                 "closeButton": true,
                                 "positionClass": "toast-top-right"
                             };
-                            
+
                             // Show specific error message for mobile number duplicates
                             if (response.errors.mobile_no) {
                                 toastr.error('Mobile number already exists!', 'Error');
                             } else if (response.errors.email) {
                                 toastr.error('Email already exists!', 'Error');
                             } else {
-                                toastr.error('Please fix the errors and try again.', 'Error');
+                                toastr.error('Please fix the errors and try again.',
+                                    'Error');
                             }
                         } else if (response.message) {
                             // Show generic error message
@@ -323,7 +335,8 @@
                             "closeButton": true,
                             "positionClass": "toast-top-right"
                         };
-                        toastr.error('Unable to create customer. Please try again.', 'Error');
+                        toastr.error('Unable to create customer. Please try again.',
+                            'Error');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -334,22 +347,24 @@
                         if (response && response.errors) {
                             // Display field-specific validation errors
                             $.each(response.errors, function(key, err_value) {
-                                $('#' + key + '_error').html(Array.isArray(err_value) ? err_value[0] : err_value);
+                                $('#' + key + '_error').html(Array.isArray(
+                                    err_value) ? err_value[0] : err_value);
                             });
-                            
+
                             // Show clean error toastr for validation errors
                             toastr.options = {
                                 "closeButton": true,
                                 "positionClass": "toast-top-right"
                             };
-                            
+
                             // Show specific error message for different validation errors
                             if (response.errors.mobile_no) {
                                 toastr.error('Mobile number already exists!', 'Error');
                             } else if (response.errors.email) {
                                 toastr.error('Email already exists!', 'Error');
                             } else {
-                                toastr.error('Please fix the errors and try again.', 'Error');
+                                toastr.error('Please fix the errors and try again.',
+                                    'Error');
                             }
                         } else if (response && response.message) {
                             // Show simple generic error message
@@ -365,14 +380,17 @@
                             "closeButton": true,
                             "positionClass": "toast-top-right"
                         };
-                        toastr.error('Unable to create customer due to a server error. Please try again later.', 'Server Error');
+                        toastr.error(
+                            'Unable to create customer due to a server error. Please try again later.',
+                            'Server Error');
                     } else {
                         // Handle other errors with simple message
                         toastr.options = {
                             "closeButton": true,
                             "positionClass": "toast-top-right"
                         };
-                        toastr.error('Unable to create customer. Please try again.', 'Error');
+                        toastr.error('Unable to create customer. Please try again.',
+                            'Error');
                     }
                 }
             });
@@ -427,52 +445,63 @@
 
         function fetchCustomerData() {
             return $.ajax({
-            url: '/customer-get-all',
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                const customerSelect = $('#customer-id');
-                customerSelect.empty();
+                url: '/customer-get-all',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    const customerSelect = $('#customer-id');
+                    customerSelect.empty();
 
-                if (data && data.status === 200 && Array.isArray(data.message)) {
-                const sortedCustomers = data.message.sort((a, b) => {
-                    if (a.first_name === 'Walk-in') return -1;
-                    if (b.first_name === 'Walk-in') return 1;
-                    return 0;
-                });
+                    if (data && data.status === 200 && Array.isArray(data.message)) {
+                        const sortedCustomers = data.message.sort((a, b) => {
+                            if (a.first_name === 'Walk-in') return -1;
+                            if (b.first_name === 'Walk-in') return 1;
+                            return 0;
+                        });
 
-                sortedCustomers.forEach(customer => {
-                    const option = $('<option></option>');
-                    option.val(customer.id);
-                    if (customer.first_name === 'Walk-in') {
-                        option.text(`${customer.first_name || ''} ${customer.last_name || ''}`);
-                        option.attr('data-customer-type', 'retailer'); // Walk-in customer is always retailer
+                        sortedCustomers.forEach(customer => {
+                            const option = $('<option></option>');
+                            option.val(customer.id);
+                            if (customer.first_name === 'Walk-in') {
+                                option.text(
+                                    `${customer.first_name || ''} ${customer.last_name || ''}`
+                                );
+                                option.attr('data-customer-type',
+                                    'retailer'); // Walk-in customer is always retailer
+                            } else {
+                                const customerType = customer.customer_type ?
+                                    ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` :
+                                    '';
+                                option.text(
+                                    `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`
+                                );
+                                option.attr('data-customer-type', customer.customer_type ||
+                                    'retailer'); // Include customer type data attribute
+                            }
+                            option.data('due', customer.current_due ||
+                                0); // Default due to 0
+                            option.data('credit_limit', customer.credit_limit ||
+                                0); // Add credit limit data
+                            customerSelect.append(option);
+                        });
+
+                        // Always select Walking Customer by default
+                        const walkingCustomer = sortedCustomers.find(customer => customer
+                            .first_name === 'Walk-in');
+                        if (walkingCustomer) {
+                            customerSelect.val(walkingCustomer.id);
+                            updateDueAmount(walkingCustomer.current_due || 0);
+                            updateCreditLimit(walkingCustomer.credit_limit || 0, walkingCustomer
+                                .current_due || 0, true); // true for isWalkIn
+                        }
                     } else {
-                        const customerType = customer.customer_type ? ` - ${customer.customer_type.charAt(0).toUpperCase() + customer.customer_type.slice(1)}` : '';
-                        option.text(
-                            `${customer.first_name || ''} ${customer.last_name || ''}${customerType} (${customer.mobile_no || ''})`
-                        );
-                        option.attr('data-customer-type', customer.customer_type || 'retailer'); // Include customer type data attribute
+                        console.error('Failed to fetch customer data:', data ? data.message :
+                            'No data received');
                     }
-                    option.data('due', customer.current_due || 0); // Default due to 0
-                    option.data('credit_limit', customer.credit_limit || 0); // Add credit limit data
-                    customerSelect.append(option);
-                });
-
-                // Always select Walking Customer by default
-                const walkingCustomer = sortedCustomers.find(customer => customer.first_name === 'Walk-in');
-                if (walkingCustomer) {
-                    customerSelect.val(walkingCustomer.id);
-                    updateDueAmount(walkingCustomer.current_due || 0);
-                    updateCreditLimit(walkingCustomer.credit_limit || 0, walkingCustomer.current_due || 0, true); // true for isWalkIn
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching customer data:', error);
                 }
-                } else {
-                console.error('Failed to fetch customer data:', data ? data.message : 'No data received');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching customer data:', error);
-            }
             });
         }
 
@@ -487,7 +516,7 @@
             const creditInfoContainer = $('.customer-credit-info');
             const creditLimitElement = $('#credit-limit-amount');
             const availableCreditElement = $('#available-credit-amount');
-            
+
             if (isWalkIn) {
                 // Hide entire credit info section for walk-in customers
                 creditInfoContainer.hide();
@@ -495,21 +524,23 @@
                 // Show credit info section for other customers
                 creditLimit = isNaN(creditLimit) ? 0 : parseFloat(creditLimit);
                 dueAmount = isNaN(dueAmount) ? 0 : parseFloat(dueAmount);
-                
+
                 const remainingCredit = Math.max(creditLimit - dueAmount, 0);
                 const isOverLimit = dueAmount > creditLimit;
-                
+
                 // Update credit limit display
                 creditLimitElement.text(`Rs. ${creditLimit.toFixed(2)}`);
-                
+
                 // Update available credit display with appropriate styling
                 if (isOverLimit) {
                     const overAmount = dueAmount - creditLimit;
-                    availableCreditElement.html(`<span class="text-danger">⚠️ Over by Rs. ${overAmount.toFixed(2)}</span>`);
+                    availableCreditElement.html(
+                        `<span class="text-danger">⚠️ Over by Rs. ${overAmount.toFixed(2)}</span>`);
                 } else {
-                    availableCreditElement.html(`<span class="text-success">✓ Rs. ${remainingCredit.toFixed(2)}</span>`);
+                    availableCreditElement.html(
+                        `<span class="text-success">✓ Rs. ${remainingCredit.toFixed(2)}</span>`);
                 }
-                
+
                 creditInfoContainer.show();
             }
         }
@@ -520,10 +551,10 @@
             const creditLimit = selectedOption.data('credit_limit') || 0;
             const customerText = selectedOption.text().toLowerCase();
             const customerId = selectedOption.val();
-            
+
             // Check if it's walk-in customer (ID = 1 or text contains 'walk-in')
             const isWalkIn = customerId === '1' || customerText.includes('walk-in');
-            
+
             updateDueAmount(dueAmount);
             updateCreditLimit(creditLimit, dueAmount, isWalkIn);
         });
@@ -535,6 +566,10 @@
             fetchCustomerData: fetchCustomerData,
             // other functions NOT exposed unless added here
         };
+
+        // =================== CITY MODAL FUNCTIONALITY (REUSABLE) ===================
+        // City functionality is now handled by cities_ajax.blade.php
+        // fetchCities function is available globally from cities_ajax.blade.php
 
 
     });

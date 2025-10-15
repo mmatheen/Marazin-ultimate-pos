@@ -278,7 +278,7 @@
                                             </div>
                                             <span class="text-danger" id="location_id_error"></span>
                                         </div>
-                                        <div class="col-lg-3 col-md-6 mb-3">
+                                        {{-- <div class="col-lg-3 col-md-6 mb-3">
                                             <label for="duration">Duration</label>
                                             <input class="form-control" id="duration" name="pay_term" type="number"
                                                 placeholder="Enter Duration">
@@ -294,7 +294,7 @@
                                                 </select>
                                             </div>
                                             <span class="text-danger" id="duration_type_error"></span>
-                                        </div>
+                                        </div> --}}
                                     </div>
 
                                 </div>
