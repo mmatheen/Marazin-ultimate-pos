@@ -3766,6 +3766,7 @@
             row.setAttribute('data-price-source', priceType);
 
             row.innerHTML = `
+        <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
             <div class="d-flex align-items-start">
             <img src="/assets/images/${product.product_image || 'No Product Image Available.png'}" style="width:50px; height:50px; margin-right:10px; border-radius:50%;" class="product-image"/>
@@ -4274,17 +4275,24 @@
             let totalItems = 0;
             let totalAmount = 0;
 
-            // Calculate total items and total amount from each row
-            billingBody.querySelectorAll('tr').forEach(row => {
+            // Calculate total items and total amount from each row and update row counters
+            billingBody.querySelectorAll('tr').forEach((row, index) => {
                 const quantityInput = row.querySelector('.quantity-input');
                 const priceInput = row.querySelector('.price-input');
                 const fixedDiscountInput = row.querySelector('.fixed_discount');
                 const percentDiscountInput = row.querySelector('.percent_discount');
+                const counterCell = row.querySelector('.counter-cell');
+
                 let quantity = 0;
                 if (quantityInput) {
                     quantity = quantityInput.value === "" ? 0 : parseFloat(quantityInput.value);
                 }
                 const basePrice = parseFloat(priceInput.value) || 0;
+
+                // Update row counter (1, 2, 3, etc.)
+                if (counterCell) {
+                    counterCell.textContent = index + 1;
+                }
 
                 // Recalculate subtotal based on unit price
                 const subtotal = quantity * basePrice;
@@ -4395,6 +4403,13 @@
                 totalAmountWithDiscount.toFixed(2));
             if (modalTotalPayableEl) modalTotalPayableEl.textContent = formatAmountWithSeparators(
                 totalAmountWithDiscount.toFixed(2));
+
+            // Update total items counter
+            const totalItemsCountEl = document.getElementById('total-items-count');
+            if (totalItemsCountEl) {
+                const rowCount = billingBody.querySelectorAll('tr').length;
+                totalItemsCountEl.textContent = rowCount;
+            }
 
             // Validate quantities and update button states
             updatePaymentButtonsState();
@@ -6483,3 +6498,4 @@
         });
     }
 </script>
+

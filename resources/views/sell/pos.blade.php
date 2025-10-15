@@ -56,18 +56,6 @@
             box-sizing: border-box;
         }
 
-        .row {
-            margin-left: 0;
-            margin-right: 0;
-        }
-
-        .col-md-5,
-        .col-md-7,
-        .col-md-12,
-        .col-md-6 {
-            padding-left: 5px;
-            padding-right: 5px;
-        }
 
         /* Fix button text wrapping */
         .bottom-fixed .btn {
@@ -136,14 +124,14 @@
             background-color: #fff;
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            padding: 15px 20px;
+            padding: 5px 5px;
             border-top: 1px solid #ddd;
         }
 
         .bottom-fixed .btn {
             font-size: 14px;
             font-weight: bold;
-            padding: 10px 15px;
+            padding: 5px 5px;
             border-radius: 5px;
             margin: 2px;
         }
@@ -683,9 +671,9 @@
                 overflow: visible;
             }
 
-            /* Simplified bottom-fixed for laptop */
+            /* Better bottom-fixed for tablet */
             .bottom-fixed {
-                padding: 15px 20px;
+                padding: 12px 15px;
                 position: fixed;
                 bottom: 0;
                 left: 0;
@@ -696,19 +684,132 @@
                 z-index: 1000;
             }
 
-            .bottom-fixed .btn {
-                font-size: 12px;
-                padding: 8px 12px;
-                margin: 2px 4px;
-            }
-
             .bottom-fixed .row {
                 align-items: center;
+                margin: 0;
             }
 
-            .bottom-fixed h4 {
+            /* Total Payable Section - Better spacing */
+            .bottom-fixed .col-md-5 {
+                padding: 0 10px;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 15px;
+            }
+
+            .bottom-fixed .col-md-5 h4 {
+                font-size: 1.0rem;
+                margin: 0;
+                white-space: nowrap;
+            }
+
+            .bottom-fixed .col-md-5 #total {
                 font-size: 1.1rem;
-                margin-bottom: 0;
+                font-weight: bold;
+            }
+
+            .bottom-fixed .col-md-5 #items-count {
+                font-size: 0.9rem;
+            }
+
+            .bottom-fixed .col-md-5 #cancelButton {
+                font-size: 11px;
+                padding: 6px 12px;
+                margin-left: 10px;
+            }
+
+            /* Payment Buttons Section - Better grid layout */
+            .bottom-fixed .col-md-7 {
+                padding: 0 10px;
+            }
+
+            .bottom-fixed .col-md-7 .d-flex {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+                gap: 6px;
+                justify-content: center;
+                align-items: stretch;
+            }
+
+            .bottom-fixed .btn {
+                font-size: 10px;
+                padding: 8px 6px;
+                margin: 0;
+                border-radius: 4px;
+                min-height: 38px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                line-height: 1.2;
+            }
+
+            .bottom-fixed .btn i {
+                font-size: 10px;
+                margin-right: 3px;
+            }
+        }
+
+        /* Small tablet specific adjustments (768px-991px) */
+        @media (max-width: 991px) and (min-width: 768px) {
+            .bottom-fixed .col-md-7 .d-flex {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 6px !important;
+                width: 100% !important;
+                justify-content: center !important;
+                align-items: stretch !important;
+            }
+
+            .bottom-fixed .btn {
+                font-size: 10px !important;
+                padding: 8px 4px !important;
+                margin: 0 !important;
+                border-radius: 4px !important;
+                min-height: 40px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                line-height: 1.1 !important;
+            }
+
+            .bottom-fixed .btn i {
+                font-size: 12px !important;
+                margin-right: 0 !important;
+                margin-bottom: 2px !important;
+            }
+
+            /* Adjust total payable section for tablet */
+            .bottom-fixed .col-md-5 {
+                padding: 5px 10px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                gap: 10px !important;
+            }
+
+            .bottom-fixed .col-md-5 h4 {
+                font-size: 14px !important;
+                margin: 0 !important;
+            }
+
+            .bottom-fixed .col-md-5 #total {
+                font-size: 16px !important;
+                font-weight: bold !important;
+            }
+
+            .bottom-fixed .col-md-5 #cancelButton {
+                font-size: 10px !important;
+                padding: 6px 10px !important;
             }
         }
 
@@ -852,16 +953,21 @@
                 text-align: center !important;
                 order: 1 !important;
                 margin-bottom: 15px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 10px !important;
+                flex-wrap: wrap !important;
             }
 
             .bottom-fixed .col-md-5 h4 {
-                font-size: 18px !important;
-                margin: 0 5px 0 0 !important;
-                display: inline-block !important;
+                font-size: 16px !important;
+                margin: 0 !important;
+                white-space: nowrap !important;
             }
 
             .bottom-fixed .col-md-5 #total {
-                font-size: 18px !important;
+                font-size: 16px !important;
                 font-weight: bold !important;
             }
 
@@ -870,9 +976,8 @@
             }
 
             .bottom-fixed .col-md-5 #cancelButton {
-                font-size: 14px !important;
+                font-size: 12px !important;
                 padding: 8px 16px !important;
-                margin-left: 10px !important;
                 border-radius: 6px !important;
             }
 
@@ -886,7 +991,7 @@
 
             .bottom-fixed .col-md-7 .d-flex {
                 display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
+                grid-template-columns: repeat(3, 1fr) !important;
                 gap: 8px !important;
                 width: 100% !important;
                 justify-content: center !important;
@@ -894,8 +999,8 @@
             }
 
             .bottom-fixed .btn {
-                font-size: 12px !important;
-                padding: 10px 8px !important;
+                font-size: 11px !important;
+                padding: 10px 6px !important;
                 margin: 0 !important;
                 border-radius: 6px !important;
                 min-height: 44px !important;
@@ -906,6 +1011,12 @@
                 white-space: nowrap !important;
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
+                line-height: 1.2 !important;
+            }
+
+            .bottom-fixed .btn i {
+                font-size: 10px !important;
+                margin-right: 3px !important;
             }
 
             /* Ensure body has proper spacing */
@@ -929,22 +1040,42 @@
                 padding: 12px 8px !important;
             }
 
+            .bottom-fixed .col-md-5 {
+                margin-bottom: 12px !important;
+                gap: 8px !important;
+            }
+
             .bottom-fixed .col-md-5 h4 {
-                font-size: 16px !important;
+                font-size: 14px !important;
             }
 
             .bottom-fixed .col-md-5 #total {
-                font-size: 16px !important;
+                font-size: 14px !important;
+            }
+
+            .bottom-fixed .col-md-5 #items-count {
+                font-size: 12px !important;
+            }
+
+            .bottom-fixed .col-md-5 #cancelButton {
+                font-size: 10px !important;
+                padding: 6px 10px !important;
             }
 
             .bottom-fixed .btn {
-                font-size: 11px !important;
-                padding: 8px 6px !important;
+                font-size: 9px !important;
+                padding: 8px 4px !important;
                 min-height: 40px !important;
+                line-height: 1.1 !important;
+            }
+
+            .bottom-fixed .btn i {
+                font-size: 8px !important;
+                margin-right: 2px !important;
             }
 
             .bottom-fixed .col-md-7 .d-flex {
-                grid-template-columns: 1fr 1fr !important;
+                grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
             }
 
@@ -1486,6 +1617,7 @@
                                         <table class="table table-bordered">
                                             <thead class="thead-light">
                                                 <tr>
+                                                    <th class="text-center" style="width: 50px;">#</th>
                                                     <th>Product</th>
                                                     <th class="text-center">Quantity</th>
                                                     <th class="text-center">Discount (Rs)</th>
@@ -1500,6 +1632,25 @@
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Item Counter Section -->
+                        <div class="card bg-light mt-2 p-2">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-shopping-cart me-2 text-primary"></i>
+                                        <span class="fw-bold">Total Items: </span>
+                                        <span id="total-items-count" class="badge bg-secondary ms-2">0</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Items in cart
+                                    </small>
                                 </div>
                             </div>
                         </div>

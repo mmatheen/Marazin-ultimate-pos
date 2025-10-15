@@ -230,23 +230,41 @@
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    var citySelect = $('#edit_city_id');
-                    if (citySelect.length) {
-                        // Destroy existing Select2 if it exists
-                        if (citySelect.hasClass('select2-hidden-accessible')) {
-                            citySelect.select2('destroy');
+                    if (response.status && response.data) {
+                        // Check if we're using the custom city search
+                        if ($('#city_search_input').length > 0) {
+                            // Update the allCities array for custom search
+                            if (window.allCities) {
+                                window.allCities = response.data;
+                            }
+
+                            // If a new city was just created, select it
+                            if (selectedCityId && window.setCityValue) {
+                                const newCity = response.data.find(city => city.id ==
+                                    selectedCityId);
+                                if (newCity) {
+                                    window.setCityValue(newCity.id, newCity.name);
+                                }
+                            }
+                            return;
                         }
 
-                        citySelect.empty();
-                        citySelect.append('<option value="">Select City</option>');
+                        // Original Select2 dropdown logic for other pages
+                        var citySelect = $('#edit_city_id');
+                        if (citySelect.length && citySelect.is('select')) {
+                            // Destroy existing Select2 if it exists
+                            if (citySelect.hasClass('select2-hidden-accessible')) {
+                                citySelect.select2('destroy');
+                            }
 
-                        if (response.status && response.data) {
+                            citySelect.empty();
+                            citySelect.append('<option value="">Select City</option>');
+
                             // Sort cities alphabetically
                             const sortedCities = response.data.sort((a, b) => a.name.localeCompare(b
                                 .name));
 
                             sortedCities.forEach(function(city) {
-                                // Display city with district and province for better identification
                                 const displayText = city.district && city.province ?
                                     `${city.name} (${city.district}, ${city.province})` :
                                     city.name;
@@ -254,16 +272,16 @@
                                     `<option value="${city.id}">${displayText}</option>`
                                 );
                             });
-                        }
 
-                        // Re-initialize Select2 with selectBox class (global initialization)
-                        citySelect.select2();
+                            // Re-initialize Select2
+                            citySelect.select2();
 
-                        // Select the newly added city if provided
-                        if (selectedCityId) {
-                            setTimeout(() => {
-                                citySelect.val(selectedCityId).trigger('change');
-                            }, 100);
+                            // Select the newly added city if provided
+                            if (selectedCityId) {
+                                setTimeout(() => {
+                                    citySelect.val(selectedCityId).trigger('change');
+                                }, 100);
+                            }
                         }
                     }
                 },

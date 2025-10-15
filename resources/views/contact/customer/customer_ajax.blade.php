@@ -84,6 +84,11 @@
             $('#addAndUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
             // Remove info banner
             $('.city-info-banner').remove();
+            // Clear custom city search
+            if (window.setCityValue) {
+                window.setCityValue('', '');
+            }
+            $('#city_dropdown').hide();
         }
 
         // Clear form and validation errors when the modal is hidden
@@ -91,11 +96,14 @@
             resetFormAndValidation();
         });
 
-        // Re-initialize Select2 when modal is shown to fix typing/search functionality
+        // Custom city search is now handled by initializeCitySearch() function
+
+        // Initialize Select2 for other dropdowns when modal opens (exclude city search)
         $('#addAndEditCustomerModal').on('shown.bs.modal', function() {
-            // Re-initialize Select2 dropdowns in the modal
-            $('#addAndEditCustomerModal .selectBox').select2({
-                dropdownParent: $('#addAndEditCustomerModal')
+            $('#addAndEditCustomerModal .selectBox:not(.city-search-input)').select2({
+                dropdownParent: $('#addAndEditCustomerModal'),
+                minimumResultsForSearch: -1,
+                width: "100%"
             });
         });
 
@@ -123,6 +131,11 @@
                     `;
                     $('.modal-body .text-center').after(infoBanner);
                 }
+            }
+
+            // Clear city search input for new customer
+            if (window.setCityValue) {
+                window.setCityValue('', '');
             }
 
             $('#addAndEditCustomerModal').modal('show');
@@ -181,27 +194,142 @@
         }
 
         //Fetch cities
+        // Simple city search implementation
+        var allCities = [];
+        var selectedCityId = '';
+        var citySearchInitialized = false;
+
+        // Make allCities globally accessible
+        window.allCities = allCities;
+
         function fetchCities() {
             $.ajax({
                 url: '/api/cities',
                 type: 'GET',
                 dataType: 'json',
                 success: function(response) {
-                    var citySelect = $('#edit_city_id');
-                    citySelect.empty();
-                    citySelect.append('<option value="">Select City</option>');
-
                     if (response.status && response.data) {
-                        response.data.forEach(function(city) {
-                            citySelect.append('<option value="' + city.id + '">' + city
-                                .name + '</option>');
-                        });
+                        allCities = response.data;
+                        window.allCities = allCities; // Keep global reference updated
+                        if (!citySearchInitialized) {
+                            setupCitySearch();
+                            citySearchInitialized = true;
+                        }
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error fetching cities:', error);
                 }
             });
+        }
+
+        function setupCitySearch() {
+            const input = $('#city_search_input');
+            const dropdown = $('#city_dropdown');
+            const hiddenInput = $('#edit_city_id');
+            let currentIndex = -1;
+
+            // Search as user types
+            input.on('input', function() {
+                const query = $(this).val().trim();
+                selectedCityId = '';
+                hiddenInput.val('');
+                currentIndex = -1;
+
+                if (query === '') {
+                    dropdown.hide();
+                    return;
+                }
+
+                const matches = allCities.filter(city =>
+                    city.name.toLowerCase().includes(query.toLowerCase())
+                );
+
+                if (matches.length > 0) {
+                    showResults(matches);
+                    currentIndex = 0; // Select first result by default
+                    highlightOption();
+                } else {
+                    showNoResults();
+                }
+            });
+
+            // Keyboard navigation
+            input.on('keydown', function(e) {
+                const options = $('.city-option');
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (currentIndex < options.length - 1) {
+                        currentIndex++;
+                        highlightOption();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (currentIndex > 0) {
+                        currentIndex--;
+                        highlightOption();
+                    }
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (currentIndex >= 0 && options.eq(currentIndex).length) {
+                        selectCity(options.eq(currentIndex));
+                    }
+                } else if (e.key === 'Escape') {
+                    dropdown.hide();
+                    currentIndex = -1;
+                }
+            });
+
+            // Clear text when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.city-search-container').length) {
+                    dropdown.hide();
+                    if (!selectedCityId && input.val().trim() !== '') {
+                        input.val('');
+                        hiddenInput.val('');
+                    }
+                }
+            });
+
+            function showResults(cities) {
+                const content = cities.map(city =>
+                    `<div class="city-option" data-id="${city.id}" data-name="${city.name}">${city.name}</div>`
+                ).join('');
+
+                $('.city-dropdown-content').html(content);
+                dropdown.show();
+
+                $('.city-option').on('click', function() {
+                    selectCity($(this));
+                });
+            }
+
+            function selectCity(option) {
+                const cityId = option.data('id');
+                const cityName = option.data('name');
+
+                selectedCityId = cityId;
+                input.val(cityName);
+                hiddenInput.val(cityId);
+                dropdown.hide();
+                currentIndex = -1;
+            }
+
+            function highlightOption() {
+                $('.city-option').removeClass('highlighted');
+                if (currentIndex >= 0) {
+                    $('.city-option').eq(currentIndex).addClass('highlighted');
+                }
+            }
+
+            function showNoResults() {
+                $('.city-dropdown-content').html('<div class="city-no-results">No cities found</div>');
+                dropdown.show();
+            }
+
+            window.setCityValue = function(cityId, cityName) {
+                selectedCityId = cityId || '';
+                input.val(cityName || '');
+                hiddenInput.val(cityId || '');
+            };
         }
 
 
@@ -235,11 +363,17 @@
                         $('#edit_opening_balance').val(response.customer.opening_balance ||
                             '');
                         $('#edit_credit_limit').val(response.customer.credit_limit || '');
-                        $('#edit_city_id').val(response.customer.city_id || '').trigger(
-                            'change');
+                        // Set city value using custom function
+                        const cityId = response.customer.city_id || '';
+                        const cityName = response.customer.city_name || '';
+                        if (window.setCityValue) {
+                            window.setCityValue(cityId, cityName);
+                        }
+
                         $('#edit_customer_type').val(response.customer.customer_type || '')
-                            .trigger(
-                                'change');
+                            .trigger('change');
+
+                        // Show modal
                         $('#addAndEditCustomerModal').modal('show');
                     } else {
                         toastr.options = {

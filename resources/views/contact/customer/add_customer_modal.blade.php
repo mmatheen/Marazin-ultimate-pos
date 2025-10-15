@@ -13,20 +13,140 @@
         height: 38px;
         border: 1px solid #ced4da;
         border-radius: 0.375rem;
+        cursor: text;
+        /* Make it look like a text input */
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .city-select-container .select2-container .select2-selection--single:hover {
+        border-color: #80bdff;
+        /* Hover effect like text input */
+    }
+
+    .city-select-container .select2-container .select2-selection--single:focus-within {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        /* Focus effect like text input */
     }
 
     .city-select-container .select2-container .select2-selection--single .select2-selection__rendered {
         line-height: 36px;
         padding-left: 12px;
         color: #495057;
+        font-style: italic;
+        /* Make placeholder text look different */
+    }
+
+    /* When value is selected, remove italic */
+    .city-select-container .select2-container--default .select2-selection--single .select2-selection__rendered[title]:not([title=""]) {
+        font-style: normal;
+        color: #495057;
     }
 
     .city-select-container .select2-container .select2-selection--single .select2-selection__arrow {
         height: 36px;
         right: 10px;
+        opacity: 0.5;
+        /* Make arrow less prominent */
     }
 
-    /* Ensure proper alignment */
+    .city-select-container .select2-container .select2-selection--single:hover .select2-selection__arrow {
+        opacity: 1;
+        /* Show arrow more prominently on hover */
+    }
+
+    /* Style for Select2 search input */
+    .city-select-container .select2-search--dropdown .select2-search__field {
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        padding: 8px 12px;
+        font-size: 14px;
+        width: 100% !important;
+        background-color: #fff;
+    }
+
+    .city-select-container .select2-search--dropdown .select2-search__field:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    /* Dropdown container styling */
+    .city-select-container .select2-dropdown {
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Search results styling */
+    .city-select-container .select2-results__option {
+        padding: 8px 12px;
+        cursor: pointer;
+    }
+
+    .city-select-container .select2-results__option--highlighted {
+        background-color: #007bff;
+        color: white;
+    }
+
+    /* Simple city search styling */
+    .city-search-container {
+        position: relative;
+    }
+
+    .city-search-input {
+        width: 100%;
+        height: 38px;
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out;
+    }
+
+    .city-search-input:focus,
+    .city-search-input:hover {
+        border-color: #80bdff;
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .city-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        background: white;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .city-option {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+    }
+
+    .city-option:hover,
+    .city-option.highlighted {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .city-option:last-child {
+        border-bottom: none;
+    }
+
+    .city-no-results {
+        padding: 10px 12px;
+        color: #6c757d;
+        text-align: center;
+        font-style: italic;
+    }
+
     .d-flex.align-items-start.gap-2 {
         gap: 8px !important;
     }
@@ -112,11 +232,21 @@
                                         @endif
                                     </label>
                                     <div class="d-flex align-items-start gap-2">
-                                        <div class="flex-grow-1 city-select-container">
-                                            <select class="form-control form-select selectBox" id="edit_city_id"
-                                                name="city_id" style="width: 100%;">
-                                                <option value="">Select City</option>
-                                            </select>
+                                        <div class="flex-grow-1 city-search-container position-relative">
+                                            <!-- Hidden input to store the actual city ID -->
+                                            <input type="hidden" id="edit_city_id" name="city_id" value="">
+                                            <!-- Visible search input -->
+                                            <input type="text" class="form-control city-search-input"
+                                                id="city_search_input" placeholder="Start typing to search cities..."
+                                                autocomplete="off">
+                                            <!-- Dropdown results -->
+                                            <div class="city-dropdown" id="city_dropdown" style="display: none;">
+                                                <div class="city-dropdown-content">
+                                                    <div class="city-no-results" style="display: none;">
+                                                        <div class="p-3 text-muted text-center">No cities found</div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                         <button type="button" class="btn btn-outline-info btn-sm mt-0"
                                             id="addCityButton" style="min-width: 40px; height: 38px;">
