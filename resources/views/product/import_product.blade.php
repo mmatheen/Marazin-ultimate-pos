@@ -1,52 +1,53 @@
 @extends('layout.layout')
 @push('styles')
-<style>
-    .error-container {
-        position: relative;
-    }
-    
-    .error-container .alert {
-        border-left: 5px solid #dc3545;
-        box-shadow: 0 2px 10px rgba(220, 53, 69, 0.1);
-    }
-    
-    .error-container .bg-light {
-        background-color: #f8f9fa !important;
-        border: 1px solid #e9ecef;
-    }
-    
-    .error-container li {
-        font-size: 0.9em;
-        margin-bottom: 2px;
-    }
-    
-    .error-container .text-danger {
-        color: #dc3545 !important;
-        font-weight: 500;
-    }
-    
-    .error-container h5, .error-container h6 {
-        color: #721c24;
-        margin-bottom: 15px;
-    }
-    
-    .error-container .fas {
-        margin-right: 8px;
-    }
-    
-    /* Progress bar styling */
-    .progress {
-        height: 25px;
-        border-radius: 15px;
-        background-color: #e9ecef;
-    }
-    
-    .progress-bar {
-        border-radius: 15px;
-        font-weight: 500;
-        line-height: 25px;
-    }
-</style>
+    <style>
+        .error-container {
+            position: relative;
+        }
+
+        .error-container .alert {
+            border-left: 5px solid #dc3545;
+            box-shadow: 0 2px 10px rgba(220, 53, 69, 0.1);
+        }
+
+        .error-container .bg-light {
+            background-color: #f8f9fa !important;
+            border: 1px solid #e9ecef;
+        }
+
+        .error-container li {
+            font-size: 0.9em;
+            margin-bottom: 2px;
+        }
+
+        .error-container .text-danger {
+            color: #dc3545 !important;
+            font-weight: 500;
+        }
+
+        .error-container h5,
+        .error-container h6 {
+            color: #721c24;
+            margin-bottom: 15px;
+        }
+
+        .error-container .fas {
+            margin-right: 8px;
+        }
+
+        /* Progress bar styling */
+        .progress {
+            height: 25px;
+            border-radius: 15px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            border-radius: 15px;
+            font-weight: 500;
+            line-height: 25px;
+        }
+    </style>
 @endpush
 @section('content')
     <div class="content container-fluid">
@@ -57,7 +58,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Import Products</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Products</a></li>
                                 <li class="breadcrumb-item active">Import Products</li>
                             </ul>
                         </div>
@@ -73,22 +75,29 @@
                     <div class="card-body">
                         <div class="page-header">
                             <div class="row align-items-center">
-                                <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data" class="skip-global-handler" data-skip-global="true">
+                                <form action="#" id="importProductForm" method="POST" enctype="multipart/form-data"
+                                    class="skip-global-handler" data-skip-global="true">
                                     @csrf
                                     <div class="row">
 
                                         <div class="col-md-6 mt-4">
-                                            <a class="btn btn-outline-success mt-2" id="export_btn" href="{{ route('excel-product-blank-template-export') }}"><i class="fas fa-download"></i> &nbsp; Download template file</a>
+                                            <a class="btn btn-outline-success mt-2" id="export_btn"
+                                                href="{{ route('excel-product-blank-template-export') }}"><i
+                                                    class="fas fa-download"></i> &nbsp; Download template file</a>
                                         </div>
 
                                         <!-- Location Selection -->
                                         <div class="col-md-12 mt-3">
                                             <div class="mb-3">
-                                                <label for="import_location" class="form-label"><i class="fas fa-map-marker-alt"></i> Select Location for Import <span class="text-danger">*</span></label>
-                                                <select name="import_location" id="import_location" class="form-control" required>
+                                                <label for="import_location" class="form-label"><i
+                                                        class="fas fa-map-marker-alt"></i> Select Location for Import <span
+                                                        class="text-danger">*</span></label>
+                                                <select name="import_location" id="import_location" class="form-control"
+                                                    required>
                                                     <option value="">Choose Location to Import Products...</option>
                                                 </select>
-                                                <small class="text-muted">All products from the uploaded file will be imported to the selected location</small>
+                                                <small class="text-muted">All products from the uploaded file will be
+                                                    imported to the selected location</small>
                                             </div>
                                         </div>
 
@@ -97,19 +106,22 @@
                                                 <div class="mb-3">
                                                     <label>File To Import</label>
                                                     <div class="invoices-upload-btn">
-                                                        <input type="file" name="file" id="file" class="hide-input">
+                                                        <input type="file" name="file" id="file"
+                                                            class="hide-input">
                                                         <label for="file" class="upload"><i class="far fa-folder-open">
                                                                 &nbsp;</i> Browse..</label>
                                                     </div>
                                                 </div>
                                                 <div class="mt-3">
-                                                    <button type="submit" id="import_btn" class="btn btn-outline-primary ms-4 mt-3">Upload</button>
+                                                    <button type="submit" id="import_btn"
+                                                        class="btn btn-outline-primary ms-4 mt-3">Upload</button>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-6 mt-3">
                                             <div class="progress mt-3" style="display: none;">
-                                                <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                                <div class="progress-bar" role="progressbar" style="width: 0%;"
+                                                    aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                                             </div>
                                             <span class="text-danger" id="file_error"></span>
                                         </div>

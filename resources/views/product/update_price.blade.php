@@ -9,8 +9,9 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Update Price</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">Add new product</li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Products</a></li>
+                                <li class="breadcrumb-item active">Update Price</li>
                             </ul>
                         </div>
                     </div>

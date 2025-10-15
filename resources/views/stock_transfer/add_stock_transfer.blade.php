@@ -8,7 +8,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Add Stock Transfer</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Stock Transfer</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Stock Management</a></li>
                                 <li class="breadcrumb-item active">Add Stock Transfer</li>
                             </ul>
                         </div>
@@ -32,13 +33,15 @@
                                 <div class="col-md-4">
                                     <div class="form-group local-forms calendar-icon">
                                         <label>Date<span class="login-danger">*</span></label>
-                                        <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY" id="transfer_date" name="transfer_date">
+                                        <input class="form-control datetimepicker" type="text" placeholder="DD-MM-YYYY"
+                                            id="transfer_date" name="transfer_date">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group local-forms">
                                         <label>Reference No<span class="login-danger"></span></label>
-                                        <input class="form-control" type="text" placeholder="Reference No" id="reference_no" name="reference_no">
+                                        <input class="form-control" type="text" placeholder="Reference No"
+                                            id="reference_no" name="reference_no">
                                     </div>
                                 </div>
                                 <div class="col-md-4">
@@ -58,7 +61,8 @@
                                 <div class="col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Location (From)<span class="login-danger">*</span></label>
-                                        <select class="form-control form-select select" id="from_location_id" name="from_location_id">
+                                        <select class="form-control form-select select" id="from_location_id"
+                                            name="from_location_id">
                                             <option selected disabled>Please Select </option>
                                             <!-- Options will be populated by AJAX -->
                                         </select>
@@ -67,7 +71,8 @@
                                 <div class="col-md-6">
                                     <div class="form-group local-forms">
                                         <label>Location (To)<span class="login-danger">*</span></label>
-                                        <select class="form-control form-select select" id="to_location_id" name="to_location_id">
+                                        <select class="form-control form-select select" id="to_location_id"
+                                            name="to_location_id">
                                             <option selected disabled>Please Select </option>
                                             <!-- Options will be populated by AJAX -->
                                         </select>
@@ -94,7 +99,8 @@
                             <div class="row d-flex justify-content-center">
                                 <div class="col-md-8">
                                     <div class="input-group flex-nowrap">
-                                        <input type="text" id="productSearch" class="form-control" placeholder="Search for product">
+                                        <input type="text" id="productSearch" class="form-control"
+                                            placeholder="Search for product">
                                         <span class="input-group-text">
                                             <i class="fas fa-search"></i>
                                         </span>

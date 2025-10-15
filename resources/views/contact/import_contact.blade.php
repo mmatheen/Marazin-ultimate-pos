@@ -6,10 +6,11 @@
                 <div class="row align-items-center">
                     <div class="col-sm-12">
                         <div class="page-sub-header">
-                            <h3 class="page-title">Import Products</h3>
+                            <h3 class="page-title">Import Contacts</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">Import Products</li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Contacts</a></li>
+                                <li class="breadcrumb-item active">Import Contacts</li>
                             </ul>
                         </div>
                     </div>
@@ -29,8 +30,10 @@
                                         <div class="col-md-6">
                                             <label>File To Import</label>
                                             <div class="invoices-upload-btn">
-                                                <input type="file" accept="image/*" name="image" id="file" class="hide-input">
-                                                <label for="file" class="upload"><i class="far fa-folder-open"> &nbsp;</i> Browse..</label>
+                                                <input type="file" accept="image/*" name="image" id="file"
+                                                    class="hide-input">
+                                                <label for="file" class="upload"><i class="far fa-folder-open">
+                                                        &nbsp;</i> Browse..</label>
                                             </div>
                                             <button type="button" class="btn btn-primary mt-3">Submit</button>
                                         </div>
@@ -96,9 +99,9 @@
                                                         <th scope="row">1</th>
                                                         <td>Contact type (Required)</td>
                                                         <td>Available Options:
-                                                           <b>  1 = Customer,
+                                                            <b> 1 = Customer,
                                                                 2 = Supplier
-                                                                3 = Both</b> 
+                                                                3 = Both</b>
                                                         </td>
                                                     </tr>
                                                     <tr>
@@ -150,7 +153,7 @@
                                                     </tr>
                                                     <tr>
                                                         <th scope="row">11</th>
-                                                        <td>	Pay term period
+                                                        <td> Pay term period
                                                             (Required if contact type is supplier or both)</td>
                                                         <td><b>Available Options: days and months</b></td>
                                                     </tr>
@@ -186,7 +189,7 @@
                                                     </tr>
                                                     <tr>
                                                         <th scope="row">18</th>
-                                                        <td>	State (Optional)</td>
+                                                        <td> State (Optional)</td>
                                                         <td></td>
                                                     </tr>
                                                     <tr>

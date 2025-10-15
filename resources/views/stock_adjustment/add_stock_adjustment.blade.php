@@ -9,7 +9,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Add Stock Adjustment</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Stock Adjustment</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Stock Management</a></li>
                                 <li class="breadcrumb-item active">Add Stock Adjustment</li>
                             </ul>
                         </div>

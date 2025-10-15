@@ -14,8 +14,10 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">{{ isset($product) ? 'Edit Product' : 'Add Product' }}</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
-                                <li class="breadcrumb-item active">{{ isset($product) ? 'Edit Product' : 'Add Product' }}</li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Products</a></li>
+                                <li class="breadcrumb-item active">{{ isset($product) ? 'Edit Product' : 'Add Product' }}
+                                </li>
                             </ul>
                         </div>
                     </div>

@@ -199,7 +199,8 @@
                         <div class="page-sub-header">
                             <h3 class="page-title">Add Purchase</h3>
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="students.html">Product</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="#">Purchase</a></li>
                                 <li class="breadcrumb-item active">Add Purchase</li>
                             </ul>
                         </div>
@@ -236,7 +237,8 @@
                                         </div>
 
                                         <div class="col-lg-3 col-md-6 mb-3">
-                                            <label for="purchase-date">Purchase Date <span class="text-danger">*</span></label>
+                                            <label for="purchase-date">Purchase Date <span
+                                                    class="text-danger">*</span></label>
                                             <input class="form-control datetimepicker" type="text"
                                                 placeholder="DD-MM-YYYY" id="purchase-date" name="purchase_date"
                                                 value="{{ \Carbon\Carbon::now()->format('d-m-Y') }}">
@@ -372,13 +374,16 @@
                                         <div class="document-upload p-3 border rounded">
                                             <label class="mb-2">Attach document</label>
                                             <div class="invoices-upload-btn mb-2">
-                                                <input type="file" accept=".pdf,.csv,.zip,.doc,.docx,.jpeg,.jpg,.png,.gif" name="attached_document"
-                                                    id="purchase_attach_document" class="hide-input show-file">
+                                                <input type="file"
+                                                    accept=".pdf,.csv,.zip,.doc,.docx,.jpeg,.jpg,.png,.gif"
+                                                    name="attached_document" id="purchase_attach_document"
+                                                    class="hide-input show-file">
                                                 <label for="purchase_attach_document"
                                                     class="upload btn btn-outline-secondary me-2">
                                                     <i class="far fa-folder-open"></i> Browse..
                                                 </label>
-                                                <button type="button" class="btn btn-outline-danger btn-sm clear-file-upload">
+                                                <button type="button"
+                                                    class="btn btn-outline-danger btn-sm clear-file-upload">
                                                     <i class="fas fa-times"></i> Clear
                                                 </button>
                                             </div>
@@ -392,16 +397,15 @@
                                         <div class="preview-container p-3 border rounded">
                                             <div class="text-center">
                                                 <img id="purchase-selectedImage"
-                                                    src="/assets/images/No Product Image Available.png" alt="Selected Image"
-                                                    class="img-thumbnail mb-2" style="max-width: 200px; display: block;">
-                                                <iframe id="purchase-pdfViewer" 
-                                                    width="100%" 
-                                                    height="250px"
+                                                    src="/assets/images/No Product Image Available.png"
+                                                    alt="Selected Image" class="img-thumbnail mb-2"
+                                                    style="max-width: 200px; display: block;">
+                                                <iframe id="purchase-pdfViewer" width="100%" height="250px"
                                                     style="display: none; border: 1px solid #dee2e6; border-radius: 5px;"
                                                     frameborder="0">
                                                 </iframe>
                                                 <small class="text-muted d-block mt-2">
-                                                    <i class="fas fa-info-circle"></i> 
+                                                    <i class="fas fa-info-circle"></i>
                                                     Upload a file to see preview (Images & PDFs supported)
                                                 </small>
                                             </div>
@@ -726,116 +730,119 @@
         </div> --}}
 
         <!-- Purchase Time IMEI Entry Modal -->
-<div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="purchaseImeiModalLabel">Enter IMEI Numbers for Purchase</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Product Selection Section -->
-                <div id="purchaseImeiProductSelection" class="mb-4">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> <strong>Select products to enter IMEI numbers.</strong>
-                        You can work on multiple products at once or one at a time.
+        <div class="modal fade" id="purchaseImeiModal" tabindex="-1" aria-labelledby="purchaseImeiModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="purchaseImeiModalLabel">Enter IMEI Numbers for Purchase</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="purchaseImeiProductSelect" class="form-label">
-                            <i class="fas fa-mobile-alt"></i> Select Products for IMEI Entry
-                        </label>
-                        <select class="form-select" id="purchaseImeiProductSelect" multiple>
-                            <!-- Options will be populated dynamically -->
-                        </select>
-                        <div class="form-text">Select one or more products to enter their IMEI numbers</div>
+                    <div class="modal-body">
+                        <!-- Product Selection Section -->
+                        <div id="purchaseImeiProductSelection" class="mb-4">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> <strong>Select products to enter IMEI numbers.</strong>
+                                You can work on multiple products at once or one at a time.
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="purchaseImeiProductSelect" class="form-label">
+                                    <i class="fas fa-mobile-alt"></i> Select Products for IMEI Entry
+                                </label>
+                                <select class="form-select" id="purchaseImeiProductSelect" multiple>
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                                <div class="form-text">Select one or more products to enter their IMEI numbers</div>
+                            </div>
+
+                            <div class="alert alert-secondary">
+                                <span id="purchaseImeiCountDisplay">0/0 complete</span>
+                            </div>
+                        </div>
+
+                        <!-- IMEI Entry Section (hidden initially) -->
+                        <div id="purchaseImeiEntrySection" style="display: none;">
+                            <div class="alert alert-danger d-none" id="purchaseImeiError"></div>
+
+                            <div class="mb-3">
+                                <label for="purchaseImeiInput" class="form-label">Bulk IMEI Entry</label>
+                                <textarea class="form-control" id="purchaseImeiInput" rows="4"
+                                    placeholder="Enter IMEI numbers, one per line (optional - you can also use the table below)"></textarea>
+                                <div class="form-text">You can paste multiple IMEI numbers here, then click "Auto Fill" to
+                                    populate the table below.</div>
+                                <button type="button" class="btn btn-sm btn-info mt-2" id="purchaseAutoFillImeis">
+                                    <i class="fas fa-magic"></i> Auto Fill from Text Above
+                                </button>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6>Individual IMEI Entry</h6>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm" id="purchaseImeiTable">
+                                    <thead>
+                                        <tr>
+                                            <th width="10%">#</th>
+                                            <th width="70%">IMEI Number</th>
+                                            <th width="20%">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- IMEI input rows will be added dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="alert alert-secondary">
-                        <span id="purchaseImeiCountDisplay">0/0 complete</span>
-                    </div>
-                </div>
-                
-                <!-- IMEI Entry Section (hidden initially) -->
-                <div id="purchaseImeiEntrySection" style="display: none;">
-                    <div class="alert alert-danger d-none" id="purchaseImeiError"></div>
-                    
-                    <div class="mb-3">
-                        <label for="purchaseImeiInput" class="form-label">Bulk IMEI Entry</label>
-                        <textarea class="form-control" id="purchaseImeiInput" rows="4" placeholder="Enter IMEI numbers, one per line (optional - you can also use the table below)"></textarea>
-                        <div class="form-text">You can paste multiple IMEI numbers here, then click "Auto Fill" to populate the table below.</div>
-                        <button type="button" class="btn btn-sm btn-info mt-2" id="purchaseAutoFillImeis">
-                            <i class="fas fa-magic"></i> Auto Fill from Text Above
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" id="purchaseSkipImeiButton">
+                            <i class="fas fa-forward"></i> Skip IMEI & Complete Purchase
+                        </button>
+                        <button type="button" class="btn btn-primary" id="purchaseSaveImeiButton">
+                            <i class="fas fa-check-circle"></i> Save IMEI & Complete Purchase
                         </button>
                     </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6>Individual IMEI Entry</h6>
-                    </div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-sm" id="purchaseImeiTable">
-                            <thead>
-                                <tr>
-                                    <th width="10%">#</th>
-                                    <th width="70%">IMEI Number</th>
-                                    <th width="20%">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- IMEI input rows will be added dynamically -->
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="purchaseSkipImeiButton">
-                    <i class="fas fa-forward"></i> Skip IMEI & Complete Purchase
-                </button>
-                <button type="button" class="btn btn-primary" id="purchaseSaveImeiButton">
-                    <i class="fas fa-check-circle"></i> Save IMEI & Complete Purchase
-                </button>
-            </div>
         </div>
-    </div>
-</div>
 
-    <script>
-        $(document).ready(function() {
+        <script>
+            $(document).ready(function() {
 
 
-            // Prevent form submission on Enter keypress in the product search input
-            $('#productSearchInput').on('keydown', function(e) {
-                if (e.key === 'Enter' || e.keyCode === 13) {
-                    e.preventDefault(); // Prevent the default action of the Enter key
+                // Prevent form submission on Enter keypress in the product search input
+                $('#productSearchInput').on('keydown', function(e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault(); // Prevent the default action of the Enter key
+                    }
+                });
+
+                $('#payment-method').on('change', function() {
+                    togglePaymentFields();
+                });
+
+                function togglePaymentFields() {
+                    const paymentMethod = $('#payment-method').val();
+                    if (paymentMethod === 'card') {
+                        $('#creditCardFields').removeClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    } else if (paymentMethod === 'cheque') {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').removeClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    } else if (paymentMethod === 'bank_transfer') {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').removeClass('d-none');
+                    } else {
+                        $('#creditCardFields').addClass('d-none');
+                        $('#chequeFields').addClass('d-none');
+                        $('#bankTransferFields').addClass('d-none');
+                    }
                 }
             });
-
-            $('#payment-method').on('change', function() {
-                togglePaymentFields();
-            });
-
-            function togglePaymentFields() {
-                const paymentMethod = $('#payment-method').val();
-                if (paymentMethod === 'card') {
-                    $('#creditCardFields').removeClass('d-none');
-                    $('#chequeFields').addClass('d-none');
-                    $('#bankTransferFields').addClass('d-none');
-                } else if (paymentMethod === 'cheque') {
-                    $('#creditCardFields').addClass('d-none');
-                    $('#chequeFields').removeClass('d-none');
-                    $('#bankTransferFields').addClass('d-none');
-                } else if (paymentMethod === 'bank_transfer') {
-                    $('#creditCardFields').addClass('d-none');
-                    $('#chequeFields').addClass('d-none');
-                    $('#bankTransferFields').removeClass('d-none');
-                } else {
-                    $('#creditCardFields').addClass('d-none');
-                    $('#chequeFields').addClass('d-none');
-                    $('#bankTransferFields').addClass('d-none');
-                }
-            }
-        });
-    </script>
-@endsection
+        </script>
+    @endsection
