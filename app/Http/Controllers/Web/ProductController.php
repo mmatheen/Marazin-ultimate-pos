@@ -815,7 +815,7 @@ class ProductController extends Controller
                     throw new \Exception("No valid IMEI numbers provided.");
                 }
 
-                // Get intelligent batch assignments for the IMEIs
+                // Get exact batch assignments for the IMEIs (strict capacity enforcement)
                 $batchAssignments = $this->getIntelligentBatchAssignments(
                     $request->product_id,
                     $request->location_id,
@@ -989,7 +989,7 @@ class ProductController extends Controller
      */
     private function getIntelligentBatchAssignments($productId, $locationId, $imeis)
     {
-        Log::info("API Starting intelligent batch assignment", [
+        Log::info("API Starting EXACT batch quantity based IMEI assignment", [
             'product_id' => $productId,
             'location_id' => $locationId,
             'imei_count' => count($imeis),
@@ -997,11 +997,12 @@ class ProductController extends Controller
         ]);
 
         // Get all batches for this product at the specified location, ordered by batch ID (FIFO)
+        // STRICT: Only use batches with available quantity > 0
         $batches = DB::table('location_batches')
             ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
             ->where('batches.product_id', $productId)
             ->where('location_batches.location_id', $locationId)
-            ->where('location_batches.qty', '>', 0) // Only batches with available quantity
+            ->where('location_batches.qty', '>', 0) // STRICT: Only batches with available stock
             ->select(
                 'batches.id as batch_id',
                 'batches.batch_no',
@@ -1011,17 +1012,17 @@ class ProductController extends Controller
             ->orderBy('batches.id') // FIFO - older batches first
             ->get();
 
-        Log::info("API Found batches for assignment", [
+        Log::info("API Found batches with available quantity", [
             'batch_count' => $batches->count(),
             'batches' => $batches->toArray()
         ]);
 
         if ($batches->isEmpty()) {
-            Log::warning("API No available batches found", [
+            Log::error("API No batches with available quantity found", [
                 'product_id' => $productId,
                 'location_id' => $locationId
             ]);
-            return [];
+            throw new \Exception("No batches with available quantity found for this product at the specified location. Please check stock levels.");
         }
 
         $assignments = [];
@@ -1032,27 +1033,40 @@ class ProductController extends Controller
                 break; // All IMEIs have been assigned
             }
 
-            // Calculate how many IMEIs are already assigned to this batch
+            // Calculate EXACT available capacity for this batch
             $existingImeiCount = ImeiNumber::where('product_id', $productId)
                 ->where('batch_id', $batch->batch_id)
                 ->where('location_id', $locationId)
                 ->count();
 
-            // Calculate available capacity for this batch
-            $availableCapacity = $batch->available_qty - $existingImeiCount;
+            // STRICT calculation: exact available capacity
+            $exactAvailableCapacity = $batch->available_qty - $existingImeiCount;
 
-            if ($availableCapacity <= 0) {
+            Log::info("API Batch capacity analysis", [
+                'batch_id' => $batch->batch_id,
+                'batch_no' => $batch->batch_no,
+                'total_batch_qty' => $batch->available_qty,
+                'existing_imei_count' => $existingImeiCount,
+                'exact_available_capacity' => $exactAvailableCapacity
+            ]);
+
+            if ($exactAvailableCapacity <= 0) {
+                Log::info("API Batch is full, moving to next batch", [
+                    'batch_id' => $batch->batch_id,
+                    'available_capacity' => $exactAvailableCapacity
+                ]);
                 continue; // This batch is full, try next batch
             }
 
-            // Assign IMEIs to this batch up to its available capacity
-            $imeisToAssign = array_slice($remainingImeis, 0, $availableCapacity);
+            // Assign IMEIs to this batch ONLY up to exact available capacity
+            $imeisToAssignCount = min($exactAvailableCapacity, count($remainingImeis));
+            $imeisToAssign = array_slice($remainingImeis, 0, $imeisToAssignCount);
             
-            Log::info("API Assigning IMEIs to batch", [
+            Log::info("API EXACT assignment to batch", [
                 'batch_id' => $batch->batch_id,
                 'batch_no' => $batch->batch_no,
-                'available_capacity' => $availableCapacity,
-                'existing_imei_count' => $existingImeiCount,
+                'exact_capacity' => $exactAvailableCapacity,
+                'imeis_to_assign_count' => $imeisToAssignCount,
                 'imeis_to_assign' => $imeisToAssign
             ]);
             
@@ -1065,25 +1079,134 @@ class ProductController extends Controller
             }
 
             // Remove assigned IMEIs from remaining list
-            $remainingImeis = array_slice($remainingImeis, count($imeisToAssign));
+            $remainingImeis = array_slice($remainingImeis, $imeisToAssignCount);
+            
+            Log::info("API Batch assignment completed", [
+                'batch_id' => $batch->batch_id,
+                'assigned_count' => $imeisToAssignCount,
+                'remaining_imeis_count' => count($remainingImeis)
+            ]);
         }
 
-        // If there are still unassigned IMEIs, it means insufficient capacity
+        // If there are still unassigned IMEIs, it means insufficient total capacity across all batches
         if (!empty($remainingImeis)) {
             $unassignedCount = count($remainingImeis);
-            Log::error("API Insufficient batch capacity", [
+            $totalAvailableCapacity = $batches->sum(function ($batch) use ($productId, $locationId) {
+                $existingCount = ImeiNumber::where('product_id', $productId)
+                    ->where('batch_id', $batch->batch_id)
+                    ->where('location_id', $locationId)
+                    ->count();
+                return max(0, $batch->available_qty - $existingCount);
+            });
+            
+            Log::error("API Insufficient total batch capacity", [
                 'unassigned_count' => $unassignedCount,
+                'total_available_capacity' => $totalAvailableCapacity,
                 'unassigned_imeis' => $remainingImeis,
                 'product_id' => $productId,
                 'location_id' => $locationId
             ]);
-            throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Please check available batch quantities.");
+            
+            throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Total available capacity: {$totalAvailableCapacity}. Please add more stock or use a different location.");
         }
 
-        Log::info("API Batch assignment completed successfully", [
+        Log::info("API EXACT batch assignment completed successfully", [
             'total_assignments' => count($assignments),
             'assignments' => $assignments
         ]);
+
+        return $assignments;
+    }
+
+    /**
+     * Emergency batch assignment method - only used when intelligent fails
+     * Still respects batch quantities but more lenient
+     */
+    private function getSimpleBatchAssignments($productId, $locationId, $imeis)
+    {
+        Log::info("API Using emergency batch assignment (still quantity-based)", [
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'imei_count' => count($imeis)
+        ]);
+
+        // Get batches with available quantity, fallback to any batch if needed
+        $batchesWithQty = DB::table('location_batches')
+            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+            ->where('batches.product_id', $productId)
+            ->where('location_batches.location_id', $locationId)
+            ->where('location_batches.qty', '>', 0)
+            ->select(
+                'batches.id as batch_id',
+                'batches.batch_no',
+                'location_batches.qty as available_qty'
+            )
+            ->orderBy('batches.id')
+            ->get();
+
+        // If no batches with quantity, get any batch as last resort
+        if ($batchesWithQty->isEmpty()) {
+            Log::warning("API No batches with quantity found, using any available batch");
+            
+            $anyBatch = DB::table('location_batches')
+                ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+                ->where('batches.product_id', $productId)
+                ->where('location_batches.location_id', $locationId)
+                ->select('batches.id as batch_id', 'batches.batch_no')
+                ->first();
+
+            if (!$anyBatch) {
+                throw new \Exception("No batches found for this product at the specified location.");
+            }
+
+            // Assign all IMEIs to this batch (emergency mode)
+            $assignments = [];
+            foreach ($imeis as $imei) {
+                $assignments[] = [
+                    'imei' => $imei,
+                    'batch_id' => $anyBatch->batch_id,
+                    'batch_no' => $anyBatch->batch_no
+                ];
+            }
+            return $assignments;
+        }
+
+        // Use quantity-based assignment even in simple mode
+        $assignments = [];
+        $remainingImeis = $imeis;
+
+        foreach ($batchesWithQty as $batch) {
+            if (empty($remainingImeis)) {
+                break;
+            }
+
+            $existingImeiCount = ImeiNumber::where('product_id', $productId)
+                ->where('batch_id', $batch->batch_id)
+                ->where('location_id', $locationId)
+                ->count();
+
+            $availableCapacity = max(0, $batch->available_qty - $existingImeiCount);
+            
+            if ($availableCapacity > 0) {
+                $imeisToAssignCount = min($availableCapacity, count($remainingImeis));
+                $imeisToAssign = array_slice($remainingImeis, 0, $imeisToAssignCount);
+                
+                foreach ($imeisToAssign as $imei) {
+                    $assignments[] = [
+                        'imei' => $imei,
+                        'batch_id' => $batch->batch_id,
+                        'batch_no' => $batch->batch_no
+                    ];
+                }
+                
+                $remainingImeis = array_slice($remainingImeis, $imeisToAssignCount);
+            }
+        }
+
+        // If still unassigned, this is the final error
+        if (!empty($remainingImeis)) {
+            throw new \Exception("Cannot assign " . count($remainingImeis) . " IMEI(s) - insufficient batch capacity across all available batches.");
+        }
 
         return $assignments;
     }
