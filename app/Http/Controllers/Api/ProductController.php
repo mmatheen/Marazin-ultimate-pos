@@ -853,8 +853,8 @@ class ProductController extends Controller
             });
 
             $msg = $operation === 'update'
-                ? 'IMEI numbers updated successfully with intelligent batch selection.'
-                : 'IMEI numbers saved successfully with intelligent batch selection.';
+                ? 'IMEI numbers updated successfully'
+                : 'IMEI numbers saved successfully ';
 
             return response()->json([
                 'status' => 200,

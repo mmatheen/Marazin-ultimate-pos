@@ -247,7 +247,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================
     // SALES MANAGEMENT
     // ========================================
-    
+    Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
+    Route::get('/sales/paginated', [SaleController::class, 'getDataTableSales'])->name('sales.paginated');
     Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
     Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
     Route::post('/sales/clear-cache', [SaleController::class, 'clearSalesCache']);
@@ -405,9 +406,5 @@ Route::middleware('auth:sanctum')->group(function () {
 // 3. WEB-BASED API ROUTES (web middleware for session auth)
 // ============================================================================
 
-Route::middleware('web')->group(function () {
-    Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
-    Route::get('/sales/paginated', [SaleController::class, 'getDataTableSales'])->name('sales.paginated');
-    
-  
-});
+
+

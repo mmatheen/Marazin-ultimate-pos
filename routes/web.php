@@ -312,6 +312,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+         Route::get('/sales/paginated', [SaleController::class, 'getDataTableSales'])->name('sales.paginated');
         Route::get('/sales_details/{id}', [SaleController::class, 'salesDetails']);
         // Suspended Sales - These need to come before the generic routes
         Route::get('/sales/suspended', [SaleController::class, 'fetchSuspendedSales']);
