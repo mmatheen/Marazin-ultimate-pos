@@ -13,7 +13,9 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         //
-        'api/*'
-
+        'api/*',
+        'save-or-update-imei', // Temporarily exempt for testing
+        'update-imei',
+        'delete-imei'
     ];
 }

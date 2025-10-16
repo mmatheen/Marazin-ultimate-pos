@@ -1161,45 +1161,7 @@ class SaleController extends Controller
         })->afterResponse();
     }
 
-    // private function updatePaymentStatus($sale)
-    // {
-    //     // For Walk-In customers, typically payment is full and immediate - simple optimization
-    //     if ($sale->customer_id == 1) {
-    //         $sale->update([
-    //             'total_paid' => $sale->final_total,
-    //             'payment_status' => 'Paid'
-    //         ]);
-    //         return;
-    //     }
-
-    //     // Optimized: Use single query instead of separate sum and refresh for non-Walk-In customers
-    //     $totalPaid = Payment::where('reference_id', $sale->id)
-    //         ->where('payment_type', 'sale')
-    //         ->where(function($query) {
-    //             $query->where('payment_method', '!=', 'cheque')
-    //                   ->orWhere(function($subQuery) {
-    //                       $subQuery->where('payment_method', 'cheque')
-    //                                ->where('cheque_status', '!=', 'bounced');
-    //                   });
-    //         })
-    //         ->sum('amount');
-
-    //     // Calculate payment status
-    //     $totalDue = max(0, $sale->final_total - $totalPaid);
-        
-    //     $paymentStatus = 'Due';
-    //     if ($totalDue <= 0) {
-    //         $paymentStatus = 'Paid';
-    //     } elseif ($totalPaid > 0) {
-    //         $paymentStatus = 'Partial';
-    //     }
-
-    //     // Single update query
-    //     $sale->update([
-    //         'total_paid' => $totalPaid,
-    //         'payment_status' => $paymentStatus
-    //     ]);
-    // }
+ 
 
     private function processProductSale($productData, $saleId, $locationId, $stockType, $newStatus)
     {

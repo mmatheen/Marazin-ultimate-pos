@@ -227,16 +227,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [ProductController::class, 'getNotifications']);
     Route::post('/notifications/seen', [ProductController::class, 'markNotificationsAsSeen']);
 
-    // IMEI Management
-    Route::post('/save-or-update-imei', [ProductController::class, 'saveOrUpdateImei']);
-    Route::post('/update-imei', [ProductController::class, 'updateSingleImei']);
-    Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
-    Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
+    // API IMEI Management (using API ProductController)
+    Route::post('/imei/save-or-update', [ProductController::class, 'saveOrUpdateImei']);
+    Route::post('/imei/update', [ProductController::class, 'updateSingleImei']);
+    Route::post('/imei/delete', [ProductController::class, 'deleteImei']);
+    Route::get('/imei/get/{productId}', [ProductController::class, 'getImeis'])->name('api.getImeis');
 
     // Product Miscellaneous
     Route::post('/save-changes', [ProductController::class, 'saveChanges']);
     Route::post('/get-product-locations', [ProductController::class, 'getProductLocations']);
     Route::post('/apply-discount', [ProductController::class, 'applyDiscount'])->name('products.applyDiscount');
+
+      // IMEI Management (moved to web middleware for session-based auth)
+    Route::post('/save-or-update-imei', [ProductController::class, 'saveOrUpdateImei']);
+    Route::post('/update-imei', [ProductController::class, 'updateSingleImei']);
+    Route::post('/delete-imei', [ProductController::class, 'deleteImei']);
+    Route::get('/get-imeis/{productId}', [ProductController::class, 'getImeis'])->name('getImeis');
 
     // ========================================
     // SALES MANAGEMENT
@@ -402,4 +408,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('web')->group(function () {
     Route::get('sales', [SaleController::class, 'index'])->name('sales.index');
     Route::get('/sales/paginated', [SaleController::class, 'getDataTableSales'])->name('sales.paginated');
+    
+  
 });

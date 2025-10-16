@@ -801,6 +801,168 @@ class ProductController extends Controller
 
     public function saveOrUpdateImei(Request $request)
     {
+        // Debug log to see what we're receiving
+        Log::info('saveOrUpdateImei called with data:', $request->all());
+
+        // Determine which format to use based on the request data
+        $hasLocationId = $request->has('location_id') && $request->filled('location_id');
+        $hasBatches = $request->has('batches');
+        
+        Log::info("Detection: hasLocationId={$hasLocationId}, hasBatches={$hasBatches}");
+
+        // Priority logic:
+        // 1. If request has location_id, use new format (intelligent batch selection)
+        // 2. If request has batches array with valid structure, use old format
+        // 3. Otherwise, use new format as default
+        
+        if ($hasLocationId) {
+            Log::info('Using new format (intelligent batch selection) - location_id present');
+            return $this->saveOrUpdateImeiNewFormat($request);
+        } elseif ($hasBatches && is_array($request->batches) && !empty($request->batches)) {
+            // Validate that batches have proper structure
+            $hasValidBatchStructure = isset($request->batches[0]['batch_id']) && 
+                                    isset($request->batches[0]['location_id']);
+            
+            if ($hasValidBatchStructure) {
+                Log::info('Using old format (manual batch assignment) - valid batches structure');
+                return $this->saveOrUpdateImeiOldFormat($request);
+            } else {
+                Log::warning('Invalid batch structure, falling back to new format');
+                return $this->saveOrUpdateImeiNewFormat($request);
+            }
+        } else {
+            Log::info('Using new format (intelligent batch selection) - default fallback');
+            return $this->saveOrUpdateImeiNewFormat($request);
+        }
+    }
+
+    /**
+     * Handle the new format with intelligent batch selection
+     */
+    private function saveOrUpdateImeiNewFormat(Request $request)
+    {
+        // New format with intelligent batch selection
+        $validator = Validator::make($request->all(), [
+            'product_id' => 'required|exists:products,id',
+            'location_id' => 'required|exists:locations,id', // Single location for intelligent batch selection
+            'imeis' => 'required|array|min:1',
+            'imeis.*' => 'required|string|max:255'
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Validation failed for new format:', $validator->messages()->toArray());
+            return response()->json(['status' => 400, 'errors' => $validator->messages()]);
+        }
+
+        try {
+            $operation = 'save'; // Default to save
+            $savedCount = 0;
+            
+            DB::transaction(function () use ($request, &$operation, &$savedCount) {
+                $validImeis = collect($request->imeis)
+                    ->filter(fn($imei) => $imei !== null && trim($imei) !== '')
+                    ->values();
+
+                Log::info("Processing IMEIs for new format", [
+                    'product_id' => $request->product_id,
+                    'location_id' => $request->location_id,
+                    'imeis' => $validImeis->toArray()
+                ]);
+
+                if ($validImeis->isEmpty()) {
+                    throw new \Exception("No valid IMEI numbers provided.");
+                }
+
+                // Get intelligent batch assignments for the IMEIs
+                $batchAssignments = $this->getIntelligentBatchAssignments(
+                    $request->product_id,
+                    $request->location_id,
+                    $validImeis->toArray()
+                );
+
+                Log::info("Batch assignments calculated", ['assignments' => $batchAssignments]);
+
+                if (empty($batchAssignments)) {
+                    throw new \Exception("No available batches found for this product at the specified location.");
+                }
+
+                foreach ($batchAssignments as $assignment) {
+                    $imei = $assignment['imei'];
+                    $batchId = $assignment['batch_id'];
+
+                    Log::info("Processing IMEI assignment", [
+                        'imei' => $imei,
+                        'batch_id' => $batchId,
+                        'batch_no' => $assignment['batch_no']
+                    ]);
+
+                    // Check for duplicate IMEI, regardless of location/status
+                    if (ImeiNumber::isDuplicate($imei)) {
+                        Log::warning("Duplicate IMEI detected", ['imei' => $imei]);
+                        throw new \Exception("IMEI number $imei is already associated with another product or sold.");
+                    }
+
+                    $imeiModel = ImeiNumber::where([
+                        'product_id' => $request->product_id,
+                        'batch_id' => $batchId,
+                        'location_id' => $request->location_id,
+                        'imei_number' => $imei
+                    ])->first();
+
+                    if ($imeiModel) {
+                        $operation = 'update';
+                        $imeiModel->touch();
+                        Log::info("Updated existing IMEI", ['imei' => $imei, 'id' => $imeiModel->id]);
+                    } else {
+                        $operation = 'save';
+                        $newImei = ImeiNumber::create([
+                            'product_id' => $request->product_id,
+                            'batch_id' => $batchId,
+                            'location_id' => $request->location_id,
+                            'imei_number' => $imei,
+                            'status' => 'available',
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        $savedCount++;
+                        Log::info("Created new IMEI", [
+                            'imei' => $imei,
+                            'id' => $newImei->id,
+                            'batch_id' => $batchId,
+                            'product_id' => $request->product_id,
+                            'location_id' => $request->location_id
+                        ]);
+                    }
+                }
+                
+                Log::info("Transaction completed", [
+                    'total_processed' => count($batchAssignments),
+                    'saved_count' => $savedCount,
+                    'operation' => $operation
+                ]);
+            });
+
+            $msg = $operation === 'update'
+                ? 'IMEI numbers updated successfully with intelligent batch selection.'
+                : 'IMEI numbers saved successfully with intelligent batch selection.';
+
+            return response()->json([
+                'status' => 200,
+                'message' => $msg
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to save or update IMEIs: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle the old format with batches array for backward compatibility
+     */
+    private function saveOrUpdateImeiOldFormat(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
             'batches' => 'required|array',
@@ -862,8 +1024,8 @@ class ProductController extends Controller
             });
 
             $msg = $operation === 'update'
-                ? 'IMEI numbers updated successfully.'
-                : 'IMEI numbers saved successfully.';
+                ? 'IMEI numbers updated successfully (legacy format).'
+                : 'IMEI numbers saved successfully (legacy format).';
 
             return response()->json([
                 'status' => 200,
@@ -876,6 +1038,112 @@ class ProductController extends Controller
             ]);
         }
     }
+
+    /**
+     * Intelligently assign IMEIs to batches based on available capacity
+     * Fills batches sequentially (FIFO - First In, First Out)
+     */
+    private function getIntelligentBatchAssignments($productId, $locationId, $imeis)
+    {
+        Log::info("Starting intelligent batch assignment", [
+            'product_id' => $productId,
+            'location_id' => $locationId,
+            'imei_count' => count($imeis),
+            'imeis' => $imeis
+        ]);
+
+        // Get all batches for this product at the specified location, ordered by batch ID (FIFO)
+        $batches = DB::table('location_batches')
+            ->join('batches', 'location_batches.batch_id', '=', 'batches.id')
+            ->where('batches.product_id', $productId)
+            ->where('location_batches.location_id', $locationId)
+            ->where('location_batches.qty', '>', 0) // Only batches with available quantity
+            ->select(
+                'batches.id as batch_id',
+                'batches.batch_no',
+                'location_batches.qty as available_qty',
+                'batches.created_at'
+            )
+            ->orderBy('batches.id') // FIFO - older batches first
+            ->get();
+
+        Log::info("Found batches for assignment", [
+            'batch_count' => $batches->count(),
+            'batches' => $batches->toArray()
+        ]);
+
+        if ($batches->isEmpty()) {
+            Log::warning("No available batches found", [
+                'product_id' => $productId,
+                'location_id' => $locationId
+            ]);
+            return [];
+        }
+
+        $assignments = [];
+        $remainingImeis = $imeis;
+
+        foreach ($batches as $batch) {
+            if (empty($remainingImeis)) {
+                break; // All IMEIs have been assigned
+            }
+
+            // Calculate how many IMEIs are already assigned to this batch
+            $existingImeiCount = ImeiNumber::where('product_id', $productId)
+                ->where('batch_id', $batch->batch_id)
+                ->where('location_id', $locationId)
+                ->count();
+
+            // Calculate available capacity for this batch
+            $availableCapacity = $batch->available_qty - $existingImeiCount;
+
+            if ($availableCapacity <= 0) {
+                continue; // This batch is full, try next batch
+            }
+
+            // Assign IMEIs to this batch up to its available capacity
+            $imeisToAssign = array_slice($remainingImeis, 0, $availableCapacity);
+            
+            Log::info("Assigning IMEIs to batch", [
+                'batch_id' => $batch->batch_id,
+                'batch_no' => $batch->batch_no,
+                'available_capacity' => $availableCapacity,
+                'existing_imei_count' => $existingImeiCount,
+                'imeis_to_assign' => $imeisToAssign
+            ]);
+            
+            foreach ($imeisToAssign as $imei) {
+                $assignments[] = [
+                    'imei' => $imei,
+                    'batch_id' => $batch->batch_id,
+                    'batch_no' => $batch->batch_no
+                ];
+            }
+
+            // Remove assigned IMEIs from remaining list
+            $remainingImeis = array_slice($remainingImeis, count($imeisToAssign));
+        }
+
+        // If there are still unassigned IMEIs, it means insufficient capacity
+        if (!empty($remainingImeis)) {
+            $unassignedCount = count($remainingImeis);
+            Log::error("Insufficient batch capacity", [
+                'unassigned_count' => $unassignedCount,
+                'unassigned_imeis' => $remainingImeis,
+                'product_id' => $productId,
+                'location_id' => $locationId
+            ]);
+            throw new \Exception("Insufficient batch capacity. Cannot assign {$unassignedCount} IMEI(s). Please check available batch quantities.");
+        }
+
+        Log::info("Batch assignment completed successfully", [
+            'total_assignments' => count($assignments),
+            'assignments' => $assignments
+        ]);
+
+        return $assignments;
+    }
+
     public function updateSingleImei(Request $request)
     {
         $validator = Validator::make($request->all(), [

@@ -2059,6 +2059,25 @@
                                             });
 
 
+                                            // Prepare data for IMEI save API
+                                            let saveData = {
+                                                product_id: productId,
+                                                imeis: imeis
+                                            };
+
+                                            // Check if we have valid batch data for old format
+                                            if (response.batches && Array.isArray(response.batches) && 
+                                                response.batches.length > 0 && 
+                                                response.batches[0].batch_id && 
+                                                response.batches[0].location_id) {
+                                                // Use old format with valid batch data
+                                                saveData.batches = response.batches;
+                                            } else {
+                                                // Use new format with intelligent batch selection
+                                                // Try to get location_id from the first batch or default to 1
+                                                saveData.location_id = (response.batches && response.batches[0] && response.batches[0].location_id) || 1;
+                                            }
+
                                             $.ajax({
                                                 url: '/save-or-update-imei',
                                                 method: 'POST',
@@ -2067,12 +2086,7 @@
                                                         'meta[name="csrf-token"]'
                                                     ).attr('content')
                                                 },
-                                                data: JSON.stringify({
-                                                    product_id: productId,
-                                                    batches: response
-                                                        .batches,
-                                                    imeis: imeis
-                                                }),
+                                                data: JSON.stringify(saveData),
                                                 contentType: 'application/json',
                                                 success: function(imeiRes) {
                                                     if (imeiRes.status ===

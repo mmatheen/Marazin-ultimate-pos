@@ -3068,6 +3068,7 @@
                     selectedLocationId;
 
                 if (newImeis.length > 0) {
+                    // Use intelligent batch selection - just send product_id, location_id, and imeis
                     fetch('/save-or-update-imei', {
                             method: 'POST',
                             headers: {
@@ -3077,19 +3078,14 @@
                             },
                             body: JSON.stringify({
                                 product_id: product.id,
-                                batches: [{
-                                    batch_id: batchId === "all" ? (selectedBatch?.id ||
-                                        1) : batchId,
-                                    location_id: imeiLocationId,
-                                    qty: newImeis.length
-                                }],
+                                location_id: imeiLocationId,
                                 imeis: newImeis
                             })
                         }).then(response => response.json())
                         .then(data => {
                             if (data.status === 200) {
                                 const message = data.message ||
-                                    `${newImeis.length} IMEI(s) added successfully.`;
+                                    `${newImeis.length} IMEI(s) added successfully with intelligent batch selection.`;
                                 toastr.success(message);
                                 updateBilling(uniqueImeis, product, stockEntry, price, batchId);
                             } else {
@@ -4077,18 +4073,52 @@
                 showImeiBtn.addEventListener('click', function() {
                     const imeiDataCell = row.querySelector('.imei-data');
                     const batchIdCell = row.querySelector('.batch-id');
+                    const productIdCell = row.querySelector('.product-id');
+                    const locationIdCell = row.querySelector('.location-id');
+                    
                     const imeis = imeiDataCell ? imeiDataCell.textContent.trim().split(',').filter(
                         Boolean) : [];
                     const batchId = batchIdCell ? batchIdCell.textContent.trim() : null;
+                    const productId = productIdCell ? productIdCell.textContent.trim() : product.id;
+                    const currentLocationId = locationIdCell ? locationIdCell.textContent.trim() : selectedLocationId;
 
                     if (imeis.length === 0) {
                         toastr.warning("No IMEIs found for this product.");
                         return;
                     }
-                    // Re-populate IMEI modal with current IMEIs and batch context
-                    showImeiSelectionModal(product, stockEntry, imeis.map(imei => ({
-                        imei_number: imei
-                    })), '', 'EDIT', batchId !== "all" ? batchId : null);
+
+                    // Fetch fresh IMEI data from API to ensure we have complete data including IDs
+                    console.log('Fetching IMEI data for product:', productId, 'location:', currentLocationId);
+                    
+                    fetch(`/get-imeis/${productId}?location_id=${currentLocationId}`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 200) {
+                            console.log('IMEI data fetched successfully:', data.data);
+                            
+                            // Create a temporary stockEntry with the fetched IMEI data
+                            const tempStockEntry = {
+                                ...stockEntry,
+                                imei_numbers: data.data
+                            };
+                            
+                            // Show IMEI modal with complete data
+                            showImeiSelectionModal(product, tempStockEntry, [], '', 'EDIT', batchId !== "all" ? batchId : null);
+                        } else {
+                            console.error('Failed to fetch IMEI data:', data.message);
+                            toastr.error('Failed to load IMEI data: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching IMEI data:', error);
+                        toastr.error('Network error while loading IMEI data');
+                    });
                 });
             }
 
