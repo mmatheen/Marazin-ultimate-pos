@@ -1003,19 +1003,21 @@ class ProductController extends Controller
             }
 
             // Calculate EXACT available capacity for this batch
-            $existingImeiCount = ImeiNumber::where('product_id', $productId)
+            // Only count IMEIs with status 'available' - sold IMEIs don't consume batch capacity
+            $existingAvailableImeiCount = ImeiNumber::where('product_id', $productId)
                 ->where('batch_id', $batch->batch_id)
                 ->where('location_id', $locationId)
+                ->where('status', 'available') // Only count available IMEIs
                 ->count();
 
             // STRICT calculation: exact available capacity
-            $exactAvailableCapacity = $batch->available_qty - $existingImeiCount;
+            $exactAvailableCapacity = $batch->available_qty - $existingAvailableImeiCount;
 
             Log::info("API Batch capacity analysis", [
                 'batch_id' => $batch->batch_id,
                 'batch_no' => $batch->batch_no,
                 'total_batch_qty' => $batch->available_qty,
-                'existing_imei_count' => $existingImeiCount,
+                'existing_available_imei_count' => $existingAvailableImeiCount,
                 'exact_available_capacity' => $exactAvailableCapacity
             ]);
 
@@ -1061,11 +1063,12 @@ class ProductController extends Controller
         if (!empty($remainingImeis)) {
             $unassignedCount = count($remainingImeis);
             $totalAvailableCapacity = $batches->sum(function ($batch) use ($productId, $locationId) {
-                $existingCount = ImeiNumber::where('product_id', $productId)
+                $existingAvailableCount = ImeiNumber::where('product_id', $productId)
                     ->where('batch_id', $batch->batch_id)
                     ->where('location_id', $locationId)
+                    ->where('status', 'available') // Only count available IMEIs
                     ->count();
-                return max(0, $batch->available_qty - $existingCount);
+                return max(0, $batch->available_qty - $existingAvailableCount);
             });
             
             Log::error("API Insufficient total batch capacity", [
