@@ -1522,7 +1522,7 @@
                                         <label for="invoiceNo" class="form-label">Enter Invoice No</label>
                                         <input type="text" id="invoiceNo" class="form-control form-control-sm"
                                             placeholder="Invoice No">
-                                        <button class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
+                                        <button id="invoiceSubmitBtn" class="btn btn-primary btn-sm mt-2 w-100">Submit</button>
                                     </div>
                                 </div>
                                 <button class="btn btn-outline-danger" id="pauseCircleButton" data-bs-toggle="modal"
@@ -3035,44 +3035,93 @@
             }
         }
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded - Invoice functionality initializing');
+            
+            // Check if required libraries are loaded
+            if (typeof $ === 'undefined') {
+                console.error('jQuery is not loaded');
+            }
+            if (typeof toastr === 'undefined') {
+                console.error('Toastr is not loaded');
+            }
+            
             function handleInvoiceSubmission() {
-                const invoiceNo = document.getElementById('invoiceNo').value.trim().toLowerCase();
+                console.log('handleInvoiceSubmission called');
+                const invoiceInput = document.getElementById('invoiceNo');
+                if (!invoiceInput) {
+                    console.error('Invoice input not found');
+                    return;
+                }
+                
+                const invoiceNo = invoiceInput.value.trim();
+                console.log('Invoice number entered:', invoiceNo);
+                
                 if (invoiceNo) {
                     // Fetch sales data from the API
                     $.ajax({
-                        url: '/sales', // Update this URL if necessary
+                        url: '/sales',
                         method: 'GET',
                         success: function(data) {
+                            console.log('Sales data received:', data);
+                            
+                            // Check if data has the expected structure
+                            if (!data.sales || !Array.isArray(data.sales)) {
+                                console.error('Invalid sales data structure:', data);
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error('Invalid sales data received.');
+                                } else {
+                                    alert('Invalid sales data received.');
+                                }
+                                return;
+                            }
+                            
                             // Check if the entered invoice number matches any sales data
-                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() ===
-                                invoiceNo);
+                            const sale = data.sales.find(sale => sale.invoice_no.toLowerCase() === invoiceNo.toLowerCase());
+                            console.log('Found sale:', sale);
+                            
                             if (sale) {
+                                console.log('Redirecting to sale return page');
                                 // Redirect to the sale return page with the invoice number as a query parameter
-                                window.location.href = `/sale-return/add?invoiceNo=${invoiceNo}`;
+                                window.location.href = `/sale-return/add?invoiceNo=${encodeURIComponent(invoiceNo)}`;
                             } else {
+                                console.log('Sale not found for invoice:', invoiceNo);
                                 // Show toastr message indicating sale not found
-                                toastr.error(
-                                    'Sale not found. Please enter a valid invoice number.');
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error('Sale not found. Please enter a valid invoice number.');
+                                } else {
+                                    alert('Sale not found. Please enter a valid invoice number.');
+                                }
                             }
                         },
-                        error: function(error) {
-                            console.error('Error fetching sales data:', error);
+                        error: function(xhr, status, error) {
+                            console.error('Error fetching sales data:', xhr.responseText);
                             toastr.error('An error occurred while fetching sales data.');
                         }
                     });
                 } else {
-                    alert('Please enter an invoice number');
+                    toastr.warning('Please enter an invoice number');
                 }
             }
-            // Capture the Submit button click
-            document.querySelector('.dropdown-menu .btn-primary').addEventListener('click',
-                handleInvoiceSubmission);
-            // Capture the Enter key press in the input field
-            document.getElementById('invoiceNo').addEventListener('keydown', function(event) {
-                if (event.key === 'Enter') {
+            // Capture the Submit button click using specific ID
+            const submitButton = document.getElementById('invoiceSubmitBtn');
+            if (submitButton) {
+                submitButton.addEventListener('click', function(event) {
                     event.preventDefault();
                     handleInvoiceSubmission();
-                }
+                });
+                console.log('Submit button event listener attached');
+            } else {
+                console.error('Submit button for invoice not found');
+            }
+            
+            // Capture the Enter key press in the input field
+            const invoiceInput = document.getElementById('invoiceNo');
+            if (invoiceInput) {
+                invoiceInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleInvoiceSubmission();
+                    }
             });
         });
     </script>

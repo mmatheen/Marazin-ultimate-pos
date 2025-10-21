@@ -695,15 +695,12 @@
 
 
 
-        // 🔐 Make only selected functions globally available
+      
         window.customerFunctions = {
             fetchCustomerData: fetchCustomerData,
             // other functions NOT exposed unless added here
         };
 
-        // =================== CITY MODAL FUNCTIONALITY (REUSABLE) ===================
-        // City functionality is now handled by cities_ajax.blade.php
-        // fetchCities function is available globally from cities_ajax.blade.php
 
 
     });
