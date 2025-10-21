@@ -488,6 +488,9 @@ class LocationController extends Controller
                 'logo_image.max' => 'The logo must not be greater than 2MB.',
             ];
 
+
+            
+
             $validator = Validator::make($request->all(), $validationRules, $customMessages);
 
             if ($validator->fails()) {
