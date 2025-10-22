@@ -6364,60 +6364,28 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Use simple iframe approach that works reliably
-                            const iframe = document.createElement('iframe');
-                            iframe.style.position = 'fixed';
-                            iframe.style.width = '0';
-                            iframe.style.height = '0';
-                            iframe.style.border = 'none';
-                            iframe.style.top = '-9999px';
-                            iframe.style.left = '-9999px';
-                            document.body.appendChild(iframe);
-
-                            // Write content to iframe
-                            const iframeDoc = iframe.contentWindow.document;
-                            iframeDoc.open();
-                            iframeDoc.write(data.invoice_html);
-                            iframeDoc.close();
-
-                            // Wait for content to load
-                            iframe.onload = function() {
-                                setTimeout(() => {
-                                    try {
-                                        // Focus iframe first (important for mobile)
-                                        iframe.contentWindow.focus();
-                                        
-                                        // Trigger print
-                                        iframe.contentWindow.print();
-                                        
-                                        // Cleanup after print
-                                        setTimeout(() => {
-                                            if (document.body.contains(iframe)) {
-                                                document.body.removeChild(iframe);
-                                            }
-                                        }, 2000);
-                                    } catch(e) {
-                                        console.error('Mobile print error:', e);
-                                        // Remove iframe on error
-                                        if (document.body.contains(iframe)) {
-                                            document.body.removeChild(iframe);
-                                        }
-                                        toastr.error('Unable to print. Please try using Chrome browser.');
-                                    }
-                                }, 500);
-                            };
+                            // For mobile: Open in new window (this is the most reliable for mobile)
+                            const printWindow = window.open('', '_blank');
                             
-                            // Fallback if onload doesn't fire within 3 seconds
-                            setTimeout(() => {
-                                if (document.body.contains(iframe)) {
-                                    try {
-                                        iframe.contentWindow.focus();
-                                        iframe.contentWindow.print();
-                                    } catch(e) {
-                                        console.error('Fallback print error:', e);
-                                    }
-                                }
-                            }, 3000);
+                            if (printWindow) {
+                                printWindow.document.open();
+                                printWindow.document.write(data.invoice_html);
+                                printWindow.document.close();
+                                
+                                // Wait for content to fully load
+                                printWindow.onload = function() {
+                                    setTimeout(() => {
+                                        printWindow.print();
+                                        
+                                        // Auto-close after print
+                                        setTimeout(() => {
+                                            printWindow.close();
+                                        }, 1000);
+                                    }, 500);
+                                };
+                            } else {
+                                toastr.error('Please allow pop-ups to print the receipt.');
+                            }
                         } else {
                             // For desktop: Use iframe method
                             const iframe = document.createElement('iframe');
