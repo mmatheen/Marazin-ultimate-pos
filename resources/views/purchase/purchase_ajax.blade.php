@@ -101,14 +101,14 @@
 
         // CSRF Token setup
         var csrfToken = $('meta[name="csrf-token"]').attr('content');
-        
+
         // IMEI handling variables
         let purchaseImeiData = {};
         let pendingImeiProducts = [];
         let currentImeiProductIndex = 0;
         let isProcessingImei = false;
         let isProgrammaticModalClose = false; // Flag to track programmatic modal closes
-        
+
         fetchProducts();
         fetchLocations();
 
@@ -200,34 +200,35 @@
 
         function fetchLocations() {
             $.ajax({
-            url: '/location-get-all',
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                const locationSelect = $('#services');
-                locationSelect.html('<option selected disabled>Select Location</option>');
+                url: '/location-get-all',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    const locationSelect = $('#services');
+                    locationSelect.html('<option selected disabled>Select Location</option>');
 
-                if (data.status === true) {
-                // Filter locations to only show parent_id === null
-                const mainLocations = data.data.filter(location => location.parent_id === null);
-                
-                mainLocations.forEach(function(location) {
-                    const option = $('<option></option>').val(location.id).text(
-                    location.name);
-                    locationSelect.append(option);
-                });
+                    if (data.status === true) {
+                        // Filter locations to only show parent_id === null
+                        const mainLocations = data.data.filter(location => location.parent_id ===
+                            null);
 
-                // Trigger change for the first location by default
-                if (mainLocations.length > 0) {
-                    locationSelect.val(mainLocations[0].id).trigger('change');
+                        mainLocations.forEach(function(location) {
+                            const option = $('<option></option>').val(location.id).text(
+                                location.name);
+                            locationSelect.append(option);
+                        });
+
+                        // Trigger change for the first location by default
+                        if (mainLocations.length > 0) {
+                            locationSelect.val(mainLocations[0].id).trigger('change');
+                        }
+                    } else {
+                        console.error('Failed to fetch location data:', data.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching location data:', error);
                 }
-                } else {
-                console.error('Failed to fetch location data:', data.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error fetching location data:', error);
-            }
             });
         }
 
@@ -322,7 +323,8 @@
                                 // Remove client-side filtering - let server-side prioritization handle this
                                 // Server already returns results ordered by: exact SKU match > exact name > partial matches
                                 if (items.length > 0) {
-                                    response(items.slice(0, 15)); // Show up to 15 results
+                                    response(items.slice(0,
+                                    15)); // Show up to 15 results
                                 } else {
                                     response([{
                                         label: "No products found",
@@ -362,10 +364,12 @@
                         const autocompleteInstance = $input.autocomplete("instance");
                         const menu = autocompleteInstance.menu;
                         const firstItem = menu.element.find("li:first-child");
-                        
-                        if (firstItem.length > 0 && !firstItem.text().includes("No products found")) {
+
+                        if (firstItem.length > 0 && !firstItem.text().includes(
+                                "No products found")) {
                             // Properly set the active item using jQuery UI's method
-                            menu.element.find(".ui-state-focus").removeClass("ui-state-focus");
+                            menu.element.find(".ui-state-focus").removeClass(
+                                "ui-state-focus");
                             firstItem.addClass("ui-state-focus");
                             menu.active = firstItem;
                             console.log('First item auto-focused - press Enter to add');
@@ -470,18 +474,20 @@
             } else {
                 // Get latest batch prices using helper function
                 const latestPrices = getLatestBatchPrices(product);
-                
+
                 // Override with any provided prices
                 const wholesalePrice = parseFloat(prices.wholesale_price || latestPrices.wholesale_price) || 0;
                 const specialPrice = parseFloat(prices.special_price || latestPrices.special_price) || 0;
-                const maxRetailPrice = parseFloat(prices.max_retail_price || latestPrices.max_retail_price) || 0;
+                const maxRetailPrice = parseFloat(prices.max_retail_price || latestPrices.max_retail_price) ||
+                0;
                 let retailPrice = parseFloat(prices.retail_price || latestPrices.retail_price) || 0;
                 const unitCost = parseFloat(prices.unit_cost || latestPrices.unit_cost) || 0;
 
                 // Ensure retail price doesn't exceed MRP
                 if (retailPrice > maxRetailPrice && maxRetailPrice > 0) {
                     retailPrice = maxRetailPrice;
-                    toastr.info(`Retail price set to MRP (${maxRetailPrice.toFixed(2)}) for ${product.name}`, 'Price Adjustment');
+                    toastr.info(`Retail price set to MRP (${maxRetailPrice.toFixed(2)}) for ${product.name}`,
+                        'Price Adjustment');
                 }
 
                 // Generate batch history for reference (earliest 5 batches)
@@ -490,8 +496,8 @@
                     const earliestBatches = product.batches
                         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
                         .slice(0, 5);
-                    
-                    batchHistoryHtml = earliestBatches.map(batch => 
+
+                    batchHistoryHtml = earliestBatches.map(batch =>
                         `<small class="d-block text-muted">
                             Batch: ${batch.batch_no || 'N/A'} | 
                             Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} | 
@@ -580,12 +586,12 @@
         function calculateProfitMargin($row) {
             const retailPrice = parseFloat($row.find(".retail-price").val()) || 0;
             const unitCost = parseFloat($row.find(".unit-cost").val()) || 0;
-            
+
             let profitMargin = 0;
             if (unitCost > 0 && retailPrice > 0) {
                 profitMargin = ((retailPrice - unitCost) / unitCost) * 100;
             }
-            
+
             $row.find(".profit-margin").val(profitMargin.toFixed(2));
         }
 
@@ -593,12 +599,13 @@
             const retailPriceInput = $row.find(".retail-price");
             const retailPrice = parseFloat(retailPriceInput.val()) || 0;
             const mrp = parseFloat($row.data('mrp')) || 0;
-            
+
             if (mrp > 0 && retailPrice > mrp) {
                 // Show warning and reset to MRP
-                toastr.warning(`Retail price cannot exceed MRP (${mrp.toFixed(2)}). Setting to MRP.`, 'Price Validation');
+                toastr.warning(`Retail price cannot exceed MRP (${mrp.toFixed(2)}). Setting to MRP.`,
+                    'Price Validation');
                 retailPriceInput.val(mrp.toFixed(2));
-                
+
                 // Add visual feedback
                 retailPriceInput.addClass('is-invalid');
                 setTimeout(() => {
@@ -631,8 +638,9 @@
             }
 
             // Sort by creation date to get latest batch
-            const latestBatch = product.batches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-            
+            const latestBatch = product.batches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[
+                0];
+
             return {
                 wholesale_price: latestBatch.wholesale_price || product.wholesale_price || 0,
                 special_price: latestBatch.special_price || product.special_price || 0,
@@ -650,7 +658,8 @@
 
             $('#purchase_product tbody tr').each(function() {
                 const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                const subTotal = parseFloat($(this).find('.sub-total').text()) || 0;
+                // Remove any commas before parsing (safety for formatted numbers)
+                const subTotal = parseFloat($(this).find('.sub-total').text().replace(/,/g, '')) || 0;
 
                 totalItems += quantity;
                 netTotalAmount += subTotal;
@@ -702,7 +711,8 @@
         const pathSegments = window.location.pathname.split('/');
         const lastSegment = pathSegments[pathSegments.length - 1];
         // Only set purchaseId if we're on an edit page and the last segment is a number
-        const purchaseId = (lastSegment !== 'add-purchase' && lastSegment !== 'list-purchase' && !isNaN(lastSegment)) ? lastSegment : null;
+        const purchaseId = (lastSegment !== 'add-purchase' && lastSegment !== 'list-purchase' && !isNaN(
+            lastSegment)) ? lastSegment : null;
 
         if (purchaseId) {
             fetchPurchaseData(purchaseId);
@@ -811,15 +821,15 @@
             pendingImeiProducts = [];
             console.log('=== IMEI Collection Debug ===');
             console.log('Collecting IMEI products from', productTableRows.length, 'rows');
-            
+
             productTableRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = parseInt($(row).find('.purchase-quantity').val()) || 0;
-                
+
                 // Extract product name from the second column (more robust extraction)
                 const productNameCell = $(row).find('td:eq(1)');
                 let productName = '';
-                
+
                 // Try to get product name from data attribute first
                 if ($(row).data('product-name')) {
                     productName = $(row).data('product-name');
@@ -833,19 +843,22 @@
                         productName = cellText; // fallback to full text
                     }
                 }
-                
-                console.log(`Product ${index + 1}: Name="${productName}", ID=${productId}, Cell Text="${productNameCell.text().trim()}"`);
-                
+
+                console.log(
+                    `Product ${index + 1}: Name="${productName}", ID=${productId}, Cell Text="${productNameCell.text().trim()}"`
+                    );
+
                 // Check if product has IMEI enabled
-                const isImeiEnabled = $(row).data('imei-enabled') == 1 || $(row).data('imei-enabled') === true;
+                const isImeiEnabled = $(row).data('imei-enabled') == 1 || $(row).data(
+                    'imei-enabled') === true;
                 const dataAttribute = $(row).data('imei-enabled');
-                
+
                 console.log(`Product ${productId} (${productName}): 
                     - IMEI data attribute: ${dataAttribute}
                     - IMEI enabled: ${isImeiEnabled}
                     - Quantity: ${quantity}
                     - Row HTML: ${$(row).prop('outerHTML').substring(0, 200)}...`);
-                
+
                 if (isImeiEnabled && quantity > 0) {
                     pendingImeiProducts.push({
                         productId: productId,
@@ -854,16 +867,20 @@
                         rowIndex: index,
                         row: row
                     });
-                    console.log(`✅ Added IMEI product: ${productName} (ID: ${productId}) with quantity ${quantity}`);
+                    console.log(
+                        `✅ Added IMEI product: ${productName} (ID: ${productId}) with quantity ${quantity}`
+                        );
                 } else {
-                    console.log(`❌ Skipped product: ${productName} - IMEI: ${isImeiEnabled}, Qty: ${quantity}`);
+                    console.log(
+                        `❌ Skipped product: ${productName} - IMEI: ${isImeiEnabled}, Qty: ${quantity}`
+                        );
                 }
             });
 
             console.log('=== IMEI Collection Results ===');
             console.log('Total IMEI products found:', pendingImeiProducts.length);
             console.log('IMEI products:', pendingImeiProducts);
-            
+
             if (pendingImeiProducts.length > 0) {
                 currentImeiProductIndex = 0;
                 isProcessingImei = true;
@@ -880,7 +897,7 @@
             console.log('=== Show SELECT2-Based IMEI Modal Debug ===');
             console.log('Total IMEI products:', pendingImeiProducts.length);
             console.log('IMEI products:', pendingImeiProducts);
-            
+
             if (pendingImeiProducts.length === 0) {
                 console.log('✅ No IMEI products, proceeding with purchase');
                 isProcessingImei = false;
@@ -891,33 +908,33 @@
 
             // Show Select2-based modal
             console.log('🎯 Showing SELECT2-based IMEI modal');
-            
+
             // Set modal title
             $('#purchaseImeiModalLabel').text(`Enter IMEI Numbers - Select Product First`);
-            
+
             // Clear previous data
             $('#purchaseImeiTable tbody').empty();
             $('#purchaseImeiInput').val('');
             $('#purchaseImeiError').addClass('d-none');
-            
+
             // Show the product selection section
             $('#purchaseImeiProductSelection').show();
             $('#purchaseImeiEntrySection').hide();
-            
+
             // Initialize Select2 dropdown with products
             initializeProductSelect2();
-            
+
             updateSelect2ImeiCount();
-            
+
             console.log('📱 About to show Select2-based modal #purchaseImeiModal');
-            
+
             // Check if modal exists
             if ($('#purchaseImeiModal').length === 0) {
                 console.error('❌ MODAL NOT FOUND: #purchaseImeiModal');
                 alert('IMEI modal not found in DOM. Please check the HTML.');
                 return;
             }
-            
+
             $('#purchaseImeiModal').modal('show');
             console.log('📱 Select2-based modal show command executed');
         }
@@ -925,32 +942,35 @@
         function initializeProductSelect2() {
             // Clear existing options
             $('#purchaseImeiProductSelect').empty();
-            
+
             // Add default option
-            $('#purchaseImeiProductSelect').append('<option value="">Select products to enter IMEI...</option>');
-            
+            $('#purchaseImeiProductSelect').append(
+            '<option value="">Select products to enter IMEI...</option>');
+
             console.log('=== Initializing Select2 with products ===');
-            
+
             // Add product options
             pendingImeiProducts.forEach(product => {
-                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
-                const status = currentImeiCount === product.quantity ? '✓ Complete' : `${currentImeiCount}/${product.quantity}`;
+                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product
+                    .productId].length : 0;
+                const status = currentImeiCount === product.quantity ? '✓ Complete' :
+                    `${currentImeiCount}/${product.quantity}`;
                 const optionText = `${product.productName} (Qty: ${product.quantity}) - ${status}`;
-                
+
                 console.log(`Adding option: ${optionText} with value ${product.productId}`);
-                
+
                 $('#purchaseImeiProductSelect').append(
                     `<option value="${product.productId}" data-quantity="${product.quantity}">
                         ${optionText}
                     </option>`
                 );
             });
-            
+
             // Initialize or reinitialize Select2
             if ($('#purchaseImeiProductSelect').hasClass('select2-hidden-accessible')) {
                 $('#purchaseImeiProductSelect').select2('destroy');
             }
-            
+
             $('#purchaseImeiProductSelect').select2({
                 placeholder: 'Select products to enter IMEI...',
                 allowClear: true,
@@ -958,7 +978,7 @@
                 width: '100%',
                 dropdownParent: $('#purchaseImeiModal')
             });
-            
+
             console.log('✅ Select2 initialized with', pendingImeiProducts.length, 'products');
         }
 
@@ -983,18 +1003,21 @@
             let completedProducts = 0;
             let totalRequired = 0;
             let totalEntered = 0;
-            
+
             pendingImeiProducts.forEach(product => {
-                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product.productId].length : 0;
+                const currentImeiCount = purchaseImeiData[product.productId] ? purchaseImeiData[product
+                    .productId].length : 0;
                 totalRequired += product.quantity;
                 totalEntered += currentImeiCount;
-                
+
                 if (currentImeiCount === product.quantity) {
                     completedProducts++;
                 }
             });
-            
-            $('#purchaseImeiCountDisplay').text(`Products: ${completedProducts}/${totalProducts} complete | Total IMEI: ${totalEntered}/${totalRequired}`);
+
+            $('#purchaseImeiCountDisplay').text(
+                `Products: ${completedProducts}/${totalProducts} complete | Total IMEI: ${totalEntered}/${totalRequired}`
+                );
         }
 
         function loadImeiEntrySectionForProducts(selectedProductIds) {
@@ -1002,21 +1025,21 @@
                 $('#purchaseImeiEntrySection').hide();
                 return;
             }
-            
+
             console.log('Loading IMEI entry for products:', selectedProductIds);
-            
+
             // Show the entry section
             $('#purchaseImeiEntrySection').show();
-            
+
             // Clear previous data
             $('#purchaseImeiTable tbody').empty();
             $('#purchaseImeiInput').val('');
             $('#purchaseImeiError').addClass('d-none');
-            
+
             selectedProductIds.forEach(productId => {
                 const product = pendingImeiProducts.find(p => p.productId == productId);
                 if (!product) return;
-                
+
                 // Add product header row
                 const headerRow = `
                     <tr class="table-primary" data-product-header="${productId}">
@@ -1037,24 +1060,25 @@
                     </tr>
                 `;
                 $('#purchaseImeiTable tbody').append(headerRow);
-                
+
                 // Load existing IMEI data if any
                 const existingImeis = purchaseImeiData[productId] || [];
-                
+
                 // Start with minimum rows (2 or existing count, whichever is higher)
                 const initialRowCount = Math.max(2, existingImeis.length);
                 const maxRowsToShow = Math.min(initialRowCount, product.quantity);
-                
+
                 // Add initial IMEI input rows for this product
                 for (let i = 0; i < maxRowsToShow; i++) {
                     const existingValue = existingImeis[i] || '';
-                    addImeiRowForProduct(productId, product.productName, product.quantity, existingValue);
+                    addImeiRowForProduct(productId, product.productName, product.quantity,
+                        existingValue);
                 }
-                
+
                 // Update add button visibility for this product
                 updateAddButtonVisibility(productId);
             });
-            
+
             updateSelect2ImeiCount();
             updateProductProgress();
         }
@@ -1063,7 +1087,7 @@
         function addImeiRowForProduct(productId, productName, maxQuantity, value = '') {
             const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
             const rowIndex = currentRows.length;
-            
+
             const row = `
                 <tr data-product-id="${productId}" data-imei-index="${rowIndex}">
                     <td>${rowIndex + 1}</td>
@@ -1081,7 +1105,7 @@
                     </td>
                 </tr>
             `;
-            
+
             // Insert after the last row of this product
             const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
             if (lastRow.length > 0) {
@@ -1091,7 +1115,7 @@
                 const headerRow = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"]`);
                 headerRow.after(row);
             }
-            
+
             // Re-number rows for this product
             renumberProductRows(productId);
         }
@@ -1109,14 +1133,16 @@
             // Update progress for each visible product
             $('#purchaseImeiTable tbody tr[data-product-header]').each(function() {
                 const productId = $(this).data('product-header');
-                const productInputs = $(`#purchaseImeiTable tbody input[data-product-id="${productId}"]`);
+                const productInputs = $(
+                    `#purchaseImeiTable tbody input[data-product-id="${productId}"]`);
                 const filledInputs = productInputs.filter(function() {
                     return $(this).val().trim() !== '';
                 });
-                
+
                 const product = pendingImeiProducts.find(p => p.productId == productId);
                 if (product) {
-                    $(`#progress-${productId}`).text(`${filledInputs.length}/${product.quantity} entered`);
+                    $(`#progress-${productId}`).text(
+                        `${filledInputs.length}/${product.quantity} entered`);
                 }
             });
         }
@@ -1126,23 +1152,26 @@
             const filledInputs = $('#purchaseImeiTable tbody input.purchase-imei-input').filter(function() {
                 return $(this).val().trim() !== '';
             }).length;
-            
+
             let countByProduct = {};
             pendingImeiProducts.forEach(product => {
-                const productInputs = $(`#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${product.productId}"]`);
+                const productInputs = $(
+                    `#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${product.productId}"]`
+                    );
                 const productFilled = productInputs.filter(function() {
                     return $(this).val().trim() !== '';
                 }).length;
                 countByProduct[product.productName] = `${productFilled}/${product.quantity}`;
             });
-            
-            const countDisplay = Object.entries(countByProduct).map(([name, count]) => `${name}: ${count}`).join(' | ');
+
+            const countDisplay = Object.entries(countByProduct).map(([name, count]) => `${name}: ${count}`)
+                .join(' | ');
             $('#purchaseImeiCountDisplay').text(`Total: ${filledInputs}/${totalInputs} | ${countDisplay}`);
         }
 
         function processPurchase() {
             console.log('Processing purchase with IMEI data:', purchaseImeiData);
-            
+
             const formData = new FormData($('#purchaseForm')[0]);
             const productTableRows = document.querySelectorAll('#purchase_product tbody tr');
 
@@ -1165,35 +1194,46 @@
             // formData.append('paid_date', paidDate);
             formData.append('final_total', $('#final-total').val());
 
+            // FIX: Send discount and tax fields to server
+            formData.append('discount_type', $('#discount-type').val() || '');
+            formData.append('discount_amount', $('#discount-amount').val() || 0);
+            formData.append('tax_type', $('#tax-type').val() || '');
+            formData.append('tax_amount', parseFloat($('#tax-display').text().replace(/[^0-9.-]/g, '')) || 0);
+
             productTableRows.forEach((row, index) => {
                 const productId = $(row).data('id');
                 const quantity = $(row).find('.purchase-quantity').val() || 0;
+                const price = $(row).find('.product-price').val() || 0;
+                const discountPercent = $(row).find('.discount-percent').val() || 0;
                 const unitCost = $(row).find('.unit-cost').val() || 0;
                 const wholesalePrice = $(row).find('.wholesale-price').val() || 0;
                 const specialPrice = $(row).find('.special-price').val() || 0;
                 const retailPrice = $(row).find('.retail-price').val() || 0;
                 const maxRetailPrice = $(row).find('.max-retail-price').val() || 0;
-                const price = $(row).find('.product-price').val() || 0;
-                const total = $(row).find('.sub-total').text() || 0;
+                // FIX: Parse float to ensure numeric value is sent to server
+                const total = parseFloat($(row).find('.sub-total').text().replace(/,/g, '')) || 0;
                 const batchNo = $(row).find('.batch_no').val() || '';
                 const expiryDate = $(row).find('.expiry-date').val();
 
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
+                formData.append(`products[${index}][price]`, price);
+                formData.append(`products[${index}][discount_percent]`, discountPercent);
                 formData.append(`products[${index}][unit_cost]`, unitCost);
                 formData.append(`products[${index}][wholesale_price]`, wholesalePrice);
                 formData.append(`products[${index}][special_price]`, specialPrice);
                 formData.append(`products[${index}][retail_price]`, retailPrice);
                 formData.append(`products[${index}][max_retail_price]`, maxRetailPrice);
-                formData.append(`products[${index}][price]`, price);
                 formData.append(`products[${index}][total]`, total);
                 formData.append(`products[${index}][batch_no]`, batchNo);
                 formData.append(`products[${index}][expiry_date]`, expiryDate);
-                
+
                 // Add IMEI data if available
                 if (purchaseImeiData[productId]) {
-                    console.log(`Adding IMEI data for product ${productId}:`, purchaseImeiData[productId]);
-                    formData.append(`products[${index}][imei_numbers]`, JSON.stringify(purchaseImeiData[productId]));
+                    console.log(`Adding IMEI data for product ${productId}:`, purchaseImeiData[
+                        productId]);
+                    formData.append(`products[${index}][imei_numbers]`, JSON.stringify(purchaseImeiData[
+                        productId]));
                 } else {
                     console.log(`No IMEI data found for product ${productId}`);
                 }
@@ -1218,20 +1258,20 @@
         }
 
         // IMEI Modal Event Handlers - Select2 Based
-        
+
         // Select2 product selection change
         $(document).on('change', '#purchaseImeiProductSelect', function() {
             const selectedProductIds = $(this).val() || [];
             console.log('Selected products for IMEI entry:', selectedProductIds);
             loadImeiEntrySectionForProducts(selectedProductIds);
         });
-        
+
         // IMEI input change to update progress
         $(document).on('input', '.purchase-imei-input', function() {
             updateProductProgress();
             updateSelect2ImeiCount();
         });
-        
+
         // Add more IMEI rows for specific product
         $(document).on('click', '.add-imei-row', function() {
             const productId = $(this).data('product-id');
@@ -1240,20 +1280,28 @@
                 console.error(`Product not found: ${productId}`);
                 return;
             }
-            
+
             // Check current rows for this product (excluding header rows)
-            const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
+            const currentRows = $(
+                `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
+                );
             const currentRowCount = currentRows.length;
-            
-            console.log(`Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`);
-            
+
+            console.log(
+                `Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`
+                );
+
             // Check if we've reached the quantity limit
             if (currentRowCount >= product.quantity) {
-                toastr.warning(`Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`, 'Quantity Limit Reached');
-                console.warn(`Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`);
+                toastr.warning(
+                    `Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`,
+                    'Quantity Limit Reached');
+                console.warn(
+                    `Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`
+                    );
                 return;
             }
-            
+
             const newIndex = currentRowCount;
             const newRow = `
                 <tr data-product-id="${productId}" data-imei-index="${newIndex}">
@@ -1274,60 +1322,69 @@
                     </td>
                 </tr>
             `;
-            
+
             // Insert after the last row of this product
             const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
             lastRow.after(newRow);
-            
+
             // Update progress and manage add button visibility
             updateProductProgress();
             updateAddButtonVisibility(productId);
-            
-            console.log(`✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`);
+
+            console.log(
+                `✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`
+                );
         });
-        
+
         // Function to update add button visibility based on quantity limits
         function updateAddButtonVisibility(productId) {
             const product = pendingImeiProducts.find(p => p.productId == productId);
             if (!product) return;
-            
+
             const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
             const currentRowCount = currentRows.length;
-            
+
             // Hide/show the main "Add Row" button in the header
-            const headerAddButton = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"] .add-product-row`);
-            
+            const headerAddButton = $(
+                `#purchaseImeiTable tbody tr[data-product-header="${productId}"] .add-product-row`);
+
             if (currentRowCount >= product.quantity) {
                 headerAddButton.hide();
-                console.log(`🚫 Hiding add button for ${product.productName} (${currentRowCount}/${product.quantity})`);
+                console.log(
+                    `🚫 Hiding add button for ${product.productName} (${currentRowCount}/${product.quantity})`
+                    );
             } else {
                 headerAddButton.show();
-                console.log(`✅ Showing add button for ${product.productName} (${currentRowCount}/${product.quantity})`);
+                console.log(
+                    `✅ Showing add button for ${product.productName} (${currentRowCount}/${product.quantity})`
+                    );
             }
         }
-        
+
         // Remove IMEI row
         $(document).on('click', '.remove-imei-row', function() {
             const row = $(this).closest('tr');
             const productId = row.data('product-id');
             const product = pendingImeiProducts.find(p => p.productId == productId);
-            
+
             if (product) {
                 console.log(`🗑️ Removing IMEI row for ${product.productName}`);
             }
-            
+
             row.remove();
-            
+
             // Re-number the rows for this product
-            const productRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
+            const productRows = $(
+                `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
+                );
             productRows.each(function(index) {
                 $(this).find('td:first').text(index + 1);
                 $(this).attr('data-imei-index', index);
             });
-            
+
             updateProductProgress();
             updateSelect2ImeiCount();
-            
+
             // Update add button visibility after removal
             if (productId) {
                 updateAddButtonVisibility(productId);
@@ -1342,55 +1399,63 @@
                 console.error(`Product not found: ${productId}`);
                 return;
             }
-            
+
             // Check current rows for this product
             const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
             const currentRowCount = currentRows.length;
-            
-            console.log(`Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`);
-            
+
+            console.log(
+                `Add row for ${product.productName}: Current rows = ${currentRowCount}, Max quantity = ${product.quantity}`
+                );
+
             // Check if we've reached the quantity limit
             if (currentRowCount >= product.quantity) {
-                toastr.warning(`Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`, 'Quantity Limit Reached');
-                console.warn(`Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`);
+                toastr.warning(
+                    `Cannot add more IMEI rows. Maximum quantity for ${product.productName} is ${product.quantity}`,
+                    'Quantity Limit Reached');
+                console.warn(
+                    `Quantity limit reached for product ${product.productName}: ${currentRowCount}/${product.quantity}`
+                    );
                 return;
             }
-            
+
             // Add a new row for this product
             addImeiRowForProduct(productId, product.productName, product.quantity);
-            
+
             // Update progress and button visibility
             updateProductProgress();
             updateAddButtonVisibility(productId);
-            
-            console.log(`✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`);
+
+            console.log(
+                `✅ Added new row for ${product.productName}. New count: ${currentRowCount + 1}/${product.quantity}`
+                );
         });
-        
+
         // New Remove Row button for individual rows
         $(document).on('click', '.remove-product-imei-row', function() {
             const row = $(this).closest('tr');
             const productId = row.data('product-id');
             const product = pendingImeiProducts.find(p => p.productId == productId);
-            
+
             // Check minimum rows (at least 1 row should remain)
             const currentRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]`);
             if (currentRows.length <= 1) {
                 toastr.warning('At least one row must remain for IMEI entry', 'Cannot Remove');
                 return;
             }
-            
+
             if (product) {
                 console.log(`🗑️ Removing IMEI row for ${product.productName}`);
             }
-            
+
             row.remove();
-            
+
             // Re-number the rows for this product
             renumberProductRows(productId);
-            
+
             updateProductProgress();
             updateSelect2ImeiCount();
-            
+
             // Update add button visibility after removal
             if (productId) {
                 updateAddButtonVisibility(productId);
@@ -1401,21 +1466,24 @@
         // IMEI Modal Event Handlers
         $(document).on('click', '#purchaseSaveImeiButton', function() {
             console.log('=== Saving SELECT2-based IMEI Data ===');
-            
+
             // Clear any previous errors
             $('#purchaseImeiError').addClass('d-none');
             let hasError = false;
             let allImeiNumbers = [];
-            
+
             // Collect IMEI data for each product in the current selection
             const selectedProductIds = $('#purchaseImeiProductSelect').val() || [];
             selectedProductIds.forEach(productId => {
-                const productImeiInputs = $(`#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${productId}"]`);
+                const productImeiInputs = $(
+                    `#purchaseImeiTable tbody input.purchase-imei-input[data-product-id="${productId}"]`
+                    );
                 const productImeiNumbers = [];
                 const product = pendingImeiProducts.find(p => p.productId == productId);
-                
-                console.log(`Collecting IMEI for product ${product.productName} (ID: ${productId})`);
-                
+
+                console.log(
+                    `Collecting IMEI for product ${product.productName} (ID: ${productId})`);
+
                 productImeiInputs.each(function() {
                     const imeiValue = $(this).val().trim();
                     if (imeiValue) {
@@ -1423,45 +1491,50 @@
                         if (productImeiNumbers.includes(imeiValue)) {
                             hasError = true;
                             $(this).addClass('is-invalid');
-                            $('#purchaseImeiError').removeClass('d-none').text(`Duplicate IMEI numbers found for ${product.productName}`);
+                            $('#purchaseImeiError').removeClass('d-none').text(
+                                `Duplicate IMEI numbers found for ${product.productName}`
+                                );
                             return false;
                         }
-                        
+
                         // Check for duplicates across all products
                         if (allImeiNumbers.includes(imeiValue)) {
                             hasError = true;
                             $(this).addClass('is-invalid');
-                            $('#purchaseImeiError').removeClass('d-none').text(`IMEI ${imeiValue} is used for multiple products`);
+                            $('#purchaseImeiError').removeClass('d-none').text(
+                                `IMEI ${imeiValue} is used for multiple products`);
                             return false;
                         }
-                        
+
                         productImeiNumbers.push(imeiValue);
                         allImeiNumbers.push(imeiValue);
                         $(this).removeClass('is-invalid');
                     }
                 });
-                
+
                 // Store IMEI data for this product
                 if (!hasError) {
                     purchaseImeiData[product.productId] = productImeiNumbers;
-                    console.log(`✅ Saved ${productImeiNumbers.length} IMEI numbers for ${product.productName}:`, productImeiNumbers);
+                    console.log(
+                        `✅ Saved ${productImeiNumbers.length} IMEI numbers for ${product.productName}:`,
+                        productImeiNumbers);
                 }
             });
-            
+
             if (hasError) {
                 console.log('❌ IMEI validation failed');
                 return;
             }
-            
+
             console.log('✅ All IMEI data collected successfully:', purchaseImeiData);
-            
+
             // Set flag to indicate this is a programmatic close
             isProgrammaticModalClose = true;
             isProcessingImei = false;
-            
+
             // Close modal and proceed with purchase
             $('#purchaseImeiModal').modal('hide');
-            
+
             // Proceed with purchase after modal is hidden
             setTimeout(() => {
                 console.log('� Proceeding with purchase...');
@@ -1471,21 +1544,21 @@
 
         $(document).on('click', '#purchaseSkipImeiButton', function() {
             console.log('⏭️ Skipping IMEI entry for all products');
-            
+
             // Set empty arrays for all pending products
             pendingImeiProducts.forEach(product => {
                 purchaseImeiData[product.productId] = [];
             });
-            
+
             console.log('✅ Skipped IMEI for all products');
-            
+
             // Set flag to indicate this is a programmatic close
             isProgrammaticModalClose = true;
             isProcessingImei = false;
-            
+
             // Close modal and proceed with purchase
             $('#purchaseImeiModal').modal('hide');
-            
+
             // Proceed with purchase after modal is hidden
             setTimeout(() => {
                 console.log('� Proceeding with purchase...');
@@ -1495,33 +1568,34 @@
 
         $(document).on('click', '#purchaseAutoFillImeis', function() {
             console.log('🔧 Auto Fill IMEI button clicked');
-            
+
             const textareaValue = $('#purchaseImeiInput').val().trim();
             if (!textareaValue) {
                 toastr.warning('Please enter IMEI numbers in the textarea first', 'Warning');
                 return;
             }
-            
+
             // Get currently selected products
             const selectedProductIds = $('#purchaseImeiProductSelect').val() || [];
             console.log('Selected product IDs:', selectedProductIds);
-            
+
             if (selectedProductIds.length === 0) {
-                toastr.warning('Please select products first before auto-filling IMEI numbers', 'Warning');
+                toastr.warning('Please select products first before auto-filling IMEI numbers',
+                    'Warning');
                 return;
             }
-            
+
             const imeiLines = textareaValue.split('\n').map(line => line.trim()).filter(line => line);
             console.log('IMEI lines to auto-fill:', imeiLines);
-            
+
             if (imeiLines.length === 0) {
                 toastr.warning('No valid IMEI numbers found in the textarea', 'Warning');
                 return;
             }
-            
+
             let imeiIndex = 0;
             let totalFilled = 0;
-            
+
             // Distribute IMEI numbers across selected products
             selectedProductIds.forEach(productId => {
                 const product = pendingImeiProducts.find(p => p.productId == productId);
@@ -1529,13 +1603,17 @@
                     console.error(`Product not found: ${productId}`);
                     return;
                 }
-                
-                console.log(`Auto-filling for product: ${product.productName} (ID: ${productId})`);
-                
+
+                console.log(
+                    `Auto-filling for product: ${product.productName} (ID: ${productId})`);
+
                 // Get existing rows for this product (excluding header rows)
-                const productRows = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`);
-                console.log(`Found ${productRows.length} existing rows for product ${productId}`);
-                
+                const productRows = $(
+                    `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:not([data-product-header])`
+                    );
+                console.log(
+                    `Found ${productRows.length} existing rows for product ${productId}`);
+
                 // Fill existing rows first
                 productRows.each(function(index) {
                     if (imeiIndex < imeiLines.length) {
@@ -1544,18 +1622,20 @@
                             input.val(imeiLines[imeiIndex]);
                             imeiIndex++;
                             totalFilled++;
-                            console.log(`✅ Filled row ${index + 1} for ${product.productName}: ${imeiLines[imeiIndex - 1]}`);
+                            console.log(
+                                `✅ Filled row ${index + 1} for ${product.productName}: ${imeiLines[imeiIndex - 1]}`
+                                );
                         }
                     }
                 });
-                
+
                 // Add new rows if we have more IMEIs and haven't reached the product quantity limit
                 let currentRowCount = productRows.length;
                 while (imeiIndex < imeiLines.length && currentRowCount < product.quantity) {
                     // Add a new row for this product
                     const newRowIndex = currentRowCount;
                     const isLastRow = currentRowCount + 1 >= product.quantity;
-                    
+
                     const newRow = `
                         <tr data-product-id="${productId}" data-imei-index="${newRowIndex}">
                             <td>${newRowIndex + 1}</td>
@@ -1576,14 +1656,17 @@
                             </td>
                         </tr>
                     `;
-                    
+
                     // Insert after the last row of this product
-                    const lastRow = $(`#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
+                    const lastRow = $(
+                        `#purchaseImeiTable tbody tr[data-product-id="${productId}"]:last`);
                     if (lastRow.length > 0) {
                         lastRow.after(newRow);
                     } else {
                         // If no rows exist for this product, add after the header
-                        const headerRow = $(`#purchaseImeiTable tbody tr[data-product-header="${productId}"]`);
+                        const headerRow = $(
+                            `#purchaseImeiTable tbody tr[data-product-header="${productId}"]`
+                            );
                         if (headerRow.length > 0) {
                             headerRow.after(newRow);
                         } else {
@@ -1591,32 +1674,38 @@
                             continue;
                         }
                     }
-                    
+
                     currentRowCount++;
                     imeiIndex++;
                     totalFilled++;
-                    console.log(`➕ Added new row for ${product.productName}: ${imeiLines[imeiIndex - 1]} (${currentRowCount}/${product.quantity})`);
+                    console.log(
+                        `➕ Added new row for ${product.productName}: ${imeiLines[imeiIndex - 1]} (${currentRowCount}/${product.quantity})`
+                        );
                 }
-                
+
                 // Update add button visibility for this product after auto-fill
                 updateAddButtonVisibility(productId);
             });
-            
+
             // Update progress counters
             updateProductProgress();
             updateSelect2ImeiCount();
-            
+
             console.log(`Auto-fill completed: ${totalFilled} IMEI numbers filled`);
-            
+
             if (totalFilled > 0) {
-                toastr.success(`Auto-filled ${totalFilled} IMEI numbers across ${selectedProductIds.length} products`, 'Success');
-                
+                toastr.success(
+                    `Auto-filled ${totalFilled} IMEI numbers across ${selectedProductIds.length} products`,
+                    'Success');
+
                 // Clear the textarea after successful auto-fill
                 $('#purchaseImeiInput').val('');
             }
-            
+
             if (imeiIndex < imeiLines.length) {
-                toastr.info(`${imeiLines.length - imeiIndex} IMEI numbers remaining. Select more products or ensure sufficient row capacity.`, 'Info');
+                toastr.info(
+                    `${imeiLines.length - imeiIndex} IMEI numbers remaining. Select more products or ensure sufficient row capacity.`,
+                    'Info');
             }
         });
 
@@ -1627,14 +1716,14 @@
             console.log('isProcessingImei:', isProcessingImei);
             console.log('currentImeiProductIndex:', currentImeiProductIndex);
             console.log('pendingImeiProducts.length:', pendingImeiProducts.length);
-            
+
             // If this was a programmatic close, reset the flag and don't show cancellation message
             if (isProgrammaticModalClose) {
                 isProgrammaticModalClose = false;
                 console.log('✅ Programmatic modal close - continuing process');
                 return;
             }
-            
+
             // If modal is closed without completing the process (user cancelled), reset button state
             if (isProcessingImei && currentImeiProductIndex < pendingImeiProducts.length) {
                 console.log('❌ User cancelled IMEI entry');
@@ -1647,12 +1736,12 @@
         function handleAjaxSuccess(response) {
             if (response.status === 400) {
                 document.getElementsByClassName('errorSound')[0].play();
-                
+
                 // Display validation errors in form fields
                 $.each(response.errors, function(key, err_value) {
                     $('#' + key + '_error').html(err_value);
                 });
-                
+
                 // Also show toastr notifications for validation errors
                 $.each(response.errors, function(key, err_value) {
                     if (Array.isArray(err_value)) {
@@ -1682,7 +1771,7 @@
                 // Handle validation errors returned as JSON
                 if (xhr.status === 400 && xhr.responseJSON && xhr.responseJSON.errors) {
                     document.getElementsByClassName('errorSound')[0].play();
-                    
+
                     // Display validation errors in toastr
                     $.each(xhr.responseJSON.errors, function(key, err_value) {
                         if (Array.isArray(err_value)) {
@@ -1691,21 +1780,23 @@
                             toastr.error(err_value, 'Validation Error');
                         }
                     });
-                    
+
                     // Also display in form fields if elements exist
                     $.each(xhr.responseJSON.errors, function(key, err_value) {
                         $('#' + key + '_error').html(err_value);
                     });
                 } else {
                     // Handle other types of errors
-                    const errorMessage = xhr.responseJSON && xhr.responseJSON.message 
-                        ? xhr.responseJSON.message 
-                        : `Something went wrong while ${action}. Please try again.`;
+                    const errorMessage = xhr.responseJSON && xhr.responseJSON.message ?
+                        xhr.responseJSON.message :
+                        `Something went wrong while ${action}. Please try again.`;
                     toastr.error(errorMessage, 'Error');
-                    console.error('Error:', `Status: ${xhr.status} - ${xhr.statusText}`, 'Response:', xhr.responseText);
+                    console.error('Error:', `Status: ${xhr.status} - ${xhr.statusText}`, 'Response:', xhr
+                        .responseText);
                 }
-                
-                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' : 'Save Purchase');
+
+                $('#purchaseButton').prop('disabled', false).html(purchaseId ? 'Update Purchase' :
+                    'Save Purchase');
             };
         }
 
@@ -1729,31 +1820,36 @@
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const reader = new FileReader();
-                
+
                 // File size validation (5MB)
                 const maxSize = 5 * 1024 * 1024; // 5MB in bytes
                 if (file.size > maxSize) {
-                    toastr.error('File size exceeds 5MB limit. Please choose a smaller file.', 'File Too Large');
+                    toastr.error('File size exceeds 5MB limit. Please choose a smaller file.',
+                        'File Too Large');
                     $(this).val(''); // Clear the file input
                     return;
                 }
-                
+
                 // File type validation
                 const allowedTypes = [
                     'application/pdf',
                     'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
                     'text/csv', 'application/csv',
                     'application/zip', 'application/x-zip-compressed',
-                    'application/msword', 
+                    'application/msword',
                     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 ];
-                
-                const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'zip', 'doc', 'docx'];
+
+                const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'csv', 'zip', 'doc',
+                    'docx'
+                ];
                 const fileName = file.name.toLowerCase();
                 const fileExtension = fileName.split('.').pop();
-                
+
                 if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
-                    toastr.error('Invalid file type. Please upload PDF, images, CSV, ZIP, or DOC files only.', 'Invalid File Type');
+                    toastr.error(
+                        'Invalid file type. Please upload PDF, images, CSV, ZIP, or DOC files only.',
+                        'Invalid File Type');
                     $(this).val(''); // Clear the file input
                     clearFileUpload();
                     return;
@@ -1762,15 +1858,17 @@
                 if (file.type === "application/pdf") {
                     reader.onload = function(e) {
                         // Create a blob URL for the PDF
-                        const blob = new Blob([e.target.result], { type: 'application/pdf' });
+                        const blob = new Blob([e.target.result], {
+                            type: 'application/pdf'
+                        });
                         const blobUrl = URL.createObjectURL(blob);
-                        
+
                         // Try to load PDF in iframe
                         const iframe = $("#purchase-pdfViewer");
                         iframe.attr("src", blobUrl);
                         iframe.show();
                         $("#purchase-selectedImage").hide();
-                        
+
                         // Add fallback link in case iframe doesn't work
                         iframe.after(`
                             <div id="pdf-fallback" class="text-center mt-2" style="display: none;">
@@ -1780,10 +1878,11 @@
                                 </a>
                             </div>
                         `);
-                        
+
                         // Check if iframe loaded successfully after a short delay
                         setTimeout(function() {
-                            const iframeDoc = iframe[0].contentDocument || iframe[0].contentWindow.document;
+                            const iframeDoc = iframe[0].contentDocument || iframe[0]
+                                .contentWindow.document;
                             if (!iframeDoc || iframeDoc.body.children.length === 0) {
                                 // Iframe didn't load, show fallback
                                 iframe.hide();
@@ -1792,10 +1891,12 @@
                                 $("#pdf-fallback").hide();
                             }
                         }, 1500);
-                        
+
                         // Update the help text to show PDF is loaded
-                        $(".preview-container .text-muted").html('<i class="fas fa-file-pdf text-danger"></i> PDF file loaded successfully');
-                        
+                        $(".preview-container .text-muted").html(
+                            '<i class="fas fa-file-pdf text-danger"></i> PDF file loaded successfully'
+                            );
+
                         toastr.success('PDF file uploaded successfully!', 'File Uploaded');
                     };
                     reader.readAsArrayBuffer(file);
@@ -1805,25 +1906,32 @@
                         $("#purchase-selectedImage").show();
                         $("#purchase-pdfViewer").hide();
                         $("#pdf-fallback").remove(); // Remove any PDF fallback
-                        
+
                         // Reset help text
-                        $(".preview-container .text-muted").html('<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
-                        
+                        $(".preview-container .text-muted").html(
+                            '<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)'
+                            );
+
                         toastr.success('Image file uploaded successfully!', 'File Uploaded');
                     };
                     reader.readAsDataURL(file);
                 } else {
                     // Handle other supported file types (CSV, ZIP, DOC, etc.)
-                    $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
+                    $("#purchase-selectedImage").attr("src",
+                        "/assets/images/No Product Image Available.png");
                     $("#purchase-selectedImage").show();
                     $("#purchase-pdfViewer").hide();
                     $("#pdf-fallback").remove(); // Remove any PDF fallback
-                    
+
                     // Update help text to show file type
                     const fileType = file.name.split('.').pop().toUpperCase();
-                    $(".preview-container .text-muted").html(`<i class="fas fa-file text-primary"></i> ${fileType} file uploaded (Preview not available)`);
-                    
-                    toastr.success('File uploaded successfully. Preview not available for this file type.', 'File Uploaded');
+                    $(".preview-container .text-muted").html(
+                        `<i class="fas fa-file text-primary"></i> ${fileType} file uploaded (Preview not available)`
+                        );
+
+                    toastr.success(
+                        'File uploaded successfully. Preview not available for this file type.',
+                        'File Uploaded');
                     // Don't call readAsDataURL for non-preview files
                     return;
                 }
@@ -1840,7 +1948,8 @@
                 }
             } else {
                 // No file selected or file input cleared
-                $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
+                $("#purchase-selectedImage").attr("src",
+                    "/assets/images/No Product Image Available.png");
                 $("#purchase-selectedImage").show();
                 $("#purchase-pdfViewer").hide();
             }
@@ -1853,16 +1962,17 @@
             if (pdfViewer && pdfViewer.src && pdfViewer.src.startsWith('blob:')) {
                 URL.revokeObjectURL(pdfViewer.src);
             }
-            
+
             $('#purchase_attach_document').val('');
             $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
             $("#purchase-selectedImage").show();
             $("#purchase-pdfViewer").hide();
             $("#purchase-pdfViewer").attr("src", "");
             $("#pdf-fallback").remove(); // Remove PDF fallback if exists
-            
+
             // Reset help text
-            $(".preview-container .text-muted").html('<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
+            $(".preview-container .text-muted").html(
+                '<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
         }
 
         // Add clear button functionality (if needed)
@@ -1914,7 +2024,8 @@
                 type: 'GET',
                 dataType: 'json',
                 beforeSend: function() {
-                    console.log('Sending request to:', '/get-all-purchases-product/' + purchaseId);
+                    console.log('Sending request to:', '/get-all-purchases-product/' +
+                        purchaseId);
                 },
                 success: function(response) {
                     console.log('Success response:', response);
@@ -1922,28 +2033,36 @@
                         alert('Purchase data not found.');
                         return;
                     }
-                    
+
                     var purchase = response.purchase;
                     $('#modalTitle').text('Purchase Details - ' + purchase.reference_no);
-                    $('#supplierDetails').text((purchase.supplier ? purchase.supplier.first_name + ' ' + purchase.supplier.last_name : 'Unknown Supplier'));
-                    $('#locationDetails').text((purchase.location ? purchase.location.name : 'Unknown Location'));
-                    $('#purchaseDetails').text('Date: ' + purchase.purchase_date + ', Status: ' + purchase.purchasing_status);
+                    $('#supplierDetails').text((purchase.supplier ? purchase.supplier
+                        .first_name + ' ' + purchase.supplier.last_name :
+                        'Unknown Supplier'));
+                    $('#locationDetails').text((purchase.location ? purchase.location.name :
+                        'Unknown Location'));
+                    $('#purchaseDetails').text('Date: ' + purchase.purchase_date +
+                        ', Status: ' + purchase.purchasing_status);
 
                     var productsTable = $('#productsTable tbody');
                     productsTable.empty();
                     if (purchase.purchase_products && purchase.purchase_products.length > 0) {
-                    purchase.purchase_products.forEach(function(product, index) {
-                        let row = $('<tr>');
-                        row.append('<td>' + (index + 1) + '</td>');
-                        row.append('<td>' + (product.product ? product.product.product_name : 'Unknown Product') + '</td>');
-                        row.append('<td>' + (product.product ? product.product.sku : 'N/A') + '</td>');
-                        row.append('<td>' + product.quantity + '</td>');
-                        row.append('<td>' + product.unit_cost + '</td>');
-                        row.append('<td>' + product.total + '</td>');
-                        productsTable.append(row);
-                    });
+                        purchase.purchase_products.forEach(function(product, index) {
+                            let row = $('<tr>');
+                            row.append('<td>' + (index + 1) + '</td>');
+                            row.append('<td>' + (product.product ? product.product
+                                .product_name : 'Unknown Product') + '</td>');
+                            row.append('<td>' + (product.product ? product.product.sku :
+                                'N/A') + '</td>');
+                            row.append('<td>' + product.quantity + '</td>');
+                            row.append('<td>' + product.unit_cost + '</td>');
+                            row.append('<td>' + product.total + '</td>');
+                            productsTable.append(row);
+                        });
                     } else {
-                        productsTable.append('<tr><td colspan="6" class="text-center">No products found</td></tr>');
+                        productsTable.append(
+                            '<tr><td colspan="6" class="text-center">No products found</td></tr>'
+                            );
                     }
 
                     var paymentInfoTable = $('#paymentInfoTable tbody');
@@ -1951,20 +2070,26 @@
                     if (purchase.payments && purchase.payments.length > 0) {
                         purchase.payments.forEach(function(payment) {
                             let row = $('<tr>');
-                            row.append('<td>' + (payment.payment_date || 'N/A') + '</td>');
+                            row.append('<td>' + (payment.payment_date || 'N/A') +
+                                '</td>');
                             row.append('<td>' + (payment.id || 'N/A') + '</td>');
                             row.append('<td>' + (payment.amount || '0.00') + '</td>');
-                            row.append('<td>' + (payment.payment_method || 'N/A') + '</td>');
-                            row.append('<td>' + (payment.notes || 'No notes') + '</td>');
+                            row.append('<td>' + (payment.payment_method || 'N/A') +
+                                '</td>');
+                            row.append('<td>' + (payment.notes || 'No notes') +
+                            '</td>');
                             paymentInfoTable.append(row);
                         });
                     } else {
-                        paymentInfoTable.append('<tr><td colspan="5" class="text-center">No payments found</td></tr>');
+                        paymentInfoTable.append(
+                            '<tr><td colspan="5" class="text-center">No payments found</td></tr>'
+                            );
                     }
 
                     var amountDetailsTable = $('#amountDetailsTable tbody');
                     amountDetailsTable.empty();
-                    amountDetailsTable.append('<tr><td>Total: ' + purchase.total + '</td></tr>');
+                    amountDetailsTable.append('<tr><td>Total: ' + purchase.total +
+                    '</td></tr>');
                     amountDetailsTable.append('<tr><td>Discount: ' + purchase.discount_amount +
                         '</td></tr>');
                     amountDetailsTable.append('<tr><td>Final Total: ' + purchase.final_total +
@@ -1982,19 +2107,20 @@
                     console.error("Error:", error);
                     console.error("Response Text:", xhr.responseText);
                     console.error("Status Code:", xhr.status);
-                    
+
                     let errorMessage = 'Unknown error occurred';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     } else if (xhr.responseText) {
                         try {
                             const responseObj = JSON.parse(xhr.responseText);
-                            errorMessage = responseObj.message || responseObj.error || errorMessage;
+                            errorMessage = responseObj.message || responseObj.error ||
+                                errorMessage;
                         } catch (e) {
                             errorMessage = xhr.responseText;
                         }
                     }
-                    
+
                     alert('Error loading purchase details: ' + errorMessage);
                 }
             });
@@ -2112,76 +2238,96 @@
             if ($('#supplierSelect option').length <= 1) {
                 console.log('Fetching suppliers for bulk payment modal...');
                 $.ajax({
-                url: '/supplier-get-all',
-                type: 'GET',
-                dataType: 'json',
-                success: function(response) {
-                    console.log('Bulk payment modal - Supplier API response:', response);
-                    var supplierSelect = $('#supplierSelect');
-                    supplierSelect.empty();
-                    supplierSelect.append(
-                        '<option value="" selected disabled>Select Supplier</option>');
-                    
-                    // Handle different response structures
-                    let suppliers = [];
-                    
-                    // Log the response for debugging
-                    console.log('Supplier API response:', response);
-                    
-                    if (response.status === 200 && Array.isArray(response.message)) {
-                        suppliers = response.message;
-                    } else if (response.status === 200 && Array.isArray(response.data)) {
-                        suppliers = response.data;
-                    } else if (Array.isArray(response.message)) {
-                        suppliers = response.message;
-                    } else if (Array.isArray(response.data)) {
-                        suppliers = response.data;
-                    } else if (Array.isArray(response)) {
-                        suppliers = response;
-                    } else if (response.status === 404 && typeof response.message === 'string') {
-                        // Handle 404 with string message
-                        console.warn('No suppliers found:', response.message);
-                        suppliers = [];
-                    } else if (response.message && typeof response.message === 'string') {
-                        // Handle any case where message is a string
-                        console.warn('Supplier API returned string message:', response.message);
-                        suppliers = [];
-                    } else {
-                        console.error("Invalid response format for suppliers:", response);
-                        suppliers = [];
-                    }
-                    
-                    if (suppliers && suppliers.length > 0) {
-                        suppliers.forEach(function(supplier) {
-                            // Validate supplier object
-                            if (supplier && supplier.id) {
-                                const supplierName = ((supplier.first_name || '') + ' ' + (supplier.last_name || '')).trim() || 'Unnamed Supplier';
-                                supplierSelect.append(
-                                    '<option value="' + supplier.id +
-                                    '" data-opening-balance="' + (supplier.opening_balance || 0) + '">' +
-                                    supplierName +
-                                    '</option>'
+                    url: '/supplier-get-all',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(response) {
+                        console.log('Bulk payment modal - Supplier API response:',
+                        response);
+                        var supplierSelect = $('#supplierSelect');
+                        supplierSelect.empty();
+                        supplierSelect.append(
+                            '<option value="" selected disabled>Select Supplier</option>'
+                            );
+
+                        // Handle different response structures
+                        let suppliers = [];
+
+                        // Log the response for debugging
+                        console.log('Supplier API response:', response);
+
+                        if (response.status === 200 && Array.isArray(response.message)) {
+                            suppliers = response.message;
+                        } else if (response.status === 200 && Array.isArray(response
+                            .data)) {
+                            suppliers = response.data;
+                        } else if (Array.isArray(response.message)) {
+                            suppliers = response.message;
+                        } else if (Array.isArray(response.data)) {
+                            suppliers = response.data;
+                        } else if (Array.isArray(response)) {
+                            suppliers = response;
+                        } else if (response.status === 404 && typeof response.message ===
+                            'string') {
+                            // Handle 404 with string message
+                            console.warn('No suppliers found:', response.message);
+                            suppliers = [];
+                        } else if (response.message && typeof response.message ===
+                            'string') {
+                            // Handle any case where message is a string
+                            console.warn('Supplier API returned string message:', response
+                                .message);
+                            suppliers = [];
+                        } else {
+                            console.error("Invalid response format for suppliers:",
+                                response);
+                            suppliers = [];
+                        }
+
+                        if (suppliers && suppliers.length > 0) {
+                            suppliers.forEach(function(supplier) {
+                                // Validate supplier object
+                                if (supplier && supplier.id) {
+                                    const supplierName = ((supplier.first_name ||
+                                        '') + ' ' + (supplier.last_name ||
+                                        '')).trim() || 'Unnamed Supplier';
+                                    supplierSelect.append(
+                                        '<option value="' + supplier.id +
+                                        '" data-opening-balance="' + (supplier
+                                            .opening_balance || 0) + '">' +
+                                        supplierName +
+                                        '</option>'
+                                    );
+                                }
+                            });
+                        } else {
+                            console.warn(
+                                "No suppliers found in response. Response structure:",
+                                response);
+                            supplierSelect.append(
+                                '<option value="" disabled>No suppliers available</option>'
                                 );
-                            }
-                        });
-                    } else {
-                        console.warn("No suppliers found in response. Response structure:", response);
-                        supplierSelect.append('<option value="" disabled>No suppliers available</option>');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("AJAX error fetching suppliers: ", status, error);
+                        var supplierSelect = $('#supplierSelect');
+                        supplierSelect.empty();
+                        supplierSelect.append(
+                            '<option value="" selected disabled>Select Supplier</option>'
+                            );
+                        supplierSelect.append(
+                            '<option value="" disabled>Error loading suppliers</option>'
+                            );
+
+                        // Show user-friendly error message
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(
+                                'Failed to load suppliers. Please refresh the page and try again.',
+                                'Error');
+                        }
                     }
-                },
-                error: function(xhr, status, error) {
-                    console.error("AJAX error fetching suppliers: ", status, error);
-                    var supplierSelect = $('#supplierSelect');
-                    supplierSelect.empty();
-                    supplierSelect.append('<option value="" selected disabled>Select Supplier</option>');
-                    supplierSelect.append('<option value="" disabled>Error loading suppliers</option>');
-                    
-                    // Show user-friendly error message
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error('Failed to load suppliers. Please refresh the page and try again.', 'Error');
-                    }
-                }
-            });
+                });
             } // End of supplier dropdown population condition
 
             let originalOpeningBalance = 0; // Store the actual supplier opening balance
@@ -2588,7 +2734,8 @@
             // Row Click Event
             $('#purchase-list').on('click', 'tr', function(e) {
                 // Prevent action if clicking on thead or if no data-id (header/footer rows)
-                if ($(this).closest('thead').length || typeof $(this).data('id') === 'undefined') {
+                if ($(this).closest('thead').length || typeof $(this).data('id') ===
+                    'undefined') {
                     e.stopPropagation();
                     return;
                 }
@@ -2622,7 +2769,8 @@
                                     '</td>');
                                 row.append('<td>' + product.quantity +
                                     '</td>');
-                                row.append('<td>' + (product.unit_cost || 0) +
+                                row.append('<td>' + (product.unit_cost ||
+                                    0) +
                                     '</td>');
                                 row.append('<td>' + product.total +
                                     '</td>');
@@ -2682,7 +2830,7 @@
         window.openImeiManagementModal = function(purchaseId) {
             currentPurchaseId = purchaseId;
             console.log('Opening IMEI management for purchase:', purchaseId);
-            
+
             // Fetch IMEI products for this purchase
             $.ajax({
                 url: `/purchases/${purchaseId}/imei-products`,
@@ -2709,18 +2857,19 @@
 
         // Make these functions globally accessible
         window.openAddImeiModal = function(purchaseProductId, productName, missingCount) {
-            currentSelectedProduct = currentImeiProducts.find(p => p.purchase_product_id === purchaseProductId);
-            
+            currentSelectedProduct = currentImeiProducts.find(p => p.purchase_product_id ===
+                purchaseProductId);
+
             // Check if there are actually missing IMEI numbers
             if (missingCount <= 0) {
                 toastr.info(`${productName} already has all required IMEI numbers`);
                 return;
             }
-            
+
             $('#addImeiModalLabel').text(`Add IMEI Numbers - ${productName}`);
             $('#addImeiProductInfo').text(`Missing: ${missingCount} IMEI numbers`);
             $('#addImeiPurchaseProductId').val(purchaseProductId);
-            
+
             // Clear previous data
             $('#imeiInputMethod').val('individual');
             $('#individualImeiContainer').show();
@@ -2728,44 +2877,45 @@
             $('#individualImeiTable tbody').empty();
             $('#bulkImeiText').val('');
             $('#bulkImeiSeparator').val('newline');
-            
+
             // Add input rows for missing IMEI numbers
             for (let i = 1; i <= missingCount; i++) {
                 addIndividualImeiRow(i);
             }
-            
+
             $('#addImeiModal').modal('show');
         };
 
         window.viewExistingImeis = function(purchaseProductId, productName) {
             const product = currentImeiProducts.find(p => p.purchase_product_id === purchaseProductId);
-            
+
             $('#viewImeiModalLabel').text(`IMEI Numbers - ${productName}`);
-            
+
             const imeiTableBody = $('#existingImeiTable tbody');
             imeiTableBody.empty();
-            
+
             if (product.existing_imeis.length === 0) {
-                imeiTableBody.append('<tr><td colspan="4" class="text-center">No IMEI numbers found</td></tr>');
+                imeiTableBody.append(
+                    '<tr><td colspan="4" class="text-center">No IMEI numbers found</td></tr>');
             } else {
                 product.existing_imeis.forEach(function(imei, index) {
-                    const statusBadge = imei.status === 'available' ? 
-                        '<span class="badge bg-success">Available</span>' : 
+                    const statusBadge = imei.status === 'available' ?
+                        '<span class="badge bg-success">Available</span>' :
                         '<span class="badge bg-warning">Sold</span>';
-                    
+
                     // Make IMEI editable only if status is 'available'
-                    const imeiField = imei.status === 'available' ? 
+                    const imeiField = imei.status === 'available' ?
                         `<input type="text" class="form-control form-control-sm editable-imei" value="${imei.imei_number}" data-imei-id="${imei.id}" />` :
                         `<span class="text-muted">${imei.imei_number}</span>`;
-                    
-                    const deleteBtn = imei.status === 'available' ? 
+
+                    const deleteBtn = imei.status === 'available' ?
                         `<button class="btn btn-sm btn-danger me-1" onclick="removeImei(${imei.id})"><i class="fas fa-trash"></i></button>` :
                         '<span class="text-muted">Cannot delete</span>';
-                    
-                    const editBtn = imei.status === 'available' ? 
+
+                    const editBtn = imei.status === 'available' ?
                         `<button class="btn btn-sm btn-warning" onclick="updateImei(${imei.id}, this)"><i class="fas fa-edit"></i></button>` :
                         '';
-                    
+
                     const row = `
                         <tr data-imei-id="${imei.id}">
                             <td>${index + 1}</td>
@@ -2780,7 +2930,7 @@
                     imeiTableBody.append(row);
                 });
             }
-            
+
             $('#viewImeiModal').modal('show');
         };
 
@@ -2822,35 +2972,38 @@
             const row = $(buttonElement).closest('tr');
             const imeiInput = row.find('.editable-imei');
             const newImeiValue = imeiInput.val().trim();
-            
+
             if (!newImeiValue) {
                 toastr.warning('IMEI number cannot be empty');
                 return;
             }
-            
+
             // Basic IMEI validation (10-17 digits)
             if (!/^\d{10,17}$/.test(newImeiValue)) {
                 toastr.warning('IMEI must be 10-17 digits');
                 return;
             }
-            
+
             // Show Bootstrap confirmation modal
             $('#confirmUpdateImeiText').text(`Update IMEI number to: ${newImeiValue}?`);
             $('#confirmUpdateImeiModal').modal('show');
-            
+
             // Store the update data for use when confirmed
             window.pendingImeiUpdate = {
                 imeiId: imeiId,
                 newImeiValue: newImeiValue
             };
         };
-        
+
         // Function to actually perform the IMEI update
         window.performImeiUpdate = function() {
             if (!window.pendingImeiUpdate) return;
-            
-            const { imeiId, newImeiValue } = window.pendingImeiUpdate;
-            
+
+            const {
+                imeiId,
+                newImeiValue
+            } = window.pendingImeiUpdate;
+
             $.ajax({
                 url: '/purchases/update-imei',
                 method: 'POST',
@@ -2880,7 +3033,7 @@
                     toastr.error(errorMessage);
                 }
             });
-            
+
             // Clear pending update
             window.pendingImeiUpdate = null;
         };
@@ -2888,7 +3041,7 @@
         function populateImeiManagementModal(purchase, imeiProducts) {
             // Set modal title
             $('#imeiManagementModalLabel').text(`Manage IMEI Numbers - ${purchase.reference_no}`);
-            
+
             // Set purchase info
             $('#imeiPurchaseInfo').html(`
                 <strong>Date:</strong> ${purchase.purchase_date} | 
@@ -2901,21 +3054,22 @@
             productList.empty();
 
             if (imeiProducts.length === 0) {
-                productList.html('<div class="alert alert-info">No IMEI-enabled products found in this purchase.</div>');
+                productList.html(
+                    '<div class="alert alert-info">No IMEI-enabled products found in this purchase.</div>');
                 return;
             }
 
             imeiProducts.forEach(function(product) {
                 const statusClass = product.missing_imei_count > 0 ? 'alert-warning' : 'alert-success';
-                const statusText = product.missing_imei_count > 0 ? 
-                    `Missing ${product.missing_imei_count} IMEI numbers` : 
+                const statusText = product.missing_imei_count > 0 ?
+                    `Missing ${product.missing_imei_count} IMEI numbers` :
                     'All IMEI numbers added';
 
                 // Show Add IMEI button only if there are missing IMEI numbers
-                const addImeiButton = product.missing_imei_count > 0 ? 
+                const addImeiButton = product.missing_imei_count > 0 ?
                     `<button type="button" class="btn btn-sm btn-primary" onclick="openAddImeiModal(${product.purchase_product_id}, '${product.product_name}', ${product.missing_imei_count})">
                         <i class="fas fa-plus"></i> Add IMEI
-                    </button>` : 
+                    </button>` :
                     `<span class="btn btn-sm btn-success disabled">
                         <i class="fas fa-check"></i> Complete
                     </span>`;
@@ -2984,9 +3138,9 @@
             $('#saveImeiNumbers').on('click', function() {
                 const inputMethod = $('#imeiInputMethod').val();
                 const purchaseProductId = $('#addImeiPurchaseProductId').val();
-                
+
                 let imeiNumbers = [];
-                
+
                 if (inputMethod === 'individual') {
                     // Collect from individual inputs
                     $('#individualImeiTable tbody input.imei-input').each(function() {
@@ -2999,7 +3153,7 @@
                     // Process bulk text
                     const bulkText = $('#bulkImeiText').val().trim();
                     const separator = $('#bulkImeiSeparator').val();
-                    
+
                     if (bulkText) {
                         $.ajax({
                             url: '/purchases/bulk-add-imei',
@@ -3020,12 +3174,12 @@
                         return;
                     }
                 }
-                
+
                 if (imeiNumbers.length === 0) {
                     toastr.warning('Please enter at least one IMEI number');
                     return;
                 }
-                
+
                 // Save individual IMEI numbers
                 $.ajax({
                     url: '/purchases/add-imei',
@@ -3079,14 +3233,11 @@
                         toastr.error(errorMessage);
                     }
                 } else {
-                    toastr.error('Error adding IMEI numbers: ' + (xhr.responseJSON?.message || 'Unknown error'));
+                    toastr.error('Error adding IMEI numbers: ' + (xhr.responseJSON?.message ||
+                        'Unknown error'));
                 }
                 console.error('Error:', xhr.responseJSON);
             }
         });
     });
 </script>
-
-
-
-

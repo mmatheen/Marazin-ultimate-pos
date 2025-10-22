@@ -77,6 +77,8 @@ class PurchaseController extends Controller
                     }
                 },
             ],
+            'products.*.price' => 'nullable|numeric|min:0',
+            'products.*.discount_percent' => 'nullable|numeric|min:0|max:100',
             'products.*.unit_cost' => 'required|numeric|min:0',
             'products.*.wholesale_price' => 'required|numeric|min:0',
             'products.*.special_price' => 'required|numeric|min:0',
@@ -141,6 +143,58 @@ class PurchaseController extends Controller
             // Process products
             $this->processProducts($request, $purchase);
 
+            // --- Server-side authoritative total calculation ---
+            // Calculate sum of product totals stored on the purchase (prevent client manipulation)
+            try {
+                $calculatedTotal = (float) $purchase->purchaseProducts()->sum(DB::raw('COALESCE(total,0)'));
+
+                // Compute discount amount based on discount_type (if provided)
+                $discountAmount = 0.0;
+                $discountType = $request->input('discount_type');
+                $discountValue = (float) ($request->input('discount_amount') ?? 0);
+                if ($discountType === 'fixed') {
+                    $discountAmount = $discountValue;
+                } elseif ($discountType === 'percent' || $discountType === 'percentage') {
+                    $discountAmount = ($calculatedTotal * $discountValue) / 100.0;
+                }
+
+                // Compute tax if provided (supporting common codes used in front-end)
+                $taxAmount = 0.0;
+                $taxType = $request->input('tax_type');
+                if ($taxType === 'vat10' || $taxType === 'cgst10') {
+                    $taxAmount = ($calculatedTotal - $discountAmount) * 0.10;
+                }
+
+                $serverFinalTotal = $calculatedTotal - $discountAmount + $taxAmount;
+
+                // If discrepancy exists between client and server (> small tolerance), log it and override
+                $clientFinal = (float) ($request->input('final_total') ?? 0);
+                if (abs($clientFinal - $serverFinalTotal) > 0.5) {
+                    Log::warning('Final total mismatch on purchase store/update', [
+                        'purchase_id' => $purchase->id,
+                        'client_final_total' => $clientFinal,
+                        'server_calculated_total' => $serverFinalTotal,
+                        'calculated_total' => $calculatedTotal,
+                        'discount_type' => $discountType,
+                        'discount_amount' => $discountValue,
+                        'tax_type' => $taxType,
+                        'tax_amount' => $taxAmount,
+                        'request_products_count' => is_array($request->input('products')) ? count($request->input('products')) : 0,
+                    ]);
+                }
+
+                // Persist authoritative totals to the purchase record
+                $purchase->update([
+                    'total' => $calculatedTotal,
+                    'discount_type' => $discountType,
+                    'discount_amount' => $discountValue,
+                    'final_total' => $serverFinalTotal,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error calculating server-side purchase totals: ' . $e->getMessage());
+                // If calculation fails, fall back to client provided totals (already saved earlier)
+            }
+
             // Handle ledger entries properly
             // Handle ledger recording/updating
             if ($isUpdate) {
@@ -188,6 +242,8 @@ class PurchaseController extends Controller
                     // Update purchase product record
                     $existingProduct->update([
                         'quantity' => $productData['quantity'],
+                        'price' => $productData['price'] ?? $productData['unit_cost'],
+                        'discount_percent' => $productData['discount_percent'] ?? 0,
                         'unit_cost' => $productData['unit_cost'],
                         'wholesale_price' => $productData['wholesale_price'],
                         'special_price' => $productData['special_price'],
@@ -350,6 +406,8 @@ class PurchaseController extends Controller
             ['product_id' => $productData['product_id'], 'batch_id' => $batch->id, 'purchase_id' => $purchase->id],
             [
                 'quantity' => $productData['quantity'],
+                'price' => $productData['price'] ?? $productData['unit_cost'],
+                'discount_percent' => $productData['discount_percent'] ?? 0,
                 'unit_cost' => $productData['unit_cost'],
                 'wholesale_price' => $productData['wholesale_price'],
                 'special_price' => $productData['special_price'],
