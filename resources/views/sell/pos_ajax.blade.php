@@ -6364,44 +6364,60 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Open in new window (most reliable for mobile browsers)
-                            const printWindow = window.open('', '_blank');
+                            // For mobile: Try multiple approaches for better compatibility
                             
-                            if (printWindow) {
-                                // Write the invoice HTML to the new window
-                                printWindow.document.write(data.invoice_html);
-                                printWindow.document.close();
-                                
-                                // Use multiple triggers to ensure printing works
-                                const triggerPrint = () => {
-                                    try {
-                                        printWindow.focus();
-                                        printWindow.print();
-                                        
-                                        // Close window after a delay
+                            // Method 1: Try opening in new window
+                            const printWindow = window.open('', '_blank', 'width=800,height=600');
+                            
+                            if (printWindow && !printWindow.closed) {
+                                try {
+                                    printWindow.document.open();
+                                    printWindow.document.write(data.invoice_html);
+                                    printWindow.document.close();
+                                    
+                                    // Wait for content to load then trigger print
+                                    printWindow.onload = function() {
                                         setTimeout(() => {
                                             try {
-                                                printWindow.close();
+                                                printWindow.print();
+                                                
+                                                // Close window after print dialog
+                                                setTimeout(() => {
+                                                    try {
+                                                        printWindow.close();
+                                                    } catch(e) {
+                                                        console.log('Could not auto-close print window');
+                                                    }
+                                                }, 1500);
                                             } catch(e) {
-                                                console.log('Window already closed');
+                                                console.error('Print error:', e);
+                                                toastr.error('Unable to print. Please try again.');
+                                                printWindow.close();
                                             }
-                                        }, 1500);
-                                    } catch(e) {
-                                        console.error('Print error:', e);
-                                    }
-                                };
-                                
-                                // Try with onload event
-                                if (printWindow.document.readyState === 'complete') {
-                                    setTimeout(triggerPrint, 500);
-                                } else {
-                                    printWindow.onload = () => setTimeout(triggerPrint, 500);
+                                        }, 500);
+                                    };
+                                    
+                                    // Fallback if onload doesn't fire
+                                    setTimeout(() => {
+                                        if (printWindow && !printWindow.closed) {
+                                            try {
+                                                printWindow.print();
+                                            } catch(e) {
+                                                console.error('Fallback print error:', e);
+                                            }
+                                        }
+                                    }, 2000);
+                                    
+                                } catch(e) {
+                                    console.error('Window write error:', e);
+                                    printWindow.close();
+                                    // Fallback to Method 2
+                                    useMobileIframePrint(data.invoice_html);
                                 }
-                                
-                                // Fallback trigger
-                                setTimeout(triggerPrint, 2000);
                             } else {
-                                toastr.error('Please allow pop-ups to print the receipt.');
+                                // Method 2: Popup blocked or failed, use iframe for mobile
+                                toastr.info('Please enable pop-ups for better printing experience.');
+                                useMobileIframePrint(data.invoice_html);
                             }
                         } else {
                             // For desktop: Use iframe method
