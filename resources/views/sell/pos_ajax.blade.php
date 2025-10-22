@@ -6310,7 +6310,40 @@
         window.location.href = "/sales/edit/" + saleId;
     }
 
-    // Function to print the receipt for the sale (attached to window for global access)
+    // // Function to print the receipt for the sale (attached to window for global access)
+    // window.printReceipt = function(saleId) {
+    //     fetch(`/sales/print-recent-transaction/${saleId}`)
+    //         .then(response => response.json())
+    //         .then(data => {
+    //             if (data.invoice_html) {
+    //                 const iframe = document.createElement('iframe');
+    //                 iframe.style.position = 'fixed';
+    //                 iframe.style.width = '0';
+    //                 iframe.style.height = '0';
+    //                 iframe.style.border = 'none';
+    //                 document.body.appendChild(iframe);
+
+    //                 iframe.contentDocument.open();
+    //                 iframe.contentDocument.write(data.invoice_html);
+    //                 iframe.contentDocument.close();
+
+    //                 iframe.onload = function() {
+    //                     iframe.contentWindow.print();
+    //                     iframe.contentWindow.onafterprint = function() {
+    //                         document.body.removeChild(iframe);
+    //                     };
+    //                 };
+    //             } else {
+    //                 // alert('Failed to fetch the receipt. Please try again.');
+    //             }
+    //         })
+    //         .catch(error => {
+    //             console.error('Error fetching the receipt:', error);
+    //             // alert('An error occurred while fetching the receipt. Please try again.');
+    //         });
+    // }
+
+      // Function to print the receipt for the sale (attached to window for global access)
     window.printReceipt = function(saleId) {
         // Close any open modals before printing
         const openModals = document.querySelectorAll('.modal.show');
@@ -6320,7 +6353,7 @@
                 modalInstance.hide();
             }
         });
-
+        
         // Add a small delay to ensure modal is fully closed
         setTimeout(() => {
             fetch(`/sales/print-recent-transaction/${saleId}`)
@@ -6342,7 +6375,12 @@
                                 printWindow.onload = function() {
                                     setTimeout(() => {
                                         printWindow.print();
-                                        // Don't auto-close on mobile - let user close manually
+                                        
+                                        // Close window after print dialog is handled
+                                        // Use a longer delay to ensure print is completed
+                                        setTimeout(() => {
+                                            printWindow.close();
+                                        }, 1000);
                                     }, 500);
                                 };
                             } else {
