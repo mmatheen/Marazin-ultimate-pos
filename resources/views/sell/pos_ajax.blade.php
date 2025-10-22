@@ -6349,32 +6349,53 @@
                                 toastr.error('Please allow pop-ups to print the receipt.');
                             }
                         } else {
-                            // For desktop: Use iframe method
+                            // For desktop: Use hidden iframe method (no blank page)
                             const iframe = document.createElement('iframe');
-                            iframe.style.position = 'fixed';
+                            iframe.style.position = 'absolute';
                             iframe.style.width = '0';
                             iframe.style.height = '0';
                             iframe.style.border = 'none';
+                            iframe.style.left = '-9999px';
                             iframe.style.top = '-9999px';
+                            iframe.style.visibility = 'hidden';
                             document.body.appendChild(iframe);
 
-                            iframe.contentDocument.open();
-                            iframe.contentDocument.write(data.invoice_html);
-                            iframe.contentDocument.close();
+                            const iframeDoc = iframe.contentWindow.document;
+                            iframeDoc.open();
+                            iframeDoc.write(data.invoice_html);
+                            iframeDoc.close();
 
+                            // Wait for content to load
                             iframe.onload = function() {
                                 setTimeout(() => {
-                                    iframe.contentWindow.print();
-                                    iframe.contentWindow.onafterprint = function() {
-                                        document.body.removeChild(iframe);
-                                    };
-                                    // Fallback cleanup if onafterprint doesn't fire
-                                    setTimeout(() => {
-                                        if (document.body.contains(iframe)) {
+                                    try {
+                                        iframe.contentWindow.focus();
+                                        iframe.contentWindow.print();
+                                    } catch (e) {
+                                        console.error('Print error:', e);
+                                        toastr.error('Unable to print. Please try again.');
+                                    }
+                                    
+                                    // Cleanup after printing or after timeout
+                                    const cleanup = () => {
+                                        if (iframe && document.body.contains(iframe)) {
                                             document.body.removeChild(iframe);
                                         }
-                                    }, 1000);
-                                }, 250);
+                                    };
+                                    
+                                    // Try to cleanup after print dialog closes
+                                    if (iframe.contentWindow.matchMedia) {
+                                        const mediaQueryList = iframe.contentWindow.matchMedia('print');
+                                        mediaQueryList.addListener(function(mql) {
+                                            if (!mql.matches) {
+                                                setTimeout(cleanup, 500);
+                                            }
+                                        });
+                                    }
+                                    
+                                    // Fallback cleanup after 2 seconds
+                                    setTimeout(cleanup, 2000);
+                                }, 100);
                             };
                         }
                     } else {
