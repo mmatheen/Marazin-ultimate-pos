@@ -311,6 +311,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
         Route::get('/sale-orders-list', [SaleController::class, 'saleOrdersList'])->name('sale-orders-list');
         Route::post('/sale-orders/convert-to-invoice/{id}', [SaleController::class, 'convertToInvoice'])->name('sale-orders.convert');
+        Route::post('/sale-orders/update/{id}', [SaleController::class, 'updateSaleOrder'])->name('sale-orders.update');
+        Route::post('/sales/cancel-converted-invoice/{id}', [SaleController::class, 'cancelConvertedInvoice'])->name('sales.cancel-converted');
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');

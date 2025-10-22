@@ -228,6 +228,105 @@ class SaleController extends Controller
         }
     }
 
+    /**
+     * Update Sale Order status and notes
+     */
+    public function updateSaleOrder(Request $request, $id)
+    {
+        try {
+            $saleOrder = Sale::findOrFail($id);
+            
+            // Validate it's a sale order
+            if ($saleOrder->transaction_type !== 'sale_order') {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'This is not a Sale Order'
+                ], 400);
+            }
+            
+            // Get the JSON data
+            $data = $request->all();
+            
+            // Update allowed fields
+            if (isset($data['order_status'])) {
+                $saleOrder->order_status = $data['order_status'];
+            }
+            
+            if (isset($data['order_notes'])) {
+                $saleOrder->order_notes = $data['order_notes'];
+            }
+            
+            if (isset($data['expected_delivery_date'])) {
+                $saleOrder->expected_delivery_date = $data['expected_delivery_date'];
+            }
+            
+            $saleOrder->save();
+            
+            return response()->json([
+                'status' => 200,
+                'message' => 'Sale Order updated successfully!',
+                'sale_order' => $saleOrder
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 400,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Cancel invoice and revert back to Sale Order
+     * Used when user clicks Cancel on payment page after conversion
+     */
+    public function cancelConvertedInvoice($invoiceId)
+    {
+        try {
+            $invoice = Sale::findOrFail($invoiceId);
+            
+            // Validate it's an invoice
+            if ($invoice->transaction_type !== 'invoice') {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'This is not an invoice'
+                ], 400);
+            }
+            
+            // Find the original sale order
+            $saleOrder = Sale::where('converted_to_sale_id', $invoiceId)
+                ->where('transaction_type', 'sale_order')
+                ->first();
+            
+            if (!$saleOrder) {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'Original Sale Order not found'
+                ], 400);
+            }
+            
+            // Revert the conversion
+            $saleOrder->revertInvoiceConversion($invoiceId);
+            
+            return response()->json([
+                'status' => 200,
+                'message' => 'Invoice cancelled successfully. Sale Order restored to confirmed status.',
+                'sale_order' => [
+                    'id' => $saleOrder->id,
+                    'order_number' => $saleOrder->order_number,
+                    'status' => 'confirmed'
+                ],
+                'redirect_url' => route('sale-orders-list')
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 400,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
     //draft sales
 
     public function index(Request $request)
@@ -240,8 +339,14 @@ class SaleController extends Controller
         // Check if this is a request for Recent Transactions (includes all statuses)
         if ($request->has('recent_transactions') && $request->get('recent_transactions') == 'true') {
             // For Recent Transactions in POS, we need all statuses so frontend can filter by tabs
+            // ✅ Exclude Sale Orders and cancelled invoices - only show actual active invoices
             $sales = Sale::with('products.product', 'customer', 'location', 'payments', 'user')
+                ->where(function($query) {
+                    $query->where('transaction_type', 'invoice')
+                          ->orWhereNull('transaction_type');
+                })
                 ->whereIn('status', ['final', 'quotation', 'draft', 'jobticket', 'suspended'])
+                ->where('payment_status', '!=', 'Cancelled') // Exclude cancelled invoices
                 ->orderBy('created_at', 'desc')
                 ->limit(200) // Increased limit for Recent Transactions
                 ->get();
@@ -667,7 +772,7 @@ class SaleController extends Controller
             'sales_date' => 'required|date',
             'status' => 'required|string',
             'invoice_no' => 'nullable|string|unique:sales,invoice_no',
-            // ✨ NEW: Sale Order fields (no sales_rep_id - using user_id)
+            //  NEW: Sale Order fields (no sales_rep_id - using user_id)
             'transaction_type' => 'nullable|string|in:invoice,sale_order',
             'expected_delivery_date' => 'nullable|date|after_or_equal:today',
             'order_notes' => 'nullable|string|max:1000',
@@ -1738,6 +1843,7 @@ class SaleController extends Controller
                 'products.product.unit', // eager load unit relation
                 'products.product.batches.locationBatches.location', // eager load all batches for the product
                 'products.batch',
+                'products.imeis', // Load IMEI numbers for each product
                 'customer',
                 'location'
             ])->findOrFail($id);
@@ -1927,7 +2033,8 @@ class SaleController extends Controller
                             'max_retail_price',
                             'expiry_date'
                         ]),
-                        'imei_numbers' => $imeiDetails,
+                        'imei_numbers' => $product->imeis->pluck('imei_number')->toArray(),
+                        'imeis' => $imeiDetails,
                     ];
                 }),
                 'customer' => optional($sale->customer)->only([

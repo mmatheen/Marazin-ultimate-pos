@@ -6305,13 +6305,13 @@
         }
     }
 
-    // Function to navigate to the edit page
-    function navigateToEdit(saleId) {
+    // Function to navigate to the edit page (attached to window for global access)
+    window.navigateToEdit = function(saleId) {
         window.location.href = "/sales/edit/" + saleId;
     }
 
-    // Function to print the receipt for the sale
-    function printReceipt(saleId) {
+    // Function to print the receipt for the sale (attached to window for global access)
+    window.printReceipt = function(saleId) {
         fetch(`/sales/print-recent-transaction/${saleId}`)
             .then(response => response.json())
             .then(data => {

@@ -194,11 +194,20 @@
                                         <li><button type="button" value="${row.id}" class="view-details dropdown-item"><i class="feather-eye text-info"></i> View</button></li>
                             `;
                             
-                            // Only show convert button if not completed or cancelled
+                            // Show change status for non-completed/cancelled orders
                             if (row.order_status !== 'completed' && row.order_status !== 'cancelled') {
                                 actions += `
                                         <li><button type="button" value="${row.id}" class="change-status dropdown-item"><i class="feather-refresh-cw text-primary"></i> Change Status</button></li>
+                                `;
+                                
+                                // ✅ Only show Convert to Invoice for confirmed/in_progress/ready/delivered orders
+                                if (['confirmed', 'in_progress', 'ready', 'delivered'].includes(row.order_status)) {
+                                    actions += `
                                         <li><button type="button" value="${row.id}" class="convert-invoice dropdown-item"><i class="feather-file-text text-success"></i> Convert to Invoice</button></li>
+                                    `;
+                                }
+                                
+                                actions += `
                                         <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
                                         <li><button type="button" value="${row.id}" class="cancel-order dropdown-item"><i class="feather-x text-warning"></i> Cancel Order</button></li>
                                 `;
@@ -440,7 +449,7 @@
                         
                         // Update status via AJAX
                         $.ajax({
-                            url: `/sales/update/${saleId}`,
+                            url: `/sale-orders/update/${saleId}`,
                             type: 'POST',
                             headers: {
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -566,7 +575,7 @@
                     if (result.isConfirmed) {
                         // Update order status to cancelled
                         $.ajax({
-                            url: `/sales/update/${saleId}`,
+                            url: `/sale-orders/update/${saleId}`,
                             type: 'POST',
                             headers: {
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')

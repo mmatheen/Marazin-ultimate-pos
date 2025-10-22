@@ -254,8 +254,24 @@ class Sale extends Model
             throw new \Exception('This Sale Order has already been converted');
         }
 
+        // ✅ BUSINESS RULE: Order must be confirmed before conversion
+        if ($this->order_status === 'pending') {
+            throw new \Exception('Cannot convert pending orders. Please confirm the order first.');
+        }
+
+        if ($this->order_status === 'cancelled') {
+            throw new \Exception('Cannot convert cancelled orders.');
+        }
+
+        if ($this->order_status === 'on_hold') {
+            throw new \Exception('Cannot convert orders on hold. Please change status first.');
+        }
+
         // ✅ VALIDATE STOCK BEFORE CONVERSION
         $this->validateStockAvailability();
+
+        // ✅ Load IMEI numbers for products
+        $this->load('products.imeis');
 
         return DB::transaction(function () {
             // Create new invoice record
@@ -298,6 +314,32 @@ class Sale extends Model
                 ]);
                 $newItem->save();
 
+                // ✅ Copy IMEI numbers from sale order to invoice
+                // Load IMEIs if not already loaded
+                if (!$item->relationLoaded('imeis')) {
+                    $item->load('imeis');
+                }
+                
+                Log::info("Converting product {$item->product_id}, IMEI count: " . $item->imeis->count());
+                
+                if ($item->imeis && $item->imeis->count() > 0) {
+                    foreach ($item->imeis as $imei) {
+                        $newImei = new SaleImei();
+                        $newImei->fill([
+                            'sale_id' => $invoice->id,
+                            'sale_product_id' => $newItem->id,
+                            'product_id' => $imei->product_id,
+                            'batch_id' => $imei->batch_id,
+                            'location_id' => $imei->location_id,
+                            'imei_number' => $imei->imei_number,
+                        ]);
+                        $newImei->save();
+                        Log::info("Copied IMEI: {$imei->imei_number} to invoice {$invoice->id}");
+                    }
+                } else {
+                    Log::warning("No IMEIs found for product {$item->product_id} in sale order {$this->id}");
+                }
+
                 // Update stock (reduce inventory)
                 $this->updateStockOnConversion($item);
             }
@@ -308,9 +350,70 @@ class Sale extends Model
                 'converted_to_sale_id' => $invoice->id,
             ]);
 
-            Log::info("Sale Order {$this->order_number} converted to Invoice {$invoice->invoice_no}");
+            Log::info("Sale Order {$this->order_number} converted to Invoice {$invoice->invoice_no}", [
+                'sale_order_id' => $this->id,
+                'invoice_id' => $invoice->id,
+                'invoice_no' => $invoice->invoice_no,
+                'stock_reduced' => true
+            ]);
 
             return $invoice;
+        });
+    }
+
+    /**
+     * Revert invoice conversion (for cancelled invoices)
+     * This restores stock and changes sale order back to "confirmed"
+     */
+    public function revertInvoiceConversion($invoiceId)
+    {
+        return DB::transaction(function () use ($invoiceId) {
+            $invoice = Sale::findOrFail($invoiceId);
+            
+            // Validate this is an invoice converted from this sale order
+            if ($invoice->transaction_type !== 'invoice') {
+                throw new \Exception('Not an invoice');
+            }
+            
+            if ($this->converted_to_sale_id != $invoiceId) {
+                throw new \Exception('This invoice was not created from this sale order');
+            }
+            
+            // Check if invoice has payments
+            if ($invoice->total_paid > 0) {
+                throw new \Exception('Cannot revert invoice with payments. Please process refund first.');
+            }
+            
+            // Restore stock for each product
+            foreach ($invoice->products as $item) {
+                $locationBatch = LocationBatch::where('batch_id', $item->batch_id)
+                    ->where('location_id', $item->location_id)
+                    ->first();
+                
+                if ($locationBatch) {
+                    $locationBatch->increment('qty', $item->quantity);
+                }
+            }
+            
+            // Mark invoice as cancelled
+            $invoice->update([
+                'status' => 'cancelled',
+                'payment_status' => 'Cancelled'
+            ]);
+            
+            // Restore sale order to confirmed status
+            $this->update([
+                'order_status' => 'confirmed',
+                'converted_to_sale_id' => null,
+            ]);
+            
+            Log::info("Invoice {$invoice->invoice_no} reverted, Sale Order {$this->order_number} restored to confirmed", [
+                'sale_order_id' => $this->id,
+                'invoice_id' => $invoice->id,
+                'stock_restored' => true
+            ]);
+            
+            return true;
         });
     }
 
@@ -367,11 +470,7 @@ class Sale extends Model
             $locationBatch->decrement('qty', $item->quantity);
         }
 
-        // Update product total stock
-        $product = Product::find($item->product_id);
-        if ($product) {
-            $product->decrement('stock', $item->quantity);
-        }
+        // Note: Stock is managed through location_batch table, not products.stock column
     }
 
     public static function getAvailableStock($batchId, $locationId)
