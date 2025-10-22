@@ -6364,25 +6364,42 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Open in new window (this is the most reliable for mobile)
+                            // For mobile: Open in new window (most reliable for mobile browsers)
                             const printWindow = window.open('', '_blank');
                             
                             if (printWindow) {
-                                printWindow.document.open();
+                                // Write the invoice HTML to the new window
                                 printWindow.document.write(data.invoice_html);
                                 printWindow.document.close();
                                 
-                                // Wait for content to fully load
-                                printWindow.onload = function() {
-                                    setTimeout(() => {
+                                // Use multiple triggers to ensure printing works
+                                const triggerPrint = () => {
+                                    try {
+                                        printWindow.focus();
                                         printWindow.print();
                                         
-                                        // Auto-close after print
+                                        // Close window after a delay
                                         setTimeout(() => {
-                                            printWindow.close();
-                                        }, 1000);
-                                    }, 500);
+                                            try {
+                                                printWindow.close();
+                                            } catch(e) {
+                                                console.log('Window already closed');
+                                            }
+                                        }, 1500);
+                                    } catch(e) {
+                                        console.error('Print error:', e);
+                                    }
                                 };
+                                
+                                // Try with onload event
+                                if (printWindow.document.readyState === 'complete') {
+                                    setTimeout(triggerPrint, 500);
+                                } else {
+                                    printWindow.onload = () => setTimeout(triggerPrint, 500);
+                                }
+                                
+                                // Fallback trigger
+                                setTimeout(triggerPrint, 2000);
                             } else {
                                 toastr.error('Please allow pop-ups to print the receipt.');
                             }
