@@ -6342,78 +6342,38 @@
     //             // alert('An error occurred while fetching the receipt. Please try again.');
     //         });
     // }
-    window.printReceipt = function (saleId) {
-    // Detect if the user is on a mobile browser
-    const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
 
-    // Function for printing via iframe (Desktop)
-    const printViaIframe = (html) => {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.width = '100vw';
-        iframe.style.height = '100vh';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
+    window.printReceipt = function(saleId) {
+    // Open a new window immediately (important for mobile)
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<p>Loading receipt...</p>');
+    printWindow.document.close();
 
-        iframe.contentDocument.open();
-        iframe.contentDocument.write(html);
-        iframe.contentDocument.close();
-
-        iframe.onload = function () {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-            iframe.contentWindow.onafterprint = function () {
-                document.body.removeChild(iframe);
-            };
-        };
-    };
-
-    // Function for printing via popup (Mobile)
-    const printViaPopup = (html) => {
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('Please allow popups to print the receipt.');
-            return;
-        }
-
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
-
-        printWindow.onload = function () {
-            printWindow.focus();
-            printWindow.print();
-
-            // Close automatically after a short delay
-            setTimeout(() => {
-                printWindow.close();
-            }, 1000);
-        };
-    };
-
-    // Fetch the invoice HTML
     fetch(`/sales/print-recent-transaction/${saleId}`)
         .then(response => response.json())
         .then(data => {
             if (data.invoice_html) {
-                if (isMobile) {
-                    // Use popup for mobile browsers
-                    printViaPopup(data.invoice_html);
-                } else {
-                    // Use iframe for desktops
-                    printViaIframe(data.invoice_html);
-                }
+                printWindow.document.open();
+                printWindow.document.write(data.invoice_html);
+                printWindow.document.close();
+
+                printWindow.onload = function() {
+                    printWindow.focus();
+                    printWindow.print();
+                    setTimeout(() => printWindow.close(), 1000);
+                };
             } else {
-                alert('Failed to load the receipt. Please try again.');
+                printWindow.close();
+                alert('Failed to load receipt.');
             }
         })
         .catch(error => {
-            console.error('Error fetching receipt:', error);
+            console.error('Error fetching the receipt:', error);
+            printWindow.close();
             alert('An error occurred while fetching the receipt.');
         });
 };
+
 });
 </script>
 
