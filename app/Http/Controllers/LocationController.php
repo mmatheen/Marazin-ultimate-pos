@@ -450,7 +450,31 @@ class LocationController extends Controller
                     'province' => 'required|string|max:255',
                     'district' => 'required|string|max:255',
                     'city' => 'nullable|string|max:255',
-                    'email' => 'nullable|email|max:255|unique:locations,email,' . $id,
+                    'email' => [
+                        'nullable',
+                        'email',
+                        'max:255',
+                        function ($attribute, $value, $fail) use ($id, $request) {
+                            if ($value) {
+                                $location = Location::find($id);
+                                
+                                // Check if email exists in other locations
+                                $emailExists = Location::where('email', $value)
+                                    ->where('id', '!=', $id)
+                                    ->where(function($query) use ($location) {
+                                        // Allow same email for parent-child relationships
+                                        $query->where('parent_id', '!=', $location->id)
+                                              ->where('parent_id', '!=', $location->parent_id)
+                                              ->where('id', '!=', $location->parent_id);
+                                    })
+                                    ->exists();
+                                
+                                if ($emailExists) {
+                                    $fail('The email has already been taken by another location.');
+                                }
+                            }
+                        }
+                    ],
                     'mobile' => ['nullable', 'regex:/^(0?\d{9,10})$/'],
                     'logo_image' => 'nullable|image|mimes:jpeg,jpg,png,gif|max:2048',
                     'invoice_layout_pos' => 'required|string|in:80mm,a4,dot_matrix',
