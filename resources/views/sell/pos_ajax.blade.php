@@ -6310,40 +6310,7 @@
         window.location.href = "/sales/edit/" + saleId;
     }
 
-    // // Function to print the receipt for the sale (attached to window for global access)
-    // window.printReceipt = function(saleId) {
-    //     fetch(`/sales/print-recent-transaction/${saleId}`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.invoice_html) {
-    //                 const iframe = document.createElement('iframe');
-    //                 iframe.style.position = 'fixed';
-    //                 iframe.style.width = '0';
-    //                 iframe.style.height = '0';
-    //                 iframe.style.border = 'none';
-    //                 document.body.appendChild(iframe);
-
-    //                 iframe.contentDocument.open();
-    //                 iframe.contentDocument.write(data.invoice_html);
-    //                 iframe.contentDocument.close();
-
-    //                 iframe.onload = function() {
-    //                     iframe.contentWindow.print();
-    //                     iframe.contentWindow.onafterprint = function() {
-    //                         document.body.removeChild(iframe);
-    //                     };
-    //                 };
-    //             } else {
-    //                 // alert('Failed to fetch the receipt. Please try again.');
-    //             }
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching the receipt:', error);
-    //             // alert('An error occurred while fetching the receipt. Please try again.');
-    //         });
-    // }
-
-      // Function to print the receipt for the sale (attached to window for global access)
+    // Function to print the receipt for the sale (attached to window for global access)
     window.printReceipt = function(saleId) {
         // Close any open modals before printing
         const openModals = document.querySelectorAll('.modal.show');
@@ -6353,7 +6320,7 @@
                 modalInstance.hide();
             }
         });
-        
+
         // Add a small delay to ensure modal is fully closed
         setTimeout(() => {
             fetch(`/sales/print-recent-transaction/${saleId}`)
@@ -6364,60 +6331,27 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Try multiple approaches for better compatibility
-                            
-                            // Method 1: Try opening in new window
-                            const printWindow = window.open('', '_blank', 'width=800,height=600');
-                            
-                            if (printWindow && !printWindow.closed) {
-                                try {
-                                    printWindow.document.open();
-                                    printWindow.document.write(data.invoice_html);
-                                    printWindow.document.close();
-                                    
-                                    // Wait for content to load then trigger print
-                                    printWindow.onload = function() {
-                                        setTimeout(() => {
-                                            try {
-                                                printWindow.print();
-                                                
-                                                // Close window after print dialog
-                                                setTimeout(() => {
-                                                    try {
-                                                        printWindow.close();
-                                                    } catch(e) {
-                                                        console.log('Could not auto-close print window');
-                                                    }
-                                                }, 1500);
-                                            } catch(e) {
-                                                console.error('Print error:', e);
-                                                toastr.error('Unable to print. Please try again.');
-                                                printWindow.close();
-                                            }
-                                        }, 500);
-                                    };
-                                    
-                                    // Fallback if onload doesn't fire
+                            // For mobile: Open in new window/tab for better print support
+                            const printWindow = window.open('', '_blank');
+                            if (printWindow) {
+                                printWindow.document.open();
+                                printWindow.document.write(data.invoice_html);
+                                printWindow.document.close();
+                                
+                                // Wait for content to load then trigger print
+                                printWindow.onload = function() {
                                     setTimeout(() => {
-                                        if (printWindow && !printWindow.closed) {
-                                            try {
-                                                printWindow.print();
-                                            } catch(e) {
-                                                console.error('Fallback print error:', e);
-                                            }
-                                        }
-                                    }, 2000);
-                                    
-                                } catch(e) {
-                                    console.error('Window write error:', e);
-                                    printWindow.close();
-                                    // Fallback to Method 2
-                                    useMobileIframePrint(data.invoice_html);
-                                }
+                                        printWindow.print();
+                                        
+                                        // Close window after print dialog is handled
+                                        // Use a longer delay to ensure print is completed
+                                        setTimeout(() => {
+                                            printWindow.close();
+                                        }, 1000);
+                                    }, 500);
+                                };
                             } else {
-                                // Method 2: Popup blocked or failed, use iframe for mobile
-                                toastr.info('Please enable pop-ups for better printing experience.');
-                                useMobileIframePrint(data.invoice_html);
+                                toastr.error('Please allow pop-ups to print the receipt.');
                             }
                         } else {
                             // For desktop: Use iframe method
