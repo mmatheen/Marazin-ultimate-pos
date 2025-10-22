@@ -6331,46 +6331,20 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Open in new window/tab. Inject a small script so the new
-                            // window calls print() and then attempts to close itself. Mobile
-                            // browsers often block window.close() from the opener, but allowing
-                            // the child to close itself after user action is more reliable.
+                            // For mobile: Open in new window/tab for better print support
                             const printWindow = window.open('', '_blank');
                             if (printWindow) {
-                                // Prepare a wrapper HTML that ensures our print+close script runs
-                                // after content loads. If data.invoice_html already contains <html>
-                                // and <body>, we inject our script before </body>. Otherwise we
-                                // wrap it.
-                                let html = data.invoice_html;
-                                try {
-                                    if (/</body>/i.test(html)) {
-                                        // Insert script before closing body tag
-                                        html = html.replace(/<\/body>/i, `\n<script>(function(){\n  function tryPrintAndClose(){\n    try{ window.print(); }catch(e){/*ignore*/}\n    // Give time for print dialog to open, then try to close
-  setTimeout(function(){ try{ window.close(); }catch(e){/*ignore*/ } }, 700);
-  }
-  // Run after load
-  if (document.readyState === 'complete') { tryPrintAndClose(); } else { window.addEventListener('load', tryPrintAndClose); }
-})();<\/script>\n</body>`);
-                                    } else {
-                                        // Wrap the provided fragment
-                                        html = `<!doctype html><html><head><meta charset="utf-8"></head><body>${html}\n<script>(function(){\n  function tryPrintAndClose(){\n    try{ window.print(); }catch(e){/*ignore*/}\n    setTimeout(function(){ try{ window.close(); }catch(e){/*ignore*/ } }, 700);\n  }\n  if (document.readyState === 'complete') { tryPrintAndClose(); } else { window.addEventListener('load', tryPrintAndClose); }\n})();<\/script></body></html>`;
-                                    }
-                                } catch (e) {
-                                    // Fallback to raw HTML if manipulation fails
-                                    html = data.invoice_html;
-                                }
-
                                 printWindow.document.open();
-                                printWindow.document.write(html);
+                                printWindow.document.write(data.invoice_html);
                                 printWindow.document.close();
-
-                                // Some mobile browsers don't reliably fire onload for windows
-                                // created via window.open and document.write, but our injected
-                                // script handles calling print when ready. Keep a fallback
-                                // timeout to focus the window.
-                                setTimeout(() => {
-                                    try { printWindow.focus(); } catch (e) { /*ignore*/ }
-                                }, 500);
+                                
+                                // Wait for content to load then trigger print
+                                printWindow.onload = function() {
+                                    setTimeout(() => {
+                                        printWindow.print();
+                                        // Don't auto-close on mobile - let user close manually
+                                    }, 500);
+                                };
                             } else {
                                 toastr.error('Please allow pop-ups to print the receipt.');
                             }
