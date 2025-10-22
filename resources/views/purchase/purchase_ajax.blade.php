@@ -1284,6 +1284,16 @@
                 const batchNo = $(row).find('.batch_no').val() || '';
                 const expiryDate = $(row).find('.expiry-date').val();
 
+                // DEBUG: Log the values being sent
+                console.log(`Product ${index}:`, {
+                    productId,
+                    quantity,
+                    price: price,
+                    discount_percent: discountPercent,
+                    unit_cost: unitCost,
+                    total
+                });
+
                 formData.append(`products[${index}][product_id]`, productId);
                 formData.append(`products[${index}][quantity]`, quantity);
                 formData.append(`products[${index}][price]`, price);
