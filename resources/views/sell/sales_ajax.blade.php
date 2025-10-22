@@ -1558,8 +1558,14 @@
             printReceipt(saleId);
         };
 
-        // Function to print the receipt for the sale (same as POS)
+        // Function to print the receipt for the sale - prefer centralized implementation
         function printReceipt(saleId) {
+            if (typeof window.printReceipt === 'function') {
+                // If a centralized printReceipt exists (from POS file), call it
+                return window.printReceipt(saleId);
+            }
+
+            // Fallback: local implementation (same as before)
             fetch(`/sales/print-recent-transaction/${saleId}`)
                 .then(response => response.json())
                 .then(data => {
@@ -1587,9 +1593,9 @@
                 })
                 .catch(error => {
                     console.error('Error fetching the receipt:', error);
-                    toastr.error('An error occurred while fetching the receipt. Please try again.',
-                    'Error');
+                    toastr.error('An error occurred while fetching the receipt. Please try again.', 'Error');
                 });
+        };
         }
 
         $('#savePayment').click(function() {

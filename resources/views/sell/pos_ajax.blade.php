@@ -5176,47 +5176,38 @@
 
                             // Only print for non-suspended sales and non-sale-order transactions
                             if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
-                                // FAST print setup - simplified and optimized
-                                const printIframe = document.createElement('iframe');
-                                printIframe.style.cssText =
-                                    'position:fixed;width:0;height:0;border:none;opacity:0;';
-                                document.body.appendChild(printIframe);
+                                // Determine sale id returned from the server (fallback to local saleId)
+                                const returnedSaleId = (response.sale && response.sale.id) || response.id || saleId;
 
-                                // Optimized print process
-                                const printDoc = printIframe.contentDocument;
-                                printDoc.open();
-                                printDoc.write(response.invoice_html);
-                                printDoc.close();
-
-                                // Immediate print trigger - don't wait for onload
-                                setTimeout(() => {
-                                    try {
-                                        printIframe.contentWindow.print();
-
-                                        // Cleanup iframe after short delay
+                                // Use centralized printReceipt which handles mobile vs desktop logic
+                                try {
+                                    if (typeof window.printReceipt === 'function') {
+                                        // Small delay to ensure UI has reset
                                         setTimeout(() => {
-                                            if (document.body.contains(
-                                                    printIframe)) {
-                                                document.body.removeChild(
-                                                    printIframe);
-                                            }
-                                        }, 1000);
-
-                                        // Redirect for edits
-                                        if (saleId) {
-                                            setTimeout(() => {
-                                                window.location.href =
-                                                    '/pos-create';
-                                            }, 500);
-                                        }
-                                    } catch (error) {
-                                        console.warn('Print failed:', error);
-                                        // Cleanup on error
-                                        if (document.body.contains(printIframe)) {
-                                            document.body.removeChild(printIframe);
-                                        }
+                                            window.printReceipt(returnedSaleId);
+                                        }, 150);
+                                    } else {
+                                        // Fallback: open a hidden iframe directly if centralized function missing
+                                        const fallbackIframe = document.createElement('iframe');
+                                        fallbackIframe.style.cssText = 'position:fixed;width:0;height:0;border:none;opacity:0;';
+                                        document.body.appendChild(fallbackIframe);
+                                        const doc = fallbackIframe.contentDocument || fallbackIframe.contentWindow.document;
+                                        doc.open();
+                                        doc.write(response.invoice_html);
+                                        doc.close();
+                                        setTimeout(() => {
+                                            try { fallbackIframe.contentWindow.print(); } catch (e) { console.warn('Fallback print error', e); }
+                                            setTimeout(() => { if (document.body.contains(fallbackIframe)) document.body.removeChild(fallbackIframe); }, 1000);
+                                        }, 200);
                                     }
-                                }, 100);
+
+                                    // Redirect for edits if needed
+                                    if (saleId) {
+                                        setTimeout(() => { window.location.href = '/pos-create'; }, 700);
+                                    }
+                                } catch (err) {
+                                    console.warn('Error while initiating print:', err);
+                                }
                             }
 
                             // ASYNC operations that don't block UI (moved to background)
