@@ -309,6 +309,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/pos-list', [SaleController::class, 'posList'])->name('pos-list');
         Route::get('/draft-list', [SaleController::class, 'draft'])->name('draft-list');
         Route::get('/quotation-list', [SaleController::class, 'quotation'])->name('quotation-list');
+        Route::get('/sale-orders-list', [SaleController::class, 'saleOrdersList'])->name('sale-orders-list');
+        Route::post('/sale-orders/convert-to-invoice/{id}', [SaleController::class, 'convertToInvoice'])->name('sale-orders.convert');
         Route::post('/sales/store', [SaleController::class, 'storeOrUpdate']);
         Route::post('/sales/update/{id}', [SaleController::class, 'storeOrUpdate']);
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');

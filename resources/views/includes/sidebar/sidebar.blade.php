@@ -166,7 +166,7 @@
                 @endcanany
 
                 @canany(['view all sales', 'view own sales', 'create sale', 'access pos', 'view sale-return', 'create sale-return'])
-                    <li class="submenu {{ set_active(['list-sale', 'pos-create', 'add-sale', 'quotation-list', 'draft-list', 'sale-return/list', 'sale-return/add']) }}">
+                    <li class="submenu {{ set_active(['list-sale', 'pos-create', 'add-sale', 'quotation-list', 'draft-list', 'sale-orders-list', 'sale-return/list', 'sale-return/add']) }}">
                         <a href="#">
                             <i class="fas fa-clipboard"></i>
                             <span class="sidebar-text">Sell</span>
@@ -195,6 +195,13 @@
                             <li><a href="{{ route('draft-list') }}" class="{{ set_active(['draft-list']) }}">Draft
                                     List</a></li>
                             {{-- @endcan --}}
+                            
+                            {{-- Sale Orders List --}}
+                            @can('create sale')
+                                <li><a href="{{ route('sale-orders-list') }}" class="{{ set_active(['sale-orders-list']) }}">
+                                    <i class="fas fa-shopping-cart"></i> Sale Orders</a>
+                                </li>
+                            @endcan
 
                             @can('view sale-return')
                                 <li><a href="{{ route('sale-return/list') }}"

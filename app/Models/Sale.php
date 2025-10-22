@@ -254,6 +254,9 @@ class Sale extends Model
             throw new \Exception('This Sale Order has already been converted');
         }
 
+        // ✅ VALIDATE STOCK BEFORE CONVERSION
+        $this->validateStockAvailability();
+
         return DB::transaction(function () {
             // Create new invoice record
             $invoice = new Sale();
@@ -309,6 +312,45 @@ class Sale extends Model
 
             return $invoice;
         });
+    }
+
+    /**
+     * Validate stock availability before conversion
+     */
+    protected function validateStockAvailability()
+    {
+        $insufficientItems = [];
+        
+        foreach ($this->products as $item) {
+            // Get current stock for this batch/location
+            $locationBatch = \App\Models\LocationBatch::where('batch_id', $item->batch_id)
+                ->where('location_id', $item->location_id)
+                ->first();
+            
+            $availableQty = $locationBatch ? $locationBatch->qty : 0;
+            
+            if ($availableQty < $item->quantity) {
+                $product = $item->product;
+                $productName = $product ? $product->product_name : 'Unknown Product';
+                
+                $insufficientItems[] = [
+                    'product' => $productName,
+                    'required' => $item->quantity,
+                    'available' => $availableQty,
+                    'shortage' => $item->quantity - $availableQty
+                ];
+            }
+        }
+        
+        if (!empty($insufficientItems)) {
+            $errorMessage = "Insufficient stock for the following items:\n\n";
+            foreach ($insufficientItems as $item) {
+                $errorMessage .= "• {$item['product']}: Required {$item['required']}, Available {$item['available']} (Short by {$item['shortage']})\n";
+            }
+            $errorMessage .= "\nPlease restock or reduce order quantities before converting to invoice.";
+            
+            throw new \Exception($errorMessage);
+        }
     }
 
     /**

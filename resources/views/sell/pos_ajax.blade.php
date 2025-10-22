@@ -4149,8 +4149,8 @@
             }
 
             // Get the product info from the modal context
-            const modalProduct = currentImeiProduct || selectedRow?.dataset?.product ? JSON.parse(
-                selectedRow.dataset.product) : null;
+            const modalProduct = currentImeiProduct || (selectedRow?.dataset?.product ? JSON.parse(
+                selectedRow.dataset.product) : null);
 
             // Check if this is an IMEI product
             const isImeiProduct = modalProduct && modalProduct.is_imei_or_serial_no === 1;
@@ -6179,69 +6179,57 @@
                 document.getElementById('orderNotes').value = '';
             });
 
+            document.getElementById('cancelButton').addEventListener('click', resetForm);
 
+            function resetToWalkingCustomer() {
+                const customerSelect = $('#customer-id');
 
+                if (isSalesRep) {
+                    // For sales reps, select the first available customer (not Walk-in)
+                    const firstCustomer = customerSelect.find('option:first');
+                    if (firstCustomer.length > 0) {
+                        customerSelect.val(firstCustomer.val());
+                        customerSelect.trigger('change');
+                    }
+                } else {
+                    // For non-sales reps, reset to Walk-in Customer
+                    const walkingCustomer = customerSelect.find('option').filter(function() {
+                        return $(this).text().startsWith('Walk-in');
+                    });
 
-        });
-
-
-
-        document.getElementById('cancelButton').addEventListener('click', resetForm);
-
-        function resetToWalkingCustomer() {
-            const customerSelect = $('#customer-id');
-
-            if (isSalesRep) {
-                // For sales reps, select the first available customer (not Walk-in)
-                const firstCustomer = customerSelect.find('option:first');
-                if (firstCustomer.length > 0) {
-                    customerSelect.val(firstCustomer.val());
-                    customerSelect.trigger('change');
-                }
-            } else {
-                // For non-sales reps, reset to Walk-in Customer
-                const walkingCustomer = customerSelect.find('option').filter(function() {
-                    return $(this).text().startsWith('Walk-in');
-                });
-
-                if (walkingCustomer.length > 0) {
-                    customerSelect.val(walkingCustomer.val());
-                    customerSelect.trigger('change');
+                    if (walkingCustomer.length > 0) {
+                        customerSelect.val(walkingCustomer.val());
+                        customerSelect.trigger('change');
+                    }
                 }
             }
-        }
 
-        function resetForm() {
-            // Reset editing mode
-            isEditing = false;
-            currentEditingSaleId = null; // Reset the editing sale ID
+            function resetForm() {
+                // Reset editing mode
+                isEditing = false;
+                currentEditingSaleId = null; // Reset the editing sale ID
 
-            resetToWalkingCustomer();
-            const quantityInputs = document.querySelectorAll('.quantity-input');
-            quantityInputs.forEach(input => {
-                input.value = 1;
-            });
+                resetToWalkingCustomer();
+                const quantityInputs = document.querySelectorAll('.quantity-input');
+                quantityInputs.forEach(input => {
+                    input.value = 1;
+                });
 
-            const billingBodyRows = document.querySelectorAll('#billing-body tr');
-            billingBodyRows.forEach(row => {
-                row.remove();
-            });
+                const billingBodyRows = document.querySelectorAll('#billing-body tr');
+                billingBodyRows.forEach(row => {
+                    row.remove();
+                });
 
-            document.getElementById('amount-given').value = ''; // Reset the amount given field
+                document.getElementById('amount-given').value = ''; // Reset the amount given field
 
-            // Reset discount fields
-            document.getElementById('global-discount').value = '';
-            document.getElementById('discount-type').value = 'fixed';
+                // Reset discount fields
+                document.getElementById('global-discount').value = '';
+                document.getElementById('discount-type').value = 'fixed';
 
-            updateTotals();
-        }
+                updateTotals();
+            }
 
-
-
-
-
-
-    });
+        });
     $(document).ready(function() {
         // Initialize DataTable
         $('#transactionTable').DataTable();
@@ -6354,6 +6342,7 @@
                 // alert('An error occurred while fetching the receipt. Please try again.');
             });
     }
+});
 </script>
 
 

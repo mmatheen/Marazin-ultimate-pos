@@ -171,9 +171,61 @@ class SaleController extends Controller
     {
         return view('sell.draft_list');
     }
+    
     public function quotation()
     {
         return view('sell.quotation_list');
+    }
+
+    public function saleOrdersList()
+    {
+        return view('sell.sale_orders_list');
+    }
+
+    /**
+     * Convert Sale Order to Invoice
+     */
+    public function convertToInvoice($id)
+    {
+        try {
+            $saleOrder = Sale::findOrFail($id);
+            
+            // Validate it's a sale order
+            if ($saleOrder->transaction_type !== 'sale_order') {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'This is not a Sale Order'
+                ], 400);
+            }
+            
+            // Validate not already converted
+            if ($saleOrder->order_status === 'completed') {
+                return response()->json([
+                    'status' => 400,
+                    'message' => 'This Sale Order has already been converted to an invoice'
+                ], 400);
+            }
+            
+            // Convert using model method
+            $invoice = $saleOrder->convertToInvoice();
+            
+            // Redirect to POS edit page for payment
+            return response()->json([
+                'status' => 200,
+                'message' => 'Sale Order converted to Invoice successfully!',
+                'invoice' => [
+                    'id' => $invoice->id,
+                    'invoice_no' => $invoice->invoice_no,
+                ],
+                'redirect_url' => route('sales.edit', $invoice->id)
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 400,
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 
     //draft sales
