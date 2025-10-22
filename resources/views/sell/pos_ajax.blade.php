@@ -6342,7 +6342,11 @@
                                 printWindow.onload = function() {
                                     setTimeout(() => {
                                         printWindow.print();
-                                        // Don't auto-close on mobile - let user close manually
+                                        
+                                        // Auto-close the print window after printing on mobile
+                                        setTimeout(() => {
+                                            printWindow.close();
+                                        }, 1000);
                                     }, 500);
                                 };
                             } else {
