@@ -68,6 +68,7 @@
         <div class="card">
             <div class="card-body">
                 <form id="salesReturnForm">
+                    @csrf
 
                     <div class="card mb-4">
                         <div class="card-body">

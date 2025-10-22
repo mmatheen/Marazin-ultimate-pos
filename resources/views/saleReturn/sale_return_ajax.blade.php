@@ -654,21 +654,31 @@
                     },
                     return_total: {
                         required: true,
-                        number: true
+                        number: true,
+                        min: 0.01
+                    },
+                    notes: {
+                        required: true
                     }
-                    // Removed quantity validation - it's now optional
                 },
                 messages: {
                     return_date: "Please select a return date",
                     location_id: "Please select a location",
                     return_total: {
                         required: "Please enter the return total amount",
-                        number: "Please enter a valid number"
-                    }
-                    // Removed quantity validation messages
+                        number: "Please enter a valid number",
+                        min: "Return total must be greater than 0"
+                    },
+                    notes: "Please enter a reason for the return"
                 },
                 submitHandler: function(form) {
+                    console.log('Form submit handler called');
+                    const withBill = $('#withBill').is(':checked');
+                    console.log('Billing mode:', withBill ? 'With Bill' : 'Without Bill');
+                    
                     const isValid = validateForm();
+                    console.log('Form validation result:', isValid);
+                    
                     const $submitButton = $('.btn[type="submit"]');
                     $submitButton.prop('disabled', true).html('Processing...');
 
@@ -704,10 +714,19 @@
 
                         // Check if at least one product is being returned
                         if (jsonData.products.length === 0) {
-                            toastr.error("Please enter return quantity for at least one product.");
+                            toastr.error("Please add at least one product and enter return quantity.");
                             $submitButton.prop('disabled', false).html('Save');
                             return;
                         }
+
+                        // Additional validation for billing options
+                        if (withBill && !jsonData.sale_id) {
+                            toastr.error("Please select a valid invoice first.");
+                            $submitButton.prop('disabled', false).html('Save');
+                            return;
+                        }
+
+                        console.log('Submitting form data:', jsonData);
 
                         // Using jQuery AJAX
                         $.ajax({
@@ -717,27 +736,40 @@
                             contentType: "application/json",
                             dataType: "json",
                             headers: {
-                                'X-CSRF-TOKEN': $('input[name=_token]').val()
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') || $('input[name="_token"]').val()
                             },
                             success: function(response) {
                                 if (response.status === 200) {
                                     toastr.success(response.message);
                                     setTimeout(() => {
-                                        window.location.href =
-                                            "/sale-return/list"; // Redirect after success
-                                    }, 1500); // Delay for toastr message display
+                                        window.location.href = "/sale-return/list";
+                                    }, 1500);
                                 } else {
                                     toastr.error(response.errors.join("<br>"));
-                                    $submitButton.prop('disabled', false).html(
-                                        'Save'); // Re-enable on error
+                                    $submitButton.prop('disabled', false).html('Save');
                                 }
                             },
                             error: function(xhr, status, error) {
-                                console.error('Error storing sales return:', error);
-                                toastr.error(
-                                    "An error occurred while processing the request.");
-                                $submitButton.prop('disabled', false).html(
-                                    'Save'); // Re-enable on error
+                                console.error('Error storing sales return:', xhr.responseText);
+                                let errorMessage = "An error occurred while processing the request.";
+                                
+                                if (xhr.status === 422) {
+                                    try {
+                                        const response = JSON.parse(xhr.responseText);
+                                        if (response.errors) {
+                                            errorMessage = Object.values(response.errors).flat().join('<br>');
+                                        }
+                                    } catch (e) {
+                                        errorMessage = "Validation error occurred.";
+                                    }
+                                } else if (xhr.status === 419) {
+                                    errorMessage = "Session expired. Please refresh the page and try again.";
+                                } else if (xhr.status === 403) {
+                                    errorMessage = "You don't have permission to perform this action.";
+                                }
+                                
+                                toastr.error(errorMessage);
+                                $submitButton.prop('disabled', false).html('Save');
                             }
                         });
                     } else {
@@ -752,23 +784,60 @@
             function validateForm() {
                 let isValid = true;
                 
-                // Validate required fields (excluding quantity fields)
-                document.querySelectorAll(
-                    '#salesReturnForm input, #salesReturnForm select, #salesReturnForm textarea').forEach(
-                    element => {
-                        // Skip validation for return-quantity fields as they are optional
-                        if (element.classList.contains('return-quantity')) {
-                            element.classList.remove('is-invalid');
-                            return;
-                        }
-                        
-                        if (element.required && !element.value) {
-                            isValid = false;
-                            element.classList.add('is-invalid');
-                        } else {
-                            element.classList.remove('is-invalid');
-                        }
-                    });
+                // Clear previous validation errors
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+
+                // Check billing option specific validation
+                const withBill = $('#withBill').is(':checked');
+                console.log('Billing mode:', withBill ? 'With Bill' : 'Without Bill');
+                
+                // Validate required fields based on billing option
+                const fieldsToValidate = [
+                    { field: '#date', message: 'Please select a return date' },
+                    { field: '#locationId', message: 'Please select a location' },
+                    { field: '#notes', message: 'Please enter a reason for the return' }
+                ];
+
+                // Add conditional validation
+                if (withBill) {
+                    fieldsToValidate.push({ field: '#invoiceNo', message: 'Please enter an invoice number' });
+                    // Also check if a valid sale is loaded
+                    if (!$('#sale-id').val()) {
+                        $('#invoiceNo').addClass('is-invalid');
+                        $('#invoiceNo').after('<div class="invalid-feedback">Please select a valid invoice</div>');
+                        isValid = false;
+                    }
+                } else {
+                    fieldsToValidate.push({ field: '#customerId', message: 'Please select a customer' });
+                }
+
+                // Validate each field
+                fieldsToValidate.forEach(validation => {
+                    const $field = $(validation.field);
+                    const fieldValue = $field.val();
+                    console.log(`Validating ${validation.field}:`, fieldValue);
+                    
+                    if (!fieldValue || fieldValue.trim() === '') {
+                        console.log(`Field ${validation.field} is invalid`);
+                        $field.addClass('is-invalid');
+                        $field.after(`<div class="invalid-feedback">${validation.message}</div>`);
+                        isValid = false;
+                    } else {
+                        console.log(`Field ${validation.field} is valid`);
+                    }
+                });
+
+                // Validate return total (this field should be auto-calculated)
+                const returnTotal = parseFloat($('#returnTotal').val()) || 0;
+                if (returnTotal <= 0) {
+                    $('#returnTotal').addClass('is-invalid');
+                    $('#returnTotal').after('<div class="invalid-feedback">Return total must be greater than 0</div>');
+                    isValid = false;
+                    console.log('Return total validation failed:', returnTotal);
+                } else {
+                    console.log('Return total is valid:', returnTotal);
+                }
 
                 // Check if at least one product has return quantity > 0
                 let hasReturnQuantity = false;
@@ -781,10 +850,11 @@
                 });
 
                 if (!hasReturnQuantity) {
-                    toastr.error("Please enter return quantity for at least one product.");
+                    toastr.error("Please add at least one product and enter return quantity.");
                     isValid = false;
                 }
 
+                console.log('Overall form validation result:', isValid);
                 return isValid;
             }
 
