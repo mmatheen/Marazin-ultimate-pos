@@ -53,6 +53,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $activeSetting?->app_name ?? 'My App' }}</title>
     <link rel="shortcut icon" href="{{ URL::to('assets/img/ARB Logo.png') }}">
     <link rel="stylesheet" href="{{ URL::to('assets/plugins/bootstrap/css/bootstrap.min.css') }}">
@@ -99,7 +100,7 @@
                             </div>
                             <h1 class="mb-4 text-center">{{ $activeSetting?->app_name ?? 'My App' }}</h1>
                             {{-- <p class="account-subtitle">Need an account? <a href="{{ route('register') }}">Sign Up</a></p> --}}
-                            <form action="{{ route('login') }}" method="POST">
+                            <form action="{{ route('login') }}" method="POST" id="loginForm">
                                 @csrf
                                 {{-- <div class="form-group">
                                     <label>Email<span class="login-danger">*</span></label>
@@ -198,6 +199,70 @@
 
             @if (Session::has('toastr-info'))
                 toastr.info("{{ Session::get('toastr-info') }}");
+            @endif
+
+            // Setup CSRF token for AJAX requests
+            $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
+            // Refresh CSRF token every 30 minutes to prevent expiration
+            setInterval(function() {
+                $.get('{{ route("csrf-token") }}', function(data) {
+                    $('meta[name="csrf-token"]').attr('content', data.token);
+                    $('input[name="_token"]').val(data.token);
+                }).fail(function() {
+                    console.log('Failed to refresh CSRF token');
+                });
+            }, 30 * 60 * 1000); // 30 minutes
+
+            // Handle form submission with error handling for CSRF
+            $('#loginForm').on('submit', function(e) {
+                const form = $(this);
+                const submitBtn = form.find('button[type="submit"]');
+                const loginInput = form.find('input[name="login"]');
+                const passwordInput = form.find('input[name="password"]');
+                
+                // Basic validation
+                if (!loginInput.val().trim()) {
+                    e.preventDefault();
+                    toastr.error('Please enter your username or email');
+                    return false;
+                }
+                
+                if (!passwordInput.val().trim()) {
+                    e.preventDefault();
+                    toastr.error('Please enter your password');
+                    return false;
+                }
+                
+                // Disable submit button to prevent double submission
+                submitBtn.prop('disabled', true).html('Logging in...');
+                
+                // Re-enable button after 10 seconds in case of issues
+                setTimeout(function() {
+                    submitBtn.prop('disabled', false).html('Login');
+                }, 10000);
+            });
+
+            // Handle CSRF errors globally
+            $(document).ajaxError(function(xhr, status, error) {
+                if (xhr.status === 419) {
+                    toastr.warning('Session expired. Refreshing page...');
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1500);
+                }
+            });
+
+            // Check for 419 error on page load and refresh if necessary
+            @if(session()->has('errors') && session('errors')->has('csrf'))
+                toastr.error('Page expired. Please try again.');
+                setTimeout(function() {
+                    window.location.reload();
+                }, 2000);
             @endif
         });
     </script>

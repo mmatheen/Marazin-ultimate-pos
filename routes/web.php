@@ -68,6 +68,11 @@ if (!function_exists('set_active')) {
     }
 }
 
+// -------------------- CSRF Token Refresh Route --------------------
+Route::get('/csrf-token', function () {
+    return response()->json(['token' => csrf_token()]);
+})->name('csrf-token');
+
 // -------------------- Dashboard Route --------------------
 Route::get('/dashboard', function () {
     return view('includes.dashboards.dashboard');
