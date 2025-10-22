@@ -6343,42 +6343,6 @@
     //         });
     // }
 
-    // Mobile iframe print fallback function
-    function useMobileIframePrint(htmlContent) {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.border = 'none';
-        iframe.style.zIndex = '99999';
-        document.body.appendChild(iframe);
-
-        iframe.contentDocument.open();
-        iframe.contentDocument.write(htmlContent);
-        iframe.contentDocument.close();
-
-        iframe.onload = function() {
-            setTimeout(() => {
-                try {
-                    iframe.contentWindow.print();
-                    
-                    // Remove iframe after print
-                    setTimeout(() => {
-                        if (document.body.contains(iframe)) {
-                            document.body.removeChild(iframe);
-                        }
-                    }, 1000);
-                } catch(e) {
-                    console.error('Mobile iframe print error:', e);
-                    document.body.removeChild(iframe);
-                    toastr.error('Unable to print. Please try again or use a different browser.');
-                }
-            }, 500);
-        };
-    }
-
       // Function to print the receipt for the sale (attached to window for global access)
     window.printReceipt = function(saleId) {
         // Close any open modals before printing
@@ -6400,61 +6364,60 @@
                         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                         
                         if (isMobile) {
-                            // For mobile: Try multiple approaches for better compatibility
-                            
-                            // Method 1: Try opening in new window
-                            const printWindow = window.open('', '_blank', 'width=800,height=600');
-                            
-                            if (printWindow && !printWindow.closed) {
-                                try {
-                                    printWindow.document.open();
-                                    printWindow.document.write(data.invoice_html);
-                                    printWindow.document.close();
-                                    
-                                    // Wait for content to load then trigger print
-                                    printWindow.onload = function() {
+                            // For mobile: Use simple iframe approach that works reliably
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'fixed';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            iframe.style.top = '-9999px';
+                            iframe.style.left = '-9999px';
+                            document.body.appendChild(iframe);
+
+                            // Write content to iframe
+                            const iframeDoc = iframe.contentWindow.document;
+                            iframeDoc.open();
+                            iframeDoc.write(data.invoice_html);
+                            iframeDoc.close();
+
+                            // Wait for content to load
+                            iframe.onload = function() {
+                                setTimeout(() => {
+                                    try {
+                                        // Focus iframe first (important for mobile)
+                                        iframe.contentWindow.focus();
+                                        
+                                        // Trigger print
+                                        iframe.contentWindow.print();
+                                        
+                                        // Cleanup after print
                                         setTimeout(() => {
-                                            try {
-                                                printWindow.print();
-                                                
-                                                // Close window after print dialog
-                                                setTimeout(() => {
-                                                    try {
-                                                        printWindow.close();
-                                                    } catch(e) {
-                                                        console.log('Could not auto-close print window');
-                                                    }
-                                                }, 1500);
-                                            } catch(e) {
-                                                console.error('Print error:', e);
-                                                toastr.error('Unable to print. Please try again.');
-                                                printWindow.close();
+                                            if (document.body.contains(iframe)) {
+                                                document.body.removeChild(iframe);
                                             }
-                                        }, 500);
-                                    };
-                                    
-                                    // Fallback if onload doesn't fire
-                                    setTimeout(() => {
-                                        if (printWindow && !printWindow.closed) {
-                                            try {
-                                                printWindow.print();
-                                            } catch(e) {
-                                                console.error('Fallback print error:', e);
-                                            }
+                                        }, 2000);
+                                    } catch(e) {
+                                        console.error('Mobile print error:', e);
+                                        // Remove iframe on error
+                                        if (document.body.contains(iframe)) {
+                                            document.body.removeChild(iframe);
                                         }
-                                    }, 2000);
-                                    
-                                } catch(e) {
-                                    console.error('Window write error:', e);
-                                    printWindow.close();
-                                    // Fallback to Method 2
-                                    useMobileIframePrint(data.invoice_html);
+                                        toastr.error('Unable to print. Please try using Chrome browser.');
+                                    }
+                                }, 500);
+                            };
+                            
+                            // Fallback if onload doesn't fire within 3 seconds
+                            setTimeout(() => {
+                                if (document.body.contains(iframe)) {
+                                    try {
+                                        iframe.contentWindow.focus();
+                                        iframe.contentWindow.print();
+                                    } catch(e) {
+                                        console.error('Fallback print error:', e);
+                                    }
                                 }
-                            } else {
-                                // Method 2: Popup blocked or failed, use iframe for mobile
-                                toastr.info('Please enable pop-ups for better printing experience.');
-                                useMobileIframePrint(data.invoice_html);
-                            }
+                            }, 3000);
                         } else {
                             // For desktop: Use iframe method
                             const iframe = document.createElement('iframe');
