@@ -10,7 +10,19 @@ class PurchaseProduct extends Model
     use HasFactory;
 
     protected $fillable = [
-        'purchase_id', 'product_id', 'batch_id', 'location_id', 'quantity', 'unit_cost', 'wholesale_price', 'special_price', 'retail_price', 'max_retail_price','total'
+        'purchase_id', 
+        'product_id', 
+        'batch_id', 
+        'location_id', 
+        'quantity', 
+        'price',              // Original price before discount
+        'discount_percent',   // Product-level discount percentage
+        'unit_cost',          // Final unit cost after discount
+        'wholesale_price', 
+        'special_price', 
+        'retail_price', 
+        'max_retail_price',
+        'total'
     ];
 
     public function purchase()
