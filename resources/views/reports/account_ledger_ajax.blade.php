@@ -482,6 +482,12 @@ $(document).ready(function() {
 
         // Populate table with ledger entries
         ledgerData.forEach(function(entry, index) {
+            // Debug: Log the date format being received
+            if (index === 0) {
+                console.log('First entry date format:', entry.date, typeof entry.date);
+                console.log('Full entry object:', entry);
+            }
+            
             totalDebit += parseFloat(entry.debit || 0);
             totalCredit += parseFloat(entry.credit || 0);
 
@@ -500,9 +506,12 @@ $(document).ready(function() {
                 balanceDisplay = `<div class="text-end fw-bold text-secondary">Rs. 0.00 (Clear)</div>`;
             }
 
+            // Try different date fields that might be present in the API response
+            const dateValue = entry.date || entry.created_at || entry.transaction_date || entry.updated_at;
+            
             tableData.push([
                 index + 1,
-                formatDate(entry.date), // Using 'date' field from your response
+                formatDate(dateValue), // Try multiple possible date fields
                 entry.reference_no || 'N/A',
                 `<span class="badge ${typeClass}">${entry.type || 'N/A'}</span>`, // Using 'type' field
                 entry.location || 'N/A', // Using 'location' field
@@ -700,8 +709,80 @@ $(document).ready(function() {
 
     function formatDate(dateString) {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB') + ' ' + date.toLocaleTimeString('en-GB', {hour12: false});
+        
+        try {
+            let date;
+            
+            // If it's already a valid date string
+            if (typeof dateString === 'string') {
+                // Clean up escaped forward slashes from JSON response
+                let cleanDateString = dateString.replace(/\\\//g, '/');
+                
+                // Handle API format: DD/MM/YYYY HH:MM:SS (23/09/2025 08:47:30)
+                if (cleanDateString.match(/^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2}$/)) {
+                    // Parse DD/MM/YYYY HH:MM:SS format
+                    const parts = cleanDateString.split(' ');
+                    const dateParts = parts[0].split('/');
+                    const timeParts = parts[1].split(':');
+                    
+                    // Create date object (month is 0-indexed in JS)
+                    date = new Date(
+                        parseInt(dateParts[2]), // year
+                        parseInt(dateParts[1]) - 1, // month (0-indexed)
+                        parseInt(dateParts[0]), // day
+                        parseInt(timeParts[0]), // hour
+                        parseInt(timeParts[1]), // minute
+                        parseInt(timeParts[2]) // second
+                    );
+                }
+                // Handle API format: DD/MM/YYYY (23/09/2025)
+                else if (cleanDateString.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+                    const dateParts = cleanDateString.split('/');
+                    date = new Date(
+                        parseInt(dateParts[2]), // year
+                        parseInt(dateParts[1]) - 1, // month (0-indexed)
+                        parseInt(dateParts[0]) // day
+                    );
+                }
+                // Handle MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+                else if (cleanDateString.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+                    date = new Date(cleanDateString);
+                }
+                // Handle MySQL date format (YYYY-MM-DD)
+                else if (cleanDateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    date = new Date(cleanDateString + ' 00:00:00');
+                }
+                // Handle ISO format (2025-09-23T03:17:30.000000Z)
+                else if (cleanDateString.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
+                    date = new Date(cleanDateString);
+                }
+                // Try parsing as-is for other formats
+                else {
+                    date = new Date(cleanDateString);
+                }
+            } else {
+                date = new Date(dateString);
+            }
+            
+            // Check if the date is valid
+            if (isNaN(date.getTime())) {
+                console.warn('Invalid date format:', dateString);
+                return dateString; // Return original string if can't parse
+            }
+            
+            // Format as DD/MM/YYYY HH:MM
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+            
+        } catch (error) {
+            console.error('Error formatting date:', dateString, error);
+            return dateString; // Return original string if error occurs
+        }
     }
 
     // Advance payment handlers (for customer ledger)
