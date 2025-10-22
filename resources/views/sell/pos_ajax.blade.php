@@ -6311,69 +6311,82 @@
     }
 
     // Function to print the receipt for the sale (attached to window for global access)
-    // window.printReceipt = function(saleId) {
-    //     fetch(`/sales/print-recent-transaction/${saleId}`)
-    //         .then(response => response.json())
-    //         .then(data => {
-    //             if (data.invoice_html) {
-    //                 const iframe = document.createElement('iframe');
-    //                 iframe.style.position = 'fixed';
-    //                 iframe.style.width = '0';
-    //                 iframe.style.height = '0';
-    //                 iframe.style.border = 'none';
-    //                 document.body.appendChild(iframe);
-
-    //                 iframe.contentDocument.open();
-    //                 iframe.contentDocument.write(data.invoice_html);
-    //                 iframe.contentDocument.close();
-
-    //                 iframe.onload = function() {
-    //                     iframe.contentWindow.print();
-    //                     iframe.contentWindow.onafterprint = function() {
-    //                         document.body.removeChild(iframe);
-    //                     };
-    //                 };
-    //             } else {
-    //                 // alert('Failed to fetch the receipt. Please try again.');
-    //             }
-    //         })
-    //         .catch(error => {
-    //             console.error('Error fetching the receipt:', error);
-    //             // alert('An error occurred while fetching the receipt. Please try again.');
-    //         });
-    // }
-
     window.printReceipt = function(saleId) {
-    // Open a new window immediately (important for mobile)
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write('<p>Loading receipt...</p>');
-    printWindow.document.close();
-
-    fetch(`/sales/print-recent-transaction/${saleId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.invoice_html) {
-                printWindow.document.open();
-                printWindow.document.write(data.invoice_html);
-                printWindow.document.close();
-
-                printWindow.onload = function() {
-                    printWindow.focus();
-                    printWindow.print();
-                    setTimeout(() => printWindow.close(), 1000);
-                };
-            } else {
-                printWindow.close();
-                alert('Failed to load receipt.');
+        // Close any open modals before printing
+        const openModals = document.querySelectorAll('.modal.show');
+        openModals.forEach(modal => {
+            const modalInstance = bootstrap.Modal.getInstance(modal);
+            if (modalInstance) {
+                modalInstance.hide();
             }
-        })
-        .catch(error => {
-            console.error('Error fetching the receipt:', error);
-            printWindow.close();
-            alert('An error occurred while fetching the receipt.');
         });
-};
 
+        // Add a small delay to ensure modal is fully closed
+        setTimeout(() => {
+            fetch(`/sales/print-recent-transaction/${saleId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.invoice_html) {
+                        // Check if mobile device
+                        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                        
+                        if (isMobile) {
+                            // For mobile: Open in new window/tab for better print support
+                            const printWindow = window.open('', '_blank');
+                            if (printWindow) {
+                                printWindow.document.open();
+                                printWindow.document.write(data.invoice_html);
+                                printWindow.document.close();
+                                
+                                // Wait for content to load then trigger print
+                                printWindow.onload = function() {
+                                    setTimeout(() => {
+                                        printWindow.print();
+                                        // Don't auto-close on mobile - let user close manually
+                                    }, 500);
+                                };
+                            } else {
+                                toastr.error('Please allow pop-ups to print the receipt.');
+                            }
+                        } else {
+                            // For desktop: Use iframe method
+                            const iframe = document.createElement('iframe');
+                            iframe.style.position = 'fixed';
+                            iframe.style.width = '0';
+                            iframe.style.height = '0';
+                            iframe.style.border = 'none';
+                            iframe.style.top = '-9999px';
+                            document.body.appendChild(iframe);
+
+                            iframe.contentDocument.open();
+                            iframe.contentDocument.write(data.invoice_html);
+                            iframe.contentDocument.close();
+
+                            iframe.onload = function() {
+                                setTimeout(() => {
+                                    iframe.contentWindow.print();
+                                    iframe.contentWindow.onafterprint = function() {
+                                        document.body.removeChild(iframe);
+                                    };
+                                    // Fallback cleanup if onafterprint doesn't fire
+                                    setTimeout(() => {
+                                        if (document.body.contains(iframe)) {
+                                            document.body.removeChild(iframe);
+                                        }
+                                    }, 1000);
+                                }, 250);
+                            };
+                        }
+                    } else {
+                        toastr.error('Failed to fetch the receipt. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching the receipt:', error);
+                    toastr.error('An error occurred while fetching the receipt. Please try again.');
+                });
+        }, 300); // Delay to ensure modal is closed
+    }
 });
 </script>
 
