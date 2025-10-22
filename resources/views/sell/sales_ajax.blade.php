@@ -1,18 +1,18 @@
 <script>
     $(document).ready(function() {
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
-        
-       
+
+
         // Make sure table exists and destroy any existing DataTable
         if ($.fn.DataTable.isDataTable('#salesTable')) {
             $('#salesTable').DataTable().destroy();
         }
-        
+
         // Check if table element exists
         if ($('#salesTable').length === 0) {
             return;
         }
-        
+
         const table = $('#salesTable').DataTable({
             processing: true,
             serverSide: true,
@@ -32,25 +32,29 @@
                         start: parseInt(d.start) || 0,
                         length: parseInt(d.length) || 10
                     };
-                    
+
                     // Add search parameters if present
                     if (d.search && d.search.value) {
                         requestData['search[value]'] = d.search.value;
                         requestData['search[regex]'] = d.search.regex || false;
                     }
-                    
+
                     // Add order parameters if present
                     if (d.order && d.order[0]) {
                         requestData['order[0][column]'] = parseInt(d.order[0].column) || 0;
                         requestData['order[0][dir]'] = d.order[0].dir || 'desc';
                     }
-                    
+
                     // Add custom filters
-                    if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter').val();
-                    if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter').val();
+                    if ($('#customerFilter').val()) requestData.customer_id = $('#customerFilter')
+                        .val();
+                    if ($('#locationFilter').val()) requestData.location_id = $('#locationFilter')
+                        .val();
                     if ($('#userFilter').val()) requestData.user_id = $('#userFilter').val();
-                    if ($('#paymentStatusFilter').val()) requestData.payment_status = $('#paymentStatusFilter').val();
-                    if ($('#paymentMethodFilter').val()) requestData.payment_method = $('#paymentMethodFilter').val();
+                    if ($('#paymentStatusFilter').val()) requestData.payment_status = $(
+                        '#paymentStatusFilter').val();
+                    if ($('#paymentMethodFilter').val()) requestData.payment_method = $(
+                        '#paymentMethodFilter').val();
                     if ($('#dateRangeFilter').val()) {
                         var dateRange = $('#dateRangeFilter').val().split(' - ');
                         if (dateRange.length === 2) {
@@ -58,7 +62,7 @@
                             requestData.end_date = dateRange[1];
                         }
                     }
-                    
+
                     return requestData;
                 },
                 // Simple DataTable server-side response handler
@@ -70,38 +74,40 @@
                         draw: json.draw,
                         debug: json.debug || null
                     });
-                    
+
                     // Handle empty database case
                     if (json.debug && json.debug.message === 'No sales found in database') {
-                        
+
                         // Show helpful message to user
                         if (typeof toastr !== 'undefined') {
-                            toastr.info('No sales found. Create your first sale using POS or Add Sale!', 'Getting Started', {
-                                timeOut: 8000,
-                                extendedTimeOut: 4000
-                            });
+                            toastr.info(
+                                'No sales found. Create your first sale using POS or Add Sale!',
+                                'Getting Started', {
+                                    timeOut: 8000,
+                                    extendedTimeOut: 4000
+                                });
                         }
-                        
+
                         return [];
                     }
-                    
-                    
+
+
                     // Standard DataTable server-side response
                     if (json.data && Array.isArray(json.data)) {
                         return json.data;
                     }
-                    
+
                     return [];
                 },
                 error: function(xhr, error, code) {
-                                        
+
                     let errorMessage = 'Failed to load sales data';
                     if (xhr.status === 401) {
                         errorMessage = 'Authentication required. Please login again.';
                     } else if (xhr.status === 500) {
                         errorMessage = 'Server error occurred';
                     }
-                    
+
                     if (typeof toastr !== 'undefined') {
                         toastr.error(errorMessage);
                     } else {
@@ -109,8 +115,7 @@
                     }
                 }
             },
-            columns: [
-                { 
+            columns: [{
                     data: null,
                     orderable: false,
                     searchable: false,
@@ -134,7 +139,7 @@
                         </div>`;
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'sales_date',
                     title: 'Date',
@@ -142,15 +147,15 @@
                         return row.sales_date || 'N/A';
                     }
                 },
-                { 
+                {
                     data: null,
-                    name: 'id', 
+                    name: 'id',
                     title: 'Invoice No.',
                     render: function(data, type, row) {
                         return row.invoice_no || row.id || 'N/A';
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'customer_name',
                     title: 'Customer Name',
@@ -160,13 +165,14 @@
                             if (row.customer.name) {
                                 return row.customer.name;
                             } else if (row.customer.first_name || row.customer.last_name) {
-                                return ((row.customer.first_name || '') + ' ' + (row.customer.last_name || '')).trim();
+                                return ((row.customer.first_name || '') + ' ' + (row.customer
+                                    .last_name || '')).trim();
                             }
                         }
                         return 'N/A';
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'customer_phone',
                     title: 'Phone',
@@ -177,7 +183,7 @@
                         return 'N/A';
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'location_name',
                     title: 'Location',
@@ -193,13 +199,14 @@
                     render: function(data, type, row) {
                         // Use payment status from database (don't recalculate)
                         let paymentStatus = row.payment_status || 'Due';
-                        
+
                         // Ensure proper capitalization
-                        paymentStatus = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1).toLowerCase();
-                        
-                        let badgeClass = paymentStatus === 'Paid' ? 'bg-success' : 
-                                        paymentStatus === 'Partial' ? 'bg-warning' : 'bg-danger';
-                        
+                        paymentStatus = paymentStatus.charAt(0).toUpperCase() + paymentStatus
+                            .slice(1).toLowerCase();
+
+                        let badgeClass = paymentStatus === 'Paid' ? 'bg-success' :
+                            paymentStatus === 'Partial' ? 'bg-warning' : 'bg-danger';
+
                         return `<span class="badge ${badgeClass}">${paymentStatus}</span>`;
                     }
                 },
@@ -222,13 +229,13 @@
                         return 'N/A';
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'final_total',
                     title: 'Total Amount',
                     render: function(data, type, row) {
-                        let finalTotal = typeof row.final_total === 'string' ? 
-                            row.final_total : 
+                        let finalTotal = typeof row.final_total === 'string' ?
+                            row.final_total :
                             parseFloat(row.final_total || 0).toFixed(2);
                         return finalTotal;
                     }
@@ -242,8 +249,8 @@
                         let totalPaid = 0;
                         if (row.payments && row.payments.length > 0) {
                             totalPaid = row.payments.reduce((sum, payment) => {
-                                let amount = typeof payment.amount === 'string' ? 
-                                    parseFloat(payment.amount.replace(/,/g, '')) : 
+                                let amount = typeof payment.amount === 'string' ?
+                                    parseFloat(payment.amount.replace(/,/g, '')) :
                                     parseFloat(payment.amount || 0);
                                 return sum + amount;
                             }, 0);
@@ -258,14 +265,14 @@
                     title: 'Due Amount',
                     render: function(data, type, row) {
                         // Use total_due from database (don't recalculate)
-                        let dueAmount = typeof row.total_due === 'string' ? 
-                            parseFloat(row.total_due.replace(/,/g, '')) : 
+                        let dueAmount = typeof row.total_due === 'string' ?
+                            parseFloat(row.total_due.replace(/,/g, '')) :
                             parseFloat(row.total_due || 0);
                         return Math.max(0, dueAmount).toFixed(2);
                     }
                 },
-                { 
-                    data: null, 
+                {
+                    data: null,
                     name: 'status',
                     title: 'Status',
                     render: function(data, type, row) {
@@ -282,7 +289,7 @@
                         return row.total_items || 0;
                     }
                 },
-                { 
+                {
                     data: null,
                     name: 'user_name',
                     title: 'Added By',
@@ -295,8 +302,13 @@
                 }
             ],
             pageLength: 10, // STRICT default to 10
-            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-            order: [[1, 'desc']], // Order by sales_date descending
+            lengthMenu: [
+                [10, 25, 50, 100, -1],
+                [10, 25, 50, 100, "All"]
+            ],
+            order: [
+                [1, 'desc']
+            ], // Order by sales_date descending
             dom: '<"row"<"col-sm-6"l><"col-sm-6"f>><"row"<"col-sm-12"t>><"row"<"col-sm-5"i><"col-sm-7"p>>',
             lengthChange: true, // Enable length change dropdown
             searching: true,
@@ -402,21 +414,21 @@
         });
 
         // Add DataTable event handlers
-        table.on('draw.dt', function () {
+        table.on('draw.dt', function() {
             console.log('DataTable draw completed');
         });
 
-        table.on('error.dt', function (e, settings, techNote, message) {
+        table.on('error.dt', function(e, settings, techNote, message) {
             console.error('DataTable error:', message, techNote);
         });
 
         // Enhanced pagination event tracking
-        table.on('length.dt', function (e, settings, len) {
+        table.on('length.dt', function(e, settings, len) {
             console.log('=== Page Length Changed ===');
             console.log('New length:', len);
             console.log('Previous page info:', table.page.info());
             console.log('Table will reload with', len, 'entries per page');
-            
+
             // Force immediate reload to ensure strict compliance
             setTimeout(() => {
                 console.log('After length change - page info:', table.page.info());
@@ -425,7 +437,7 @@
         });
 
         // Track page changes (Next/Previous button clicks)
-        table.on('page.dt', function (e, settings) {
+        table.on('page.dt', function(e, settings) {
             console.log('=== Page Changed ===');
             console.log('New page info:', table.page.info());
             console.log('Current page:', table.page());
@@ -439,7 +451,7 @@
             console.log('=== Length Selector Direct Change ===');
             console.log('Selected value:', selectedValue);
             console.log('Current page info before change:', table.page.info());
-            
+
             // Force table refresh with new length
             setTimeout(() => {
                 console.log('Page info after change:', table.page.info());
@@ -452,12 +464,13 @@
         });
 
         // Add filter change handlers to refresh table
-        $('#customerFilter, #locationFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter, #dateRangeFilter').on('change', function() {
-            console.log('Filter changed:', $(this).attr('id'), 'to:', $(this).val());
-            if ($.fn.DataTable.isDataTable('#salesTable')) {
-                $('#salesTable').DataTable().ajax.reload();
-            }
-        });
+        $('#customerFilter, #locationFilter, #userFilter, #paymentStatusFilter, #paymentMethodFilter, #dateRangeFilter')
+            .on('change', function() {
+                console.log('Filter changed:', $(this).attr('id'), 'to:', $(this).val());
+                if ($.fn.DataTable.isDataTable('#salesTable')) {
+                    $('#salesTable').DataTable().ajax.reload();
+                }
+            });
 
         // Global function to refresh sales data (can be called from payment success callbacks)
         window.refreshSalesTable = function() {
@@ -484,10 +497,12 @@
             console.log('Length selector found:', lengthSelector.length > 0);
             if (lengthSelector.length > 0) {
                 console.log('Current value:', lengthSelector.val());
-                console.log('Available options:', lengthSelector.find('option').map((i, el) => $(el).val()).get());
+                console.log('Available options:', lengthSelector.find('option').map((i, el) => $(el)
+                    .val()).get());
                 console.log('Element HTML:', lengthSelector[0].outerHTML);
             } else {
-                console.log('Length selector not found! DataTable wrapper:', $('.dataTables_wrapper').length);
+                console.log('Length selector not found! DataTable wrapper:', $('.dataTables_wrapper')
+                    .length);
                 console.log('All selects in wrapper:', $('.dataTables_wrapper select').length);
             }
             console.log('=====================================');
@@ -498,9 +513,10 @@
             const info = table.page.info();
             console.log('DataTable Info:', info);
             console.log('Page length:', table.page.len());
-            alert(`Page: ${info.page + 1} of ${info.pages}\nRecords: ${info.start + 1} to ${info.end} of ${info.recordsTotal}\nPage Length: ${table.page.len()}`);
+            alert(
+                `Page: ${info.page + 1} of ${info.pages}\nRecords: ${info.start + 1} to ${info.end} of ${info.recordsTotal}\nPage Length: ${table.page.len()}`);
         };
-        
+
         window.testPageLength = function(length) {
             table.page.len(length).draw();
         };
@@ -529,7 +545,7 @@
         // Show the modal when the button is clicked
         $('#bulkPaymentBtn').click(function() {
             $('#bulkPaymentModal').modal('show');
-            
+
             // Load customers when modal opens (reuse the same function)
             loadCustomersForBulkPayment();
         });
@@ -537,12 +553,12 @@
         let originalOpeningBalance = 0; // Store the actual customer opening balance
         let saleDueAmount = 0; // Store sale due amount
         let totalDueAmount = 0; // Store total due amount
-        
+
         // Use event delegation to handle customer select changes (works for both modal and separate page)
         $(document).on('change', '#customerSelect', function() {
             var customerId = $(this).val();
             var selectedOption = $(this).find(':selected');
-            
+
             originalOpeningBalance = parseFloat(selectedOption.data('opening-balance')) || 0;
             saleDueAmount = parseFloat(selectedOption.data('sale-due')) || 0;
             totalDueAmount = parseFloat(selectedOption.data('total-due')) || 0;
@@ -564,11 +580,12 @@
         $('input[name="paymentType"]').change(function() {
             var paymentType = $(this).val();
             var customerId = $('#customerSelect').val();
-            
+
             if (paymentType === 'opening_balance') {
                 $('#salesListContainer').hide();
                 $('#globalPaymentAmount').attr('max', originalOpeningBalance);
-                $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + originalOpeningBalance.toFixed(2));
+                $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + originalOpeningBalance
+                    .toFixed(2));
             } else if (paymentType === 'sale_dues') {
                 $('#salesListContainer').show();
                 $('#globalPaymentAmount').attr('max', saleDueAmount);
@@ -578,7 +595,7 @@
                 $('#globalPaymentAmount').attr('max', totalDueAmount);
                 $('#globalPaymentAmount').attr('placeholder', 'Max: Rs. ' + totalDueAmount.toFixed(2));
             }
-            
+
             if (customerId) {
                 loadSalesData(customerId);
             }
@@ -605,7 +622,8 @@
 
                     if (response.sales && response.sales.length > 0) {
                         response.sales.forEach(function(sale) {
-                            if (sale.customer_id == customerId && sale.status === 'final') { // Only final sales
+                            if (sale.customer_id == customerId && sale.status ===
+                                'final') { // Only final sales
                                 var finalTotal = parseFloat(sale.final_total) || 0;
                                 var totalPaid = parseFloat(sale.total_paid) || 0;
                                 var totalDue = parseFloat(sale.total_due) || 0;
@@ -633,7 +651,7 @@
 
                     console.log('Totals calculated:', {
                         totalSalesAmount: totalSalesAmount,
-                        totalPaidAmount: totalPaidAmount,  
+                        totalPaidAmount: totalPaidAmount,
                         totalDueAmount: totalDueAmount
                     });
 
@@ -641,10 +659,10 @@
                     $('#totalSalesAmount').text('Rs. ' + totalSalesAmount.toFixed(2));
                     $('#totalPaidAmount').text('Rs. ' + totalPaidAmount.toFixed(2));
                     $('#totalDueAmount').text('Rs. ' + totalDueAmount.toFixed(2));
-                    
+
                     // Store totalDueAmount for validation purposes
                     window.saleDueAmount = totalDueAmount;
-                    
+
                     // Update individual payment total
                     updateIndividualPaymentTotal();
                 },
@@ -676,11 +694,11 @@
             // Clear existing validation feedback first
             $(this).removeClass('is-invalid');
             $(this).next('.invalid-feedback').remove();
-            
+
             if (globalAmount > maxAmount) {
                 $(this).addClass('is-invalid').after(
                     '<span class="invalid-feedback d-block">Global amount exceeds total due amount.</span>'
-                    );
+                );
                 return;
             }
 
@@ -689,14 +707,15 @@
                 // Only apply to opening balance
                 let newOpeningBalance = Math.max(0, customerOpeningBalance - remainingAmount);
                 $('#openingBalance').text(newOpeningBalance.toFixed(2));
-                
+
                 // Clear all sales payment inputs
                 $('.reference-amount').val(0);
-                
+
             } else if (paymentType === 'sale_dues') {
                 // Only apply to sales dues in order
                 $('.reference-amount').each(function() {
-                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)')
+                    .text()) || 0;
                     if (remainingAmount > 0 && referenceDue > 0) {
                         var paymentAmount = Math.min(remainingAmount, referenceDue);
                         $(this).val(paymentAmount.toFixed(2));
@@ -705,10 +724,10 @@
                         $(this).val(0);
                     }
                 });
-                
+
                 // Don't change opening balance
                 $('#openingBalance').text(customerOpeningBalance.toFixed(2));
-                
+
             } else if (paymentType === 'both') {
                 // First deduct from opening balance
                 let newOpeningBalance = customerOpeningBalance;
@@ -725,7 +744,8 @@
 
                 // Then apply remaining amount to sales in order
                 $('.reference-amount').each(function() {
-                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text()) || 0;
+                    var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)')
+                    .text()) || 0;
                     if (remainingAmount > 0 && referenceDue > 0) {
                         var paymentAmount = Math.min(remainingAmount, referenceDue);
                         $(this).val(paymentAmount.toFixed(2));
@@ -735,7 +755,7 @@
                     }
                 });
             }
-            
+
             // Update the individual payment total display
             updateIndividualPaymentTotal();
         });
@@ -754,17 +774,17 @@
         $(document).on('input', '.reference-amount', function() {
             var referenceDue = parseFloat($(this).closest('tr').find('td:eq(3)').text());
             var paymentAmount = parseFloat($(this).val()) || 0;
-            
+
             // Clear existing validation feedback first
             $(this).removeClass('is-invalid');
             $(this).next('.invalid-feedback').remove();
-            
+
             if (paymentAmount > referenceDue) {
                 $(this).addClass('is-invalid').after(
                     '<span class="invalid-feedback d-block">Amount exceeds total due.</span>'
                 );
             }
-            
+
             // Update individual payment total whenever amount changes
             updateIndividualPaymentTotal();
         });
@@ -799,13 +819,13 @@
         // Function to load customers for bulk payment
         // Debug: Check if this script is loading
         console.log('sales_ajax.blade.php script is loading...');
-        
+
         // Make this function globally available
         window.loadCustomersForBulkPayment = function() {
             console.log('Loading customers for bulk payment...');
             console.log('CSRF Token:', $('meta[name="csrf-token"]').attr('content'));
             console.log('Current user authenticated:', $('meta[name="csrf-token"]').length > 0);
-            
+
             $.ajax({
                 url: '/customer-get-all',
                 method: 'GET',
@@ -818,29 +838,36 @@
                     console.log('Customer response for bulk payment:', response);
                     var customerSelect = $('#customerSelect');
                     customerSelect.empty();
-                    customerSelect.append('<option value="" selected disabled>Select Customer</option>');
-                    
-                    if (response.status === 200 && response.message && response.message.length > 0) {
+                    customerSelect.append(
+                        '<option value="" selected disabled>Select Customer</option>');
+
+                    if (response.status === 200 && response.message && response.message.length >
+                        0) {
                         response.message.forEach(function(customer) {
                             // Skip walk-in customer (customer ID 1)
                             if (customer.id === 1) {
                                 return;
                             }
-                            
+
                             // Calculate total due amount
-                            var openingBalance = parseFloat(customer.opening_balance) || 0;
+                            var openingBalance = parseFloat(customer.opening_balance) ||
+                                0;
                             var saleDue = parseFloat(customer.total_sale_due) || 0;
                             var currentDue = parseFloat(customer.current_due) || 0;
-                            
+
                             // Only show customers who have due amounts
                             if (currentDue > 0) {
-                                var lastName = customer.last_name ? customer.last_name : '';
-                                var fullName = (customer.first_name || '') + (lastName ? ' ' + lastName : '');
-                                var displayText = fullName + ' (Due: Rs. ' + currentDue.toFixed(2) + ')';
+                                var lastName = customer.last_name ? customer.last_name :
+                                    '';
+                                var fullName = (customer.first_name || '') + (lastName ?
+                                    ' ' + lastName : '');
+                                var displayText = fullName + ' (Due: Rs. ' + currentDue
+                                    .toFixed(2) + ')';
                                 if (openingBalance > 0) {
-                                    displayText += ' [Opening: Rs. ' + openingBalance.toFixed(2) + ']';
+                                    displayText += ' [Opening: Rs. ' + openingBalance
+                                        .toFixed(2) + ']';
                                 }
-                                
+
                                 customerSelect.append(
                                     '<option value="' + customer.id +
                                     '" data-opening-balance="' + openingBalance +
@@ -851,7 +878,8 @@
                             }
                         });
                     } else {
-                        console.error("Failed to fetch customer data or no customers found.", response);
+                        console.error("Failed to fetch customer data or no customers found.",
+                            response);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -861,20 +889,22 @@
                         responseText: xhr.responseText,
                         statusCode: xhr.status
                     });
-                    
+
                     // Show user-friendly error message
                     var errorMessage = 'Failed to load customers.';
                     if (xhr.status === 401) {
-                        errorMessage = 'Authentication required. Please refresh the page and login again.';
+                        errorMessage =
+                            'Authentication required. Please refresh the page and login again.';
                     } else if (xhr.status === 403) {
                         errorMessage = 'Permission denied to access customer data.';
                     }
-                    
-                    $('#customerSelect').append('<option value="" disabled>Error: ' + errorMessage + '</option>');
+
+                    $('#customerSelect').append('<option value="" disabled>Error: ' +
+                        errorMessage + '</option>');
                 }
             });
         }
-        
+
         // Debug: Confirm function is defined
         console.log('loadCustomersForBulkPayment function defined successfully');
         console.log('Type of window.loadCustomersForBulkPayment:', typeof window.loadCustomersForBulkPayment);
@@ -884,11 +914,11 @@
             console.log('Document ready - checking for customerSelect element...');
             console.log('Current URL:', window.location.href);
             console.log('CustomerSelect element found:', $('#customerSelect').length > 0);
-            
+
             // Load customers on page load for bulk payment functionality
             if ($('#customerSelect').length > 0) {
                 console.log('CustomerSelect element exists, initializing...');
-                
+
                 // Wait a bit for DOM to be fully ready
                 setTimeout(function() {
                     // Initialize select2 for customer dropdown if available
@@ -901,14 +931,14 @@
                     } else {
                         console.log('Select2 not available, using regular dropdown');
                     }
-                    
+
                     // Load customers
                     loadCustomersForBulkPayment();
                 }, 500);
             } else {
                 console.log('CustomerSelect element not found on this page');
             }
-            
+
             $('#salesList').DataTable({
                 columns: [{
                         title: "ID (Invoice)"
@@ -954,7 +984,8 @@
                     .remove(); // Remove validation feedback
                 $('#paymentMethod').val('cash'); // Reset payment method to cash
                 togglePaymentFields('bulkPaymentModal'); // Reset payment fields
-                $('input[name="paymentType"][value="sale_dues"]').prop('checked', true); // Reset to sale dues
+                $('input[name="paymentType"][value="sale_dues"]').prop('checked',
+                true); // Reset to sale dues
                 $('#salesListContainer').show(); // Show sales list by default
                 togglePaymentFields('bulkPaymentModal'); // Ensure the correct fields are shown
             });
@@ -962,10 +993,10 @@
         // Handle payment submission (works for both modal and separate page)
         $(document).on('click', '#submitBulkPayment', function() {
             console.log('Submit bulk payment button clicked');
-            
+
             var customerId = $('#customerSelect').val();
             var paymentMethod = $('#paymentMethod').val();
-            
+
             console.log('Customer ID:', customerId);
             console.log('Payment Method raw:', paymentMethod);
             // Get payment date - there might be multiple inputs with same ID, get the one with value
@@ -978,22 +1009,22 @@
                     return false; // Break the loop
                 }
             });
-            
+
             // If still empty, try to get from visible date inputs or set today's date
             if (!paymentDate) {
                 paymentDate = $('input[type="date"]:visible').val();
                 console.log('Trying visible date input, payment_date:', paymentDate);
             }
-            
+
             // If still empty, set today's date
             if (!paymentDate) {
                 var today = new Date();
-                paymentDate = today.getFullYear() + '-' + 
-                    String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                paymentDate = today.getFullYear() + '-' +
+                    String(today.getMonth() + 1).padStart(2, '0') + '-' +
                     String(today.getDate()).padStart(2, '0');
                 console.log('Using today\'s date:', paymentDate);
             }
-            
+
             console.log('Raw payment date from input:', paymentDate);
             console.log('Payment date input element exists:', $('#paidOn').length > 0);
             console.log('Payment date input is visible:', $('#paidOn').is(':visible'));
@@ -1001,9 +1032,10 @@
             console.log('Payment date input data-date:', $('#paidOn').data('date'));
             console.log('All form inputs with values:');
             $('#paidOn, [name="payment_date"]').each(function() {
-                console.log('Input:', this.id || this.name, 'Value:', $(this).val(), 'Type:', this.type);
+                console.log('Input:', this.id || this.name, 'Value:', $(this).val(), 'Type:',
+                    this.type);
             });
-            
+
             // Convert date format from DD-MM-YYYY to YYYY-MM-DD if needed
             if (paymentDate && paymentDate.includes('-')) {
                 var dateParts = paymentDate.split('-');
@@ -1014,17 +1046,18 @@
             }
             var globalPaymentAmount = parseFloat($('#globalPaymentAmount').val()) || 0;
             var paymentType = $('input[name="paymentType"]:checked').val();
-            
+
             console.log('Global payment amount raw value:', $('#globalPaymentAmount').val());
             console.log('Global payment amount parsed:', globalPaymentAmount);
             console.log('Global amount element exists:', $('#globalPaymentAmount').length > 0);
             console.log('Global amount element is visible:', $('#globalPaymentAmount').is(':visible'));
             console.log('All amount inputs on page:');
             $('[id*="Amount"], [name*="amount"], input[type="number"]').each(function() {
-                console.log('Amount input:', this.id || this.name || 'unnamed', 'Value:', $(this).val(), 'Visible:', $(this).is(':visible'));
+                console.log('Amount input:', this.id || this.name || 'unnamed', 'Value:', $(
+                    this).val(), 'Visible:', $(this).is(':visible'));
             });
             var salePayments = [];
-            
+
             console.log('Form values collected:', {
                 customerId: customerId,
                 paymentMethod: paymentMethod,
@@ -1032,7 +1065,7 @@
                 globalPaymentAmount: globalPaymentAmount,
                 paymentType: paymentType
             });
-            
+
             console.log('Date after conversion:', paymentDate);
 
             // Validate customer selection
@@ -1043,27 +1076,29 @@
 
             // Validate payment amount based on payment type
             var maxAmount = 0;
-            var customerOpeningBalance = parseFloat($('#customerSelect').find(':selected').data('opening-balance')) || 0;
+            var customerOpeningBalance = parseFloat($('#customerSelect').find(':selected').data(
+                'opening-balance')) || 0;
             var totalDueAmount = parseFloat($('#totalDueAmount').text().replace('Rs. ', '')) || 0;
             var totalCustomerDue = parseFloat($('#totalCustomerDue').text().replace('Rs. ', '')) || 0;
-            
+
             console.log('Balance details:', {
                 customerOpeningBalance: customerOpeningBalance,
                 totalDueAmount: totalDueAmount, // This is sale dues only
                 totalCustomerDue: totalCustomerDue // This is total customer due (sales + opening balance)
             });
-            
+
             console.log('All balance elements on page:');
             $('#totalCustomerDue, #totalDueAmount, #saleDueAmount').each(function() {
-                console.log('Element:', this.id, 'Text:', $(this).text(), 'Parsed:', parseFloat($(this).text().replace('Rs. ', '')));
+                console.log('Element:', this.id, 'Text:', $(this).text(), 'Parsed:', parseFloat(
+                    $(this).text().replace('Rs. ', '')));
             });
-            
+
             if (paymentType === 'opening_balance') {
                 maxAmount = customerOpeningBalance;
             } else if (paymentType === 'sale_dues') {
                 // Allow payment up to total customer due even when "sale_dues" is selected
                 // The backend will intelligently distribute the payment
-                maxAmount = totalCustomerDue; 
+                maxAmount = totalCustomerDue;
             } else if (paymentType === 'both') {
                 maxAmount = totalCustomerDue;
             }
@@ -1183,7 +1218,7 @@
                     toastr.success(response.message, 'Payment Submitted');
                     $('#bulkPaymentModal').modal('hide');
                     $('#bulkPaymentForm')[0].reset(); // Reset the form
-                    
+
                     // Refresh the DataTable to show updated payment information
                     refreshSalesTable();
                 },
@@ -1194,14 +1229,14 @@
                         responseText: xhr.responseText,
                         statusCode: xhr.status
                     });
-                    
+
                     console.error('Payment submission failed:', {
                         status: xhr.status,
                         statusText: xhr.statusText,
                         responseJSON: xhr.responseJSON,
                         responseText: xhr.responseText
                     });
-                    
+
                     if (xhr.responseJSON && xhr.responseJSON.errors) {
                         console.error('Validation errors:', xhr.responseJSON.errors);
                     }
@@ -1224,10 +1259,14 @@
                         const location = saleDetails.location;
                         const products = saleDetails.products;
 
+                        // Store sale ID in modal data attribute for print function
+                        $('#saleDetailsModal').data('sale-id', saleId);
+
                         // Populate modal fields
                         $('#modalTitle').text('Sale Details - Invoice No: ' + saleDetails
                             .invoice_no);
-                        $('#customerDetails').text((customer?.first_name || 'N/A') + ' ' + (customer?.last_name || ''));
+                        $('#customerDetails').text((customer?.first_name || 'N/A') + ' ' + (
+                            customer?.last_name || ''));
                         $('#locationDetails').text(location.name);
                         $('#salesDetails').text('Date: ' + saleDetails.sales_date +
                             ', Status: ' + saleDetails.status);
@@ -1282,7 +1321,8 @@
                             saleDetails.total_due + '</td></tr>');
 
                         // Show modal using Bootstrap 5 API
-                        const saleModal = new bootstrap.Modal(document.getElementById('saleDetailsModal'));
+                        const saleModal = new bootstrap.Modal(document.getElementById(
+                            'saleDetailsModal'));
                         saleModal.show();
                     } else {
                         console.error('Sales details data is not in the expected format.');
@@ -1309,7 +1349,8 @@
                         // Populate payment modal fields
                         $('#paymentModalLabel').text('Add Payment - Invoice No: ' +
                             saleDetails.invoice_no);
-                        $('#paymentCustomerDetail').text((customer?.first_name || 'N/A') + ' ' +
+                        $('#paymentCustomerDetail').text((customer?.first_name || 'N/A') +
+                            ' ' +
                             (customer?.last_name || ''));
                         $('#paymentLocationDetails').text(location.name);
                         $('#totalAmount').text(saleDetails.final_total);
@@ -1368,7 +1409,8 @@
                         // Populate view payments modal fields
                         $('#viewPaymentModalLabel').text('View Payments ( Reference No: ' +
                             saleDetails.invoice_no + ' )');
-                        $('#viewCustomerDetail').text((customer?.first_name || 'N/A') + ' ' + (customer?.last_name || ''));
+                        $('#viewCustomerDetail').text((customer?.first_name || 'N/A') +
+                            ' ' + (customer?.last_name || ''));
                         $('#viewBusinessDetail').text(saleDetails.location.name);
                         $('#viewReferenceNo').text(saleDetails.invoice_no);
                         $('#viewDate').text(saleDetails.sales_date);
@@ -1433,7 +1475,7 @@
                     success: function(response) {
                         toastr.success('Payment deleted successfully.', 'Deleted');
                         $('#viewPaymentModal').modal('hide');
-                        
+
                         // Refresh the DataTable to show updated payment information
                         refreshSalesTable();
                     },
@@ -1502,15 +1544,53 @@
             });
         });
 
-        // Function to print the modal content
+        // Function to print the modal content - calls printRecentTransaction API
         window.printModal = function() {
-            var printContents = document.getElementById('saleDetailsModal').innerHTML;
-            var originalContents = document.body.innerHTML;
-            document.body.innerHTML = printContents;
-            window.print();
-            document.body.innerHTML = originalContents;
-            // location.reload();  // Reload the page to restore the original content and bindings
+            // Get the sale ID from the modal data attribute
+            var saleId = $('#saleDetailsModal').data('sale-id');
+
+            if (!saleId) {
+                toastr.error('Unable to find sale ID for printing', 'Error');
+                return;
+            }
+
+            // Call the printRecentTransaction API to get the proper receipt
+            printReceipt(saleId);
         };
+
+        // Function to print the receipt for the sale (same as POS)
+        function printReceipt(saleId) {
+            fetch(`/sales/print-recent-transaction/${saleId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.invoice_html) {
+                        const iframe = document.createElement('iframe');
+                        iframe.style.position = 'fixed';
+                        iframe.style.width = '0';
+                        iframe.style.height = '0';
+                        iframe.style.border = 'none';
+                        document.body.appendChild(iframe);
+
+                        iframe.contentDocument.open();
+                        iframe.contentDocument.write(data.invoice_html);
+                        iframe.contentDocument.close();
+
+                        iframe.onload = function() {
+                            iframe.contentWindow.print();
+                            iframe.contentWindow.onafterprint = function() {
+                                document.body.removeChild(iframe);
+                            };
+                        };
+                    } else {
+                        toastr.error('Failed to fetch the receipt. Please try again.', 'Error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching the receipt:', error);
+                    toastr.error('An error occurred while fetching the receipt. Please try again.',
+                    'Error');
+                });
+        }
 
         $('#savePayment').click(function() {
             var formData = new FormData($('#paymentForm')[0]);
@@ -1525,7 +1605,7 @@
                     $('#paymentModal').modal('hide');
                     document.getElementsByClassName('successSound')[0].play();
                     toastr.success(response.message, 'Payment Added');
-                    
+
                     // Refresh the DataTable to show updated payment information
                     refreshSalesTable();
                 },
@@ -1589,12 +1669,12 @@
                     submitButton.prop('disabled', false).text('Save');
                     if (response.message) {
                         toastr.success(response.message, 'Success');
-                        
+
                         // Refresh sales data for Recent Transactions
                         if (typeof fetchSalesData === 'function') {
                             fetchSalesData();
                         }
-                        
+
                         resetFormAndValidation();
                         window.location.href = '/list-sale';
                         if (response.invoice_html) {
@@ -1642,7 +1722,8 @@
                         locationSelect.append(option);
                     });
                 } else {
-                    console.error('Failed to fetch location data:', data.message || 'Unknown error');
+                    console.error('Failed to fetch location data:', data.message ||
+                    'Unknown error');
                 }
             },
             error: function(xhr, status, error) {
@@ -1669,8 +1750,10 @@
                             )
                             .data('details', customer);
                         // Check if the customer is the "Walking Customer" and set it as selected
-                        if ((customer.first_name === "Walking" || customer.first_name === null) && 
-                            (customer.last_name === "Customer" || customer.last_name === null)) {
+                        if ((customer.first_name === "Walking" || customer.first_name ===
+                                null) &&
+                            (customer.last_name === "Customer" || customer.last_name ===
+                                null)) {
                             option.attr('selected', 'selected');
                         }
                         customerSelect.append(option);
@@ -1693,7 +1776,8 @@
             const customerDetails = selectedOption.data('details');
 
             if (customerDetails) {
-                $('#customer-name').text(`${customerDetails.first_name || 'N/A'} ${customerDetails.last_name || ''}`);
+                $('#customer-name').text(
+                    `${customerDetails.first_name || 'N/A'} ${customerDetails.last_name || ''}`);
                 $('#customer-phone').text(customerDetails.mobile_no);
             }
         });
@@ -1768,7 +1852,7 @@
                         const product = ui.content[0].product;
                         $("#productSearchInput").val(ui.content[0].value);
                         product.quantity =
-                        1; // Ensure quantity is set to 1 when adding a new product
+                            1; // Ensure quantity is set to 1 when adding a new product
                         addProductToTable(product);
                         $(this).autocomplete('close');
                     }
@@ -1776,7 +1860,7 @@
                 select: function(event, ui) {
                     $("#productSearchInput").val(ui.item.value);
                     ui.item.product.quantity =
-                    1; // Ensure quantity is set to 1 when adding a new product
+                        1; // Ensure quantity is set to 1 when adding a new product
                     addProductToTable(ui.item.product);
                     $(this).autocomplete('close');
                     return false;
@@ -2228,10 +2312,10 @@
                                         "Sale deleted successfully!");
                                     const successSound = document.querySelector(
                                         '.successSound');
-                                    
+
                                     // Refresh the DataTable to show updated sales list
                                     refreshSalesTable();
-                                    
+
                                     swal.close();
                                     successSound.play();
 
@@ -2375,12 +2459,12 @@
     function togglePaymentFields(modalId) {
         const modal = modalId || 'bulkPaymentModal';
         const paymentMethod = $(`#${modal} #paymentMethod`).val();
-        
+
         // Hide all payment method specific fields
         $(`#${modal} #cardFields`).hide();
         $(`#${modal} #chequeFields`).hide();
         $(`#${modal} #bankTransferFields`).hide();
-        
+
         // Show relevant fields based on payment method
         if (paymentMethod === 'card') {
             $(`#${modal} #cardFields`).show();
@@ -2405,7 +2489,9 @@
                 'Last 7 Days': [moment().subtract(6, 'days'), moment()],
                 'Last 30 Days': [moment().subtract(29, 'days'), moment()],
                 'This Month': [moment().startOf('month'), moment().endOf('month')],
-                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month')
+                    .endOf('month')
+                ]
             }
         });
 
