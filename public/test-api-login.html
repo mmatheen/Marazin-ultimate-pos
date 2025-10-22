@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Login Role Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .response.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .response.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 5px 5px 5px 0;
+        }
+        
+        .badge.success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .badge.warning {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .badge.info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .info-box h3 {
+            color: #1976D2;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+        }
+        
+        .info-box li {
+            margin: 5px 0;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔐 API Login Role Verification Test</h1>
+            <p class="subtitle">Test the API login endpoint and verify role-based access control</p>
+            
+            <div class="info-box">
+                <h3>📋 Test Checklist:</h3>
+                <ul>
+                    <li>✅ Login returns authentication token</li>
+                    <li>✅ User object includes role and role_key</li>
+                    <li>✅ Permissions array is populated</li>
+                    <li>✅ Location information is included</li>
+                    <li>✅ Role flags (is_master_super_admin, etc.) are present</li>
+                </ul>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="apiUrl">API URL:</label>
+                    <input type="text" id="apiUrl" value="http://localhost:8000/api/login" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login">Email or Username:</label>
+                    <input type="text" id="login" placeholder="admin@example.com or admin" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="Enter password" required>
+                </div>
+                
+                <button type="submit" id="submitBtn">
+                    <span id="btnText">Test Login</span>
+                    <span id="btnLoading" style="display: none;">Testing<span class="loading"></span></span>
+                </button>
+            </form>
+            
+            <div id="responseContainer"></div>
+        </div>
+        
+        <div class="card" id="userTestCard" style="display: none;">
+            <h2>🔍 Test /api/user Endpoint</h2>
+            <p class="subtitle">Verify authenticated user information retrieval</p>
+            
+            <button id="testUserBtn" style="margin-top: 20px;">
+                <span id="userBtnText">Get User Info</span>
+                <span id="userBtnLoading" style="display: none;">Loading<span class="loading"></span></span>
+            </button>
+            
+            <div id="userResponseContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const apiUrl = document.getElementById('apiUrl').value;
+            const login = document.getElementById('login').value;
+            const password = document.getElementById('password').value;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnLoading = document.getElementById('btnLoading');
+            const responseContainer = document.getElementById('responseContainer');
+            
+            // Show loading
+            submitBtn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            responseContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ login, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    displaySuccessResponse(data);
+                    document.getElementById('userTestCard').style.display = 'block';
+                } else {
+                    displayErrorResponse(data, response.status);
+                }
+                
+            } catch (error) {
+                displayErrorResponse({
+                    message: 'Network error: ' + error.message,
+                    details: 'Make sure the API server is running and CORS is enabled'
+                });
+            } finally {
+                submitBtn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('testUserBtn')?.addEventListener('click', async () => {
+            if (!authToken) {
+                alert('Please login first to get a token');
+                return;
+            }
+            
+            const baseUrl = document.getElementById('apiUrl').value.replace('/login', '');
+            const userBtn = document.getElementById('testUserBtn');
+            const userBtnText = document.getElementById('userBtnText');
+            const userBtnLoading = document.getElementById('userBtnLoading');
+            const userResponseContainer = document.getElementById('userResponseContainer');
+            
+            userBtn.disabled = true;
+            userBtnText.style.display = 'none';
+            userBtnLoading.style.display = 'inline';
+            userResponseContainer.innerHTML = '';
+            
+            try {
+                const response = await fetch(`${baseUrl}/user`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    userResponseContainer.innerHTML = `
+                        <div class="response success">
+                            <strong>✅ Success - User Info Retrieved</strong>
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #c3e6cb;">
+                            ${formatJSON(data)}
+                        </div>
+                    `;
+                } else {
+                    userResponseContainer.innerHTML = `
+                        <div class="response error">
+                            <strong>❌ Error ${response.status}</strong>
+                            <hr style="margin: 15px 0; border: none; border-top: 1px solid #f5c6cb;">
+                            ${formatJSON(data)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                userResponseContainer.innerHTML = `
+                    <div class="response error">
+                        <strong>❌ Network Error</strong>
+                        <hr style="margin: 15px 0; border: none; border-top: 1px solid #f5c6cb;">
+                        ${error.message}
+                    </div>
+                `;
+            } finally {
+                userBtn.disabled = false;
+                userBtnText.style.display = 'inline';
+                userBtnLoading.style.display = 'none';
+            }
+        });
+        
+        function displaySuccessResponse(data) {
+            const container = document.getElementById('responseContainer');
+            
+            let badges = '';
+            if (data.user) {
+                if (data.user.role) badges += `<span class="badge success">Role: ${data.user.role}</span>`;
+                if (data.user.role_key) badges += `<span class="badge info">Key: ${data.user.role_key}</span>`;
+                if (data.user.is_master_super_admin) badges += `<span class="badge warning">Master Admin</span>`;
+                if (data.user.can_bypass_location_scope) badges += `<span class="badge info">Can Bypass Locations</span>`;
+                if (data.user.permissions) badges += `<span class="badge success">${data.user.permissions.length} Permissions</span>`;
+            }
+            
+            container.innerHTML = `
+                <div class="response success">
+                    <strong>✅ Login Successful!</strong>
+                    ${badges ? '<div style="margin-top: 10px;">' + badges + '</div>' : ''}
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #c3e6cb;">
+                    ${formatJSON(data)}
+                </div>
+            `;
+        }
+        
+        function displayErrorResponse(data, status = '') {
+            const container = document.getElementById('responseContainer');
+            container.innerHTML = `
+                <div class="response error">
+                    <strong>❌ Login Failed ${status ? `(Status: ${status})` : ''}</strong>
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #f5c6cb;">
+                    ${formatJSON(data)}
+                </div>
+            `;
+        }
+        
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+    </script>
+</body>
+</html>

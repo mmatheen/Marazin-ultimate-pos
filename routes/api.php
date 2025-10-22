@@ -75,9 +75,48 @@ Route::get('/get-brand', [BrandController::class, 'brandDropdown']);
 
 Route::middleware('auth:sanctum')->group(function () {
     
-    // User Info Route
+    // User Info Route - Returns authenticated user with roles and permissions
     Route::get('/user', function (Request $request) {
-        return $request->user();
+        $user = $request->user();
+        
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+        
+        // Load relationships
+        $user->load(['roles', 'locations', 'permissions']);
+        
+        // Get role information
+        $role = $user->roles->first();
+        $roleName = $role?->name ?? null;
+        $roleKey = $role?->key ?? null;
+        
+        return response()->json([
+            'status' => 'success',
+            'user' => [
+                'id' => $user->id,
+                'user_name' => $user->user_name,
+                'full_name' => $user->full_name ?? null,
+                'name_title' => $user->name_title ?? null,
+                'email' => $user->email,
+                'role' => $roleName,
+                'role_key' => $roleKey,
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'can_bypass_location_scope' => $role?->bypass_location_scope ?? false,
+                'is_master_super_admin' => $roleName === 'Master Super Admin',
+                'is_super_admin' => $roleKey === 'super_admin',
+                'locations' => $user->locations->map(function ($loc) {
+                    return [
+                        'id' => $loc->id,
+                        'name' => $loc->name,
+                        'code' => $loc->code ?? null,
+                    ];
+                })->toArray(),
+            ]
+        ], 200);
     });
 
     // ========================================

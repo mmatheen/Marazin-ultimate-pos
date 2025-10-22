@@ -75,26 +75,39 @@ class AuthenticatedSessionController extends Controller
                 ->with('toastr-success', "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.");
         }
 
+        // Load user relationships for API response
+        $user->load(['roles', 'locations']);
+        
         $token = $user->createToken('mobile_token')->plainTextToken;
+        
+        // Get role information from Spatie roles
+        $role = $user->roles->first();
+        $roleName = $role?->name ?? null;
+        $roleKey = $role?->key ?? null;
 
         return response()->json([
             'status' => 'success',
-            'message' => "Welcome back, {$user->user_name}! You're logged in as {$user->role_name}.",
+            'message' => "Welcome back, {$user->user_name}!" . ($roleName ? " You're logged in as {$roleName}." : ""),
             'token' => $token,
             'user' => [
                 'id' => $user->id,
                 'user_name' => $user->user_name,
-                'first_name' => $user->first_name ?? null,
-                'last_name' => $user->last_name ?? null,
+                'full_name' => $user->full_name ?? null,
+                'name_title' => $user->name_title ?? null,
                 'email' => $user->email,
-                'role_name' => $user->getRoleNames()->first() ?? null,
-                'locations' => $user->locations ? $user->locations->map(function ($loc) {
+                'role' => $roleName,
+                'role_key' => $roleKey,
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'can_bypass_location_scope' => $role?->bypass_location_scope ?? false,
+                'is_master_super_admin' => $roleName === 'Master Super Admin',
+                'is_super_admin' => $roleKey === 'super_admin',
+                'locations' => $user->locations->map(function ($loc) {
                     return [
                         'id' => $loc->id,
                         'name' => $loc->name,
                         'code' => $loc->code ?? null,
                     ];
-                }) : [],
+                })->toArray(),
             ]
         ], 200);
     }
