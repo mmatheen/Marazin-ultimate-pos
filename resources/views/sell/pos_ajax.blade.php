@@ -5148,7 +5148,16 @@
                         if (response.message && response.invoice_html) {
                             // Immediate success feedback
                             document.getElementsByClassName('successSound')[0].play();
-                            toastr.success(response.message);
+                            
+                            // Show appropriate success message
+                            if (response.sale && response.sale.transaction_type === 'sale_order') {
+                                toastr.success(response.message + ' Order Number: ' + response.sale.order_number, 'Sale Order Created', {
+                                    timeOut: 5000,
+                                    progressBar: true
+                                });
+                            } else {
+                                toastr.success(response.message);
+                            }
 
                             // Store current customer before reset
                             const currentCustomerId = $('#customer-id').val();
@@ -5165,8 +5174,8 @@
                             // Call onComplete immediately for button re-enabling
                             if (onComplete) onComplete();
 
-                            // Only print for non-suspended sales
-                            if (saleData.status !== 'suspend') {
+                            // Only print for non-suspended sales and non-sale-order transactions
+                            if (saleData.status !== 'suspend' && saleData.transaction_type !== 'sale_order') {
                                 // FAST print setup - simplified and optimized
                                 const printIframe = document.createElement('iframe');
                                 printIframe.style.cssText =
@@ -6096,6 +6105,78 @@
                 const saleData = gatherSaleData('draft');
                 if (!saleData) return;
                 sendSaleData(saleData);
+            });
+
+            // Sale Order Button Handler
+            document.getElementById('saleOrderButton').addEventListener('click', function() {
+                // Validate that there are products in the cart
+                const productRows = $('#billing-body tr');
+                if (productRows.length === 0) {
+                    toastr.error('Please add at least one product to create a sale order.');
+                    return;
+                }
+
+                // Validate customer is selected and not Walk-in
+                const customerId = $('#customer-id').val();
+                const customerText = $('#customer-id option:selected').text();
+                
+                if (!customerId || customerId == '1' || customerText.toLowerCase().includes('walk-in')) {
+                    toastr.error('Sale Orders cannot be created for Walk-In customers. Please select a valid customer.');
+                    return;
+                }
+
+                // Show the Sale Order modal
+                const saleOrderModal = new bootstrap.Modal(document.getElementById('saleOrderModal'));
+                saleOrderModal.show();
+            });
+
+            // Confirm Sale Order Button Handler
+            document.getElementById('confirmSaleOrder').addEventListener('click', function() {
+                const expectedDeliveryDate = document.getElementById('expectedDeliveryDate').value;
+                const orderNotes = document.getElementById('orderNotes').value.trim();
+
+                // Validate expected delivery date
+                if (!expectedDeliveryDate) {
+                    toastr.error('Please select an expected delivery date.');
+                    return;
+                }
+
+                // Validate date is not in the past
+                const selectedDate = new Date(expectedDeliveryDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (selectedDate < today) {
+                    toastr.error('Expected delivery date cannot be in the past.');
+                    return;
+                }
+
+                // Gather sale data without status (we'll use transaction_type instead)
+                const saleData = gatherSaleData('final'); // Use 'final' as base, we'll override
+                if (!saleData) return;
+
+                // Modify the data for Sale Order
+                saleData.transaction_type = 'sale_order';
+                saleData.order_status = 'pending';
+                saleData.expected_delivery_date = expectedDeliveryDate;
+                saleData.order_notes = orderNotes;
+                saleData.status = 'final'; // Keep status as final for backend compatibility
+
+                // Remove payments array if it exists (Sale Orders don't have payments)
+                delete saleData.payments;
+
+                // Send the sale order data
+                sendSaleData(saleData);
+
+                // Close the modal
+                const saleOrderModal = bootstrap.Modal.getInstance(document.getElementById('saleOrderModal'));
+                if (saleOrderModal) {
+                    saleOrderModal.hide();
+                }
+
+                // Clear modal fields for next use
+                document.getElementById('expectedDeliveryDate').value = '';
+                document.getElementById('orderNotes').value = '';
             });
 
 

@@ -33,6 +33,14 @@ class Sale extends Model
         'amount_given',
         'balance_amount',
         'final_total',
+        // Sale Order fields (no sales_rep_id - we use user_id)
+        'transaction_type',
+        'order_number',
+        'order_date',
+        'expected_delivery_date',
+        'order_status',
+        'converted_to_sale_id',
+        'order_notes',
     ];
 
 
@@ -75,6 +83,39 @@ class Sale extends Model
         return $this->hasMany(SalesReturn::class);
     }
 
+    /**
+     * Relationship: Sales Representative who created this order
+     * Uses existing user relationship - if user is a sales rep
+     */
+    public function salesRep()
+    {
+        // Get the sales rep record for this user
+        return $this->hasOneThrough(
+            \App\Models\SalesRep::class,
+            \App\Models\User::class,
+            'id', // Foreign key on users table
+            'user_id', // Foreign key on sales_reps table
+            'user_id', // Local key on sales table
+            'id' // Local key on users table
+        );
+    }
+
+    /**
+     * Relationship: If this is a sale order, the converted invoice
+     */
+    public function convertedSale()
+    {
+        return $this->belongsTo(Sale::class, 'converted_to_sale_id');
+    }
+
+    /**
+     * Relationship: If this is an invoice, the original sale order
+     */
+    public function originalSaleOrder()
+    {
+        return $this->hasOne(Sale::class, 'converted_to_sale_id', 'id');
+    }
+
     // Function to get the total quantity of items sold for a specific product in this sale
     public function getTotalSoldQuantity($productId)
     {
@@ -96,6 +137,199 @@ class Sale extends Model
         $totalReturnedQuantity = $this->getTotalReturnedQuantity($productId);
 
         return $totalSoldQuantity - $totalReturnedQuantity;
+    }
+
+    // ============================================
+    // SALE ORDER SPECIFIC METHODS
+    // ============================================
+
+    /**
+     * Scope: Get only Sale Orders
+     */
+    public function scopeSaleOrders($query)
+    {
+        return $query->where('transaction_type', 'sale_order');
+    }
+
+    /**
+     * Scope: Get only Invoices (completed sales)
+     */
+    public function scopeInvoices($query)
+    {
+        return $query->where('transaction_type', 'invoice');
+    }
+
+    /**
+     * Scope: Get pending sale orders
+     */
+    public function scopePending($query)
+    {
+        return $query->where('transaction_type', 'sale_order')
+                    ->whereIn('order_status', ['draft', 'pending', 'confirmed']);
+    }
+
+    /**
+     * Scope: Get sale orders by user (sales rep)
+     * Since we use user_id instead of sales_rep_id
+     */
+    public function scopeByUser($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+    
+    /**
+     * Scope: Get sale orders by sales rep (using user_id from sales_reps table)
+     * @deprecated Use byUser() instead
+     */
+    public function scopeBySalesRep($query, $salesRepId)
+    {
+        // Get user_id from sales_reps table
+        $salesRep = \App\Models\SalesRep::find($salesRepId);
+        if ($salesRep) {
+            return $query->where('user_id', $salesRep->user_id);
+        }
+        return $query->whereRaw('1 = 0'); // Return empty if not found
+    }
+
+    /**
+     * Check if this is a Sale Order
+     */
+    public function isSaleOrder()
+    {
+        return $this->transaction_type === 'sale_order';
+    }
+
+    /**
+     * Check if this is an Invoice
+     */
+    public function isInvoice()
+    {
+        return $this->transaction_type === 'invoice';
+    }
+
+    /**
+     * Generate unique Sale Order number
+     */
+    public static function generateOrderNumber($locationId)
+    {
+        return DB::transaction(function () use ($locationId) {
+            $location = Location::findOrFail($locationId);
+            $prefix = $location->invoice_prefix ?? 'SO';
+
+            // Get last order number for this location
+            $lastOrder = self::where('location_id', $locationId)
+                ->where('transaction_type', 'sale_order')
+                ->whereNotNull('order_number')
+                ->lockForUpdate()
+                ->orderByDesc('id')
+                ->first();
+
+            $nextNumber = 1;
+            if ($lastOrder && preg_match("/{$prefix}-SO-(\d+)/", $lastOrder->order_number, $matches)) {
+                $nextNumber = (int)$matches[1] + 1;
+            }
+
+            $orderNumber = "{$prefix}-SO-" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+
+            // Ensure uniqueness
+            while (self::where('order_number', $orderNumber)->exists()) {
+                $nextNumber++;
+                $orderNumber = "{$prefix}-SO-" . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            }
+
+            return $orderNumber;
+        });
+    }
+
+    /**
+     * Convert Sale Order to Invoice
+     */
+    public function convertToInvoice()
+    {
+        if (!$this->isSaleOrder()) {
+            throw new \Exception('Only Sale Orders can be converted to invoices');
+        }
+
+        if ($this->order_status === 'completed') {
+            throw new \Exception('This Sale Order has already been converted');
+        }
+
+        return DB::transaction(function () {
+            // Create new invoice record
+            $invoice = new Sale();
+            $invoice->fill([
+                'transaction_type' => 'invoice',
+                'customer_id' => $this->customer_id,
+                'location_id' => $this->location_id,
+                'user_id' => $this->user_id, // Keep same user (sales rep)
+                'sales_date' => now(),
+                'sale_type' => $this->sale_type,
+                'status' => 'final',
+                'subtotal' => $this->subtotal,
+                'discount_type' => $this->discount_type,
+                'discount_amount' => $this->discount_amount,
+                'final_total' => $this->final_total,
+                'total_paid' => 0,
+                'payment_status' => 'Due',
+                'order_notes' => $this->order_notes,
+            ]);
+            
+            // Generate invoice number
+            $invoice->invoice_no = self::generateInvoiceNo($this->location_id);
+            $invoice->save();
+
+            // Copy sale order items to invoice
+            foreach ($this->products as $item) {
+                $newItem = new SalesProduct();
+                $newItem->fill([
+                    'sale_id' => $invoice->id,
+                    'product_id' => $item->product_id,
+                    'batch_id' => $item->batch_id,
+                    'location_id' => $item->location_id,
+                    'quantity' => $item->quantity,
+                    'price_type' => $item->price_type,
+                    'price' => $item->price,
+                    'discount_amount' => $item->discount_amount,
+                    'discount_type' => $item->discount_type,
+                    'tax' => $item->tax,
+                ]);
+                $newItem->save();
+
+                // Update stock (reduce inventory)
+                $this->updateStockOnConversion($item);
+            }
+
+            // Mark sale order as completed
+            $this->update([
+                'order_status' => 'completed',
+                'converted_to_sale_id' => $invoice->id,
+            ]);
+
+            Log::info("Sale Order {$this->order_number} converted to Invoice {$invoice->invoice_no}");
+
+            return $invoice;
+        });
+    }
+
+    /**
+     * Update stock when converting SO to Invoice
+     */
+    protected function updateStockOnConversion($item)
+    {
+        // Update location_batches stock
+        $locationBatch = LocationBatch::where('batch_id', $item->batch_id)
+            ->where('location_id', $item->location_id)
+            ->first();
+
+        if ($locationBatch) {
+            $locationBatch->decrement('qty', $item->quantity);
+        }
+
+        // Update product total stock
+        $product = Product::find($item->product_id);
+        if ($product) {
+            $product->decrement('stock', $item->quantity);
+        }
     }
 
     public static function getAvailableStock($batchId, $locationId)

@@ -163,6 +163,7 @@ class SaleController extends Controller
 
     public function pos()
     {
+        // No need to pass sales reps - we use logged in user
         return view('sell.pos');
     }
 
@@ -614,6 +615,11 @@ class SaleController extends Controller
             'sales_date' => 'required|date',
             'status' => 'required|string',
             'invoice_no' => 'nullable|string|unique:sales,invoice_no',
+            // ✨ NEW: Sale Order fields (no sales_rep_id - using user_id)
+            'transaction_type' => 'nullable|string|in:invoice,sale_order',
+            'expected_delivery_date' => 'nullable|date|after_or_equal:today',
+            'order_notes' => 'nullable|string|max:1000',
+            // Rest of existing validations
             'products' => 'required|array',
             'products.*.product_id' => 'required|integer|exists:products,id',
             'products.*.quantity' => [
@@ -725,8 +731,18 @@ class SaleController extends Controller
                 $oldStatus = $isUpdate ? $sale->getOriginal('status') : null;
                 $newStatus = $request->status;
 
-                // ----- Invoice No Generation -----
-                if (
+                // ✨ NEW: Determine transaction type
+                $transactionType = $request->transaction_type ?? 'invoice';
+                $orderNumber = null;
+                $orderStatus = null;
+
+                // ----- Invoice/Order No Generation -----
+                if ($transactionType === 'sale_order') {
+                    // Sale Order: Generate order number, no invoice yet
+                    $orderNumber = Sale::generateOrderNumber($request->location_id);
+                    $orderStatus = $request->order_status ?? 'pending';
+                    $invoiceNo = null; // No invoice for sale order
+                } elseif (
                     $isUpdate &&
                     $oldStatus === 'jobticket' &&
                     in_array($newStatus, ['final', 'suspend'])
@@ -822,6 +838,13 @@ class SaleController extends Controller
                     'total_due' => $totalDue,
                     'amount_given' => $amountGiven,
                     'balance_amount' => $balanceAmount,
+                    // ✨ NEW: Sale Order fields (user_id is already set above)
+                    'transaction_type' => $transactionType,
+                    'order_number' => $orderNumber,
+                    'order_date' => $transactionType === 'sale_order' ? now() : null,
+                    'expected_delivery_date' => $request->expected_delivery_date,
+                    'order_status' => $orderStatus,
+                    'order_notes' => $request->order_notes,
                 ])->save();
 
                 // ----- Job Ticket Logic -----
@@ -857,8 +880,8 @@ class SaleController extends Controller
                     }
                 }
 
-                // ----- Handle Payments (if not jobticket) -----
-                if ($sale->status !== 'jobticket') {
+                // ----- Handle Payments (if not jobticket and not sale_order) -----
+                if ($sale->status !== 'jobticket' && $transactionType !== 'sale_order') {
                     $totalPaid = 0;
                     if (!empty($request->payments)) {
                         $totalPaid = array_sum(array_column($request->payments, 'amount'));
@@ -938,16 +961,18 @@ class SaleController extends Controller
                             'total_paid' => $totalPaid,
                         ]);
                         
-                        // Set payment status based on calculated amounts
-                        $totalDue = max(0, $sale->final_total - $totalPaid);
-                        if ($totalDue <= 0) {
-                            $sale->payment_status = 'Paid';
-                        } elseif ($sale->total_paid > 0) {
-                            $sale->payment_status = 'Partial';
-                        } else {
-                            $sale->payment_status = 'Due';
+                        // Set payment status based on calculated amounts (only for invoices)
+                        if ($transactionType === 'invoice') {
+                            $totalDue = max(0, $sale->final_total - $totalPaid);
+                            if ($totalDue <= 0) {
+                                $sale->payment_status = 'Paid';
+                            } elseif ($sale->total_paid > 0) {
+                                $sale->payment_status = 'Partial';
+                            } else {
+                                $sale->payment_status = 'Due';
+                            }
+                            $sale->save();
                         }
-                        $sale->save();
                         
                     } elseif ($isUpdate) {
                         $totalPaid = $sale->total_paid;
@@ -962,10 +987,18 @@ class SaleController extends Controller
                         'amount_given' => $amountGiven,
                         'balance_amount' => max(0, $amountGiven - $sale->final_total),
                     ]);
+                } elseif ($transactionType === 'sale_order') {
+                    // Sale Order: No payment required
+                    $sale->update([
+                        'payment_status' => 'Due',
+                        'total_paid' => 0,
+                        'amount_given' => 0,
+                        'balance_amount' => 0,
+                    ]);
                 }
 
-                // Check for partial payments for Walk-In Customer (optimized)
-                if ($request->customer_id == 1 && $amountGiven < $sale->final_total) {
+                // Check for partial payments for Walk-In Customer (optimized) - Skip for sale orders
+                if ($transactionType !== 'sale_order' && $request->customer_id == 1 && $amountGiven < $sale->final_total) {
                     throw new \Exception("Partial payment is not allowed for Walk-In Customer.");
                 }
 
@@ -996,8 +1029,12 @@ class SaleController extends Controller
                             $this->validateStockForUpdate($productData, $request->location_id, $originalProducts ?? []);
                         }
                         
+                        // ✨ For Sale Orders: Don't reduce stock, just save items
+                        if ($transactionType === 'sale_order') {
+                            $this->simulateBatchSelection($productData, $sale->id, $request->location_id, 'draft');
+                        }
                         // Always process sale for final/suspend status
-                        if (in_array($newStatus, ['final', 'suspend'])) {
+                        elseif (in_array($newStatus, ['final', 'suspend'])) {
                             $this->processProductSale($productData, $sale->id, $request->location_id, StockHistory::STOCK_TYPE_SALE, $newStatus);
                         } else {
                             // For non-final statuses, just simulate batch selection
@@ -1080,12 +1117,14 @@ class SaleController extends Controller
                 $this->sendWhatsAppAsync($customer, $sale, $viewData);
             }
 
-            // Customize success message based on sale status
+            // Customize success message based on sale status and type
             $message = '';
             if ($id) {
                 $message = 'Sale updated successfully.';
             } else {
-                if ($sale->status === 'suspended') {
+                if ($sale->transaction_type === 'sale_order') {
+                    $message = 'Sale Order created successfully!';
+                } elseif ($sale->status === 'suspended') {
                     $message = 'Sale suspended successfully.';
                 } else {
                     $message = 'Sale recorded successfully.';
@@ -1095,7 +1134,14 @@ class SaleController extends Controller
             return response()->json([
                 'message' => $message,
                 'invoice_html' => $html,
-                'data' => $viewData
+                'data' => $viewData,
+                'sale' => [
+                    'id' => $sale->id,
+                    'invoice_no' => $sale->invoice_no,
+                    'order_number' => $sale->order_number, // ✨ NEW
+                    'transaction_type' => $sale->transaction_type, // ✨ NEW
+                    'order_status' => $sale->order_status, // ✨ NEW
+                ],
             ], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 400);

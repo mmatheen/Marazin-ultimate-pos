@@ -1870,6 +1870,13 @@
                             </button>
                         @endcan
 
+                        @can('create sale')
+                            <!-- Sale Order Button -->
+                            <button type="button" class="btn btn-outline-success btn-sm" id="saleOrderButton">
+                                <i class="fas fa-shopping-cart"></i> Sale Order
+                            </button>
+                        @endcan
+
                         @can('suspend sale')
                             <!-- Existing Buttons -->
                             <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
@@ -2028,6 +2035,36 @@
             </div>
         </div>
     </div>
+
+    <!-- Bootstrap Modal for Sale Order -->
+    <div class="modal fade" id="saleOrderModal" tabindex="-1" aria-labelledby="saleOrderModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saleOrderModalLabel">Create Sale Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="expectedDeliveryDate" class="form-label">Expected Delivery Date</label>
+                        <input type="date" class="form-control" id="expectedDeliveryDate" 
+                               min="{{ date('Y-m-d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="orderNotes" class="form-label">Order Notes (Optional)</label>
+                        <textarea class="form-control" id="orderNotes" rows="3" 
+                                  placeholder="Enter any special instructions or notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="confirmSaleOrder">Create Sale Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap Modal for Suspended Sales -->
     <div class="modal fade" id="suspendSalesModal" tabindex="-1" aria-labelledby="suspendSalesModalLabel"
         aria-hidden="true">
